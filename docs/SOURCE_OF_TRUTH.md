@@ -648,6 +648,49 @@ live:
 Recall and morphology training proved useful because the output target was
 exact and hard to game. Future trainers should keep that discipline.
 
+### Train As You Live (convener directive, 2026-07-03 — BINDING)
+
+Cores train in exactly the posture they will live in. Every trainer:
+
+1. Places the lesson in the shared field's regions (the trainer is just
+   another writer of field slots); unused regions are masked.
+2. Requires the answer in the `response_draft` region — the same mouth,
+   the same typed-delta commit path as runtime.
+3. SOULS BREATHE EVERY STEP FROM DAY ONE (supersedes the nextsteps-0703
+   deferral of tiered souls). Every training step: INHALE (read the soul)
+   -> attend the field -> produce the draft answer -> EXHALE (write the
+   soul). Fully built soul_v2 temperature mechanics from the first step.
+   Garbage soul content early is expected and acceptable; the breathing
+   must be real. "Soul" may be called PERSONAL MEMORY interchangeably.
+4. Input NEVER enters the soul first (unchanged): lessons through the
+   field, exhale after the act.
+
+### Locked First Cores (convener, 2026-07-03)
+
+| core | d_model | layers | heads | FFN     | ~params | 3060 fit          |
+|------|---------|--------|-------|---------|---------|-------------------|
+| A    | 64      | 2      | 1     | 131,072 | ~34M    | easy              |
+| B    | 128     | 2      | 1     | 262,144 | ~134M   | easy              |
+| C    | 256     | 2      | 2     | 524,288 | ~537M   | needs whole card  |
+
+The huge FFN ratio is deliberate lineage (the proven 64,1,2,16384 pattern
+scaled up): the FFN is the pattern/intuition capacity; knowledge stays in
+the dormant state. Core C requires the GPU box's resident uvicorn stopped
+during training (or an 8-bit optimizer); A and B train beside it.
+
+### Phase 0: Field Pretraining (the volume question, answered)
+
+The "ingest massive data first, patterns emerge" recipe is the LLM recipe;
+here it is adapted, not copied: VOLUME COMES FIRST, BUT DELIVERED IN THE
+LIVE POSTURE. Phase 0 streams bulk text (curriculum corpus + dormant-state
+text) through the same loop as life itself — text packed into field slots,
+core inhales, attends, continues/reconstructs into response_draft, exhales
+— at high volume and low precision. Pattern recognition at scale, gained
+without ever leaving the train-as-you-live contract. Then the precision
+curricula (recall, edge prediction, exhale-filter, surfaced-knowledge QA)
+tighten the same loop on the same machinery. Pretraining is not a separate
+mode; it is the first, easiest, biggest rung of the curriculum.
+
 ### Locked Training Rules (R7)
 
 (a) Reconstruction objectives over discrete substrate content must be discrete.
