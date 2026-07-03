@@ -350,10 +350,59 @@ size, not one per core.
 ### Adapter Basis
 
 Adapters operate on the frozen 16D substrate basis: a slot's text payload
-(dims 0-4095) is a concatenation of frozen 16D character codes. The adapter
-projects the 8192D slot to d_model and back. The hard gate: the text payload
-must decode to identical characters after round-trip for every supported
-substrate character in every slot position.
+(dims 0-4095) is a concatenation of frozen 16D character codes.
+
+READ AND WRITE ARE ASYMMETRIC (accepted resolution `writehead-0703`,
+convener-signed 2026-07-03). The original exact round-trip gate through a
+per-slot d_model bottleneck is information-theoretically impossible (256
+chars do not survive a frozen linear projection into 64 floats) and is
+superseded:
+
+- READ is lossy by design: the frozen adapter projects a whole 8192D slot
+  to ONE d_model summary vector (compute law: one attention token per
+  slot). Exact text lives in the FIELD, which is the source of truth;
+  English is decoded from the field, never from a core's compressed view.
+- WRITE is exact by construction: anything committed to the field is
+  codebook-snapped (each 16D block to the nearest substrate code).
+- Adapter gates (replacing the old round-trip gate, both verified at
+  64/128/256D): SNAP-IDEMPOTENCE (validly packed slots survive
+  DOWN -> UP -> snap unchanged) and SEPARABILITY (slots differing by one
+  character produce distinct projections).
+
+### The Write Head (accepted resolution writehead-0703)
+
+The write head is the up-rail for text: a SHARED trained decode organ, one
+per d_model size (like the adapters; not inside the frozen adapter, not
+per-core, not part of any core checkpoint). It unfolds a core's proposed
+d_model slot vector into per-position character logits plus a 257-class
+length prediction.
+
+- Train full-slot with discrete per-position cross-entropy; COMMIT ONLY
+  DIFFS: the runtime diffs the decoded slot against the current slot and
+  commits only changed positions as typed deltas. A decode error can never
+  corrupt text the core was not editing.
+- The length head marks the active prefix; length errors are countable —
+  truncation is never silent.
+- EDGES NEVER PASS THROUGH THE CHARACTER DECODER. Cores emit typed edge
+  deltas (attach_edge/detach_edge); the deterministic packer and registry
+  remain authoritative for the edge payload and control block.
+- Gates before any long run: read-fidelity probe (kind recovery, first-N
+  chars) plus the cf-probe write gate — positive exact-fill > 90 percent,
+  zero/swapped/irrelevant-field controls < 5 percent (thresholds calibrated
+  by the first smoke run).
+- Recorded dissent (Kimi): per-core heads and a fixed grid with delta-
+  declared length. Reopens together with organ sizing if the smoke gate
+  fails at the chosen d_model.
+
+Module homes: `heads/write_head.py` (shared organ), `heads/edge_proposal.py`
+(separate, gated later). The core outputs field vectors; the write head is
+attached to that output, never baked into the core.
+
+Convener note (2026-07-03, sign-off): souls remain NATIVE d_model thought
+vectors (Layer 6 unchanged). Readable personal memory lives in the field's
+diary region. Soul auditability is behavioral (cf-probes, bake gates);
+hot-to-cold compression distills content before any adapter baking, so
+cold-tier readability is not a blocker.
 
 The archive `legacy_8192/state_adapter.py` is a design template only. Its
 prototype-key projection and round-trip check pattern are good; its substrate

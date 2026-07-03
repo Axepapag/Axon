@@ -21,7 +21,7 @@
   ],
   "doctrine_stamp": {
     "sot_path": "docs/SOURCE_OF_TRUTH.md",
-    "sot_sha256": "a6c3301765e8b413080daa8b47040268a0ef0756823fc401ba4b21c85fb5f4c2"
+    "sot_sha256": "fd3ba8139a699a2dc321eb120d55085a96300050f359e808b7656d19ed12a364"
   },
   "status": "awaiting_convener",
   "offline": true,

@@ -75,3 +75,8 @@ Next checkpoint: owners post week-1 progress deltas before the next round table 
 ---
 
 Synthesizer / table / 2026-07-03
+
+
+---
+
+**CONVENER ACCEPTANCE**: Signed by Jeff, 2026-07-03. Write-head doctrine folded into SOURCE_OF_TRUTH Layer 5. Curation API budget cap set at $150 (officer decision, mid-range of the estimate; raise only with convener consent). Bus wake-on-message first deliverable confirmed as pinned: a board/DM message wakes an agent, the agent replies, the reply appears on the board.
