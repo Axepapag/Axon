@@ -20,5 +20,5 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = [".", "substrate", "cores", "training", "curator", "runtime", "runtime/bus", "slots", "adapters"]
+pythonpath = [".", "substrate", "cores", "training", "curator", "runtime", "runtime/bus", "slots", "adapters", "heads"]
 addopts = "-q"
