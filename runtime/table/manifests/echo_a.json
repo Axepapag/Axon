@@ -1,0 +1,14 @@
+{
+  "client_id": "echo_a",
+  "display_name": "Echo A",
+  "wake": {
+    "argv": ["python", "runtime/table/wrappers/echo_seat.py"],
+    "prompt_via": "stdin",
+    "timeout_seconds": 30,
+    "workdir": "D:\\Axon"
+  },
+  "capabilities": ["test"],
+  "identity_stamp": "Echo A / echo-seat-v1 / set-at-wake",
+  "enabled": true,
+  "notes": "Test seat A."
+}

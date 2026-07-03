@@ -1,0 +1,14 @@
+{
+  "client_id": "hermes",
+  "display_name": "Hermes",
+  "wake": {
+    "argv": ["python", "runtime/table/wrappers/hermes_glm.py", "{prompt}"],
+    "prompt_via": "argv",
+    "timeout_seconds": 600,
+    "workdir": "D:\\Axon"
+  },
+  "capabilities": ["coding", "review"],
+  "identity_stamp": "Hermes / glm-5.2:cloud / set-at-wake",
+  "enabled": true,
+  "notes": "Uses the promoted GLM wrapper scripts."
+}

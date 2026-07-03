@@ -29,6 +29,17 @@
 | `tests/test_axon_bus_schema.py` | `tests/test_axon_bus_schema.py` | Import path fixed |
 | `tests/test_axon_bus_server.py` | `tests/test_axon_bus_server.py` | Import path fixed |
 | `tests/test_axon_bus_state.py` | `tests/test_axon_bus_state.py` | Import path fixed |
+| `scripts/hermes_glm.py` | `runtime/table/wrappers/hermes_glm.py` | Hermes GLM wrapper for round-table seat |
+| `scripts/hermes_glm.ps1` | `runtime/table/wrappers/hermes_glm.ps1` | PowerShell launcher for Hermes GLM wrapper |
+
+## Round Table Orchestrator v1 promotion
+
+- Source archive: `D:\AxonGliksbot\scripts\`
+- Destination: `D:\Axon\runtime\table\wrappers\`
+- Action: copied (archive remains read-only; originals were not modified, moved, or deleted)
+- Date: 2026-07-03
+- Purpose: provide the Hermes seat wake wrapper per `docs/roundtable/ORCHESTRATOR_SPEC.md` section 3
+- No credentials, tokens, or key-bearing material was promoted
 
 ## Not promoted (stays in archive only)
 

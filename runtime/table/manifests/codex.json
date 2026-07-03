@@ -1,0 +1,14 @@
+{
+  "client_id": "codex",
+  "display_name": "Codex",
+  "wake": {
+    "argv": ["codex", "-p", "{prompt}"],
+    "prompt_via": "argv",
+    "timeout_seconds": 600,
+    "workdir": "D:\\Axon"
+  },
+  "capabilities": ["coding", "architecture_review", "officer"],
+  "identity_stamp": "Codex / codex-1 / set-at-wake",
+  "enabled": true,
+  "notes": "Officer seat."
+}

@@ -1,0 +1,36 @@
+{
+  "round_id": "echo-gate2-2026-07-03",
+  "brief_path": "D:\\Axon\\tests\\fixtures\\table\\test_brief.md",
+  "seats": [
+    "echo_a",
+    "echo_b"
+  ],
+  "turn_order": "as_listed",
+  "synthesizer": "synth",
+  "max_cycles": 2,
+  "per_turn_timeout_s": 30,
+  "budgets": {
+    "max_invocations": 10,
+    "board_view_events": 40,
+    "board_view_chars": 24000
+  },
+  "end_conditions": [
+    "max_cycles",
+    "all_pass",
+    "convener_stop"
+  ],
+  "doctrine_stamp": {
+    "sot_path": "docs/SOURCE_OF_TRUTH.md",
+    "sot_sha256": "a6c3301765e8b413080daa8b47040268a0ef0756823fc401ba4b21c85fb5f4c2"
+  },
+  "status": "awaiting_convener",
+  "offline": true,
+  "officers": [
+    "codex",
+    "claude"
+  ],
+  "current_cycle": 3,
+  "current_seat_index": 0,
+  "failures": {},
+  "disabled_seats": []
+}

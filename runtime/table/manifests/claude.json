@@ -1,0 +1,14 @@
+{
+  "client_id": "claude",
+  "display_name": "Claude",
+  "wake": {
+    "argv": ["claude", "-p", "{prompt}"],
+    "prompt_via": "argv",
+    "timeout_seconds": 600,
+    "workdir": "D:\\Axon"
+  },
+  "capabilities": ["coding", "architecture_review", "officer"],
+  "identity_stamp": "Claude / claude-fable-5 / set-at-wake",
+  "enabled": true,
+  "notes": "Officer seat. Officers may also participate manually via --manual."
+}

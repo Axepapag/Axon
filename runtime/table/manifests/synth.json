@@ -1,0 +1,14 @@
+{
+  "client_id": "synth",
+  "display_name": "Synth",
+  "wake": {
+    "argv": ["python", "runtime/table/wrappers/synth_seat.py"],
+    "prompt_via": "stdin",
+    "timeout_seconds": 30,
+    "workdir": "D:\\Axon"
+  },
+  "capabilities": ["synthesis", "test"],
+  "identity_stamp": "Synth / synth-seat-v1 / set-at-wake",
+  "enabled": true,
+  "notes": "Deterministic synthesizer test seat that returns an artifact."
+}
