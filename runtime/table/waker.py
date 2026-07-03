@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from . import buslink, prompts, replies, transcript
+from . import buslink, prompts, replies, sessions, transcript
 from .manifests import AgentManifest, load_all_manifests, load_manifest
 from .prompts import BudgetView, PromptContext
 
@@ -211,6 +211,25 @@ class RoundTable:
         self._save_config(cfg)
         return cfg
 
+    def list_seats(self) -> list[dict[str, Any]]:
+        """Return manifest + session state for every known seat."""
+        out: list[dict[str, Any]] = []
+        for seat_id, manifest in sorted(self.manifests.items()):
+            session_id = sessions.get_session(self.state_root, seat_id)
+            pinned = sessions.is_pinned(self.state_root, seat_id)
+            out.append(
+                {
+                    "seat_id": seat_id,
+                    "display_name": manifest.display_name,
+                    "manifest": f"runtime/table/manifests/{seat_id}.json",
+                    "model": manifest.model,
+                    "session_id": session_id,
+                    "pinned": pinned,
+                    "enabled": manifest.enabled,
+                }
+            )
+        return out
+
     # ------------------------------------------------------------------
     # Doctrine check
     # ------------------------------------------------------------------
@@ -258,11 +277,44 @@ class RoundTable:
     # ------------------------------------------------------------------
     # Wake / invoke
     # ------------------------------------------------------------------
+    def _select_argv_template(
+        self,
+        manifest: AgentManifest,
+        session_id: str | None,
+        force_fresh: bool,
+    ) -> list[str]:
+        """Choose fresh argv or resume_argv when a session id is known."""
+        if not force_fresh and session_id and manifest.wake.resume_argv:
+            return manifest.wake.resume_argv
+        return manifest.wake.argv
+
+    def _substitute_argv(
+        self,
+        argv: list[str],
+        manifest: AgentManifest,
+        session_id: str | None,
+        prompt_text: str,
+        prompt_file: str | None,
+    ) -> list[str]:
+        """Replace {model}, {session_id}, {prompt}, {prompt_file} placeholders."""
+        model_value = manifest.model or manifest.wake.model_arg or ""
+        out: list[str] = []
+        for arg in argv:
+            arg = arg.replace("{model}", model_value)
+            arg = arg.replace("{session_id}", session_id or "")
+            arg = arg.replace("{prompt}", prompt_text)
+            if prompt_file is not None:
+                arg = arg.replace("{prompt_file}", prompt_file)
+            out.append(arg)
+        return out
+
     def _wake_seat(
         self,
         cfg: RoundConfig,
         seat_id: str,
         prompt_text: str,
+        session_id: str | None = None,
+        force_fresh: bool = False,
     ) -> tuple[str, str, int | None]:
         manifest = self.manifests.get(seat_id)
         if manifest is None:
@@ -272,11 +324,12 @@ class RoundTable:
             return self._wake_manual(cfg, seat_id, prompt_text)
 
         timeout = min(cfg.per_turn_timeout_s, manifest.wake.timeout_seconds)
-        argv = [arg.replace("{prompt}", prompt_text) for arg in manifest.wake.argv]
+        argv_template = self._select_argv_template(manifest, session_id, force_fresh)
         workdir = Path(manifest.wake.workdir)
         workdir.mkdir(parents=True, exist_ok=True)
 
         stdin_payload: str | None = None
+        prompt_file: str | None = None
         if manifest.wake.prompt_via == "stdin":
             stdin_payload = prompt_text
         elif manifest.wake.prompt_via == "file":
@@ -285,12 +338,14 @@ class RoundTable:
             try:
                 with open(fd, "w", encoding="utf-8") as f:
                     f.write(prompt_text)
-                argv = [arg.replace("{prompt_file}", tmp_path) for arg in argv]
+                prompt_file = tmp_path
             except Exception:
                 import os
 
                 os.close(fd)
                 raise
+
+        argv = self._substitute_argv(argv_template, manifest, session_id, prompt_text, prompt_file)
 
         try:
             result = subprocess.run(
@@ -307,9 +362,9 @@ class RoundTable:
             stderr = exc.stderr or ""
             return stdout, stderr + "\n[timeout]", -1
         finally:
-            if manifest.wake.prompt_via == "file":
+            if prompt_file is not None:
                 try:
-                    Path(tmp_path).unlink(missing_ok=True)
+                    Path(prompt_file).unlink(missing_ok=True)
                 except Exception:
                     pass
 
@@ -350,21 +405,50 @@ class RoundTable:
         prompt_text, prompt_meta = self._build_prompt_for_seat(cfg, seat_id)
         round_dir = self._round_dir(cfg.round_id)
 
-        stdout, stderr, returncode = self._wake_seat(cfg, seat_id, prompt_text)
+        manifest = self.manifests.get(seat_id)
+        if manifest is None:
+            raise WakerError(f"no manifest for seat {seat_id}")
+
+        session_id = sessions.get_session(self.state_root, seat_id)
+        attempted_resume = bool(session_id and manifest.wake.resume_argv)
+        resume_failed = False
+
+        stdout, stderr, returncode = self._wake_seat(
+            cfg, seat_id, prompt_text, session_id=session_id
+        )
+
+        # Resume failure fallback: a broken session never kills a round.
+        if attempted_resume and (returncode != 0 or not stdout.strip()):
+            sessions.clear_session(self.state_root, seat_id, only_if_pinned=False)
+            stdout, stderr, returncode = self._wake_seat(
+                cfg, seat_id, prompt_text, session_id=None, force_fresh=True
+            )
+            resume_failed = True
 
         if returncode == -1:
             # Timeout
-            entry = self._record_failure(cfg, seat_id, "timeout", stdout, stderr, returncode)
+            entry = self._record_failure(
+                cfg, seat_id, "timeout", stdout, stderr, returncode, resume_failed=resume_failed
+            )
             self._publish_turn_event(cfg, seat_id, "agent.{seat}.turn.failed", entry)
             return entry
 
         if returncode != 0:
-            entry = self._record_failure(cfg, seat_id, "nonzero_exit", stdout, stderr, returncode)
+            entry = self._record_failure(
+                cfg, seat_id, "nonzero_exit", stdout, stderr, returncode, resume_failed=resume_failed
+            )
             self._publish_turn_event(cfg, seat_id, "agent.{seat}.turn.failed", entry)
             return entry
 
         actions = replies.parse_reply_all(stdout, stderr)
-        entry = self._record_turn(cfg, seat_id, actions, prompt_meta, stdout)
+        entry = self._record_turn(
+            cfg, seat_id, actions, prompt_meta, stdout, resume_failed=resume_failed
+        )
+
+        # Capture the current session id from stdout/stderr unless pinned.
+        captured = sessions.extract_session_id(stdout, stderr, manifest.parse_regex)
+        if captured:
+            sessions.capture_session(self.state_root, seat_id, captured)
 
         for action in actions:
             topic = self._topic_for_action(action)
@@ -395,8 +479,9 @@ class RoundTable:
         actions: list[dict[str, Any]],
         prompt_meta: dict[str, Any],
         raw_stdout: str,
+        resume_failed: bool = False,
     ) -> dict[str, Any]:
-        entry = {
+        entry: dict[str, Any] = {
             "type": "turn",
             "status": "completed",
             "seat": seat_id,
@@ -406,6 +491,8 @@ class RoundTable:
             "metadata": prompt_meta,
             "timestamp": time.time(),
         }
+        if resume_failed:
+            entry["session_resume_failed"] = True
         self._append_entry(cfg, entry)
         return entry
 
@@ -417,8 +504,9 @@ class RoundTable:
         stdout: str,
         stderr: str,
         returncode: int | None,
+        resume_failed: bool = False,
     ) -> dict[str, Any]:
-        entry = {
+        entry: dict[str, Any] = {
             "type": "turn",
             "status": "failed",
             "seat": seat_id,
@@ -431,6 +519,8 @@ class RoundTable:
             },
             "timestamp": time.time(),
         }
+        if resume_failed:
+            entry["session_resume_failed"] = True
         self._append_entry(cfg, entry)
         # Track consecutive failures for auto-disable.
         cfg.failures = cfg.failures or {}

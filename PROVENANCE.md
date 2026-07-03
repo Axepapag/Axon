@@ -41,6 +41,14 @@
 - Purpose: provide the Hermes seat wake wrapper per `docs/roundtable/ORCHESTRATOR_SPEC.md` section 3
 - No credentials, tokens, or key-bearing material was promoted
 
+## Round Table Orchestrator v1.1 amendment (stateful seats)
+
+- Modified file: `runtime/table/wrappers/hermes_glm.py`
+- Change: added `--model` argument so the manifest-level `model` value can be passed through without hard-coding the GLM lane
+- Backward compatibility: default remains `glm-5.2:cloud`; existing command-line usage continues to work
+- Date: 2026-07-03
+- Reason: satisfy `docs/roundtable/ORCHESTRATOR_SPEC.md` v1.1 per-seat model substitution
+
 ## Not promoted (stays in archive only)
 
 - `capsule_spec.py`, `capsule_core.py`, `build_capsule_curriculum.py`, `trainer_capsule_core.py` — research prototype, not runtime path

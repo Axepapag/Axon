@@ -12,11 +12,18 @@ ManifestDir = Path(__file__).parent / "manifests"
 
 
 @dataclass(frozen=True)
+class SessionSpec:
+    parse_regex: str | None = None
+
+
+@dataclass(frozen=True)
 class WakeSpec:
     argv: list[str]
     prompt_via: Literal["argv", "stdin", "file"]
     timeout_seconds: int
     workdir: str
+    resume_argv: list[str] | None = None
+    model_arg: str | None = None
 
 
 @dataclass(frozen=True)
@@ -28,11 +35,17 @@ class AgentManifest:
     identity_stamp: str
     enabled: bool
     notes: str
+    model: str | None = None
+    session: SessionSpec | None = None
 
     @property
     def is_manual(self) -> bool:
         """A manual seat waits for a reply file instead of invoking a subprocess."""
         return not self.wake.argv
+
+    @property
+    def parse_regex(self) -> str | None:
+        return self.session.parse_regex if self.session else None
 
 
 def _require_str(d: dict[str, Any], key: str, path: Path) -> str:
@@ -66,6 +79,16 @@ def load_manifest(path: str | Path) -> AgentManifest:
     if not isinstance(argv, list) or not all(isinstance(a, str) for a in argv):
         raise ValueError(f"manifest {p.name}: wake.argv must be a list of strings")
 
+    resume_argv = wake.get("resume_argv")
+    if resume_argv is not None and (
+        not isinstance(resume_argv, list) or not all(isinstance(a, str) for a in resume_argv)
+    ):
+        raise ValueError(f"manifest {p.name}: wake.resume_argv must be a list of strings")
+
+    model_arg = wake.get("model_arg")
+    if model_arg is not None and not isinstance(model_arg, str):
+        raise ValueError(f"manifest {p.name}: wake.model_arg must be a string")
+
     prompt_via = wake.get("prompt_via", "argv")
     if prompt_via not in ("argv", "stdin", "file"):
         raise ValueError(f"manifest {p.name}: wake.prompt_via must be argv|stdin|file")
@@ -80,6 +103,27 @@ def load_manifest(path: str | Path) -> AgentManifest:
     if not isinstance(workdir, str):
         raise ValueError(f"manifest {p.name}: wake.workdir must be a string")
 
+    model = data.get("model")
+    if model is not None and not isinstance(model, str):
+        raise ValueError(f"manifest {p.name}: model must be a string")
+
+    for template in [argv, resume_argv or []]:
+        joined = " ".join(template)
+        if "{model}" in joined and model is None and model_arg is None:
+            raise ValueError(
+                f"manifest {p.name}: '{{model}}' placeholder requires a manifest 'model' or 'wake.model_arg' value"
+            )
+
+    session = data.get("session")
+    session_spec: SessionSpec | None = None
+    if session is not None:
+        if not isinstance(session, dict):
+            raise ValueError(f"manifest {p.name}: session must be an object")
+        parse_regex = session.get("parse_regex")
+        if parse_regex is not None and not isinstance(parse_regex, str):
+            raise ValueError(f"manifest {p.name}: session.parse_regex must be a string")
+        session_spec = SessionSpec(parse_regex=parse_regex or None)
+
     return AgentManifest(
         client_id=_require_str(data, "client_id", p),
         display_name=_require_str(data, "display_name", p),
@@ -88,11 +132,15 @@ def load_manifest(path: str | Path) -> AgentManifest:
             prompt_via=prompt_via,
             timeout_seconds=timeout,
             workdir=workdir,
+            resume_argv=resume_argv,
+            model_arg=model_arg,
         ),
         capabilities=list(data.get("capabilities", [])),
         identity_stamp=_require_str(data, "identity_stamp", p),
         enabled=bool(data.get("enabled", True)),
         notes=str(data.get("notes", "")),
+        model=model,
+        session=session_spec,
     )
 
 

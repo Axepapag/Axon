@@ -1,8 +1,8 @@
-# Round Table Orchestrator — Specification v1.0
+# Round Table Orchestrator — Specification v1.1
 
 Author: Claude (officer) / claude-fable-5 / 2026-07-03
 Convener: Jeff
-Status: DESIGN LOCKED for v1 implementation; amendments via convener or table.
+Status: DESIGN LOCKED for v1 implementation; v1.1 stateful-seat amendments applied.
 Implements: the "difficult part" — autonomous rounds on the existing bus.
 
 ## 0. Governance (convener's standing orders, 2026-07-03)
@@ -65,20 +65,30 @@ State/table/
   rounds/<round_id>/round.json        # config, budgets, status (durable)
   rounds/<round_id>/transcript.jsonl  # append-only
   rounds/<round_id>/transcript.md     # rendered, human-readable
+  sessions.json                       # seat id -> {session_id, pinned, updated_at}
   cursors.json                        # bus replay cursors
 ```
 
 ## 3. Agent manifest (one JSON per seat)
 
+> **v1.1 amendment (stateful seats):** manifests remain backward compatible —
+> all v1 fields continue to work. New optional fields enable a seat to resume a
+> pinned interactive session instead of cold-starting every turn.
+
 ```json
 {
   "client_id": "kimi",
   "display_name": "Kimi",
+  "model": "kimi-k2",
   "wake": {
     "argv": ["kimi", "-p", "{prompt}"],
-    "prompt_via": "argv",            // "argv" | "stdin" | "file" ({prompt_file})
+    "resume_argv": ["kimi", "-r", "{session_id}", "-p", "{prompt}"],
+    "prompt_via": "argv",
     "timeout_seconds": 600,
     "workdir": "D:\\Axon"
+  },
+  "session": {
+    "parse_regex": "To resume this session: kimi -r (session_[a-z0-9-]+)"
   },
   "capabilities": ["coding", "architecture_review"],
   "identity_stamp": "Kimi / kimi-k2 / set-at-wake",
@@ -87,17 +97,66 @@ State/table/
 }
 ```
 
-Rules:
+Fields:
 - `client_id` must match the bus stable-ID list (AGENT_BUS_ACCESS.md).
+- `model` (optional, v1.1): manifest-level model value substituted into argv as
+  `{model}`. Lets Jeff swap models per seat by editing one line.
+- `wake.argv`: normal cold-start invocation template.
+- `wake.resume_argv` (optional, v1.1): invocation template used when a session
+  id is known for the seat. Placeholders: `{session_id}`, `{prompt}`,
+  `{prompt_file}`, `{model}`.
+- `wake.model_arg` (optional, v1.1): alternative source for the `{model}`
+  substitution when the manifest does not define a top-level `model`.
+- `wake.prompt_via`: `"argv" | "stdin" | "file"` — how the prompt is delivered.
+- `session.parse_regex` (optional, v1.1): regex run over stdout+stderr after
+  each turn; the first captured group becomes the current session id. Empty or
+  omitted = no capture.
+- `enabled`, `capabilities`, `identity_stamp`, `notes` carry forward unchanged.
+
+Rules:
 - No tokens or secrets in manifests, ever.
-- Hermes wake uses the GLM wrapper (promote `scripts/hermes_glm.ps1/.py` from
-  the archive to `runtime/table/wrappers/` and record in PROVENANCE.md).
+- Hermes wake uses the GLM wrapper (`runtime/table/wrappers/hermes_glm.py`);
+  the wrapper accepts `--model {model}` so the manifest `model` field drives
+  the GLM lane. Promotion recorded in `PROVENANCE.md`.
 - `echo.json` wakes `python runtime/table/wrappers/echo_seat.py` which reads
   the prompt and returns a canned valid reply — the test seat.
 - Claude's seat (v1): `claude -p "{prompt}"`. Officers can also participate
   by being pasted the same turn prompt manually; the waker accepts a
   `--manual <client_id>` turn mode that waits for a reply file (lets Jeff
   bridge agents that have no CLI, e.g. ChatGPT, without blocking the round).
+
+### v1.1 Session store
+
+`State/table/sessions.json` maps seat id -> durable session metadata:
+
+```json
+{
+  "kimi": {
+    "session_id": "session_abc123",
+    "pinned": true,
+    "updated_at": "2026-07-03T12:00:00Z"
+  }
+}
+```
+
+Behavior:
+- `parse_regex` captures update the store **only when the seat is not pinned**.
+- Pinned ids are **never** overwritten by capture.
+- A resume attempt that fails (nonzero exit or empty stdout) falls back to a
+  fresh start for that turn, records `session_resume_failed` in the transcript,
+  and clears the unpinned session id.
+
+### Jeff's warm-up workflow
+
+1. In his own interactive terminal, Jeff starts the agent in its native CLI
+   (e.g. `kimi -m kimi-k2`), loads context, and completes the warm-up turn.
+2. The agent prints a resume line (e.g. "To resume this session: kimi -r
+   session_xxx"). Jeff copies the session id.
+3. Jeff pins the live session to the seat:
+   `python -m runtime.table pin --seat kimi --session session_xxx`.
+4. The waker resumes **that** session on every subsequent turn instead of
+   cold-starting. If the session ever breaks, the waker falls back to a fresh
+   start for that turn and continues the round.
 
 ## 4. Round configuration
 
@@ -145,6 +204,9 @@ For each cycle, for each enabled seat, sequentially:
       your identity stamp (name / model / date)".
 3. WAKE: subprocess per manifest (`argv`/`stdin`/`file`), cwd=workdir,
    timeout enforced, stdout+stderr captured. One at a time. No exceptions.
+   If the seat has a known session id and `wake.resume_argv` is defined, the
+   waker uses `resume_argv`; otherwise it uses `argv`. `{model}`, `{session_id}`,
+   `{prompt}`, and `{prompt_file}` are substituted before invocation.
 4. PARSE (replies.py): extract the LAST fenced ```json block; validate against
    the reply schema. On any failure: wrap the entire stdout as
    `{"type":"post","text":<stdout>,"parse_fallback":true}` — a contribution
@@ -160,6 +222,11 @@ For each cycle, for each enabled seat, sequentially:
    record in transcript, CONTINUE to next seat (a dead seat never kills a
    round). Two consecutive failures for the same seat → seat auto-disabled
    for the round, officers notified.
+8. SESSION CAPTURE (v1.1): after a successful turn, run `session.parse_regex`
+   over stdout+stderr. If it captures a session id and the seat is **not**
+   pinned, update `State/table/sessions.json`. If a resume attempt fails,
+   fall back to a fresh start for that turn, record `session_resume_failed`
+   in the transcript entry, clear the unpinned session id, and continue.
 
 Round end: after end condition, the waker wakes the SYNTHESIZER with the
 full transcript and the instruction to draft `RESOLUTION_<round_id>.md` in
@@ -216,6 +283,9 @@ python -m runtime.table status --round <round_id>
 python -m runtime.table pause  --round <round_id>
 python -m runtime.table resume --round <round_id>
 python -m runtime.table close  --round <round_id> --reason "convener"
+python -m runtime.table pin    --seat <id> --session <session_id>
+python -m runtime.table unpin  --seat <id>
+python -m runtime.table seats                               # list seats + session state
 ```
 
 `step` exists so Jeff can shoulder-tap the table one turn at a time while

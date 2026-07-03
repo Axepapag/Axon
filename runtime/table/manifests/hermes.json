@@ -1,8 +1,9 @@
 {
   "client_id": "hermes",
   "display_name": "Hermes",
+  "model": "glm-5.2:cloud",
   "wake": {
-    "argv": ["python", "runtime/table/wrappers/hermes_glm.py", "{prompt}"],
+    "argv": ["python", "runtime/table/wrappers/hermes_glm.py", "--model", "{model}", "{prompt}"],
     "prompt_via": "argv",
     "timeout_seconds": 600,
     "workdir": "D:\\Axon"
@@ -10,5 +11,5 @@
   "capabilities": ["coding", "review"],
   "identity_stamp": "Hermes / glm-5.2:cloud / set-at-wake",
   "enabled": true,
-  "notes": "Uses the promoted GLM wrapper scripts."
+  "notes": "Uses the promoted GLM wrapper scripts. Model is substituted from the manifest 'model' field."
 }

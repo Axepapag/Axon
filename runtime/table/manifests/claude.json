@@ -3,9 +3,13 @@
   "display_name": "Claude",
   "wake": {
     "argv": ["claude", "-p", "{prompt}"],
+    "resume_argv": ["claude", "--resume", "{session_id}", "-p", "{prompt}"],
     "prompt_via": "argv",
     "timeout_seconds": 600,
     "workdir": "D:\\Axon"
+  },
+  "session": {
+    "parse_regex": "To resume this conversation: claude --resume (session_[a-z0-9-]+)"
   },
   "capabilities": ["coding", "architecture_review", "officer"],
   "identity_stamp": "Claude / claude-fable-5 / set-at-wake",

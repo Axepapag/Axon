@@ -7,6 +7,7 @@ Archive copy remains read-only; this is the active runtime wrapper.
 
 from __future__ import annotations
 
+import argparse
 import os
 import subprocess
 import sys
@@ -53,7 +54,12 @@ Hermes turn-state path: {HERMES_TURN_STATE}
 
 
 def main() -> int:
-    task = " ".join(sys.argv[1:]).strip()
+    parser = argparse.ArgumentParser(description="Hermes/GLM cloud one-shot wrapper")
+    parser.add_argument("--model", default=os.environ.get("HERMES_MODEL", "glm-5.2:cloud"), help="GLM model lane")
+    parser.add_argument("prompt", nargs="*", help="task prompt (or pipe via stdin)")
+    ns = parser.parse_args()
+
+    task = " ".join(ns.prompt).strip()
     if not task and not sys.stdin.isatty():
         task = sys.stdin.read().strip()
     if not task:
@@ -63,7 +69,7 @@ def main() -> int:
         print(f"Hermes executable was not found at {HERMES_EXE}", file=sys.stderr)
         return 2
 
-    args = [str(HERMES_EXE), "-m", "glm-5.2:cloud"]
+    args = [str(HERMES_EXE), "-m", ns.model]
     if DEFAULT_TOOLSETS:
         args.extend(["--toolsets", DEFAULT_TOOLSETS])
     args.extend(["-z", build_prompt(task)])

@@ -6,6 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from . import sessions
 from .waker import RoundTable
 
 
@@ -60,6 +61,15 @@ def main(argv: list[str] | None = None) -> int:
     close_p.add_argument("--round", required=True, help="round ID")
     close_p.add_argument("--reason", default="convener", help="close reason")
 
+    pin_p = sub.add_parser("pin", help="pin a seat to a session id")
+    pin_p.add_argument("--seat", required=True, help="seat ID")
+    pin_p.add_argument("--session", required=True, help="session id to pin")
+
+    unpin_p = sub.add_parser("unpin", help="unpin a seat's session")
+    unpin_p.add_argument("--seat", required=True, help="seat ID")
+
+    seats_p = sub.add_parser("seats", help="list seats and their session state")
+
     args = parser.parse_args(argv)
     table = RoundTable()
 
@@ -106,6 +116,27 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "close":
         table.close(args.round, args.reason)
         print(f"closed {args.round}")
+        return 0
+
+    if args.command == "pin":
+        sessions.pin_session(seat_id=args.seat, session_id=args.session)
+        print(f"pinned {args.seat} -> {args.session}")
+        return 0
+
+    if args.command == "unpin":
+        sessions.unpin_session(seat_id=args.seat)
+        print(f"unpinned {args.seat}")
+        return 0
+
+    if args.command == "seats":
+        for seat in table.list_seats():
+            pinned_flag = " (pinned)" if seat["pinned"] else ""
+            session_info = seat["session_id"] or "(none)"
+            model_info = seat["model"] or "(default)"
+            print(
+                f"{seat['seat_id']:12} model={model_info:20} session={session_info}{pinned_flag} "
+                f"enabled={seat['enabled']} manifest={seat['manifest']}"
+            )
         return 0
 
     parser.print_help()

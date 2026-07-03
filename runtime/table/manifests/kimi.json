@@ -3,9 +3,13 @@
   "display_name": "Kimi",
   "wake": {
     "argv": ["kimi", "-p", "{prompt}"],
+    "resume_argv": ["kimi", "-r", "{session_id}", "-p", "{prompt}"],
     "prompt_via": "argv",
     "timeout_seconds": 600,
     "workdir": "D:\\Axon"
+  },
+  "session": {
+    "parse_regex": "To resume this session: kimi -r (session_[a-z0-9-]+)"
   },
   "capabilities": ["coding", "architecture_review"],
   "identity_stamp": "Kimi / kimi-k2 / set-at-wake",
