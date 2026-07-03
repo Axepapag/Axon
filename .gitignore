@@ -1,0 +1,16 @@
+__pycache__/
+.pytest_cache/
+.venv/
+State/
+datasets/
+checkpoints/
+runs/
+adapters/*.pt
+*.log
+*.part
+# Credential-bearing files — never promoted
+ssh.py
+ssh_helper.py
+.env
+*.key
+*.pem
