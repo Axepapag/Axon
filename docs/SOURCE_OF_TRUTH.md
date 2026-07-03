@@ -251,10 +251,37 @@ The canonical state has two major parts:
 1. Active state
 2. Dormant or masked state
 
+### Growing Regions And Sliding Masks (convener amendment, 2026-07-03)
+
+Every region GROWS CONTINUOUSLY and is NEVER truncated or evicted. Active
+versus dormant is not two containers — it is one append-only tape per region
+with a SLIDING MASK deciding what the ensemble attends this tick:
+
+- Each new slot appends to its region's tape. Older slots are pushed deeper
+  as the tape grows; depth beyond the mask IS the dormant state for that
+  region. There is no separate dump bucket — the tapes are the capture.
+- The mask is a VIEW, never a mutation. `conversation_history` might be
+  masked to the last 10 turns, 100 turns, or 0 turns depending on the
+  moment; moving the mask changes what is attended, never what exists.
+- Mask windows are per-region policy: defaults in config, adjustable by the
+  runtime, the convener, and — because runtime autonomy is doctrine — by
+  the cores themselves via a typed delta op (`set_mask{region, window}`).
+- Storage form follows depth: masked-in (active) slots are materialized
+  8192D vectors; deep tape lives as slot RECORDS (packed text + edges +
+  provenance) and is re-materialized on unmask. Growth is unbounded in
+  records, bounded in RAM.
+- CONSOLIDATION PASSES (sleep cycles): periodically the cores mask off most
+  of the active state and unmask the deep ends of each region in CHUNKS,
+  processing them into semantic edges, episodic memory, and structured
+  knowledge — the structuring duty that previously belonged to the dump
+  bucket. Chunks may equally be DRAINED to API curation workers (the Track
+  1b propose/dispose validator consumes region tails). A chunk is marked
+  processed, never deleted.
+
 ### Active State
 
-The active state is attended over by the ensemble each tick. It contains the
-current live context, including regions:
+The active state is the masked-in window of every region tape, attended over
+by the ensemble each tick. Regions:
 
 - `conversation_history`
 - `response_draft`
@@ -281,12 +308,17 @@ Dormant knowledge remains in structured-record form plus optional 8192D slot
 snapshots, but it is masked from direct ensemble attention by default. It is
 searchable and editable.
 
-### Dump Bucket And Structuring
+### Capture And Structuring (dump bucket superseded, 2026-07-03)
 
-Every input must be captured. Every interaction, tool result, advisor input,
-user message, model output, and runtime observation goes first into a raw dump
-bucket. Then it must be processed into structured knowledge: facts, triples,
-relationships, patterns, containers, semantic edges, registry candidates.
+Every input must be captured — and IS captured, by the growing region tapes
+themselves (every interaction, tool result, advisor input, user message,
+model output, and runtime observation lands in some region). The old
+separate raw dump bucket is superseded by the Growing Regions amendment.
+Structuring is the consolidation-pass duty: region tails are processed (by
+cores in sleep cycles, or drained to API curation workers) into facts,
+triples, relationships, patterns, containers, semantic edges, and registry
+candidates. Raw experience never remains only raw — but now it also never
+leaves its region of origin, so provenance is structural.
 
 ### Bootstrap Dormant State
 
