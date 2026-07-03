@@ -589,7 +589,9 @@ def train(args: argparse.Namespace) -> None:
     random.seed(args.seed)
     np.random.seed(args.seed)
     device = torch.device(args.device)
-    dtype = torch.float32 if args.fp32 else torch.float16 if device.type == "cuda" else torch.float32
+    # Doctrine: fp32 is the default everywhere. fp16 went NaN in this
+    # project's history (SOT, Current Training Reality) and is opt-in only.
+    dtype = torch.float16 if getattr(args, "fp16", False) else torch.float32
 
     d_model, n_layers, n_heads, ffn_dim = parse_core_cfg(args.core_cfg)
     core_cfg = CoreConfig(
@@ -790,7 +792,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--mode", choices=["phase0", "recall", "both"], default="phase0")
     ap.add_argument("--core-cfg", default="A", help="Preset A/B/C or d,layers,heads,ffn")
     ap.add_argument("--device", default="cpu")
-    ap.add_argument("--fp32", action="store_true", help="Force float32 (default: fp16 on cuda, fp32 on cpu)")
+    ap.add_argument("--fp32", action="store_true", help="(kept for compat; float32 is already the doctrine default)")
+    ap.add_argument("--fp16", action="store_true", help="Opt-in float16 (doctrine default is float32; fp16 has NaN history)")
     ap.add_argument("--lr", type=float, default=1e-3)
     ap.add_argument("--beta1", type=float, default=0.9)
     ap.add_argument("--beta2", type=float, default=0.999)
