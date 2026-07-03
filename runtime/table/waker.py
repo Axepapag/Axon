@@ -350,6 +350,22 @@ class RoundTable:
 
         argv = self._substitute_argv(argv_template, manifest, session_id, prompt_text, prompt_file)
 
+        # Windows argv limit is ~32k chars; long turn prompts (contract +
+        # brief + board digest) can exceed it. Fall back to a prompt file
+        # plus a short pointer instruction for tool-using CLIs.
+        if sum(len(a) + 1 for a in argv) > 28000 and manifest.wake.prompt_via == "argv":
+            fd, long_path = tempfile.mkstemp(suffix=".md", prefix="turn_", dir=workdir)
+            with open(fd, "w", encoding="utf-8") as f:
+                f.write(prompt_text)
+            prompt_file = long_path
+            pointer = (
+                f"Your full turn prompt is in the file {Path(long_path).resolve()} — "
+                "read that file now and follow it exactly as your instructions."
+            )
+            argv = self._substitute_argv(
+                argv_template, manifest, session_id, pointer, prompt_file
+            )
+
         try:
             result = subprocess.run(
                 argv,
