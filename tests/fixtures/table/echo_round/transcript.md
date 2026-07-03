@@ -1,6 +1,6 @@
 # Round Table Transcript
 
-generated_at: 2026-07-03T07:27:44.611080+00:00
+generated_at: 2026-07-03T08:21:39.161634+00:00
 
 ---
 
@@ -59,9 +59,9 @@ generated_at: 2026-07-03T07:27:44.611080+00:00
     "truncated": false,
     "truncated_count": 0,
     "truncation_notice": "",
-    "used_chars": 778
+    "used_chars": 777
   },
-  "prompt_chars": 3023,
+  "prompt_chars": 3022,
   "round_id": "echo-gate2-2026-07-03",
   "seat": "echo_b",
   "unread_dms_count": 0
@@ -92,9 +92,9 @@ generated_at: 2026-07-03T07:27:44.611080+00:00
     "truncated": false,
     "truncated_count": 0,
     "truncation_notice": "",
-    "used_chars": 1477
+    "used_chars": 1476
   },
-  "prompt_chars": 3722,
+  "prompt_chars": 3721,
   "round_id": "echo-gate2-2026-07-03",
   "seat": "echo_a",
   "unread_dms_count": 0

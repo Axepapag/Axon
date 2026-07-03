@@ -548,8 +548,25 @@ End with a fenced JSON block:
                 artifact = action["artifact"]
                 break
 
+        expected = Path("docs/roundtable") / f"RESOLUTION_{cfg.round_id}.md"
         if artifact is None:
+            # Tool-using seats (kimi, codex, claude CLIs) often write the
+            # resolution file directly instead of inlining a large markdown
+            # body in JSON (raw newlines make the inline form invalid JSON).
+            # Accept the file on disk as the artifact.
+            if expected.is_file() and expected.stat().st_size > 0:
+                return expected
             self._record_failure(cfg, cfg.synthesizer, "synthesizer_no_artifact", stdout, stderr, returncode)
+            return None
+
+        if not artifact.get("body"):
+            # Path-only artifact reply: the seat wrote the file itself.
+            claimed = Path(artifact.get("path", expected))
+            if claimed.is_file() and claimed.stat().st_size > 0 and str(
+                claimed.resolve()
+            ).startswith(str(Path("docs/roundtable").resolve())):
+                return claimed
+            self._record_failure(cfg, cfg.synthesizer, "synthesizer_empty_artifact", stdout, stderr, returncode)
             return None
 
         path = Path(artifact["path"])

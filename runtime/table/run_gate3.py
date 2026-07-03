@@ -87,7 +87,14 @@ def main() -> int:
     # Verify kimi events were persisted on the bus.
     print("[gate3] reading back bus events...")
     link = buslink.BusLink(offline=False)
-    events = asyncio.run(link.replay_events(patterns=["agent.kimi.*", "committee.*"], timeout=5.0))
+    # The bus does synchronous DB writes per replayed event; under connection
+    # contention hello+replay can take 20-30s. Be patient — a short timeout
+    # reads as "no events" and fails the gate falsely.
+    events = asyncio.run(
+        link.replay_events(
+            patterns=["agent.kimi.*", "committee.*"], timeout=90.0, from_start=True
+        )
+    )
     kimi_events = [e for e in events if e.get("topic", "").startswith("agent.kimi.")]
     print(f"[gate3] replayed {len(events)} events, {len(kimi_events)} kimi events")
 

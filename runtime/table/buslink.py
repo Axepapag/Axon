@@ -72,6 +72,36 @@ class BusLink:
             self._token = os.environ.get("BUS_TOKEN", "")
         return self._token
 
+    @staticmethod
+    def contract_ack() -> dict:
+        """Working-contract acknowledgement required by the bus hello.
+
+        The bus (Dream Team server) refuses any hello that does not accept
+        Jeff's Working Contract by version + sha256 of the enforced file.
+        The enforced path comes from DREAM_TEAM_WORKING_CONTRACT_PATH, with
+        fallbacks to the known live copy and the repo's docs copy.
+        """
+        import hashlib
+        import re
+
+        candidates = [
+            os.environ.get("DREAM_TEAM_WORKING_CONTRACT_PATH", ""),
+            r"D:\Axon\roundtable\WORKING_CONTRACT.md",
+            str(Path(__file__).resolve().parents[2] / "docs" / "WORKING_CONTRACT.md"),
+        ]
+        for cand in candidates:
+            if not cand:
+                continue
+            path = Path(cand)
+            if not path.is_file():
+                continue
+            text = path.read_text(encoding="utf-8", errors="replace")
+            match = re.search(r"^Version:\s*(.+?)\s*$", text, flags=re.MULTILINE)
+            version = match.group(1).strip() if match else ""
+            sha = hashlib.sha256(path.read_bytes()).hexdigest()
+            return {"accepted": True, "version": version, "sha256": sha}
+        return {"accepted": True, "version": "", "sha256": ""}
+
     def load_cursors(self) -> Cursors:
         if self._cursors_path.exists():
             try:
@@ -132,12 +162,18 @@ class BusLink:
             "session_id": "roundtable",
             "payload": payload,
         }
+        ack = self.contract_ack()
         try:
             with httpx.Client(timeout=10.0) as client:
                 resp = client.post(
                     urljoin(self.http_url + "/", "publish"),
                     json=body,
-                    headers={"X-Dream-Team-Token": self.token},
+                    headers={
+                        "X-Dream-Team-Token": self.token,
+                        "X-Dream-Team-Contract-Accepted": "true" if ack["accepted"] else "false",
+                        "X-Dream-Team-Contract-Version": ack["version"],
+                        "X-Dream-Team-Contract-SHA256": ack["sha256"],
+                    },
                 )
                 resp.raise_for_status()
                 return resp.json()
@@ -187,7 +223,7 @@ class BusLink:
 
         cursors = self.load_cursors()
         try:
-            async with websockets.connect(self.ws_url) as ws:
+            async with websockets.connect(self.ws_url, ping_interval=None, ping_timeout=None) as ws:
                 await ws.send(
                     json.dumps(
                         {
@@ -199,6 +235,7 @@ class BusLink:
                             "capabilities": ["orchestrator"],
                             "last_event_id": cursors.last_event_id,
                             "last_dm_id": cursors.last_dm_id,
+                            "working_contract": self.contract_ack(),
                         }
                     )
                 )
@@ -260,18 +297,26 @@ class BusLink:
         self,
         patterns: list[str] | None = None,
         timeout: float = 5.0,
+        from_start: bool = False,
     ) -> list[dict[str, Any]]:
         """Connect to the bus and return replayed events matching patterns.
 
         Used by live gates to verify published events were persisted.
+
+        The server only replays events matching the connection's
+        SUBSCRIPTIONS, and replay is (re)triggered by the subscribe message —
+        so we must subscribe after hello. With `from_start=True` the hello
+        carries a zero cursor so the full persisted history replays
+        (otherwise the saved/server-side cursor is used: new events only).
         """
         if self.offline or not websockets:
             return []
 
         cursors = self.load_cursors()
+        last_event_id = "0" * 20 if from_start else cursors.last_event_id
         collected: list[dict[str, Any]] = []
         try:
-            async with websockets.connect(self.ws_url) as ws:
+            async with websockets.connect(self.ws_url, ping_interval=None, ping_timeout=None) as ws:
                 await ws.send(
                     json.dumps(
                         {
@@ -281,8 +326,17 @@ class BusLink:
                             "display_name": "Round Table",
                             "auth_token": self.token,
                             "capabilities": ["orchestrator"],
-                            "last_event_id": cursors.last_event_id,
+                            "last_event_id": last_event_id,
                             "last_dm_id": cursors.last_dm_id,
+                            "working_contract": self.contract_ack(),
+                        }
+                    )
+                )
+                await ws.send(
+                    json.dumps(
+                        {
+                            "type": "subscribe",
+                            "patterns": list(patterns) if patterns else ["bus.*", "committee.*", "agent.*"],
                         }
                     )
                 )
