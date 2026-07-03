@@ -1,8 +1,9 @@
-# Round Table Orchestrator — Specification v1.1
+# Round Table Orchestrator — Specification v1.2
 
 Author: Claude (officer) / claude-fable-5 / 2026-07-03
 Convener: Jeff
-Status: DESIGN LOCKED for v1 implementation; v1.1 stateful-seat amendments applied.
+Status: DESIGN LOCKED for v1 implementation; v1.1 stateful-seat and
+v1.2 terminal-seat amendments applied.
 Implements: the "difficult part" — autonomous rounds on the existing bus.
 
 ## 0. Governance (convener's standing orders, 2026-07-03)
@@ -309,6 +310,46 @@ trust is building; `run` is the autonomous mode. Same code path.
    waker halts with `stale_doctrine`.
 
 No round with real seats > 1 cycle until all five gates pass.
+
+## 9b. Terminal Seats (v1.2) — any agent that runs in a terminal
+
+A TERMINAL SEAT lets Jeff bring ANY terminal-runnable agent to the table —
+beyond the known CLIs — by handing a live terminal to the bus.
+
+Workflow:
+1. `python -m runtime.table term --id term-1` opens a real interactive shell
+   (a Windows pseudoconsole owned by the bridge, mirrored to Jeff's own
+   console). Jeff sets up any agent by hand: `ollama run <model>`, a new CLI,
+   an ssh session. He is driving; it feels like a normal terminal.
+2. **Ctrl+G hands the keyboard to the table.** In table mode,
+   `term.<id>.prompt` bus events are typed into the terminal; the agent's
+   output is captured until it goes quiet (`--quiet-seconds`, default 8) or a
+   per-seat `--prompt-pattern` matches; ANSI codes are stripped; the reply is
+   published as `term.<id>.reply` plus `committee.message.created` (so it
+   appears in the chat UI). Jeff watches every turn live in the window.
+3. **Ctrl+G takes the keyboard back** at any time, mid-round included.
+   Ctrl+Q exits the bridge. Prompts arriving in manual mode are QUEUED (never
+   typed over Jeff's hands) and announced; they run on the next handover.
+   Mode can also be switched remotely via `term.<id>.mode {mode}`.
+
+Waker integration: a manifest with `"wake": {"type": "terminal", "term_id":
+"term-1", ...}` (argv empty) is a terminal seat. Its turn = publish the
+assembled prompt to `term.<term_id>.prompt`, then poll the bus store for the
+matching `term.<term_id>.reply` up to the turn timeout. Timeout is an
+ordinary turn failure; the round continues. Terminal seats require the live
+bus (offline rounds fail the turn explicitly). Replies pass through the
+normal reply parser (fenced JSON honored, plain-text fallback preserved).
+
+Officer smoke: `python -m runtime.table term-send --id term-1 --text "..."`
+publishes one prompt and prints the reply. Sample manifest:
+`manifests/term-1.json` (enabled: false until a bridge is running).
+
+Multi-line prompts: terminals submit on Enter, so `--newline-mode` controls
+how turn prompts are typed: `space` (default; newlines flattened), `triple`
+(wrapped in triple quotes — ollama's multiline form), `raw`. Honest caveat:
+quiet-period capture is a heuristic. Line-oriented agents behave well;
+full-screen TUIs may need a tuned `--prompt-pattern` before they are
+well-mannered table guests. Requires `pywinpty` (Windows).
 
 ## 10. Explicitly deferred (v2+, table decides)
 

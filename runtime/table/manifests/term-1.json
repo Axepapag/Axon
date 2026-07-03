@@ -1,0 +1,16 @@
+{
+  "client_id": "term-1",
+  "display_name": "Terminal Seat 1",
+  "wake": {
+    "type": "terminal",
+    "term_id": "term-1",
+    "argv": [],
+    "prompt_via": "argv",
+    "timeout_seconds": 600,
+    "workdir": "D:\\Axon"
+  },
+  "capabilities": ["any-terminal-agent"],
+  "identity_stamp": "Terminal Seat 1 / whatever-jeff-launched / set-at-wake",
+  "enabled": false,
+  "notes": "Live terminal seat. Jeff starts the bridge with `python -m runtime.table term --id term-1`, sets up any agent by hand, presses Ctrl+G to hand the keyboard to the table. Enable this manifest (or copy it) when the bridge is running."
+}

@@ -320,6 +320,9 @@ class RoundTable:
         if manifest is None:
             raise WakerError(f"no manifest for seat {seat_id}")
 
+        if manifest.is_terminal:
+            return self._wake_terminal(cfg, seat_id, prompt_text, manifest)
+
         if manifest.is_manual:
             return self._wake_manual(cfg, seat_id, prompt_text)
 
@@ -367,6 +370,43 @@ class RoundTable:
                     Path(prompt_file).unlink(missing_ok=True)
                 except Exception:
                     pass
+
+    def _wake_terminal(
+        self,
+        cfg: RoundConfig,
+        seat_id: str,
+        prompt_text: str,
+        manifest: AgentManifest,
+    ) -> tuple[str, str, int]:
+        """Drive a live TermBridge seat: publish the prompt, await the reply.
+
+        The bridge (runtime/table/term_seat.py) types the prompt into its
+        pseudoconsole and publishes term.<id>.reply when the agent's output
+        settles. A timeout is an ordinary turn failure; the round continues.
+        """
+        from . import term_seat
+
+        if cfg.offline:
+            return ("", "terminal seats require the live bus (round is offline)", 1)
+
+        term_id = manifest.wake.term_id or seat_id
+        turn_id = f"{cfg.round_id}-c{cfg.current_cycle}-{seat_id}-{int(time.time())}"
+        db_path = term_seat.bus_db_path()
+        cursor = term_seat.latest_event_id(db_path)
+        self.bus.offline = cfg.offline
+        accepted = self.bus.publish_sync(
+            f"term.{term_id}.prompt", {"turn_id": turn_id, "text": prompt_text}
+        )
+        if not accepted:
+            return ("", f"bus rejected/queued term prompt for {term_id}", 1)
+        timeout = min(cfg.per_turn_timeout_s, manifest.wake.timeout_seconds)
+        reply = term_seat.poll_reply(
+            term_id, turn_id, timeout_seconds=timeout,
+            db_path=db_path, after_event_id=cursor,
+        )
+        if reply is None:
+            return ("", f"terminal seat {term_id} did not reply within {timeout}s", 1)
+        return (reply, "", 0)
 
     def _wake_manual(
         self,

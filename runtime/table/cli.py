@@ -70,7 +70,57 @@ def main(argv: list[str] | None = None) -> int:
 
     seats_p = sub.add_parser("seats", help="list seats and their session state")
 
+    term_p = sub.add_parser("term", help="start a terminal seat bridge (your live terminal, Ctrl+G hands it to the table)")
+    term_p.add_argument("--id", required=True, help="terminal seat id (bus client id)")
+    term_p.add_argument("--shell", default="powershell.exe")
+    term_p.add_argument("--quiet-seconds", type=float, default=8.0)
+    term_p.add_argument("--max-wait-seconds", type=float, default=600.0)
+    term_p.add_argument("--prompt-pattern", default=None)
+    term_p.add_argument("--newline-mode", choices=["space", "raw", "triple"], default="space")
+
+    tsend_p = sub.add_parser("term-send", help="publish one test prompt to a terminal seat (officer smoke)")
+    tsend_p.add_argument("--id", required=True, help="terminal seat id")
+    tsend_p.add_argument("--text", required=True, help="prompt text to type into the terminal")
+    tsend_p.add_argument("--wait", type=float, default=60.0, help="seconds to wait for the reply")
+
     args = parser.parse_args(argv)
+
+    if args.command == "term":
+        from .term_seat import TermBridge
+
+        return TermBridge(
+            term_id=args.id,
+            shell=args.shell,
+            quiet_seconds=args.quiet_seconds,
+            prompt_pattern=args.prompt_pattern,
+            newline_mode=args.newline_mode,
+            max_wait_seconds=args.max_wait_seconds,
+        ).run()
+
+    if args.command == "term-send":
+        import time as _time
+
+        from . import term_seat
+        from .buslink import BusLink
+
+        turn_id = f"term-send-{int(_time.time())}"
+        db = term_seat.bus_db_path()
+        cursor = term_seat.latest_event_id(db)
+        ok = BusLink().publish_sync(
+            f"term.{args.id}.prompt", {"turn_id": turn_id, "text": args.text}
+        )
+        if not ok:
+            print("bus rejected/queued the prompt (is the bus up and BUS_TOKEN set?)")
+            return 1
+        print(f"prompt published (turn {turn_id}); waiting up to {args.wait:.0f}s for reply...")
+        reply = term_seat.poll_reply(args.id, turn_id, args.wait, db_path=db, after_event_id=cursor)
+        if reply is None:
+            print("no reply (is the bridge running and in TABLE mode?)")
+            return 1
+        print("--- reply ---")
+        print(reply)
+        return 0
+
     table = RoundTable()
 
     if args.command == "open":

@@ -24,6 +24,8 @@ class WakeSpec:
     workdir: str
     resume_argv: list[str] | None = None
     model_arg: str | None = None
+    type: str = "cli"                 # "cli" | "terminal" (v1.2)
+    term_id: str | None = None        # bus client id of the terminal bridge
 
 
 @dataclass(frozen=True)
@@ -41,7 +43,12 @@ class AgentManifest:
     @property
     def is_manual(self) -> bool:
         """A manual seat waits for a reply file instead of invoking a subprocess."""
-        return not self.wake.argv
+        return not self.wake.argv and self.wake.type == "cli"
+
+    @property
+    def is_terminal(self) -> bool:
+        """A terminal seat is driven through a live TermBridge on the bus."""
+        return self.wake.type == "terminal"
 
     @property
     def parse_regex(self) -> str | None:
@@ -74,6 +81,16 @@ def load_manifest(path: str | Path) -> AgentManifest:
     wake = data.get("wake", {})
     if not isinstance(wake, dict):
         raise ValueError(f"manifest {p.name}: 'wake' must be an object")
+
+    wake_type = wake.get("type", "cli")
+    if wake_type not in ("cli", "terminal"):
+        raise ValueError(f"manifest {p.name}: wake.type must be cli|terminal")
+
+    term_id = wake.get("term_id")
+    if term_id is not None and not isinstance(term_id, str):
+        raise ValueError(f"manifest {p.name}: wake.term_id must be a string")
+    if wake_type == "terminal" and not term_id:
+        raise ValueError(f"manifest {p.name}: wake.type=terminal requires wake.term_id")
 
     argv = wake.get("argv", [])
     if not isinstance(argv, list) or not all(isinstance(a, str) for a in argv):
@@ -134,6 +151,8 @@ def load_manifest(path: str | Path) -> AgentManifest:
             workdir=workdir,
             resume_argv=resume_argv,
             model_arg=model_arg,
+            type=wake_type,
+            term_id=term_id,
         ),
         capabilities=list(data.get("capabilities", [])),
         identity_stamp=_require_str(data, "identity_stamp", p),
