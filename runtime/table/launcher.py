@@ -58,7 +58,7 @@ def run_cli(args: list[str]) -> None:
 
 
 def list_rounds() -> list[str]:
-    rounds_dir = ROOT / "State" / "table" / "rounds"
+    rounds_dir = ROOT / "ops" / "table" / "rounds"
     if not rounds_dir.exists():
         return []
     return sorted(p.name for p in rounds_dir.iterdir() if (p / "round.json").exists())

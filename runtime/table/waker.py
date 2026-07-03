@@ -17,7 +17,7 @@ from .manifests import AgentManifest, load_all_manifests, load_manifest
 from .prompts import BudgetView, PromptContext
 
 
-StateRoot = Path("State") / "table"
+StateRoot = Path("ops") / "table"
 RoundsDir = StateRoot / "rounds"
 RoundConfigName = "round.json"
 ManualReplyFileName = "manual_reply.json"

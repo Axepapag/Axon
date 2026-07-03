@@ -5,7 +5,7 @@ The waker connects per turn-batch as client_id "table" using protocol
 environment (BUS_TOKEN).  It is never persisted, logged, placed in prompts, or
 written to transcripts.
 
-Offline mode queues events to State/table/outbox.jsonl and flushes them on
+Offline mode queues events to ops/table/outbox.jsonl and flushes them on
 reconnect, so a missing bus never blocks a round.
 """
 
@@ -29,7 +29,7 @@ except Exception:  # pragma: no cover - websockets may be absent in minimal envs
     websockets = None  # type: ignore[assignment]
 
 
-StateDir = Path("State") / "table"
+StateDir = Path("ops") / "table"
 DefaultWsUrl = "ws://127.0.0.1:8765/ws/bus"
 DefaultHttpUrl = "http://127.0.0.1:8765"
 

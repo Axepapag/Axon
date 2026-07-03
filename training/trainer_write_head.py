@@ -568,7 +568,7 @@ def main(argv: list[str] | None = None) -> int:
 
     root = Path(ROOT)
     checkpoint_dir = Path(args.checkpoint_dir) if args.checkpoint_dir else (
-        root / "State" / "write_head" / f"d{args.d_model}"
+        root / "runs" / "write_head" / f"d{args.d_model}"
     )
 
     # Constant-output floor: must beat guessing the most common length/char.

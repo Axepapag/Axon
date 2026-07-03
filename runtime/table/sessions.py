@@ -3,7 +3,7 @@
 Maps seat id -> durable session metadata so the waker can resume a live
 interactive session instead of cold-starting a seat on every turn.
 
-Store path: ``State/table/sessions.json``
+Store path: ``ops/table/sessions.json``
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 
-DefaultStateRoot = Path("State") / "table"
+DefaultStateRoot = Path("ops") / "table"
 SessionsFileName = "sessions.json"
 
 

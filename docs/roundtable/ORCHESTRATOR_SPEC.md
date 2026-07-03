@@ -62,7 +62,7 @@ runtime/table/
     codex.json
     claude.json
     echo.json         # test seat (no external CLI)
-State/table/
+ops/table/
   rounds/<round_id>/round.json        # config, budgets, status (durable)
   rounds/<round_id>/transcript.jsonl  # append-only
   rounds/<round_id>/transcript.md     # rendered, human-readable
@@ -128,7 +128,7 @@ Rules:
 
 ### v1.1 Session store
 
-`State/table/sessions.json` maps seat id -> durable session metadata:
+`ops/table/sessions.json` maps seat id -> durable session metadata:
 
 ```json
 {
@@ -225,7 +225,7 @@ For each cycle, for each enabled seat, sequentially:
    for the round, officers notified.
 8. SESSION CAPTURE (v1.1): after a successful turn, run `session.parse_regex`
    over stdout+stderr. If it captures a session id and the seat is **not**
-   pinned, update `State/table/sessions.json`. If a resume attempt fails,
+   pinned, update `ops/table/sessions.json`. If a resume attempt fails,
    fall back to a fresh start for that turn, record `session_resume_failed`
    in the transcript entry, clear the unpinned session id, and continue.
 
@@ -268,10 +268,10 @@ The agent's reply must END with one fenced json block:
   sourced from the tunnel launcher's `.env.local` — the token value never
   appears in code, config, logs, transcripts, or prompts.
 - Publish/DM per AGENT_BUS_ACCESS.md topics. Persist replay cursors in
-  `State/table/cursors.json`.
+  `ops/table/cursors.json`.
 - If the bus is DOWN: the round can still run in `--offline` mode
   (transcript-only, no publish) — the table must never be blocked by
-  transport; events are queued to `State/table/outbox.jsonl` and flushed on
+  transport; events are queued to `ops/table/outbox.jsonl` and flushed on
   reconnect. (The bus is memory surface, not a gate.)
 
 ## 8. CLI

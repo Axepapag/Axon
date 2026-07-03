@@ -16,3 +16,7 @@ ssh_helper.py
 *.pem
 # Session-start duplicate; canonicals live in docs/roundtable/
 /roundtable/
+
+# State/ holds canonical state only; README documents the ruling
+!State/README.md
+ops/
