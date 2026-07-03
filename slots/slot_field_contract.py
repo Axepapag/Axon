@@ -18,7 +18,7 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Sequence
+from typing import Any,  Sequence
 
 import numpy as np
 
@@ -407,6 +407,48 @@ def selftest() -> bool:
         failed = [n for n, ok in checks if not ok]
         print(f"slot_field_contract self-test: FAIL ({len(failed)} failed: {failed})")
     return all_ok
+
+
+
+
+# Salvaged from the rescinded write-head organ (convener order, 2026-07-03):
+# diff-only commits survive doctrinally and belong to the field contract.
+
+def commit_diff(
+    decoded_slot_text: str,
+    current_slot_text: str,
+    length: int,
+) -> list[dict[str, Any]]:
+    """Pure-function diff: emit typed delta ops that touch only changed spans.
+
+    The active prefix is ``decoded_slot_text[:length]``. Positions at or past
+    ``length`` are treated as padding/cleared. The resulting ``update_span``
+    records have ``start``, ``end``, and ``text``. An empty ``text`` means a
+    deletion/clear of that span in the current slot.
+
+    No silent truncation: every position that differs between the decoded
+    active text and the current slot is represented in a delta.
+    """
+    active = (decoded_slot_text + " " * length)[:length]
+    max_len = max(length, len(current_slot_text))
+    deltas: list[dict[str, Any]] = []
+    i = 0
+    while i < max_len:
+        a = active[i] if i < length else ""
+        b = current_slot_text[i] if i < len(current_slot_text) else ""
+        if a == b:
+            i += 1
+            continue
+        start = i
+        while i < max_len:
+            a2 = active[i] if i < length else ""
+            b2 = current_slot_text[i] if i < len(current_slot_text) else ""
+            if a2 == b2:
+                break
+            i += 1
+        end = i
+        deltas.append({"update_span": {"start": start, "end": end, "text": active[start:end]}})
+    return deltas
 
 
 if __name__ == "__main__":

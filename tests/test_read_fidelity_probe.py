@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import torch
 
-from heads.probe import (
+from training.read_fidelity_probe import (
     ReadFidelityProbe,
     ReadFidelityProbeConfig,
     build_probe_targets,

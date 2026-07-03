@@ -298,3 +298,46 @@ class TestSlotAdapter:
                           pack_slot(text="world").vector])
         proj = adapter.project_down(slots)
         assert proj.shape == (2, 128)
+
+
+from slots.slot_field_contract import commit_diff
+
+
+class TestCommitDiff:
+    def test_no_changes(self):
+        assert commit_diff("hello", "hello", 5) == []
+
+    def test_single_changed_span(self):
+        deltas = commit_diff("hello world", "hello there", 11)
+        assert len(deltas) == 1
+        assert deltas[0] == {"update_span": {"start": 6, "end": 11, "text": "world"}}
+
+    def test_multiple_changed_spans(self):
+        # The delta text is the decoded (active) text, not the current text.
+        deltas = commit_diff("abc def ghi", "abc xyz ghi", 11)
+        assert len(deltas) == 1  # contiguous run
+        assert deltas[0]["update_span"]["text"] == "def"
+
+    def test_only_changed_positions_no_padding(self):
+        deltas = commit_diff("hello", "hello world", 5)
+        assert len(deltas) == 1
+        assert deltas[0] == {"update_span": {"start": 5, "end": 11, "text": ""}}
+
+    def test_truncated_length_clears_tail(self):
+        # Decoded length shorter than current; tail must be cleared explicitly.
+        deltas = commit_diff("hello", "hello world", 5)
+        assert deltas == [{"update_span": {"start": 5, "end": 11, "text": ""}}]
+
+    def test_decoded_text_longer_than_length_truncated(self):
+        # Active text is truncated to length; only differing spans are emitted.
+        deltas = commit_diff("hello world extra", "hi world", 8)
+        assert deltas == [
+            {"update_span": {"start": 1, "end": 4, "text": "ell"}},
+            {"update_span": {"start": 5, "end": 8, "text": " wo"}},
+        ]
+
+    def test_empty_active_clears_all(self):
+        deltas = commit_diff("", "hello", 0)
+        assert deltas == [{"update_span": {"start": 0, "end": 5, "text": ""}}]
+
+
