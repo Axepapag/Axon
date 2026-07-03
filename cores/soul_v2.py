@@ -461,7 +461,10 @@ class CompressionSummarizer(nn.Module):
 
 
 # Reuse the CrossAttention from core.py
-from core import CrossAttention
+try:
+    from cores.core import CrossAttention
+except ImportError:
+    from core import CrossAttention  # noqa: F811
 
 
 # ---------------------------------------------------------------------------
@@ -471,10 +474,17 @@ from core import CrossAttention
 class SoulManagerV2:
     """Manages the temperature-tiered dynamic soul.
 
+    Train-as-you-live contract (SOURCE_OF_TRUTH Layer 13):
+      1. INHALE: core receives the private soul before attending the field.
+      2. ATTEND: core attends the masked shared field (via frozen adapter).
+      3. ANSWER: core writes its response/delta (response_draft in slot era).
+      4. EXHALE: only after the answer is produced, the core writes a selective
+         experience trace into the hot soul.  Input never enters the soul first.
+
     Lifecycle per tick:
-      1. get_batched() — soul tensor + mask for core forward
+      1. inhale() / get_batched() — soul tensor + mask for core forward
       2. core.forward_with_soul(field, soul, soul_mask) — core processes
-      3. exhale(field_out, attention_weights) — write thoughts to hot tier
+      3. exhale_after_answer(field_out) / exhale() — write thoughts to hot tier
       4. update_salience(attention_weights) — track row usage
       5. maybe_compress() — periodic compression passes
       6. maybe_evict() — evict dormant rows past threshold
@@ -516,6 +526,26 @@ class SoulManagerV2:
     def get_batched(self) -> tuple[torch.Tensor, torch.Tensor]:
         """Return (soul, mask) for core.forward_with_soul."""
         return self.state.get_batched()
+
+    def inhale(self) -> tuple[torch.Tensor, torch.Tensor]:
+        """Alias for get_batched() — the first step of every tick.
+
+        Returns (soul (1, total_rows, d_model), mask (1, total_rows)).
+        """
+        return self.get_batched()
+
+    def exhale_after_answer(
+        self,
+        field_out: torch.Tensor,
+        attention_weights: torch.Tensor | None = None,
+        supervised_category: int | None = None,
+    ) -> dict:
+        """Post-answer exhale: write a selective trace to the hot soul.
+
+        This must be called AFTER the core has produced its response/delta,
+        never before.  It wraps ``exhale()`` to make the contract explicit.
+        """
+        return self.exhale(field_out, attention_weights, supervised_category)
 
     def exhale(
         self,

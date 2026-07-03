@@ -81,6 +81,9 @@ ADAPTER_VERSION = "axon_slot_adapter_v2"
 # First locked set: 64, 128, 256 (the proven core sizes)
 ADAPTER_D_MODELS: tuple[int, ...] = (64, 128, 256)
 
+# Frozen character-prototype version (independent of adapter projection)
+CHAR_PROTOTYPE_VERSION = "axon_char_prototype_v1"
+
 
 # --------------------------------------------------------------------------- #
 # Deterministic sign-projection (full 8192D -> d_model)
@@ -155,6 +158,186 @@ def codebook_snap(slot_vec: np.ndarray) -> np.ndarray:
 
     # Reserved dims stay zero
     return snapped
+
+
+# --------------------------------------------------------------------------- #
+# Frozen per-character prototype table (core-owned write path -> field)
+# --------------------------------------------------------------------------- #
+
+def _prototype_seed(d_model: int) -> int:
+    """Deterministic seed from d_model + prototype version."""
+    h = hashlib.shake_256(f"{CHAR_PROTOTYPE_VERSION}:d={d_model}".encode("utf-8"))
+    return int.from_bytes(h.digest(4), "little")
+
+
+def _mint_prototype_matrix(n_chars: int, d_model: int) -> np.ndarray:
+    """Mint n_chars deterministic d_model-dimensional unit vectors.
+
+    Uses a seeded Gaussian then deterministic repulsion so every vector is
+    the unique nearest neighbour of itself.  The construction is weightless:
+    no trained parameters, only reproducible arithmetic.
+    """
+    rng = np.random.default_rng(seed=_prototype_seed(d_model))
+    vecs = rng.standard_normal((n_chars, d_model)).astype(np.float32)
+    # Normalize
+    norms = np.linalg.norm(vecs, axis=1, keepdims=True).clip(min=1e-12)
+    vecs = vecs / norms
+
+    # Deterministic repulsion: push any too-close pair apart along their
+    # difference direction.  With high-dimensional random unit vectors this
+    # almost never triggers, but the loop makes the minting robust.
+    max_iter = 1000
+    step = 0.05
+    threshold = 0.95  # cosine; corresponds to ~18 degrees separation
+    for _ in range(max_iter):
+        sim = vecs @ vecs.T
+        np.fill_diagonal(sim, -2.0)
+        viol = np.argwhere(sim > threshold)
+        if len(viol) == 0:
+            break
+        for i, j in viol:
+            diff = vecs[i] - vecs[j]
+            diff_norm = float(np.linalg.norm(diff))
+            if diff_norm < 1e-12:
+                diff = rng.standard_normal(d_model)
+                diff_norm = float(np.linalg.norm(diff))
+            diff = diff / diff_norm
+            vecs[i] = vecs[i] + step * diff
+            vecs[j] = vecs[j] - step * diff
+            # renormalize on the fly
+            vecs[i] = vecs[i] / max(1e-12, float(np.linalg.norm(vecs[i])))
+            vecs[j] = vecs[j] / max(1e-12, float(np.linalg.norm(vecs[j])))
+    else:
+        # If we exhaust iterations, continue anyway; the exact round-trip
+        # verification is the binding gate below.
+        pass
+
+    # Final normalization
+    norms = np.linalg.norm(vecs, axis=1, keepdims=True).clip(min=1e-12)
+    return (vecs / norms).astype(np.float32)
+
+
+class CharPrototypeTable:
+    """Frozen deterministic table mapping alphabet characters to/from d_model.
+
+    This is the bridge for the arithmetic-only write path: the core emits
+    per-character d_model vectors, and this table decodes each vector to the
+    nearest substrate character by cosine similarity.  The table itself has
+    no learned parameters; it is minted once per d_model.
+    """
+
+    def __init__(self, d_model: int) -> None:
+        self.d_model = d_model
+        self.chars: list[str] = default_alphabet()
+        self.n_chars = len(self.chars)
+        self._prototypes = _mint_prototype_matrix(self.n_chars, d_model)
+        # Pre-normalized (unit) prototypes for cosine nearest-neighbour decode
+        self._unit = self._prototypes.copy()
+
+    def encode(self, char: str) -> np.ndarray:
+        """Return the frozen d_model prototype vector for a single character."""
+        try:
+            idx = self.chars.index(char)
+        except ValueError as exc:
+            raise ValueError(f"character {char!r} is not in the substrate alphabet") from exc
+        return self._prototypes[idx].copy()
+
+    def decode(self, vec: np.ndarray) -> str:
+        """Nearest-code decode: return the alphabet char whose prototype is
+        closest in cosine similarity to the supplied d_model vector."""
+        v = np.asarray(vec, dtype=np.float32).reshape(-1)
+        norm = float(np.linalg.norm(v))
+        if norm < 1e-9:
+            return " "
+        vu = v / norm
+        scores = self._unit @ vu
+        idx = int(np.argmax(scores))
+        return self.chars[idx]
+
+    def decode_batch(self, vecs: np.ndarray) -> list[str]:
+        """Decode a (L, d_model) or (B, L, d_model) array of vectors."""
+        vecs = np.asarray(vecs, dtype=np.float32)
+        if vecs.ndim == 2:
+            vecs = vecs[None, ...]
+        norms = np.linalg.norm(vecs, axis=-1, keepdims=True).clip(min=1e-9)
+        unit = vecs / norms
+        # (B, L, n_chars)
+        scores = unit @ self._unit.T
+        idx = np.argmax(scores, axis=-1)
+        return [[self.chars[i] for i in row] for row in idx]
+
+    def logits(self, vecs: np.ndarray | torch.Tensor) -> torch.Tensor:
+        """Return cosine-similarity logits to every alphabet character.
+
+        Output shape: (B, L, n_chars) for training-time discrete CE.
+        """
+        if isinstance(vecs, torch.Tensor):
+            t = vecs
+        else:
+            t = torch.from_numpy(np.asarray(vecs, dtype=np.float32))
+        if t.ndim == 2:
+            t = t.unsqueeze(0)
+        # Normalize input vectors for cosine similarity
+        norm = t.norm(dim=-1, keepdim=True).clamp(min=1e-9)
+        unit = t / norm
+        protos = torch.from_numpy(self._unit).to(t.dtype).to(t.device)
+        return unit @ protos.T  # (B, L, n_chars)
+
+    def char_index(self, char: str) -> int:
+        return self.chars.index(char)
+
+    def save(self, path: str | Path) -> None:
+        torch.save({
+            "version": CHAR_PROTOTYPE_VERSION,
+            "d_model": self.d_model,
+            "chars": self.chars,
+            "prototypes": torch.tensor(self._prototypes, dtype=torch.float32),
+        }, str(path))
+
+    @classmethod
+    def load(cls, path: str | Path) -> "CharPrototypeTable":
+        data = torch.load(str(path), weights_only=False)
+        table = cls.__new__(cls)
+        table.d_model = data["d_model"]
+        table.chars = list(data["chars"])
+        table.n_chars = len(table.chars)
+        table._prototypes = data["prototypes"].numpy()
+        table._unit = table._prototypes.copy()
+        return table
+
+    def check_exact(self) -> tuple[bool, list[tuple[str, str]]]:
+        """Verify every alphabet character round-trips through encode->decode."""
+        fails: list[tuple[str, str]] = []
+        for char in self.chars:
+            got = self.decode(self.encode(char))
+            if got != char:
+                fails.append((char, got))
+        return len(fails) == 0, fails
+
+
+# --------------------------------------------------------------------------- #
+# Char-prototype registry
+# --------------------------------------------------------------------------- #
+
+_CHAR_PROTOTYPE_REGISTRY: dict[int, CharPrototypeTable] = {}
+
+
+def get_char_prototype_table(d_model: int) -> CharPrototypeTable:
+    """Get the canonical frozen char-prototype table for a d_model size."""
+    if d_model in _CHAR_PROTOTYPE_REGISTRY:
+        return _CHAR_PROTOTYPE_REGISTRY[d_model]
+
+    artifact_path = Path(_ROOT) / "adapters" / f"char_prototype_{d_model}d.pt"
+    if artifact_path.exists():
+        table = CharPrototypeTable.load(artifact_path)
+    else:
+        table = CharPrototypeTable(d_model=d_model)
+    _CHAR_PROTOTYPE_REGISTRY[d_model] = table
+    return table
+
+
+def clear_char_prototype_registry() -> None:
+    _CHAR_PROTOTYPE_REGISTRY.clear()
 
 
 # --------------------------------------------------------------------------- #
@@ -381,8 +564,30 @@ def clear_registry() -> None:
 # Self-test / check
 # --------------------------------------------------------------------------- #
 
+def run_char_prototype_check(verbose: bool = True) -> bool:
+    """Verify exact nearest-code round-trip for every alphabet char at all
+    locked d_model sizes.  This is the binding gate for the arithmetic-only
+    per-character write path.
+    """
+    all_ok = True
+    for d_model in ADAPTER_D_MODELS:
+        table = get_char_prototype_table(d_model)
+        ok, fails = table.check_exact()
+        if verbose:
+            status = "PASS" if ok else "FAIL"
+            print(f"  {status}  char-prototype round-trip d={d_model} "
+                  f"({table.n_chars}/{table.n_chars} chars)")
+            if fails:
+                print(f"       failures: {fails[:10]}")
+        all_ok &= ok
+    if verbose:
+        print()
+        print("char_prototype check:", "PASS" if all_ok else "FAIL")
+    return all_ok
+
+
 def run_check(verbose: bool = True) -> bool:
-    """Run snap-idempotence and separability gates for all minted adapter sizes."""
+    """Run snap-idempotence, separability, and char-prototype gates."""
     artifact_dir = Path(_ROOT) / "adapters"
     all_ok = True
 
@@ -422,8 +627,12 @@ def run_check(verbose: bool = True) -> bool:
 
 if __name__ == "__main__":
     if "--check" in sys.argv:
-        ok = run_check(verbose=True)
+        ok1 = run_check(verbose=True)
+        ok2 = run_char_prototype_check(verbose=True)
+        sys.exit(0 if (ok1 and ok2) else 1)
+    elif "--check-prototypes" in sys.argv:
+        ok = run_char_prototype_check(verbose=True)
         sys.exit(0 if ok else 1)
     else:
-        print("Usage: python adapters/slot_adapter.py --check")
+        print("Usage: python adapters/slot_adapter.py --check | --check-prototypes")
         sys.exit(1)

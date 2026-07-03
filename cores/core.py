@@ -22,8 +22,15 @@ shared action during reflection. No mean-pooled soul summary is used.
 from __future__ import annotations
 
 import math
+import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
+
+# Ensure repo root is importable when run as a script
+_ROOT = str(Path(__file__).resolve().parent.parent)
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
 
 import torch
 import torch.nn as nn
@@ -68,6 +75,11 @@ class CoreConfig:
     soul_hot_rows: int = 0
     soul_write_mode: str = "compartments"
     n_soul_compartments: int = 8
+    # Slot-era mode (SOURCE_OF_TRUTH Layer 5/13): core attends over d_model
+    # slot summaries from a frozen adapter and writes response_draft characters
+    # through its own per-character d_model vectors + a frozen prototype decode.
+    slot_mode: bool = False
+    max_response_chars: int = 256
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "CoreConfig":
@@ -91,6 +103,8 @@ class CoreConfig:
             soul_hot_rows=int(d.get("soul_hot_rows", 0)),
             soul_write_mode=str(d.get("soul_write_mode", "compartments")),
             n_soul_compartments=int(d.get("n_soul_compartments", 8)),
+            slot_mode=bool(d.get("slot_mode", False)),
+            max_response_chars=int(d.get("max_response_chars", 256)),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -104,6 +118,8 @@ class CoreConfig:
             "soul_hot_rows": self.soul_hot_rows,
             "soul_write_mode": self.soul_write_mode,
             "n_soul_compartments": self.n_soul_compartments,
+            "slot_mode": self.slot_mode,
+            "max_response_chars": self.max_response_chars,
         }
 
     def total_soul_rows(self) -> int:
@@ -187,6 +203,11 @@ class CrossAttention(nn.Module):
         k = self._rope(k)
         scores = torch.matmul(q, k.transpose(-2, -1)) / self.scale
         if context_mask is not None:
+            # Guard the all-masked case: softmax over all -inf yields NaN.
+            # If no context rows are active, the cross-attention contribution
+            # is zero, which is the correct "no soul to read" semantics.
+            if not context_mask.any():
+                return torch.zeros_like(query)
             scores = scores.masked_fill(~context_mask[:, None, None, :], float("-inf"))
         attn = self.dropout(F.softmax(scores, dim=-1))
         out = torch.matmul(attn, v)
@@ -303,6 +324,39 @@ class SoulCrossAttentionTransformerLayer(TransformerLayer):
         return x
 
 
+class CharWriteHead(nn.Module):
+    """Core-owned write head for the arithmetic-only slot-era write path.
+
+    Takes a pooled representation of the response_draft slot(s) and unrolls a
+    sequence of per-character d_model vectors.  Each character vector is later
+    decoded to a substrate character by the frozen CharPrototypeTable in the
+    adapter.  All trainable parameters live inside the core; the prototype
+    table itself is frozen arithmetic.
+    """
+
+    def __init__(self, d_model: int, max_response_chars: int):
+        super().__init__()
+        self.d_model = d_model
+        self.max_response_chars = max_response_chars
+        self.mlp = nn.Sequential(
+            nn.LayerNorm(d_model),
+            nn.Linear(d_model, d_model * 4, bias=False),
+            nn.SiLU(),
+            nn.Linear(d_model * 4, max_response_chars * d_model, bias=False),
+        )
+        # Initialise conservatively: start near zero so the trainer controls
+        # when the write path opens.
+        for m in self.mlp.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, std=0.02)
+
+    def forward(self, draft_slot_hidden: torch.Tensor) -> torch.Tensor:
+        """Args: draft_slot_hidden (B, d_model).  Returns (B, max_chars, d_model)."""
+        B = draft_slot_hidden.shape[0]
+        flat = self.mlp(draft_slot_hidden)
+        return flat.reshape(B, self.max_response_chars, self.d_model)
+
+
 class AxonCore(nn.Module):
     def __init__(self, cfg: CoreConfig):
         super().__init__()
@@ -351,6 +405,14 @@ class AxonCore(nn.Module):
             self.soul_compartment_gate = nn.Parameter(torch.tensor(cfg.soul_gate_init))
             # rows per compartment (last compartment absorbs remainder)
             self._rows_per_comp = cfg.soul_hot_rows // K
+        # Slot-era per-character write head (Layer 5/13).  Lives inside the core;
+        # the adapter provides only the frozen prototype decode.
+        if cfg.slot_mode:
+            assert cfg.soul_mode == "act_reflect_v2", (
+                "slot_mode requires act_reflect_v2 for soul_v2 inhale/exhale"
+            )
+            self.char_write_head = CharWriteHead(cfg.d_model, cfg.max_response_chars)
+            self.draft_norm = nn.LayerNorm(cfg.d_model)
         # Gradient checkpointing: when True (set by the trainer during
         # training), each layer's activations are recomputed in the
         # backward pass instead of being stored. Trades a little compute
@@ -503,6 +565,46 @@ class AxonCore(nn.Module):
             soul_out = self.soul_reflect(reflect_in)
         return {"field": field_out, "soul": soul_out, "soul_kl": None}
 
+    def forward_slot(
+        self,
+        field: torch.Tensor,
+        soul: torch.Tensor,
+        mask: torch.Tensor | None = None,
+        soul_mask: torch.Tensor | None = None,
+        response_draft_slice: slice | None = None,
+    ) -> dict[str, torch.Tensor]:
+        """Slot-era forward: inhale soul, attend field, write response_draft chars.
+
+        Reuses the act_reflect_v2 path for inhale/attend/exhale, then runs the
+        core-owned CharWriteHead on the response_draft slot hidden states to
+        produce per-character d_model vectors.  The frozen adapter prototype
+        table decodes those vectors outside the core.
+
+        Returns the same dict as forward_with_soul plus ``draft_chars``:
+        (B, max_response_chars, d_model).
+        """
+        if not self.cfg.slot_mode:
+            raise ValueError("forward_slot requires slot_mode=True in CoreConfig")
+        out = self.forward_with_soul(field, soul, mask=mask, soul_mask=soul_mask)
+        field_out = out["field"]
+        if response_draft_slice is None:
+            # Default: last slot is the draft (used only in tests/smoke)
+            draft_hidden = field_out[:, -1:, :]
+        else:
+            draft_hidden = field_out[:, response_draft_slice, :]
+        pooled = self.draft_norm(draft_hidden).mean(dim=1)  # (B, d_model)
+        out["draft_chars"] = self.char_write_head(pooled)
+        return out
+
+    def char_logits(self, draft_chars: torch.Tensor) -> torch.Tensor:
+        """Cosine-similarity logits to the frozen alphabet prototype table.
+
+        Lazy import keeps the adapter table outside the core's import graph.
+        """
+        from adapters.slot_adapter import get_char_prototype_table
+        table = get_char_prototype_table(self.cfg.d_model)
+        return table.logits(draft_chars)
+
 
 if __name__ == "__main__":
     cfg = CoreConfig(d_model=32, ffn_dim=64, n_layers=1, soul_rows=8)
@@ -524,4 +626,19 @@ if __name__ == "__main__":
     out3 = core3.forward_with_soul(field, soul)
     assert out3["field"].shape == (1, 20, 32)
     assert out3["soul"].shape == (1, 8, 32)
+
+    # Slot-era mode sanity check
+    cfg4 = CoreConfig(d_model=64, ffn_dim=128, n_layers=1, soul_rows=8,
+                      soul_mode="act_reflect_v2", slot_mode=True,
+                      max_response_chars=32)
+    core4 = AxonCore(cfg4)
+    field4 = torch.randn(1, 20, 64)
+    soul4 = torch.randn(1, 8, 64)
+    out4 = core4.forward_slot(field4, soul4, response_draft_slice=slice(10, 12))
+    assert out4["field"].shape == (1, 20, 64)
+    assert out4["soul"].shape == (1, 8, 64)
+    assert out4["draft_chars"].shape == (1, 32, 64)
+    logits4 = core4.char_logits(out4["draft_chars"])
+    assert logits4.shape == (1, 32, 67)
+
     print(f"core OK: {sum(p.numel() for p in core.parameters()):,} params, cfg={cfg.to_dict()}")
