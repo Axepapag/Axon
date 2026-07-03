@@ -187,3 +187,8 @@ _Resolved by the table, 2026-07-03._
 ---
 
 **CONVENER ACCEPTANCE**: Signed by Jeff, 2026-07-03. Write-head doctrine folded into SOURCE_OF_TRUTH Layer 5. Curation API budget cap set at $150 (officer decision, mid-range of the estimate; raise only with convener consent). Bus wake-on-message first deliverable confirmed as pinned: a board/DM message wakes an agent, the agent replies, the reply appears on the board.
+
+
+---
+
+**CONVENER CORRECTION (2026-07-03, after acceptance):** The Q1 decision (shared trained decode organ) is RESCINDED. Convener law: trained parameters live in cores and nowhere else; everything between core and field is frozen arithmetic. The conforming write path — cores unroll per-character output vectors from their own trained layers; a frozen per-character prototype decode carries them; deterministic pack + snap commits — is now doctrine (SOURCE_OF_TRUTH Layer 5). Q2 (diff-only commits), Q3-as-Kimi-dissented (explicit declared length), Q4 (typed edges), Q5/Q6 (gates) survive. Kimi's dissent is substantially vindicated. The conflict was not flagged before sign-off; officer Claude takes the miss.

@@ -412,34 +412,46 @@ superseded:
   DOWN -> UP -> snap unchanged) and SEPARABILITY (slots differing by one
   character produce distinct projections).
 
-### The Write Head (accepted resolution writehead-0703)
+### The Write Path (convener correction, 2026-07-03 — supersedes the
+### "shared decode organ" of resolution writehead-0703)
 
-The write head is the up-rail for text: a SHARED trained decode organ, one
-per d_model size (like the adapters; not inside the frozen adapter, not
-per-core, not part of any core checkpoint). It unfolds a core's proposed
-d_model slot vector into per-position character logits plus a 257-class
-length prediction.
+LOCKED LAW (convener): TRAINED PARAMETERS LIVE IN CORES AND NOWHERE ELSE.
+Everything between a core and the field — read or write — is FROZEN
+ARITHMETIC: minted, deterministic, checkable, weightless. The
+writehead-0703 "shared trained decode organ" violated this law and is
+RESCINDED. (The convener's sign-off was given without this conflict being
+flagged; the officer of record takes the miss.)
 
-- Train full-slot with discrete per-position cross-entropy; COMMIT ONLY
-  DIFFS: the runtime diffs the decoded slot against the current slot and
-  commits only changed positions as typed deltas. A decode error can never
-  corrupt text the core was not editing.
-- The length head marks the active prefix; length errors are countable —
-  truncation is never silent.
-- EDGES NEVER PASS THROUGH THE CHARACTER DECODER. Cores emit typed edge
-  deltas (attach_edge/detach_edge); the deterministic packer and registry
-  remain authoritative for the edge payload and control block.
-- Gates before any long run: read-fidelity probe (kind recovery, first-N
-  chars) plus the cf-probe write gate — positive exact-fill > 90 percent,
-  zero/swapped/irrelevant-field controls < 5 percent (thresholds calibrated
-  by the first smoke run).
-- Recorded dissent (Kimi): per-core heads and a fixed grid with delta-
-  declared length. Reopens together with organ sizing if the smoke gate
-  fails at the chosen d_model.
+The conforming write path (the proven 16D-era pattern, generalized):
 
-Module homes: `heads/write_head.py` (shared organ), `heads/edge_proposal.py`
-(separate, gated later). The core outputs field vectors; the write head is
-attached to that output, never baked into the core.
+- The CORE unrolls its own characters. When a core writes a span, its own
+  trained layers emit one d_model vector per character position — trained
+  parameters inside the core, where they belong. The voice IS the core.
+- Each character vector crosses to the field through a FROZEN per-character
+  prototype decode (same minted sign-vector family as the read adapter and
+  the legacy rails): nearest-code, deterministic, no weights.
+- The deterministic packer and codebook snap commit the result. The field
+  stays exact by construction.
+- READ is unchanged: one frozen summary vector per slot (compute law).
+- COST placement: writing N characters costs N output positions inside the
+  writing core, only for spans it edits — never read-side attention, never
+  a shared trained module.
+
+Surviving unchanged from writehead-0703 (none involve trained projection):
+
+- COMMIT ONLY DIFFS: the runtime diffs decoded output against the current
+  slot and commits only changed positions as typed deltas.
+- Length is explicit and countable (declared in the typed delta / control
+  block) — truncation is never silent.
+- EDGES NEVER PASS THROUGH CHARACTER DECODE: typed edge deltas; the
+  deterministic packer and registry remain authoritative.
+- Gates before any long run: read-fidelity probe plus the cf-probe write
+  gate — positive exact-fill > 90 percent, zero/swapped/irrelevant-field
+  controls < 5 percent.
+
+Kimi's recorded dissent (per-core voice, delta-declared length) is
+substantially VINDICATED by this correction and is absorbed into the law
+above.
 
 Convener note (2026-07-03, sign-off): souls remain NATIVE d_model thought
 vectors (Layer 6 unchanged). Readable personal memory lives in the field's
