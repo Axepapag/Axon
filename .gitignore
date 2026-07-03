@@ -14,3 +14,5 @@ ssh_helper.py
 .env
 *.key
 *.pem
+# Session-start duplicate; canonicals live in docs/roundtable/
+/roundtable/
