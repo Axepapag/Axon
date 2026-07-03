@@ -165,8 +165,8 @@ Behavior:
 
 ```json
 {
-  "round_id": "writehead-2026-07-03",
-  "brief_path": "docs/roundtable/RoundTable_AdapterBandwidth.md",
+  "round_id": "slot-architecture-2026-07-03",
+  "brief_path": "docs/roundtable/RoundTable_SlotArchitecture.md",
   "seats": ["hermes", "kimi", "codex", "claude"],
   "turn_order": "as_listed",
   "synthesizer": "claude",
@@ -247,7 +247,7 @@ The agent's reply must END with one fenced json block:
   "text": "my contribution ...",      // post/dm: the message (markdown ok)
   "to": "kimi",                       // dm only
   "vote": {"question": "...", "choice": "...", "why": "..."},   // vote only
-  "artifact": {"path": "docs/roundtable/Kimi_delta_writehead.md",
+  "artifact": {"path": "docs/roundtable/Agent_delta_slots.md",
                 "body": "full file content..."},                 // artifact only
   "flag": {"blocking": true, "item": "...", "problem": "...",
             "evidence": "...", "options": "...", "recommendation": "..."},

@@ -2,13 +2,13 @@
 """container_schema.py - the formal container contract (Layer 1 + Layer 2 edge).
 
 This is the first formal implementation of the container schema contract from
-SOURCE_OF_TRUTH.md Layer 1 (Containers) and Layer 2 (Semantic Edges And Symbols).
+SOURCE_OF_TRUTH.md Layer 1 (Containers) and Layer 2 (Semantic Edges).
 
 Doctrine:
     - Containers are structured, auditable records -- not token embeddings.
-    - The 16D substrate remains the letter/symbol storage layer. Semantic
-      meaning is carried by semantic edges and registered symbols attached to
-      containers, NOT by the 16D letter geometry.
+    - Semantic meaning is carried by spelled-out semantic edges: relation text
+      plus target text. Opaque semantic-edge symbols are legacy-only and are not
+      used by the active 8192D shared-field path.
     - Containers must not become loose bags of whatever a trainer happened to
       emit. normalise_container() coerces existing loose dataset records into
       this typed schema.
@@ -74,7 +74,8 @@ class SemanticEdge:
     Attributes:
         edge_type: the relation type (e.g. "is a", "uses").
         target: the target entity text (the hub/neighbor).
-        symbol: optional registered semantic symbol (e.g. "AA") if assigned.
+        symbol: legacy optional handle. Active semantic edges leave this empty
+            and spell meaning out in edge_type + target English.
         confidence: float in [0, 1]. Defaults to 1.0 for hand-authored edges.
         provenance: short string describing where the edge came from.
         status: ContainerStatus-like lifecycle marker.
@@ -98,14 +99,16 @@ class SemanticEdge:
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a JSON-safe plain dict."""
-        return {
+        out = {
             "edge_type": self.edge_type,
             "target": self.target,
-            "symbol": self.symbol,
             "confidence": float(self.confidence),
             "provenance": self.provenance,
             "status": self.status,
         }
+        if self.symbol:
+            out["symbol"] = self.symbol
+        return out
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> SemanticEdge:
@@ -121,10 +124,9 @@ class SemanticEdge:
 
     def render(self) -> str:
         """Render in the kg_search / structured_knowledge style:
-        'edge_type target' or 'edge_type target [symbol]' if a symbol is attached.
+        'edge_type target'. Legacy symbols are intentionally not rendered.
         """
-        sym = f" [{self.symbol}]" if self.symbol else ""
-        return f"{self.edge_type} {self.target}{sym}"
+        return f"{self.edge_type} {self.target}"
 
 
 # ---------------------------------------------------------------------------
@@ -141,19 +143,18 @@ class Container:
     metadata.
 
     Conceptual shape:
-        (<[d][o][g]>{AA}{K9}{...})
+        (<[d][o][g]>{edge: is a -> animal}{edge: found near -> human})
 
     The container/envelope is the PyTorch dictionary-style record. The
-    word/letter payload remains separate from attached semantic symbols/edges.
-    The materializer maps individual characters, not whole words or whole
-    containers, into 16D substrate slots.
+    word/letter payload remains separate from attached semantic edges. The
+    materializer maps visible text through the substrate; it must not turn a
+    whole word or whole container into one hidden token.
 
     Substrate discipline:
-        - The ensemble must see every materialized letter.
-        - Symbols are additive overlays for registered semantic edges; they do
-          not replace the letters of the word, edge type, or edge target.
+        - The ensemble must see the materialized text view.
+        - Edge meaning is visible English text: edge_type and target.
         - Layout/index metadata must not be treated as ensemble-visible
-          container symbols unless it is promoted to a real semantic edge.
+          semantic meaning.
 
     Attributes:
         container_id: stable unique identifier (auto-generated if not given).
@@ -165,10 +166,9 @@ class Container:
             substrate.py; this field is not a whole-word or whole-container
             embedding.
         edges: list of SemanticEdge records. Edges stay separate from the
-            word/letter payload and receive their own registered symbols.
-        symbols: list of registered semantic symbol codes attached through
-            actual SemanticEdge records. This field must not contain layout
-            buckets or other non-edge additions.
+            word/letter payload and spell their relation/target in English.
+        symbols: legacy compatibility list. The active no-symbol path keeps it
+            empty; layout IDs belong in metadata["layout_symbols"] only.
         source: provenance -- where the container came from.
         source_tick: the tick at which the container was captured/created.
         created_tick: tick when this container was first created.
@@ -327,9 +327,12 @@ class Container:
         self.edges.append(edge)
 
     def add_symbol(self, symbol: str) -> None:
-        """Attach a registered semantic symbol code to this container."""
-        if symbol and symbol not in self.symbols:
-            self.symbols.append(symbol)
+        """Deprecated compatibility no-op.
+
+        Semantic-edge symbols are not used by the active Axon path. Kept only so
+        old callers do not fail while they are migrated.
+        """
+        return None
 
 
 # ---------------------------------------------------------------------------

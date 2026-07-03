@@ -13,7 +13,6 @@
 | `substrate.py` | `substrate/substrate.py` | Frozen 16D character alphabet; vectors unchanged |
 | `core.py` | `cores/core.py` | Transformer core + legacy soul modes |
 | `soul_v2.py` | `cores/soul_v2.py` | Temperature-tiered soul manager (not yet wired into core.py) |
-| `cf_probe.py` | `training/cf_probe.py` | Counterfactual soul-read diagnostic |
 | `kg_search.py` | `curator/kg_search.py` | Knowledge graph search |
 | `container_schema.py` | `curator/container_schema.py` | Container/edge schema |
 | `semantic_layout_machine.py` | `curator/semantic_layout_machine.py` | Deterministic dormant-state importer |
@@ -54,7 +53,7 @@
 - `capsule_spec.py`, `capsule_core.py`, `build_capsule_curriculum.py`, `trainer_capsule_core.py` — research prototype, not runtime path
 - `field_contract.py`, `heads.py` — legacy 16D field/rail, superseded by slot field
 - `legacy_8192/` — superseded wide-substrate lane (design template only for new adapters)
-- `trainer_recall.py`, `trainer_semantic.py`, `trainer_soul_v2.py`, `train_field_surfacing.py`, `field_recall.py` — legacy trainers, not promoted
+- `cf_probe.py`, `trainer_recall.py`, `trainer_semantic.py`, `trainer_soul_v2.py`, `train_field_surfacing.py`, `field_recall.py` — legacy trainers/probes, not promoted
 - `runtime.py` — legacy runtime, not the slot-era runtime
 - `lora_adapter.py`, `mint_rail.py` — legacy adapter/rail tooling
 - `ssh.py`, `ssh_helper.py` — credential-bearing, never promoted

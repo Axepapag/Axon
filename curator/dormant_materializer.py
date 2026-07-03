@@ -8,9 +8,10 @@ Important contract:
     - Containers are envelopes, not vectors.
     - Every visible character is materialized through substrate.py one row at a
       time.
-    - Container.symbols must equal actual semantic edge symbols only.
-    - Layout symbols remain metadata/search indexes unless promoted to real
-      semantic edges.
+    - Semantic edges are visible as English edge_type + target text.
+    - Container.symbols is empty on the active no-symbol path.
+    - Layout symbols remain metadata/search indexes and are never rendered as
+      edge meaning.
 
 The default CLI writes a compact JSONL surfacing curriculum. It does not dump
 large tensor blobs by default; trainers materialize examples on demand through
@@ -41,7 +42,6 @@ DEFAULT_OUT_DIR = REPO_ROOT / "datasets" / "recovered" / "field_surfacing"
 # render a small punctuation set, but alnum+space strings avoid target-bank
 # ambiguity while still preserving every letter and digit.
 TRAINING_CHARS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ")
-SYMBOL_CHARS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 SPACE_RE = re.compile(r"\s+")
 
 
@@ -122,50 +122,20 @@ def native_text(value: Any, *, max_chars: int | None = None) -> SanitizedText:
     return SanitizedText(text=text, changed_chars=changed, examples=tuple(samples))
 
 
-def safe_symbol(value: Any) -> str:
-    """Return a substrate-safe edge symbol or empty string."""
-
-    symbol = "" if value is None else str(value).strip()
-    if not symbol:
-        return ""
-    return "".join(ch for ch in symbol if ch in SYMBOL_CHARS)
-
-
-def edge_symbols(container: Container) -> list[str]:
-    """Sorted unique semantic symbols found on actual edges."""
-
-    return sorted({safe_symbol(edge.symbol) for edge in container.edges if safe_symbol(edge.symbol)})
-
-
 def validate_container(container: Container) -> list[str]:
     """Return contract violations for a normalized dormant container."""
 
     errors: list[str] = []
-    actual = edge_symbols(container)
-    declared = sorted({safe_symbol(symbol) for symbol in container.symbols if safe_symbol(symbol)})
-    if declared != actual:
-        errors.append("container.symbols must equal actual edge symbols")
-
-    for symbol in declared:
-        if not symbol or any(ch not in SYMBOL_CHARS for ch in symbol):
-            errors.append("container.symbols contains non-substrate-safe symbol")
+    if container.symbols:
+        errors.append("container.symbols must be empty; semantic edges are spelled out")
 
     for edge in container.edges:
         if not edge.edge_type.strip():
             errors.append("edge has empty edge_type")
         if not edge.target.strip():
             errors.append("edge has empty target")
-        if edge.symbol and safe_symbol(edge.symbol) != str(edge.symbol).strip():
-            errors.append("edge symbol contains non-substrate-safe characters")
-
-    layout_symbols = container.metadata.get("layout_symbols", [])
-    if isinstance(layout_symbols, list):
-        visible_layout_symbols = sorted(
-            safe_symbol(symbol) for symbol in layout_symbols
-            if safe_symbol(symbol) in declared
-        )
-        if visible_layout_symbols and not container.edges:
-            errors.append("layout symbols leaked into visible container symbols")
+        if edge.symbol:
+            errors.append("edge.symbol must be empty; edge meaning is English text")
     return errors
 
 
@@ -199,20 +169,19 @@ def assert_charwise_materialization(text: str, slots: np.ndarray) -> None:
             raise AssertionError(f"slot {i} does not match char_to_slot({char!r})")
 
 
-def _edge_to_parts(edge: SemanticEdge) -> tuple[str, str, str]:
+def _edge_to_parts(edge: SemanticEdge) -> tuple[str, str]:
     edge_type = native_text(edge.edge_type).text
     target = native_text(edge.target).text
-    symbol = safe_symbol(edge.symbol)
-    return edge_type, target, symbol
+    return edge_type, target
 
 
 def render_container_visible(container: Container, *, max_edges: int | None = None) -> str:
     """Render one container as visible training text.
 
     The rendered string is intentionally plain words and spaces:
-        word dog edge is a target animal symbol AA
+        word dog edge is a target animal
 
-    Layout symbols are not rendered. Every rendered character can be mapped
+    Layout metadata is not rendered. Every rendered character can be mapped
     through substrate.py independently.
     """
 
@@ -224,12 +193,10 @@ def render_container_visible(container: Container, *, max_edges: int | None = No
     for edge in container.edges:
         if max_edges is not None and rendered_edges >= max_edges:
             break
-        edge_type, target, symbol = _edge_to_parts(edge)
+        edge_type, target = _edge_to_parts(edge)
         if not edge_type or not target:
             continue
         parts.extend(["edge", edge_type, "target", target])
-        if symbol:
-            parts.extend(["symbol", symbol])
         rendered_edges += 1
     return SPACE_RE.sub(" ", " ".join(parts)).strip()
 
@@ -254,7 +221,6 @@ def build_surfacing_example(
     edge_type = native_text(edge.edge_type).text
     answer = native_text(edge.target).text
     source = _query_source(container)
-    symbol = safe_symbol(edge.symbol)
     if not edge_type or not answer:
         return None
 
@@ -272,7 +238,6 @@ def build_surfacing_example(
         "source_text": source,
         "query": query,
         "edge_type": edge_type,
-        "edge_symbol": symbol,
         "target": answer,
         "answer": answer,
         "structured_knowledge": structured,

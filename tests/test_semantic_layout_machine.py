@@ -587,8 +587,8 @@ class TestArtifactWriting:
         assert stats.container_count > 0
         assert not Path(tmp_out_dir, "containers.jsonl").exists()
 
-    def test_container_symbols_are_edge_symbols_only(self, semantic_db, tmp_out_dir):
-        """Container symbols are derived from real edge symbols only."""
+    def test_container_symbols_stay_empty_for_spelled_out_edges(self, semantic_db, tmp_out_dir):
+        """Container symbols are not used for semantic edge meaning."""
         machine = SemanticLayoutMachine(
             semantic_db=semantic_db,
             out_dir=tmp_out_dir,
@@ -600,10 +600,9 @@ class TestArtifactWriting:
                 if not line:
                     continue
                 obj = json.loads(line)
-                edge_symbols = sorted({e["symbol"] for e in obj["edges"] if e.get("symbol")})
-                assert obj["symbols"] == edge_symbols
-                for sym in obj["symbols"]:
-                    assert is_substrate_safe(sym)
+                assert obj["symbols"] == []
+                for edge in obj["edges"]:
+                    assert edge.get("symbol") in (None, "")
 
     def test_levels_control_grouping_depth(self, semantic_db, tmp_out_dir):
         """Levels control layout metadata depth, not ensemble-visible symbols."""
@@ -649,8 +648,8 @@ class TestArtifactWriting:
                 for sym in obj["metadata"]["layout_symbols"]:
                     assert is_substrate_safe(sym)
 
-    def test_edges_receive_registered_symbols(self, semantic_db, tmp_out_dir):
-        """Semantic edges are exported with registry-backed substrate symbols."""
+    def test_edges_are_exported_without_symbols(self, semantic_db, tmp_out_dir):
+        """Semantic edges are exported as English edge_type + target only."""
         machine = SemanticLayoutMachine(
             semantic_db=semantic_db,
             out_dir=tmp_out_dir,
@@ -660,8 +659,9 @@ class TestArtifactWriting:
             edges = [json.loads(line.strip()) for line in f if line.strip()]
         assert edges
         for edge in edges:
-            assert edge["symbol"]
-            assert is_substrate_safe(edge["symbol"])
+            assert "symbol" not in edge
+            assert edge["edge_type"]
+            assert edge["target"]
 
 
 # ---------------------------------------------------------------------------

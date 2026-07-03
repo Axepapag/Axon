@@ -59,7 +59,7 @@ class TestSemanticEdge:
     def test_with_symbol(self):
         e = SemanticEdge(edge_type="is a", target="animal", symbol="AA")
         assert e.symbol == "AA"
-        assert e.render() == "is a animal [AA]"
+        assert e.render() == "is a animal"
 
     def test_render_no_symbol(self):
         e = SemanticEdge(edge_type="uses", target="16D substrate")
@@ -354,12 +354,12 @@ class TestLifecycle:
         c = Container(text="dog")
         assert c.symbols == []
         c.add_symbol("AA")
-        assert c.symbols == ["AA"]
-        # Adding the same symbol again should not duplicate
+        assert c.symbols == []
+        # Deprecated no-op while old callers migrate.
         c.add_symbol("AA")
-        assert c.symbols == ["AA"]
+        assert c.symbols == []
         c.add_symbol("BB")
-        assert c.symbols == ["AA", "BB"]
+        assert c.symbols == []
 
     def test_add_empty_symbol_ignored(self):
         c = Container(text="x")
@@ -402,7 +402,7 @@ class TestIntegrationRender:
         # kg_search format: "word: etype target; etype target"
         assert rendered == "Axon: is a agent; uses 16D substrate"
 
-    def test_render_with_symbol_attached(self):
+    def test_render_ignores_legacy_symbol(self):
         raw = {
             "word": "dog",
             "chars": "dog",
@@ -414,4 +414,4 @@ class TestIntegrationRender:
         # Render with symbol on edge
         c.edges[0] = SemanticEdge("is a", "animal", symbol="AA")
         rendered = c.render()
-        assert "is a animal [AA]" in rendered
+        assert rendered == "dog: is a animal"

@@ -50,7 +50,6 @@ try:
         STATUS_EMPTY,
         EDGE_FORM_NONE,
         format_edge_full,
-        format_edge_alias,
     )
 except ImportError:
     from slot_spec import (  # noqa: E402
@@ -73,7 +72,6 @@ except ImportError:
         STATUS_EMPTY,
         EDGE_FORM_NONE,
         format_edge_full,
-        format_edge_alias,
     )
 
 # --------------------------------------------------------------------------- #

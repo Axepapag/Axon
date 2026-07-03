@@ -4,9 +4,8 @@
 This is the first semantic layout machine for Axon. It reads recovered SQLite
 memory DBs in streaming fashion, converts extracted entities/facts/relations/
 procedures into container_schema-compatible Container records, assigns
-substrate-safe semantic symbols via a deterministic base registry, and emits
-JSONL/JSON artifacts that become dormant structured knowledge / container
-curriculum.
+deterministic layout metadata via a base registry, and emits JSONL/JSON
+artifacts that become dormant structured knowledge / container curriculum.
 
 Architecture alignment (SOURCE_OF_TRUTH.md):
   - Does NOT wait for a trained semantic core. It bootstraps a deterministic
@@ -21,9 +20,9 @@ Design constraints:
   - Streaming SQLite reads. Never loads all rows into memory.
   - Never mutates source DBs (opens read-only).
   - No heavy dependencies. stdlib + numpy only (numpy optional for vectors).
-  - Substrate-safe symbols: A-Z, a-z, 0-9 only.
-  - Layout hierarchy is metadata/indexing only. Container.symbols contains
-    symbols created for actual SemanticEdge records only.
+  - Layout symbols are substrate-safe metadata/indexing only.
+  - Semantic edges are spelled out as edge_type + target; no semantic-edge
+    symbols are emitted.
   - Deterministic symbol generation. Same input -> same symbols every run.
 
 CLI:
@@ -836,7 +835,7 @@ class SemanticLayoutMachine:
     """The semantic layout machine.
 
     Reads recovered Axon DBs, classifies items into broad then finer groups,
-    assigns substrate-safe symbols, and emits JSONL/JSON artifacts.
+    assigns substrate-safe layout IDs, and emits JSONL/JSON artifacts.
 
     Usage:
         machine = SemanticLayoutMachine(
@@ -1312,39 +1311,23 @@ class SemanticLayoutMachine:
 
         return symbols
 
-    def _assign_edge_symbol(self, edge_type: str) -> str:
-        """Assign a registered symbol to an edge type."""
-        relation_entry = self.registry.get_or_create_broad("relation")
-        edge_key = lexical_bucket_key(edge_type or "edge", max_chars=24)
-        edge_entry = self.registry.get_or_create_child(
-            name=f"edge_{edge_key}",
-            parent_symbol=relation_entry.symbol,
-            level=1,
-            broad_kind="relation",
-        )
-        edge_entry.item_count += 1
-        return edge_entry.symbol
-
     # -- internal: emission --
 
     def _emit_container(self, container: Container) -> None:
         """Record a container for later writing."""
-        edge_symbols: List[str] = []
         if container.edges:
-            symbolized_edges: List[SemanticEdge] = []
+            unsymbolized_edges: List[SemanticEdge] = []
             for edge in container.edges:
-                symbol = edge.symbol or self._assign_edge_symbol(edge.edge_type)
-                edge_symbols.append(symbol)
-                symbolized_edges.append(SemanticEdge(
+                unsymbolized_edges.append(SemanticEdge(
                     edge_type=edge.edge_type,
                     target=edge.target,
-                    symbol=symbol,
+                    symbol=None,
                     confidence=edge.confidence,
                     provenance=edge.provenance,
                     status=edge.status,
                 ))
-            container.edges = symbolized_edges
-        container.symbols = sorted(set(edge_symbols))
+            container.edges = unsymbolized_edges
+        container.symbols = []
         self.stats.container_count += 1
         kind = container.kind
         self.stats.broad_kind_counts[kind] = self.stats.broad_kind_counts.get(kind, 0) + 1
@@ -1352,14 +1335,12 @@ class SemanticLayoutMachine:
 
     def _emit_edge(self, source_container_id: str, source_text: str, edge: SemanticEdge) -> None:
         """Record an edge for later writing."""
-        symbol = edge.symbol or self._assign_edge_symbol(edge.edge_type)
         self.stats.edge_count += 1
         self._all_edges.append({
             "edge_type": edge.edge_type,
             "source_container_id": source_container_id,
             "source_text": source_text,
             "target": edge.target,
-            "symbol": symbol,
             "confidence": edge.confidence,
             "provenance": edge.provenance,
             "status": edge.status,
@@ -1430,7 +1411,7 @@ class SemanticLayoutMachine:
             "output_counts": {
                 "containers": self.stats.container_count,
                 "semantic_edges": self.stats.edge_count,
-                "symbols": self.stats.symbol_count,
+                "layout_ids": self.stats.symbol_count,
                 "layout_groups": self.stats.group_count,
                 "vector_samples": self.stats.vector_sample_count,
             },
@@ -1447,10 +1428,9 @@ class SemanticLayoutMachine:
                 "include_episodic": self.include_episodic,
             },
             "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "notes": "Bootstrap deterministic base registry + dormant state from recovered DBs. "
+            "notes": "Bootstrap deterministic layout metadata + dormant state from recovered DBs. "
             "Semantic core trains later as curator/builder from this ground truth. "
-            "Symbols are substrate-safe (A-Z, a-z, 0-9). Layout hierarchy is metadata only; "
-            "ensemble-visible container symbols are edge-derived. "
+            "Semantic edges are spelled out. Layout IDs are substrate-safe metadata only. "
             "Broad grouping is deterministic: entity type + table source + text heuristics. "
             "Finer grouping is lexical buckets with optional vector sample centroid assignment.",
         }
@@ -1500,7 +1480,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     print(f"Semantic layout complete.")
     print(f"  Containers:     {stats.container_count}")
     print(f"  Edges:          {stats.edge_count}")
-    print(f"  Symbols:        {stats.symbol_count}")
+    print(f"  Layout IDs:     {stats.symbol_count}")
     print(f"  Groups:         {stats.group_count}")
     print(f"  Vector samples: {stats.vector_sample_count}")
     print(f"  Broad kinds:    {json.dumps(stats.broad_kind_counts)}")

@@ -21,7 +21,6 @@ from .slot_spec import (  # noqa: F401
     pack_region,
     unpack_region,
     format_edge_full,
-    format_edge_alias,
     format_edges,
     selftest,
 )

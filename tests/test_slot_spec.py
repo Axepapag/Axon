@@ -31,7 +31,6 @@ from slots.slot_spec import (
     pack_region,
     unpack_region,
     format_edge_full,
-    format_edge_alias,
     format_edges,
     KIND_TEXT,
     KIND_RESPONSE_DRAFT,
@@ -40,9 +39,7 @@ from slots.slot_spec import (
     STATUS_ACTIVE,
     STATUS_DRAFT,
     EDGE_FORM_FULL,
-    EDGE_FORM_ALIAS,
     EDGE_FORM_NONE,
-    EDGE_FORM_MIXED,
     MAX_TEXT_CHARS,
     MAX_EDGE_CHARS,
 )
@@ -102,19 +99,13 @@ class TestSlotSpecEdges:
         decoded = unpack_slot(slot.vector)
         assert decoded.edges == edges
 
-    def test_alias_edge_roundtrip(self):
-        edges = format_edge_alias("AA")
-        slot = pack_slot(text="dog", edges=edges, edge_form=EDGE_FORM_ALIAS)
-        decoded = unpack_slot(slot.vector)
-        assert decoded.edges == edges
-
     def test_multiple_edges(self):
         edges = " ".join([
             format_edge_full("is_a", "animal"),
             format_edge_full("has_property", "furry"),
-            format_edge_alias("K9"),
+            format_edge_full("located_in", "yard"),
         ])
-        slot = pack_slot(text="dog", edges=edges, edge_form=EDGE_FORM_MIXED)
+        slot = pack_slot(text="dog", edges=edges, edge_form=EDGE_FORM_FULL)
         decoded = unpack_slot(slot.vector)
         assert decoded.edges == edges
 
@@ -167,7 +158,7 @@ class TestSlotSpecControl:
     def test_control_roundtrip(self):
         ctrl = ControlBlock(
             kind=KIND_RESPONSE_DRAFT, length=42, chain_index=1,
-            chain_total=3, status=STATUS_DRAFT, edge_form=EDGE_FORM_ALIAS,
+            chain_total=3, status=STATUS_DRAFT, edge_form=EDGE_FORM_FULL,
         )
         ctrl_str = ctrl.to_control_chars()
         ctrl2 = ControlBlock.from_control_chars(ctrl_str)

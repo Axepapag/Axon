@@ -16,12 +16,12 @@ read/write:
     compressed view. The core's job is reasoning over summaries, not character
     storage.
 
-  UP (write path — codebook-snap):
-    Accept a full 8192D slot proposal from the core (or from a trained write
-    head — see WRITE HEAD stub below) and snap every 16D character block to
-    the nearest frozen substrate code. Anything committed to the field is
-    exact substrate by construction. An is_empty threshold handles zero/padded
-    positions.
+  UP (write path - codebook-snap):
+    Accept field deltas from a core-owned output path and snap every 16D
+    character block to the nearest frozen substrate code. Anything committed
+    to the field is exact substrate by construction. An is_empty threshold
+    handles zero/padded positions. There is no shared trained decode organ
+    between the core and field.
 
   GATES (replacing the old impossible exact-round-trip gate):
     (a) Snap-idempotence: any validly packed slot passes through
@@ -30,11 +30,9 @@ read/write:
     (b) Separability: distinct slots (differing by one character) produce
         distinct d_model projections (no collisions across a test corpus).
 
-  WRITE HEAD (stub — belongs to cores/trainer, not the frozen adapter):
-    The character-granular write head is a per-position alphabet classifier
-    over a proposed slot. It is NOT part of the frozen adapter — it is a
-    trained module that lives in the core and produces 8192D slot proposals
-    for the adapter to snap. Its design goes to the table.
+  CORE-OWNED OUTPUT:
+    Trainable character/output parameters live inside each core. The adapter
+    only performs frozen projection and deterministic substrate snapping.
 
 One frozen adapter per d_model size, shared by all cores of that size.
 Artifacts: adapters/slot8192_adapter_{d_model}d.pt
@@ -347,30 +345,11 @@ class SlotAdapter:
 
 
 # --------------------------------------------------------------------------- #
-# WRITE HEAD STUB — interface only, belongs to cores/trainer
+# CORE-OWNED OUTPUT CONTRACT
 # --------------------------------------------------------------------------- #
-# The character-granular write head is a per-position alphabet classifier that
-# produces 8192D slot proposals for the adapter to snap. It is NOT part of the
-# frozen adapter — it is a trained module in the core. Its design goes to the
-# table. This stub documents the expected interface:
-#
-# class WriteHead(nn.Module):
-#     def forward(self, core_output: torch.Tensor) -> torch.Tensor:
-#         """core_output: (B, d_model) -> proposed slot: (B, SLOT_WIDTH).
-#
-#         For each of MAX_TEXT_CHARS positions, classify over the substrate
-#         alphabet (per-slot cross-entropy, Layer 13(a)). The output is a
-#         soft 8192D slot that gets codebook-snapped by the adapter before
-#         committing to the field.
-#         """
-#         ...
-#
-# Training: the write head is trained with discrete per-slot cross-entropy
-# over the registered codebook (Layer 13(a)). The adapter's snap() ensures
-# committed content is exact substrate. The write head does NOT need to
-# produce exact 16D vectors — it produces logits/probabilities per position,
-# which are argmax-decoded to characters, then char_to_slot-encoded to 8192D,
-# then snapped.
+# Trainable write behavior belongs inside the core. Anything outside the core
+# on the way to the field must be frozen arithmetic: prototype decode,
+# deterministic pack, snap, and typed diff commit.
 
 
 # --------------------------------------------------------------------------- #

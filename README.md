@@ -19,8 +19,8 @@ D:\Axon/
 ├── slots/                          — 8192D slot spec + field contract
 ├── adapters/                       — frozen shared-state adapters (8192D ↔ d_model)
 ├── cores/                          — transformer core + temperature-tiered soul
-├── training/                       — cf_probe and future trainers
-├── curator/                        — container schema, KG search, layout machine
+├── training/                       — curriculum builders, future trainers, probes
+├── curator/                        — container schema, KG search, dormant builders
 ├── runtime/                        — collaboration bus
 ├── tests/                          — full test suite
 ├── PROVENANCE.md                   — archive source + promoted file ledger
@@ -51,6 +51,16 @@ python slots/slot_field_contract.py
 # Adapter gates (snap-idempotence + separability at 64/128/256D)
 python adapters/mint_adapters.py
 python adapters/slot_adapter.py --check
+
+# Recovered dormant-state smoke build
+python curator/recovered_corpus_builder.py --smoke --out-dir datasets/recovered/dormant_state_smoke
+
+# Recovered curriculum smoke build
+python training/build_recovered_curriculum.py --smoke `
+  --containers datasets/recovered/dormant_state_smoke/containers.jsonl `
+  --registry datasets/recovered/dormant_state_smoke/symbol_registry.jsonl `
+  --edges datasets/recovered/dormant_state_smoke/semantic_edges.jsonl `
+  --out-dir datasets/recovered/curriculum_smoke
 ```
 
 ## Architecture summary
@@ -65,7 +75,23 @@ See `docs/SOURCE_OF_TRUTH.md` for the full doctrine. Key points:
 - **Layer 6**: cores with private temperature-tiered souls (hot/warm/cold/frozen).
 - **Layer 7**: forever tick loop, CPU-resident, matmul-light.
 - **Layer 8**: cores produce deltas in 8192D slot field space; consolidator commits.
-- **Layer 13**: discrete CE loss, smoke gate, no silent truncation, cf_probe proof.
+- **Layer 13**: discrete CE loss, smoke gates, no silent truncation, cf-probe-style proof.
+
+## Recovered Dormant Corpus
+
+`curator/recovered_corpus_builder.py` converts the recovered `D:\00` SQLite/JSON
+sources into dormant `Container` records, spelled-out semantic edge records,
+layout metadata/groups, and a manifest. Sources are opened read-only. Personal
+log entries are excluded unless `--include-personal-log` is passed, and then
+they are tagged `diary_only`.
+
+`training/build_recovered_curriculum.py` turns those dormant artifacts into
+curriculum families: field surfacing, edge prediction, retrieval QA,
+procedure next-step, episodic exhale-filter Tick A/B,
+contradiction/alias curation, and diary-only self-reflection.
+
+Generated artifacts live under `datasets/recovered/` and are intentionally
+ignored by Git.
 
 ## Adapter design (v2)
 
@@ -77,8 +103,8 @@ The adapter has asymmetric read/write:
   Committed content is exact by construction.
 - **Gates**: snap-idempotence (valid slots survive unchanged) and separability
   (distinct slots produce distinct projections).
-- **Write head**: per-position alphabet classifier — belongs to cores/trainer,
-  not the frozen adapter. Design goes to the table.
+- **Core-owned output**: trainable write behavior lives inside the core. The
+  adapter only performs frozen projection and deterministic substrate snapping.
 
 ## Identity
 

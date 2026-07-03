@@ -88,9 +88,7 @@ STATUS_COMMITTED = "K"
 STATUS_EMPTY = " "
 
 # Edge form flags
-EDGE_FORM_FULL = "F"       # full word-edges like {is_a:animal}
-EDGE_FORM_ALIAS = "L"       # compact aliases like {AA}
-EDGE_FORM_MIXED = "M"       # mixed (some full, some alias)
+EDGE_FORM_FULL = "F"       # full English word-edges like "is a.animal"
 EDGE_FORM_NONE = "N"        # no edges in this slot
 
 
@@ -404,7 +402,6 @@ def unpack_region(arr: np.ndarray) -> list[Slot]:
 # Edge payload encoding uses only substrate characters:
 #   - period '.' separates edge_type from target:  isa.animal
 #   - space ' ' separates multiple edges:           isa.animal hasp.furry
-#   - '!' prefixes an alias edge:                    !AA !K9
 # Underscores in edge types are dropped (is_a -> isa) to stay alphanumeric.
 
 def format_edge_full(edge_type: str, target: str, sense: str = "") -> str:
@@ -421,17 +418,6 @@ def format_edge_full(edge_type: str, target: str, sense: str = "") -> str:
     return s
 
 
-def format_edge_alias(alias: str) -> str:
-    """Format a compact alias edge using substrate-safe characters.
-
-    Example: format_edge_alias("AA") -> "!AA"
-    The '!' prefix marks this as an alias form edge.
-    """
-    s = f"!{alias}"
-    _validate_edge_text(s)
-    return s
-
-
 def format_edges(edges: list[str], max_chars: int = MAX_EDGE_CHARS) -> tuple[str, str, bool]:
     """Format a list of edge strings into the edge payload.
 
@@ -444,17 +430,11 @@ def format_edges(edges: list[str], max_chars: int = MAX_EDGE_CHARS) -> tuple[str
 
     packed = " ".join(edges)
     if len(packed) <= max_chars:
-        all_alias = all(e.startswith("!") for e in edges)
-        all_full = all(not e.startswith("!") for e in edges)
-        if all_alias:
-            return packed, EDGE_FORM_ALIAS, False
-        elif all_full:
-            return packed, EDGE_FORM_FULL, False
-        else:
-            return packed, EDGE_FORM_MIXED, False
+        return packed, EDGE_FORM_FULL, False
 
-    # Doesn't fit — return what fits, mark overflow
-    return packed[:max_chars], EDGE_FORM_MIXED, True
+    # Does not fit: return what fits, mark overflow. Continuation slots carry
+    # the rest as full English edge text.
+    return packed[:max_chars], EDGE_FORM_FULL, True
 
 
 # --------------------------------------------------------------------------- #
@@ -509,7 +489,7 @@ def selftest() -> bool:
 
     # 6. Control block round-trip
     ctrl = ControlBlock(kind=KIND_RESPONSE_DRAFT, length=42, chain_index=1,
-                        chain_total=3, status=STATUS_DRAFT, edge_form=EDGE_FORM_ALIAS)
+                        chain_total=3, status=STATUS_DRAFT, edge_form=EDGE_FORM_FULL)
     ctrl_str = ctrl.to_control_chars()
     ctrl2 = ControlBlock.from_control_chars(ctrl_str)
     ok = (ctrl2.kind == ctrl.kind and
@@ -525,8 +505,8 @@ def selftest() -> bool:
     slots_in = [
         pack_slot(text="hello", kind=KIND_TEXT),
         pack_slot(text="world", kind=KIND_TEXT),
-        pack_slot(text="", edges=format_edge_alias("AA"), kind=KIND_EDGE_CONT,
-                   edge_form=EDGE_FORM_ALIAS),
+        pack_slot(text="", edges=format_edge_full("is_a", "animal"), kind=KIND_EDGE_CONT,
+                   edge_form=EDGE_FORM_FULL),
     ]
     arr = pack_region(slots_in)
     slots_out = unpack_region(arr)

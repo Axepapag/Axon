@@ -13,7 +13,7 @@ file first or in the same change.
 Axon is a forever-ticking, token-free, slot-based English-bearing substrate
 agent whose active shared field is made of surfaced conversation, knowledge,
 tools, scratch, diary, awareness, task state, context annotations, response
-draft, and control regions; whose semantic core builds symbolic semantic edges
+draft, and control regions; whose semantic core builds readable semantic edges
 over structured records; and whose dormant structured knowledge is searched
 each tick to surface relevant facts into active state.
 
@@ -68,7 +68,7 @@ messages chain across many slots in region order.
 
 - **dims 0-4095** — text payload. Up to 256 characters, one frozen 16D substrate
   code per character slot, packed by concatenation.
-- **dims 4096-6143** — edge payload. Up to 128 characters of edge/symbol codes,
+- **dims 4096-6143** — edge payload. Up to 128 characters of spelled-out edge text,
   same 16D packing.
 - **dims 6144-6655** — control block. Kind, length, chain links, status, and
   edge-form flags encoded as substrate characters. This block is
@@ -99,23 +99,19 @@ The slot edge payload (dims 4096-6143, 128 chars) is a bounded **view** of the
 container's full edge record, which lives whole in the dormant/container record.
 No semantic edge is ever dropped silently.
 
-**Edge label system (R1 merged position):**
+**Edge label system (R1 corrected position):**
 
-1. Every edge is born as a typed word-edge: `{is_a:animal}`. The registry's
-   canonical form is always the full human-readable record (edge_type, target,
-   sense, directionality, provenance, status).
-2. The registry may promote a short substrate-safe alias (2-4 chars) for an
-   edge type+target pair appearing in >= N containers (start N=10). Aliases
-   are registered abbreviations, bidirectionally mapped; never new meanings;
-   never opaque-from-birth.
-3. Slot edge-payload pack policy (deterministic): prefer full word-edges; fall
-   back to aliases for the densest edges when the 128-char payload would
-   overflow; the control block records which form each edge uses.
-4. Edge overflow contract: if edges exceed the payload even in alias form, the
-   packer must (a) chain an edge-continuation slot, or (b) surface a
+1. Every edge is born as readable English text: edge_type plus target, with
+   optional sense, directionality, provenance, confidence, and status.
+2. The system does not create semantic-edge aliases. Compact `{AA}`-style edge
+   codes force cores to learn a private vocabulary and are rejected.
+3. Slot edge-payload pack policy (deterministic): pack full edge text.
+4. Edge overflow contract: if edges exceed the payload, the packer must
+   (a) chain an edge-continuation slot, or (b) surface a
    prioritized subset by explicit, recorded policy. Either path is
    deterministic, tested, and counted.
-5. Rare-alias expansion is owned by the context-annotation lane (R6, Layer 4).
+5. The context-annotation lane may add short English explanations, never opaque
+   semantic-edge symbols.
 
 ### Why One Slot Per Semantic Unit
 
@@ -163,8 +159,8 @@ the substrate. The container is the envelope. Inside it, words/letter sequences
 and semantic edges remain clearly separate:
 
 - `[word]` / `letters` fields are letter sequences.
-- `{edge}` records are typed semantic relationships with their own symbols,
-  targets, confidence, provenance, and status.
+- `{edge}` records are typed semantic relationships with spelled-out relation
+  text, targets, confidence, provenance, and status.
 
 When a container is materialized into canonical state, participating English
 surface text remains recoverable and is grounded in substrate characters. A
@@ -175,21 +171,21 @@ rendered.
 
 Conceptually, the container is shaped like:
 
-`(<[d][o][g]>{is_a:animal}{has_property:furry}{...})`
+`(<[d][o][g]>{edge: is a -> animal}{edge: has property -> furry}{...})`
 
 Where:
 
 - `(...)` is the container/envelope.
 - `<...>` is the word/letter payload region.
 - `[d][o][g]` are individual substrate character slots.
-- `{is_a:animal}` etc. are attached typed semantic edges (word-form or alias).
+- `{edge: ...}` records are attached typed semantic edges in readable English.
 
 Substrate rule:
 
 - The ensemble must be able to see every materialized letter.
-- Symbols never replace the letters of a word, edge type, or edge target.
-- Symbols are additive overlays created for registered semantic edges.
-- Slots are English-bearing: grounded in exact text, symbols, edges, tool
+- Edge meaning is spelled out as English edge type plus target text.
+- Opaque semantic-edge symbols are not part of the active doctrine.
+- Slots are English-bearing: grounded in exact text, edges, tool
   output, or structured facts.
 - No arbitrary opaque state slots are allowed in the active shared field.
 
@@ -202,7 +198,7 @@ Canonical container fields should include:
 - `normalized_text`
 - `spans`
 - `edges`
-- `symbols`
+- `symbols` (legacy compatibility only; active no-symbol path keeps it empty)
 - `source`
 - `source_tick`
 - `created_tick`
@@ -213,16 +209,14 @@ Canonical container fields should include:
 
 The exact schema can evolve, but containers must stay structured and auditable.
 
-## Layer 2: Semantic Edges And Symbols
+## Layer 2: Semantic Edges
 
 The solitary semantic core is responsible for inspecting containers and
 creating semantic edges. Its job is to discover relationships and attach
-semantic symbols to containers.
+readable edge records to containers.
 
-Every semantic symbol must be recorded in a registry. The registry is permanent
-and auditable:
+Semantic edges are permanent and auditable records:
 
-- `symbol` (alias, if promoted)
 - `label` (full human-readable canonical form)
 - `edge_type`
 - `target`
@@ -235,9 +229,9 @@ and auditable:
 - `confidence`
 - `status`
 
-The registry prevents semantic drift. Two runs must not silently use the same
-symbol for two different meanings. The full canonical label is always the
-source of truth; aliases are abbreviations that map bidirectionally.
+The full canonical label is the source of truth. The system does not depend on
+opaque edge symbols such as `{AA}` or `{K9}` because every reasoning core can
+already read English edge text in the 8192D shared field.
 
 ## Layer 3: Canonical State
 
@@ -327,18 +321,18 @@ model output, and runtime observation lands in some region). The old
 separate raw dump bucket is superseded by the Growing Regions amendment.
 Structuring is the consolidation-pass duty: region tails are processed (by
 cores in sleep cycles, or drained to API curation workers) into facts,
-triples, relationships, patterns, containers, semantic edges, and registry
+triples, relationships, patterns, containers, semantic edges, and curation
 candidates. Raw experience never remains only raw — but now it also never
 leaves its region of origin, so provenance is structural.
 
 ### Bootstrap Dormant State
 
-The first symbol registry and dormant state are built deterministically by an
+The first dormant state is built deterministically by an
 offline importer (`curator/semantic_layout_machine.py`), NOT by waiting for a
 trained semantic core. The importer reads recovered memory DBs in streaming
-fashion, classifies items, assigns substrate-safe symbols, and emits
-container_schema-compatible dormant containers, symbol registry records,
-semantic edges, layout groups, and a corpus manifest.
+fashion, classifies items, assigns layout metadata, and emits
+container_schema-compatible dormant containers, spelled-out semantic edges,
+layout groups, and a corpus manifest.
 
 The semantic core later trains as curator and builder from this deterministic
 ground truth.
@@ -346,8 +340,8 @@ ground truth.
 ## Layer 4: Semantic Search And Surfacing
 
 Each tick performs semantic search over the dormant masked state. The search
-uses semantic edges, symbols, registry entries, exact text, slot metadata, and
-container relationships. Relevant dormant knowledge is surfaced into the active
+uses spelled-out semantic edges, exact text, slot metadata, and container
+relationships. Relevant dormant knowledge is surfaced into the active
 state's `structured_knowledge` region.
 
 ### Context-Annotation Lane (R6)
@@ -355,7 +349,7 @@ state's `structured_knowledge` region.
 A `context_annotations` region is owned by an async worker (API first, trained
 later, outside the tick gate). It writes:
 
-- Compact-alias expansions
+- Short English edge/context explanations
 - Why-this-surfaced notes
 - Source confidence
 - Conflict notes
@@ -371,8 +365,8 @@ Experiment design:
 - Held-out QA set from recovered DBs: one-hop, two-hop, procedure,
   project-memory, and negative-control questions.
 - Frozen answer core, slot budget, corpus, and context window.
-- Conditions: (1) exact text only; (2) + registry lookup; (3) + compact
-  aliases; (4) edge-walk 1 hop; (5) edge-walk 2 hops; (6) + context-annotation
+- Conditions: (1) exact text only; (2) + exact edge lookup; (3) + edge-walk
+  1 hop; (4) edge-walk 2 hops; (5) + context-annotation
   capsules.
 - Metrics: answer accuracy, recall@{1,3,5}, precision@k, active-slot count,
   latency, sibling-noise rate.
@@ -395,8 +389,7 @@ size, not one per core.
 Adapters operate on the frozen 16D substrate basis: a slot's text payload
 (dims 0-4095) is a concatenation of frozen 16D character codes.
 
-READ AND WRITE ARE ASYMMETRIC (accepted resolution `writehead-0703`,
-convener-signed 2026-07-03). The original exact round-trip gate through a
+READ AND WRITE ARE ASYMMETRIC (convener-signed 2026-07-03). The original exact round-trip gate through a
 per-slot d_model bottleneck is information-theoretically impossible (256
 chars do not survive a frozen linear projection into 64 floats) and is
 superseded:
@@ -412,15 +405,12 @@ superseded:
   DOWN -> UP -> snap unchanged) and SEPARABILITY (slots differing by one
   character produce distinct projections).
 
-### The Write Path (convener correction, 2026-07-03 — supersedes the
-### "shared decode organ" of resolution writehead-0703)
+### The Write Path (convener correction, 2026-07-03)
 
 LOCKED LAW (convener): TRAINED PARAMETERS LIVE IN CORES AND NOWHERE ELSE.
 Everything between a core and the field — read or write — is FROZEN
-ARITHMETIC: minted, deterministic, checkable, weightless. The
-writehead-0703 "shared trained decode organ" violated this law and is
-RESCINDED. (The convener's sign-off was given without this conflict being
-flagged; the officer of record takes the miss.)
+ARITHMETIC: minted, deterministic, checkable, weightless. The prior
+shared trained decode organ violated this law and is RESCINDED.
 
 The conforming write path (the proven 16D-era pattern, generalized):
 
@@ -437,14 +427,14 @@ The conforming write path (the proven 16D-era pattern, generalized):
   writing core, only for spans it edits — never read-side attention, never
   a shared trained module.
 
-Surviving unchanged from writehead-0703 (none involve trained projection):
+Surviving write-path rules that do not involve trained projection:
 
 - COMMIT ONLY DIFFS: the runtime diffs decoded output against the current
   slot and commits only changed positions as typed deltas.
 - Length is explicit and countable (declared in the typed delta / control
   block) — truncation is never silent.
 - EDGES NEVER PASS THROUGH CHARACTER DECODE: typed edge deltas; the
-  deterministic packer and registry remain authoritative.
+  deterministic packer and canonical edge records remain authoritative.
 - Gates before any long run: read-fidelity probe plus the cf-probe write
   gate — positive exact-fill > 90 percent, zero/swapped/irrelevant-field
   controls < 5 percent.
@@ -473,8 +463,8 @@ A core checkpoint records its d_model. It does not carry adapter weights.
 ## Layer 6: Cores And Souls
 
 There is a solitary semantic core role. The semantic core's purpose is to
-inspect containers, create semantic edges, assign registered semantic symbols,
-and keep semantic structure growing.
+inspect containers, create readable semantic edges, and keep semantic structure
+growing.
 
 There is also an ensemble of model cores at different dimensions: 64D, 128D,
 256D, future 512D, 1024D.
@@ -741,14 +731,14 @@ Locked rules:
 
 API workers (Kimi/Hermes/cloud) staff the curator role. Propose/dispose split:
 
-- Workers PROPOSE: containers, edge candidates, canonical labels, aliases,
+- Workers PROPOSE: containers, edge candidates, canonical labels,
   confidence, provenance, source pointers.
 - A deterministic VALIDATOR commits or rejects. Checklist: schema validity;
   SOURCE POINTER REQUIRED (claims without a source record pointer are
-  committed as status=candidate, never as facts); registry dedup; alias
-  collision check; edge direction/type check; provenance hash;
+  committed as status=candidate, never as facts); canonical label dedup;
+  edge direction/type check; provenance hash;
   confidence/status; payload capacity check; redaction/sensitivity status;
-  append-only registry writes; CONTRADICTION GATE (a new edge contradicting a
+  append-only edge writes; CONTRADICTION GATE (a new edge contradicting a
   higher-confidence existing edge on the same (source, edge_type) is flagged
   for review, not auto-committed).
 - Drift detection: every batch stamped `created_by: model:version:date`;
@@ -766,15 +756,24 @@ API workers (Kimi/Hermes/cloud) staff the curator role. Propose/dispose split:
   act_reflect, act_reflect_v2).
 - `cores/soul_v2.py`: temperature-tiered soul manager (not yet wired into
   core.py).
-- `training/cf_probe.py`: counterfactual soul-read diagnostic.
 - `curator/kg_search.py`: knowledge graph search.
 - `curator/container_schema.py`: container and edge schema.
 - `curator/semantic_layout_machine.py`: deterministic dormant-state importer.
+- `curator/recovered_corpus_builder.py`: recovered DB/JSON to dormant
+  containers, spelled-out semantic edges, layout groups, and manifest.
 - `curator/dormant_materializer.py`: dormant container materializer.
+- `training/build_recovered_curriculum.py`: dormant artifacts to curriculum
+  families for field surfacing, edge prediction, retrieval
+  QA, procedures, episodic exhale filters, curation review, and diary-only
+  self-reflection.
 - `runtime/bus/`: sidecar HTTP/WebSocket collaboration bus.
 - `slots/slot_spec.py`: 8192D slot pack/unpack (Step 0).
 - `slots/slot_field_contract.py`: nine-region field contract (Step 0).
 - `adapters/slot_adapter.py`: 16D-basis state adapters (Step 0).
+
+Counterfactual probes remain required by Layer 13, but the previous legacy
+`training/cf_probe.py` implementation was removed because it depended on the
+rescinded `heads` path and the pre-slot projection bank.
 
 ## Current Training Reality
 
@@ -801,7 +800,7 @@ rules in Layer 13:
 3. ~~State adapter revival: 16D-basis adapters for 64/128/256D.~~ (Step 0)
 4. Container schema (promoted, needs slot-era integration).
 5. Semantic edge schema (promoted, needs slot-era integration).
-6. Symbol registry schema.
+6. Layout metadata schema.
 7. Active state region contract (slot-era materialization).
 8. Dormant masked state storage contract.
 9. Semantic search/surfacing protocol.
@@ -836,15 +835,14 @@ rules in Layer 13:
 - Semantic edges must not be silently truncated. The edge payload is a bounded
   view; the full record lives in dormant state. Overflow chains or surfaces by
   explicit policy.
-- Edge labels are born as typed word-edges; aliases are registry-promoted
-  abbreviations, never opaque-from-birth.
+- Edge labels are born and remain typed English edge text.
 - State adapters are per d_model size, shared by all cores of that size, on the
   frozen 16D substrate basis.
 - The adapter is the only bridge between 8192D slot shared state and smaller
   d_model cores. The soul never crosses the adapter.
-- Semantics come from the semantic core assigning registered edge symbols.
+- Semantics come from the semantic core creating readable semantic edges.
 - Containers are structured records, not loose blobs.
-- The symbol registry is permanent and auditable.
+- Layout metadata is auditable but is not semantic edge meaning.
 - The canonical state has active and dormant/masked parts.
 - Dormant structured knowledge is cheap, searchable, editable, and not attended
   over directly by default.
