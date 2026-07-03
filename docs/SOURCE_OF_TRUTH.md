@@ -270,13 +270,24 @@ with a SLIDING MASK deciding what the ensemble attends this tick:
   8192D vectors; deep tape lives as slot RECORDS (packed text + edges +
   provenance) and is re-materialized on unmask. Growth is unbounded in
   records, bounded in RAM.
-- CONSOLIDATION PASSES (sleep cycles): periodically the cores mask off most
-  of the active state and unmask the deep ends of each region in CHUNKS,
+- CONSOLIDATION PASSES (personal hygiene): consolidation runs during IDLE
+  ticks — this is a core purpose of the forever tick. When Axon is done
+  with a task, he has more work to do: the cores mask off most of the
+  active state and unmask the deep ends of each region in CHUNKS,
   processing them into semantic edges, episodic memory, and structured
   knowledge — the structuring duty that previously belonged to the dump
   bucket. Chunks may equally be DRAINED to API curation workers (the Track
-  1b propose/dispose validator consumes region tails). A chunk is marked
-  processed, never deleted.
+  1b propose/dispose validator consumes region tails).
+- REGION LIFECYCLE (convener refinement, 2026-07-03): three stages, one
+  temperature ladder shared with the souls. (1) ACTIVE WINDOW: masked-in,
+  materialized 8192D vectors, RAM. (2) UNPROCESSED TAIL: slot records on
+  disk in the working state, awaiting hygiene. (3) ARCHIVE: once a chunk is
+  processed — edges extracted, episodic memory built, knowledge filed into
+  the dormant knowledge base — its raw records are EVICTED from the working
+  state into an append-only archive database: still searchable, still
+  restorable, full provenance (eviction-to-archive is filing, never
+  deletion), but out of RAM and out of the working set. History grows into
+  terabytes on disk, never in Axon's working memory.
 
 ### Active State
 
