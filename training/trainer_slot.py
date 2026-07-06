@@ -302,38 +302,57 @@ class Phase0Curriculum:
         self.sentences: list[str] = []
         self.eval_sentences: list[str] = []
         self.history: list[str] = []
-        # Optional second pool: a pre-cleaned one-sentence-per-line corpus
-        # (build_text_corpus.py output, e.g. TinyStories). Sampled with
-        # probability text_corpus_weight against the memories pool.
-        self.story_sentences: list[str] = []
+        # Optional second pool: a story-grouped corpus (build_text_corpus.py
+        # v2 output: one sentence per line, blank line between stories).
+        # Stories are walked SEQUENTIALLY so conversation_history carries the
+        # real story-so-far (v1 shuffled flat and destroyed causality —
+        # 2026-07-06 curriculum correction). Sampled with probability
+        # text_corpus_weight against the memories pool.
+        self.stories: list[list[str]] = []
         self.story_weight = float(text_corpus_weight) if text_corpus else 0.0
+        self.story_eval_examples: list[dict[str, Any]] = []
         self._load(curriculum_dir, containers_path)
         if text_corpus and os.path.exists(text_corpus):
+            block: list[str] = []
+            n_sent = 0
             with open(text_corpus, "r", encoding="utf-8") as f:
-                for i, line in enumerate(f):
-                    if i >= text_corpus_max:
-                        break
+                for line in f:
                     line = line.rstrip("\n")
-                    if line:
-                        self.story_sentences.append(line)
-            self.rng.shuffle(self.story_sentences)
+                    if not line:
+                        if len(block) >= 2:
+                            self.stories.append(block)
+                            n_sent += len(block)
+                        block = []
+                        if n_sent >= text_corpus_max:
+                            break
+                        continue
+                    block.append(line)
+            if len(block) >= 2 and n_sent < text_corpus_max:
+                self.stories.append(block)
+            self.rng.shuffle(self.stories)
         self.rng.shuffle(self.sentences)
         eval_n = min(512, max(32, len(self.sentences) // 100)) if len(self.sentences) >= 64 else len(self.sentences)
         self.eval_sentences = self.sentences[:eval_n]
         self.sentences = self.sentences[eval_n:] or self.eval_sentences[:]
-        if self.story_sentences:
-            # Blend eval proportionally so metrics reflect both pools.
-            n_story_eval = max(8, int(round(len(self.eval_sentences) * self.story_weight)))
-            story_eval = self.story_sentences[:n_story_eval]
-            self.story_sentences = self.story_sentences[n_story_eval:] or story_eval[:]
-            keep = len(self.eval_sentences) - n_story_eval
-            mixed = story_eval + self.eval_sentences[: max(keep, 8)]
-            self.eval_sentences = mixed[: max(len(self.eval_sentences), len(mixed))]
+        if self.stories:
+            # Hold out whole stories for eval; every held-out example carries
+            # its true story-so-far as history plus a story_id for audit.
+            n_eval_stories = min(48, max(8, len(self.stories) // 100))
+            held = self.stories[:n_eval_stories]
+            self.stories = self.stories[n_eval_stories:] or held[:]
+            for sid, story in enumerate(held):
+                k = self.rng.randrange(1, len(story))  # never the opener: history exists
+                ex = self._example_from_sentence(
+                    story[k], history_text=" ".join(story[:k]))
+                ex["story_id"] = f"eval_s{sid}"
+                assert story[k] not in story[:k], "same-story eval invariant"
+                self.story_eval_examples.append(ex)
         self._pos = 0
-        self._story_pos = 0
+        self._story_idx = 0
+        self._sent_idx = 0
         log("DATA", f"Phase0 sentences loaded: train={len(self.sentences)} "
-                    f"stories={len(self.story_sentences)} (weight={self.story_weight}) "
-                    f"eval={len(self.eval_sentences)}")
+                    f"stories={len(self.stories)} (weight={self.story_weight}) "
+                    f"eval={len(self.eval_sentences)} story_eval={len(self.story_eval_examples)}")
 
     def _substrate_safe(self, text: str) -> str:
         alphabet = set(default_alphabet())
@@ -426,28 +445,39 @@ class Phase0Curriculum:
         }
 
     def next(self) -> dict[str, Any]:
-        if self.story_sentences and self.rng.random() < self.story_weight:
-            if self._story_pos >= len(self.story_sentences):
-                self.rng.shuffle(self.story_sentences)
-                self._story_pos = 0
-            sentence = self.story_sentences[self._story_pos]
-            self._story_pos += 1
-        else:
-            if self._pos >= len(self.sentences):
-                self.rng.shuffle(self.sentences)
-                self._pos = 0
-            sentence = self.sentences[self._pos]
-            self._pos += 1
+        if self.stories and self.rng.random() < self.story_weight:
+            # Sequential walk within one story: history = the story so far.
+            story = self.stories[self._story_idx]
+            if self._sent_idx >= len(story):
+                self._story_idx = self.rng.randrange(len(self.stories))
+                self._sent_idx = 0
+                story = self.stories[self._story_idx]
+            k = self._sent_idx
+            self._sent_idx += 1
+            ex = self._example_from_sentence(
+                story[k], history_text=" ".join(story[:k]))
+            ex["story_id"] = f"s{self._story_idx}"
+            return ex
+        if self._pos >= len(self.sentences):
+            self.rng.shuffle(self.sentences)
+            self._pos = 0
+        sentence = self.sentences[self._pos]
+        self._pos += 1
         history_text = "\n".join(self.history[-self.history_turns:])
         ex = self._example_from_sentence(sentence, history_text=history_text)
         self.history.append(f"user {ex['user_input']}\naxon {ex['answer']}")
         return ex
 
     def eval_examples(self, n: int) -> list[dict[str, Any]]:
+        # Story-eval examples first (real same-story history, story_id for
+        # audit), proportional to the training mix; memories fill the rest.
+        examples: list[dict[str, Any]] = []
+        if self.story_eval_examples:
+            n_story = min(len(self.story_eval_examples), max(1, int(round(n * self.story_weight))))
+            examples.extend(self.story_eval_examples[:n_story])
         source = self.eval_sentences or self.sentences
         history: list[str] = []
-        examples: list[dict[str, Any]] = []
-        for i in range(n):
+        for i in range(n - len(examples)):
             history_text = "\n".join(history[-self.history_turns:])
             ex = self._example_from_sentence(source[i % len(source)], history_text=history_text)
             examples.append(ex)
@@ -836,13 +866,18 @@ class CharSlotFieldBuilder:
         for i, ch in enumerate(text[:width]):
             out[offset + i] = char_to_slot(ch if ch in self.char_index else " ")
 
-    def _char_targets(self, answer: str) -> np.ndarray:
+    def _char_targets(self, answer: str, loss_prefix_mask: int = 0) -> np.ndarray:
         t = np.full((self.resp_chars,), self.empty_index, dtype=np.int64)
         for i, ch in enumerate(answer[: self.resp_chars]):
             t[i] = self.char_index.get(ch, self.char_index[" "])
+        if loss_prefix_mask > 0:
+            # Suffix-only supervision: visible draft prefix is input, not
+            # target — no gradient credit for copying what was handed over.
+            t[: min(loss_prefix_mask, self.resp_chars)] = -100
         return t
 
-    def build(self, history: str, user_input: str, answer: str, draft_text: str) -> dict[str, torch.Tensor]:
+    def build(self, history: str, user_input: str, answer: str, draft_text: str,
+              loss_prefix_mask: int = 0) -> dict[str, torch.Tensor]:
         field16 = np.zeros((self.n_slots, SUBSTRATE_SLOT_DIM), dtype=np.float32)
         # History keeps its most recent tail — that is the useful context.
         self._write_block(field16, history[-self.history_chars:], 0, self.history_chars)
@@ -851,7 +886,8 @@ class CharSlotFieldBuilder:
         return {
             "field16": torch.from_numpy(field16).unsqueeze(0).to(self.device, self.dtype),
             "region": self._region,
-            "targets": torch.from_numpy(self._char_targets(answer)).unsqueeze(0).to(self.device),
+            "targets": torch.from_numpy(
+                self._char_targets(answer, loss_prefix_mask)).unsqueeze(0).to(self.device),
         }
 
     def decode(self, logits: torch.Tensor, n_chars: int) -> str:
@@ -871,6 +907,7 @@ def evaluate_charslot(
     """Same metric family as evaluate(): exact_fill/char_acc + collapse stats."""
     core.eval()
     exact = chars_total = chars_correct = 0
+    sfx_exact = sfx_total = sfx_correct = sfx_n = 0
     all_logits: list[torch.Tensor] = []
     pred_chars_all: list[str] = []
     samples: list[dict[str, str]] = []
@@ -891,6 +928,7 @@ def evaluate_charslot(
         pred_chars_all.extend(pred)
         if len(samples) < 3:
             samples.append({
+                "story_id": str(ex.get("story_id", "-")),
                 "history": history[-96:],
                 "user_input": user_input[:96],
                 "draft_seed": draft_text[:96],
@@ -901,6 +939,16 @@ def evaluate_charslot(
         for a, b in zip(pred, ans):
             chars_total += 1
             chars_correct += int(a == b)
+        # Suffix-only accounting: everything beyond the visible seed. This is
+        # the number that means "completion", uncontaminated by copy credit.
+        k = len(draft_text)
+        t_sfx, p_sfx = ans[k:], pred[k:]
+        if t_sfx:
+            sfx_n += 1
+            sfx_exact += int(p_sfx.strip() == t_sfx.strip())
+            for a, b in zip(p_sfx.ljust(len(t_sfx)), t_sfx):
+                sfx_total += 1
+                sfx_correct += int(a == b)
     core.train()
     t = max(1, len(examples))
     collapse_var = entropy = 0.0
@@ -913,6 +961,8 @@ def evaluate_charslot(
     return {
         "exact_fill": exact / t,
         "char_acc": chars_correct / max(1, chars_total),
+        "suffix_char_acc": sfx_correct / max(1, sfx_total),
+        "suffix_exact": sfx_exact / max(1, sfx_n),
         "collapse_var": collapse_var,
         "pred_entropy": entropy,
         "pred_unique": len(pred_counts),
@@ -1040,7 +1090,12 @@ def train_charslot(args: argparse.Namespace) -> None:
         history = ex.get("conversation_history", "")
         draft_stage = random.choices(("copy", "partial", "blank"), weights=mode_weights)[0]
         draft_text = draft_seed_for_mode(ans, draft_stage)
-        built = builder.build(history, user_input, ans, draft_text)
+        # Partial trains completion only: the visible prefix is masked out of
+        # the loss (no copy credit). Copy keeps full supervision (it is the
+        # channel-maintenance drill); blank was never seeded.
+        prefix_mask = len(draft_text) if draft_stage == "partial" else 0
+        built = builder.build(history, user_input, ans, draft_text,
+                              loss_prefix_mask=prefix_mask)
 
         # INHALE
         soul, soul_mask = soul_mgr.inhale()
@@ -1056,6 +1111,7 @@ def train_charslot(args: argparse.Namespace) -> None:
         loss = F.cross_entropy(
             logits.reshape(-1, logits.size(-1)),
             built["targets"].reshape(-1),
+            ignore_index=-100,
         )
 
         # LEARN
@@ -1088,11 +1144,14 @@ def train_charslot(args: argparse.Namespace) -> None:
                 metrics = evaluate_charslot(core, soul_mgr, builder, eval_examples, draft_mode=eval_mode)
                 tag = f"EVAL_{eval_mode.upper()}"
                 log(tag, f"step={step} exact_fill={metrics['exact_fill']:.3f} "
-                         f"char_acc={metrics['char_acc']:.3f} entropy={metrics['pred_entropy']:.3f} "
+                         f"char_acc={metrics['char_acc']:.3f} "
+                         f"sfx_acc={metrics['suffix_char_acc']:.3f} sfx_exact={metrics['suffix_exact']:.3f} "
+                         f"entropy={metrics['pred_entropy']:.3f} "
                          f"uniq={metrics['pred_unique']} top={metrics['pred_top_frac']:.3f} "
                          f"collapse_var={metrics['collapse_var']:.6f} n={metrics['n']}")
                 for i, sample in enumerate(metrics.get("samples", [])[: int(getattr(args, "eval_samples", 0))]):
                     log("PRED", f"step={step} mode={eval_mode} sample={i} "
+                                f"story={sample['story_id']} history=...{sample['history'][-60:]!r} "
                                 f"user_input={sample['user_input']!r} draft_seed={sample['draft_seed']!r} "
                                 f"target={sample['target']!r} pred={sample['pred']!r}")
                 if metrics["collapse_var"] < args.collapse_threshold and step > args.smoke_steps:
