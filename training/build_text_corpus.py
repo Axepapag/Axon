@@ -53,8 +53,15 @@ def main(argv=None) -> int:
 
     alphabet = set(default_alphabet())
     ws = re.compile(r"\s+")
+    # Unicode -> substrate equivalents (TinyStoriesV2 is full of curly
+    # quotes; dropping them destroys dialogue structure).
+    xlat = str.maketrans({
+        "“": '"', "”": '"', "‘": "'", "’": "'",
+        "–": "-", "—": "-", "…": ".",
+    })
 
     def clean(text: str) -> str:
+        text = text.translate(xlat)
         kept = [ch if ch in alphabet else (" " if ch.isspace() else "") for ch in text]
         return ws.sub(" ", "".join(kept)).strip()
 
@@ -64,7 +71,7 @@ def main(argv=None) -> int:
          open(args.dst, "w", encoding="utf-8") as out:
         def flush_story():
             nonlocal n_out, n_stories
-            para = " ".join(buf)
+            para = " ".join(buf).translate(xlat)
             buf.clear()
             wrote = 0
             for sent in split_sentences(para):
