@@ -14,8 +14,11 @@ FIELD_CONTRACT.md Section 2.1:
     one of two hand-authored circles (planes (12,13) and (8,9)), with a
     family shell on dim 11 and a symbol flag on dim 14. Open/close pairs
     are placed 180 degrees apart on the same circle. CRITICAL v8 LAW:
-    every pre-v8 character vector is byte-identical to v7 — enforced by a
-    frozen SHA-256 gate (rule 0) so trained checkpoints stay valid forever.
+    every pre-v8 character vector is frozen — enforced by rule 0, which
+    compares recomputed vectors against the committed reference artifact
+    (v7_reference_bank.npy) at atol=1e-5 (machine-independent: bitwise
+    hashes of computed floats vary across BLAS builds). Trained
+    checkpoints stay valid forever.
 
 NO HASH. NO RNG. NO LEARNED PARAMETERS. The same character always produces
 the same 16D vector, at tick 0 and at tick 1,000,000.
@@ -26,7 +29,7 @@ just sets the exit code (train.bat uses this as the pre-flight gate).
 """
 from __future__ import annotations
 
-import hashlib
+
 import math
 import sys
 from pathlib import Path
@@ -36,10 +39,14 @@ import numpy as np
 SLOT_DIM = 16
 FEATURE_DIM = 39  # v6.5's 32 + digit circle (30,31) + null (32) + v8 symbol rows (33-38)
 
-# v8 stone: SHA-256 of the 67 v7 alphabet vectors + <empty>, little-endian
-# float32, in v7 alphabet order. Rule 0 of verify_substrate. If this gate
-# ever fails, the substrate has drifted and every trained core is orphaned.
-V7_CORE_SHA256 = "9a0e0414bcafce20a3f31847210241b58c2ffad583d74d63721ff75f2a0a46af"
+# v8 stone: the 67 v7 alphabet vectors + <empty>, frozen as a reference
+# artifact (v7_reference_bank.npy, committed beside this file). Rule 0 of
+# verify_substrate compares recomputed vectors against it at atol=1e-5 —
+# far above BLAS last-ULP noise (~1e-7, machine-dependent), far below any
+# real weight/feature edit (>=1e-3). If this gate ever fails, the substrate
+# has drifted and every trained core is orphaned.
+V7_REFERENCE_FILE = "v7_reference_bank.npy"
+V7_REFERENCE_ATOL = 1e-5
 
 VOWELS_LOWER = set("aeiou")
 ASCENDERS = set("bdfhklt")
@@ -406,11 +413,22 @@ def v7_alphabet() -> list[str]:
     return default_alphabet()[:67]
 
 
-def v7_bank_sha256() -> str:
-    """SHA-256 of the 67 v7 vectors + <empty>, little-endian float32."""
-    blob = b"".join(char_to_slot(c).astype("<f4").tobytes() for c in v7_alphabet())
-    blob += char_to_slot("<empty>").astype("<f4").tobytes()
-    return hashlib.sha256(blob).hexdigest()
+def v7_bank_frozen() -> bool:
+    """Rule 0: recomputed v7 vectors match the frozen reference artifact.
+
+    Tolerance comparison, NOT a byte hash: float32 matmul differs in the
+    last ULP across BLAS builds, so bitwise identity is machine-dependent.
+    atol=1e-5 is machine-stable and still catches any real drift.
+    """
+    ref_path = Path(__file__).resolve().parent / V7_REFERENCE_FILE
+    if not ref_path.exists():
+        return False
+    ref = np.load(ref_path)
+    chars = v7_alphabet() + ["<empty>"]
+    if ref.shape != (len(chars), SLOT_DIM):
+        return False
+    M = np.stack([char_to_slot(c) for c in chars]).astype(np.float32)
+    return bool(np.allclose(M, ref, atol=V7_REFERENCE_ATOL, rtol=0.0))
 
 
 def geometry_check() -> dict[str, object]:
@@ -450,7 +468,7 @@ def geometry_check() -> dict[str, object]:
     s_partner = CODE_SYMBOLS[int(np.argmax(Cs[s_worst]))]
 
     return {
-        "v7_bank_sha_ok": v7_bank_sha256() == V7_CORE_SHA256,
+        "v7_bank_sha_ok": v7_bank_frozen(),
         "symbols_worst_nn_cos": float(Cs.max()),
         "symbols_worst_pair": f"{CODE_SYMBOLS[s_worst]!r}-{s_partner!r}",
         "letters_min_cos": float(off_l.min()),
