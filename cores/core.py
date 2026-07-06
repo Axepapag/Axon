@@ -76,10 +76,23 @@ class CoreConfig:
     soul_write_mode: str = "compartments"
     n_soul_compartments: int = 8
     # Slot-era mode (SOURCE_OF_TRUTH Layer 5/13): core attends over d_model
-    # slot summaries from a frozen adapter and writes response_draft characters
+    # slot summaries from a frozen adapter and emits a response_draft delta
     # through its own per-character d_model vectors + a frozen prototype decode.
     slot_mode: bool = False
     max_response_chars: int = 256
+    # Char-slot threshold (2026-07-04, probe-verified): the core attends the
+    # frozen 16D character substrate directly — one slot per character, lifted
+    # 16->d_model by a frozen orthogonal buffer (over-complete, lossless) plus
+    # learned region-type and position embeddings.  Text is written back by a
+    # shared per-slot head d_model->16 applied at EVERY response position and
+    # snapped to the frozen LetterBank by cosine.  Replaces the lossy
+    # 8192->d_model adapter + pooled ResponseDraftDeltaHead for this mode.
+    # A/B evidence: training/char_slot_probe.py — per-slot COPY char_acc=1.000
+    # by step 500 (157k params, CPU) vs pooled plateau 0.485 = the live 51M
+    # GPU-run ceiling.
+    char_slot_mode: bool = False
+    char_slot_max_slots: int = 384
+    char_n_regions: int = 3
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "CoreConfig":
@@ -105,6 +118,9 @@ class CoreConfig:
             n_soul_compartments=int(d.get("n_soul_compartments", 8)),
             slot_mode=bool(d.get("slot_mode", False)),
             max_response_chars=int(d.get("max_response_chars", 256)),
+            char_slot_mode=bool(d.get("char_slot_mode", False)),
+            char_slot_max_slots=int(d.get("char_slot_max_slots", 384)),
+            char_n_regions=int(d.get("char_n_regions", 3)),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -120,6 +136,9 @@ class CoreConfig:
             "n_soul_compartments": self.n_soul_compartments,
             "slot_mode": self.slot_mode,
             "max_response_chars": self.max_response_chars,
+            "char_slot_mode": self.char_slot_mode,
+            "char_slot_max_slots": self.char_slot_max_slots,
+            "char_n_regions": self.char_n_regions,
         }
 
     def total_soul_rows(self) -> int:
@@ -324,11 +343,11 @@ class SoulCrossAttentionTransformerLayer(TransformerLayer):
         return x
 
 
-class CharWriteHead(nn.Module):
-    """Core-owned write head for the arithmetic-only slot-era write path.
+class ResponseDraftDeltaHead(nn.Module):
+    """Core-owned response-draft delta emitter for the slot-era path.
 
     Takes a pooled representation of the response_draft slot(s) and unrolls a
-    sequence of per-character d_model vectors.  Each character vector is later
+    proposed delta as per-character d_model vectors.  Each character vector is later
     decoded to a substrate character by the frozen CharPrototypeTable in the
     adapter.  All trainable parameters live inside the core; the prototype
     table itself is frozen arithmetic.
@@ -345,7 +364,7 @@ class CharWriteHead(nn.Module):
             nn.Linear(d_model * 4, max_response_chars * d_model, bias=False),
         )
         # Initialise conservatively: start near zero so the trainer controls
-        # when the write path opens.
+        # when the response-delta path opens.
         for m in self.mlp.modules():
             if isinstance(m, nn.Linear):
                 nn.init.normal_(m.weight, std=0.02)
@@ -355,6 +374,43 @@ class CharWriteHead(nn.Module):
         B = draft_slot_hidden.shape[0]
         flat = self.mlp(draft_slot_hidden)
         return flat.reshape(B, self.max_response_chars, self.d_model)
+
+
+class FieldDeltaHead(nn.Module):
+    """Core-owned full-field delta emitter in the core's d_model lane.
+
+    The runtime/trainer interprets this as a typed slot delta over the whole
+    active field. Read-only regions should learn near-zero no-op deltas;
+    writable regions may carry replacement/update payload summaries. Exact
+    text payloads still use the per-character response delta path because a
+    small d_model slot cannot exactly reconstruct an arbitrary 8192D text slot.
+    """
+
+    def __init__(self, d_model: int):
+        super().__init__()
+        self.norm = nn.LayerNorm(d_model)
+        self.proj = nn.Linear(d_model, d_model, bias=False)
+        nn.init.zeros_(self.proj.weight)
+
+    def forward(self, field_hidden: torch.Tensor) -> torch.Tensor:
+        """Args: field_hidden (B, n_slots, d_model). Returns same shape."""
+        return self.proj(self.norm(field_hidden))
+
+
+# Char-slot threshold constants/helpers (kept dependency-free: 16 mirrors
+# substrate.SLOT_DIM; the trainer asserts they agree).
+CHAR_SLOT_DIM = 16
+
+
+def _frozen_orthogonal_lift(d_model: int, seed: int = 7) -> torch.Tensor:
+    """(16, d_model) with orthonormal columns: a lossless over-complete lift
+    of one frozen 16D substrate character into the core's lane.  Deterministic
+    (seeded) so every core of a given d_model shares the same lift and
+    checkpoints stay portable."""
+    g = torch.Generator().manual_seed(seed + d_model)
+    M = torch.randn(d_model, CHAR_SLOT_DIM, generator=g, dtype=torch.float64)
+    Q, _ = torch.linalg.qr(M)  # (d_model, 16), orthonormal columns
+    return Q.T.contiguous().to(torch.float32)  # (16, d_model)
 
 
 class AxonCore(nn.Module):
@@ -405,14 +461,34 @@ class AxonCore(nn.Module):
             self.soul_compartment_gate = nn.Parameter(torch.tensor(cfg.soul_gate_init))
             # rows per compartment (last compartment absorbs remainder)
             self._rows_per_comp = cfg.soul_hot_rows // K
-        # Slot-era per-character write head (Layer 5/13).  Lives inside the core;
-        # the adapter provides only the frozen prototype decode.
+        # Slot-era per-character response delta (Layer 5/13).  Lives inside the
+        # core; the adapter provides only the frozen prototype decode.
         if cfg.slot_mode:
             assert cfg.soul_mode == "act_reflect_v2", (
                 "slot_mode requires act_reflect_v2 for soul_v2 inhale/exhale"
             )
-            self.char_write_head = CharWriteHead(cfg.d_model, cfg.max_response_chars)
+            # Keep the historical attribute name for checkpoint compatibility.
+            self.char_write_head = ResponseDraftDeltaHead(cfg.d_model, cfg.max_response_chars)
             self.draft_norm = nn.LayerNorm(cfg.d_model)
+            self.field_delta_head = FieldDeltaHead(cfg.d_model)
+        # Char-slot threshold (see CoreConfig.char_slot_mode).  Position
+        # survives end to end: no pooling anywhere on the text path.
+        if cfg.char_slot_mode:
+            assert cfg.soul_mode == "act_reflect_v2", (
+                "char_slot_mode requires act_reflect_v2 for soul_v2 inhale/exhale"
+            )
+            self.register_buffer("char_lift", _frozen_orthogonal_lift(cfg.d_model))
+            self.char_type_emb = nn.Embedding(cfg.char_n_regions, cfg.d_model)
+            self.char_pos_emb = nn.Embedding(cfg.char_slot_max_slots, cfg.d_model)
+            nn.init.normal_(self.char_type_emb.weight, std=0.02)
+            nn.init.normal_(self.char_pos_emb.weight, std=0.02)
+            self.char_slot_head = nn.Sequential(
+                nn.LayerNorm(cfg.d_model),
+                nn.Linear(cfg.d_model, cfg.d_model * 4, bias=False),
+                nn.SiLU(),
+                nn.Linear(cfg.d_model * 4, CHAR_SLOT_DIM, bias=False),
+            )
+            self.char_temp = nn.Parameter(torch.tensor(10.0))
         # Gradient checkpointing: when True (set by the trainer during
         # training), each layer's activations are recomputed in the
         # backward pass instead of being stored. Trades a little compute
@@ -573,15 +649,18 @@ class AxonCore(nn.Module):
         soul_mask: torch.Tensor | None = None,
         response_draft_slice: slice | None = None,
     ) -> dict[str, torch.Tensor]:
-        """Slot-era forward: inhale soul, attend field, write response_draft chars.
+        """Slot-era forward: inhale soul, attend field, emit core-owned deltas.
 
         Reuses the act_reflect_v2 path for inhale/attend/exhale, then runs the
-        core-owned CharWriteHead on the response_draft slot hidden states to
-        produce per-character d_model vectors.  The frozen adapter prototype
-        table decodes those vectors outside the core.
+        core-owned full-field delta head over every slot. It also runs the
+        response-draft text payload head on response_draft hidden states to
+        produce exact per-character d_model delta vectors.  The frozen adapter
+        prototype table decodes those vectors outside the core.
 
-        Returns the same dict as forward_with_soul plus ``draft_chars``:
-        (B, max_response_chars, d_model).
+        Returns the same dict as forward_with_soul plus
+        ``field_delta``: (B, n_slots, d_model), and
+        ``response_delta_chars``: (B, max_response_chars, d_model).  The legacy
+        ``draft_chars`` key is retained as a temporary compatibility alias.
         """
         if not self.cfg.slot_mode:
             raise ValueError("forward_slot requires slot_mode=True in CoreConfig")
@@ -593,17 +672,58 @@ class AxonCore(nn.Module):
         else:
             draft_hidden = field_out[:, response_draft_slice, :]
         pooled = self.draft_norm(draft_hidden).mean(dim=1)  # (B, d_model)
-        out["draft_chars"] = self.char_write_head(pooled)
+        response_delta_chars = self.char_write_head(pooled)
+        out["field_delta"] = self.field_delta_head(field_out)
+        out["response_delta_chars"] = response_delta_chars
+        out["draft_chars"] = response_delta_chars
         return out
 
-    def char_logits(self, draft_chars: torch.Tensor) -> torch.Tensor:
+    def forward_charslot(
+        self,
+        field16: torch.Tensor,
+        region_ids: torch.Tensor,
+        soul: torch.Tensor,
+        mask: torch.Tensor | None = None,
+        soul_mask: torch.Tensor | None = None,
+        response_slice: slice | None = None,
+    ) -> dict[str, torch.Tensor]:
+        """Char-slot forward: attend the frozen 16D substrate directly.
+
+        field16:    (B, n_slots, 16) — one frozen substrate slot per character
+        region_ids: (B, n_slots) int — region-type id per slot
+        response_slice: slot slice of the response_draft region
+
+        Returns the forward_with_soul dict plus ``response_delta_16``:
+        (B, n_resp, 16) — a 16D delta PER response position (no pooling),
+        decoded outside by cosine against the frozen LetterBank.
+        """
+        if not self.cfg.char_slot_mode:
+            raise ValueError("forward_charslot requires char_slot_mode=True in CoreConfig")
+        x = field16 @ self.char_lift  # (B, n, d) — lossless over-complete lift
+        n = x.shape[1]
+        pos = torch.arange(n, device=x.device).unsqueeze(0)
+        x = x + self.char_type_emb(region_ids) + self.char_pos_emb(pos)
+        out = self.forward_with_soul(x, soul, mask=mask, soul_mask=soul_mask)
+        resp_h = out["field"][:, response_slice if response_slice is not None else slice(None), :]
+        out["response_delta_16"] = self.char_slot_head(resp_h)
+        return out
+
+    def charslot_logits(self, delta16: torch.Tensor, bank_unit: torch.Tensor) -> torch.Tensor:
+        """Cosine logits of per-position 16D deltas vs the frozen LetterBank.
+
+        delta16: (B, n_resp, 16); bank_unit: (n_chars, 16) unit rows.
+        """
+        v = F.normalize(delta16, dim=-1)
+        return (v @ bank_unit.T) * self.char_temp
+
+    def char_logits(self, response_delta_chars: torch.Tensor) -> torch.Tensor:
         """Cosine-similarity logits to the frozen alphabet prototype table.
 
         Lazy import keeps the adapter table outside the core's import graph.
         """
         from adapters.slot_adapter import get_char_prototype_table
         table = get_char_prototype_table(self.cfg.d_model)
-        return table.logits(draft_chars)
+        return table.logits(response_delta_chars)
 
 
 if __name__ == "__main__":
@@ -637,8 +757,8 @@ if __name__ == "__main__":
     out4 = core4.forward_slot(field4, soul4, response_draft_slice=slice(10, 12))
     assert out4["field"].shape == (1, 20, 64)
     assert out4["soul"].shape == (1, 8, 64)
-    assert out4["draft_chars"].shape == (1, 32, 64)
-    logits4 = core4.char_logits(out4["draft_chars"])
+    assert out4["response_delta_chars"].shape == (1, 32, 64)
+    logits4 = core4.char_logits(out4["response_delta_chars"])
     assert logits4.shape == (1, 32, 67)
 
     print(f"core OK: {sum(p.numel() for p in core.parameters()):,} params, cfg={cfg.to_dict()}")

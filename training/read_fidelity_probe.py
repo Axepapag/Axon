@@ -1,8 +1,8 @@
 """Read-fidelity probe over frozen adapter summaries.
 
-Per `RESOLUTION_writehead-0703` Q5, this is a tiny trainable probe that reports
+Per the slot-era read-fidelity resolution, this is a tiny trainable probe that reports
 how much slot information survives the lossy adapter projection. It is not the
-binding write-head gate (that is the Q6 counterfactual exact-fill task), but it
+binding response-delta gate (that is the Q6 counterfactual exact-fill task), but it
 is a necessary diagnostic: if the probe cannot recover slot kind or first-N
 characters from a frozen summary, the core cannot use what is not there.
 

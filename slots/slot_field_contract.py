@@ -1,6 +1,6 @@
-"""Axon slot field contract: nine regions, masking, materialization.
+"""Axon slot field contract: ten regions, masking, materialization.
 
-The shared field is divided into nine fixed regions. Each region holds a
+The shared field is divided into ten fixed regions. Each region holds a
 contiguous sequence of 8192D slots. The field contract defines region names,
 their slot allocations, masking for training (unused regions are masked so
 the trainer controls exactly what the core can attend), and materialization
@@ -10,7 +10,7 @@ A surfacing budget is a VIEW over the field, never a mutation. Budgets are
 explicit, recorded, and tested — they never silently drop state.
 
 Self-test: `python slots/slot_field_contract.py` round-trips a small field
-with all nine regions and prints PASS/FAIL.
+with all ten regions and prints PASS/FAIL.
 """
 
 from __future__ import annotations
@@ -75,11 +75,12 @@ except ImportError:
     )
 
 # --------------------------------------------------------------------------- #
-# Region names — the locked nine
+# Region names — the locked ten
 # --------------------------------------------------------------------------- #
 
 REGION_NAMES = (
     "conversation_history",
+    "user_input",
     "response_draft",
     "structured_knowledge",
     "tool_results",
@@ -135,7 +136,7 @@ class FieldLayout:
 
 
 def default_layout() -> FieldLayout:
-    """Default slot allocation for the nine regions.
+    """Default slot allocation for the ten regions.
 
     These numbers are starting defaults, not architecture-locked. They can
     be tuned per deployment. The key constraint is that the total field fits
@@ -143,6 +144,7 @@ def default_layout() -> FieldLayout:
     """
     return FieldLayout(region_slots={
         "conversation_history": 16,   # 16 slots x 256 chars = ~4k chars
+        "user_input": 4,              # current input for this tick
         "response_draft": 8,           # 8 slots for iterative draft
         "structured_knowledge": 12,   # 12 slots for surfaced facts
         "tool_results": 8,             # 8 slots for tool output
@@ -323,7 +325,7 @@ class SurfacingBudget:
 # --------------------------------------------------------------------------- #
 
 def selftest() -> bool:
-    """Round-trip a small field with all nine regions."""
+    """Round-trip a small field with all ten regions."""
     all_ok = True
     checks: list[tuple[str, bool]] = []
 
@@ -334,7 +336,7 @@ def selftest() -> bool:
     checks.append(("empty_field_shape", ok))
     all_ok &= ok
 
-    # 2. All nine regions present
+    # 2. All ten regions present
     ok = all(name in field.layout.region_slots for name in REGION_NAMES)
     checks.append(("all_regions_present", ok))
     all_ok &= ok

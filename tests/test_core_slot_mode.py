@@ -49,13 +49,15 @@ def test_core_slot_mode_forward_shapes() -> None:
     )
     assert out["field"].shape == (1, layout.total_slots, 64)
     assert out["soul"].shape == soul.shape
-    assert out["draft_chars"].shape == (1, 32, 64)
+    assert out["field_delta"].shape == (1, layout.total_slots, 64)
+    assert out["response_delta_chars"].shape == (1, 32, 64)
+    assert out["draft_chars"] is out["response_delta_chars"]
 
 
 def test_core_char_logits_shape() -> None:
     core = _make_core(max_response_chars=16)
-    draft_chars = torch.randn(1, 16, 64)
-    logits = core.char_logits(draft_chars)
+    response_delta_chars = torch.randn(1, 16, 64)
+    logits = core.char_logits(response_delta_chars)
     assert logits.shape == (1, 16, len(get_char_prototype_table(64).chars))
 
 
@@ -68,6 +70,8 @@ def test_core_backward_compatibility_non_slot_mode() -> None:
     out = core.forward_with_soul(field, soul)
     assert out["field"].shape == (1, 10, 32)
     assert out["soul"].shape == (1, 4, 32)
+    assert "field_delta" not in out
+    assert "response_delta_chars" not in out
     assert "draft_chars" not in out
 
 

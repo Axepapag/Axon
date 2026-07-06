@@ -68,8 +68,10 @@ class TestProbeMetrics:
         probe = ReadFidelityProbe(cfg)
         # Make the probe output perfect logits for first-8 prefix.
         text = "abcdefgh"
-        summaries = torch.randn(1, cfg.d_model)
+        summaries = torch.ones(1, cfg.d_model)
         with torch.no_grad():
+            probe.shared[0].weight.zero_()
+            probe.shared[0].bias.fill_(1.0)
             for i, char in enumerate(text):
                 idx = ALPHABET.index(char)
                 probe.char_heads[i].weight.fill_(-100.0)

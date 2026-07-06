@@ -7,8 +7,8 @@ import torch
 
 from adapters.slot_adapter import get_adapter, get_char_prototype_table
 from slots.slot_field_contract import FieldLayout, SlotField, default_layout
-from slots.slot_spec import KIND_RESPONSE_DRAFT, KIND_TEXT, pack_slot, pack_text_chain
-from training.trainer_slot import SlotFieldBuilder
+from slots.slot_spec import KIND_RESPONSE_DRAFT, KIND_TEXT, pack_slot, pack_text_chain, unpack_region
+from training.trainer_slot import SlotFieldBuilder, render_field_snapshot
 
 
 def test_default_layout_has_all_regions() -> None:
@@ -44,7 +44,48 @@ def test_field_builder_shapes() -> None:
     assert built["field_d"].shape == (1, layout.total_slots, 64)
     assert built["mask"].shape == (1, layout.total_slots)
     assert built["targets"].shape == (1, 32)
+    assert built["field_delta_targets_d"].shape == (1, layout.total_slots, 64)
+    assert built["field_delta_weights"].shape == (1, layout.total_slots)
     assert built["target_len"] == len("hi there")
+
+
+def test_field_builder_does_not_leak_target_into_response_draft() -> None:
+    layout = default_layout()
+    adapter = get_adapter(64)
+    table = get_char_prototype_table(64)
+    builder = SlotFieldBuilder(layout, adapter, table, torch.device("cpu"), torch.float32, max_response_chars=32)
+    built = builder.build(
+        {"conversation_history": "question cue"},
+        answer_text="secret target",
+        active_regions={"conversation_history", "response_draft"},
+    )
+    draft_slots = unpack_region(built["field_np"][layout.region_slice("response_draft")])
+    assert all("secret target" not in slot.text for slot in draft_slots)
+    rendered = render_field_snapshot(
+        built["field_np"],
+        layout,
+        {"conversation_history", "response_draft"},
+        max_chars=64,
+    )
+    assert any("question cue" in line for line in rendered)
+    assert not any("secret target" in line for line in rendered)
+
+    target_slots = unpack_region(built["target_field_np"][layout.region_slice("response_draft")])
+    assert any("secret target" in slot.text for slot in target_slots)
+
+
+def test_field_builder_packs_user_input_region() -> None:
+    layout = default_layout()
+    adapter = get_adapter(64)
+    table = get_char_prototype_table(64)
+    builder = SlotFieldBuilder(layout, adapter, table, torch.device("cpu"), torch.float32, max_response_chars=32)
+    built = builder.build(
+        {"conversation_history": "prior turn", "user_input": "current request"},
+        answer_text="answer",
+        active_regions={"conversation_history", "user_input", "response_draft"},
+    )
+    user_slots = unpack_region(built["field_np"][layout.region_slice("user_input")])
+    assert any("current request" in slot.text for slot in user_slots)
 
 
 def test_field_builder_masks_inactive_regions() -> None:
@@ -74,7 +115,6 @@ def test_no_input_into_soul() -> None:
     )
     # The field contains the input
     field_np = built["field_np"]
-    from slots.slot_spec import unpack_region
     slots = unpack_region(field_np[layout.region_slice("conversation_history")])
     assert any("secret cue" in s.text for s in slots)
     # The soul is not part of the builder output; a fresh soul manager has zero active rows
