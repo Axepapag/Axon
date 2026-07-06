@@ -9,6 +9,13 @@ FIELD_CONTRACT.md Section 2.1:
   * v7.2: period, newline, !, ? removed from the native alphabet. The
     native alphabet is now strictly alphanumerics + space (63 chars).
     Punctuation is the job of an explicit formatting layer.
+  * v8 (2026-07-05): the code alphabet. 28 hand-authored symbol characters
+    join the writing set so the cores can spell code. Each symbol sits on
+    one of two hand-authored circles (planes (12,13) and (8,9)), with a
+    family shell on dim 11 and a symbol flag on dim 14. Open/close pairs
+    are placed 180 degrees apart on the same circle. CRITICAL v8 LAW:
+    every pre-v8 character vector is byte-identical to v7 — enforced by a
+    frozen SHA-256 gate (rule 0) so trained checkpoints stay valid forever.
 
 NO HASH. NO RNG. NO LEARNED PARAMETERS. The same character always produces
 the same 16D vector, at tick 0 and at tick 1,000,000.
@@ -19,6 +26,7 @@ just sets the exit code (train.bat uses this as the pre-flight gate).
 """
 from __future__ import annotations
 
+import hashlib
 import math
 import sys
 from pathlib import Path
@@ -26,7 +34,12 @@ from pathlib import Path
 import numpy as np
 
 SLOT_DIM = 16
-FEATURE_DIM = 33  # v6.5's 32 + digit circle takes two rows (30, 31); null moved to 32
+FEATURE_DIM = 39  # v6.5's 32 + digit circle (30,31) + null (32) + v8 symbol rows (33-38)
+
+# v8 stone: SHA-256 of the 67 v7 alphabet vectors + <empty>, little-endian
+# float32, in v7 alphabet order. Rule 0 of verify_substrate. If this gate
+# ever fails, the substrate has drifted and every trained core is orphaned.
+V7_CORE_SHA256 = "9a0e0414bcafce20a3f31847210241b58c2ffad583d74d63721ff75f2a0a46af"
 
 VOWELS_LOWER = set("aeiou")
 ASCENDERS = set("bdfhklt")
@@ -80,6 +93,38 @@ SENTENCE_END_GRADE: dict[str, float] = {}
 CLAUSE_SEP_GRADE: dict[str, float] = {}
 QUOTE_GRADE: dict[str, float] = {}
 BRACKET_GRADE: dict[str, float] = {}
+
+# ---------------------------------------------------------------------------
+# v8: the code-symbol geometry. Hand-authored, frozen, no RNG.
+#
+# Each symbol: (plane, angle_degrees, family_shell).
+#   plane "A" -> circle in output dims (12, 13); plane "B" -> dims (8, 9).
+#   Both circles hold 14 symbols at ~25.7 degree spacing, families
+#   interleaved so angular neighbours always differ in family shell.
+#   Open/close pairs sit 180 degrees apart on the same circle:
+#   ( ) [ ] { } < > all mirror their partner.
+# family_shell modulates the punctuation dim (11): brackets +1.0,
+#   angle-brackets +0.6, operators +0.2, separators -0.35, quotes -0.7,
+#   misc -1.0. The symbol flag (row 38) shifts all symbols away from the
+#   legacy punctuation/space cluster on dim 14.
+# NEVER re-tune these numbers casually: they passed the geometry gates
+# with the v7 vectors byte-identical. Changing any value orphans every
+# checkpoint trained on v8 text.
+# ---------------------------------------------------------------------------
+SYMBOL_GEOMETRY: dict[str, tuple[str, float, float]] = {
+    "(": ("A",   0.0,  1.00), "=": ("A",  26.0,  0.20), "[": ("A",  51.0,  1.00),
+    ",": ("A",  77.0, -0.35), "{": ("A", 103.0,  1.00), "+": ("A", 129.0,  0.20),
+    "'": ("A", 154.0, -0.70), ")": ("A", 180.0,  1.00), "*": ("A", 206.0,  0.20),
+    "]": ("A", 231.0,  1.00), ";": ("A", 257.0, -0.35), "}": ("A", 283.0,  1.00),
+    "-": ("A", 309.0,  0.20), '"': ("A", 334.0, -0.70),
+    "<": ("B",   0.0,  0.60), "/": ("B",  26.0,  0.20), "#": ("B",  51.0, -1.00),
+    ":": ("B",  77.0, -0.35), "%": ("B", 103.0,  0.20), "@": ("B", 129.0, -1.00),
+    "&": ("B", 154.0,  0.20), ">": ("B", 180.0,  0.60), "\\": ("B", 206.0, -1.00),
+    "|": ("B", 231.0,  0.20), "_": ("B", 257.0, -1.00), "^": ("B", 283.0,  0.20),
+    "$": ("B", 309.0, -1.00), "~": ("B", 334.0,  0.20),
+}
+
+CODE_SYMBOLS: list[str] = list(SYMBOL_GEOMETRY.keys())
 
 
 def structural_features(char: str) -> np.ndarray:
@@ -148,6 +193,23 @@ def structural_features(char: str) -> np.ndarray:
         feats[31] = math.sin(angle)
 
     feats[32] = 0.0
+
+    # v8 symbol circles: rows 33/34 = plane A cos/sin, 35/36 = plane B
+    # cos/sin, 37 = family shell, 38 = symbol flag. All six rows are zero
+    # for every pre-v8 character, which is what keeps v7 vectors
+    # byte-identical (rule 0).
+    geo = SYMBOL_GEOMETRY.get(char)
+    if geo is not None:
+        plane, deg, shell = geo
+        a = math.radians(deg)
+        if plane == "A":
+            feats[33] = math.cos(a)
+            feats[34] = math.sin(a)
+        else:
+            feats[35] = math.cos(a)
+            feats[36] = math.sin(a)
+        feats[37] = shell
+        feats[38] = 1.0
     return feats
 
 
@@ -196,6 +258,12 @@ _FEATURE_WEIGHTS: dict[int, list[tuple[int, float]]] = {
     30: [(10, -1.05)],          # digit circle, cos component
     31: [(15, 1.05)],           # digit circle, sin component
     32: [(15, -0.90), (14, 0.40)],  # null slot
+    33: [(12, 1.55)],           # v8 symbol circle A, cos component
+    34: [(13, 1.55)],           # v8 symbol circle A, sin component
+    35: [(8, 1.55)],            # v8 symbol circle B, cos component
+    36: [(9, 1.55)],            # v8 symbol circle B, sin component
+    37: [(11, 0.75)],           # v8 family shell (modulates punct dim)
+    38: [(14, -0.70)],          # v8 symbol flag (away from space/legacy punct)
 }
 
 
@@ -249,21 +317,17 @@ def text_to_field(text: str) -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 def default_alphabet() -> list[str]:
-    """The v7.1 native alphabet: alphanumerics + basic formatting.
+    """The v8 alphabet: the v7.1 67 characters, in the exact v7 order,
+    followed by the 28 v8 code symbols.
 
-    Composition (67 characters total):
-      - a-z (26)
-      - A-Z (26)
-      - 0-9 (10)
-      - space (1)
-      - period . (1)
-      - newline \n (1)
-      - exclamation ! (1)
-      - question ? (1)
+    Composition (95 characters total):
+      - a-z (26), A-Z (26), 0-9 (10)                       [v7, frozen]
+      - space, period, newline, !, ?                       [v7, frozen]
+      - ( = [ , { + ' ) * ] ; } - " < / # : % @ & > \\ | _ ^ $ ~   [v8]
 
-    All other punctuation and control characters are intentionally excluded
-    from the 16D letter bank to prevent semantic crowding. They will be
-    handled by an explicit formatting layer above the substrate when needed.
+    ORDER IS FROZEN. The first 67 entries must never change or reorder:
+    LetterBank indices and the byte-identity gate (rule 0) depend on it.
+    New characters may only ever be APPENDED.
     """
     chars: list[str] = []
     chars.extend(chr(c) for c in range(ord("a"), ord("z") + 1))
@@ -274,6 +338,7 @@ def default_alphabet() -> list[str]:
     chars.append("\n")
     chars.append("!")
     chars.append("?")
+    chars.extend(CODE_SYMBOLS)
     return chars
 
 
@@ -336,6 +401,18 @@ def get_letter_bank() -> LetterBank:
 WRITING_SET = default_alphabet()
 
 
+def v7_alphabet() -> list[str]:
+    """The frozen pre-v8 alphabet (first 67 entries), for the rule-0 gate."""
+    return default_alphabet()[:67]
+
+
+def v7_bank_sha256() -> str:
+    """SHA-256 of the 67 v7 vectors + <empty>, little-endian float32."""
+    blob = b"".join(char_to_slot(c).astype("<f4").tobytes() for c in v7_alphabet())
+    blob += char_to_slot("<empty>").astype("<f4").tobytes()
+    return hashlib.sha256(blob).hexdigest()
+
+
 def geometry_check() -> dict[str, object]:
     W = get_basis_matrix()
     lowercase = [chr(c) for c in range(ord("a"), ord("z") + 1)]
@@ -364,7 +441,18 @@ def geometry_check() -> dict[str, object]:
         1 for r in range(W.shape[0])
         if np.allclose(W[r], np.eye(FEATURE_DIM, dtype=np.float32)[r][:SLOT_DIM])
     )
+
+    # v8: symbol-only margins (the code alphabet's own worst pair)
+    Ms = _unit_rows(np.stack([char_to_slot(c) for c in CODE_SYMBOLS], axis=0))
+    Cs = Ms @ Ms.T
+    np.fill_diagonal(Cs, -2.0)
+    s_worst = int(np.argmax(Cs.max(axis=1)))
+    s_partner = CODE_SYMBOLS[int(np.argmax(Cs[s_worst]))]
+
     return {
+        "v7_bank_sha_ok": v7_bank_sha256() == V7_CORE_SHA256,
+        "symbols_worst_nn_cos": float(Cs.max()),
+        "symbols_worst_pair": f"{CODE_SYMBOLS[s_worst]!r}-{s_partner!r}",
         "letters_min_cos": float(off_l.min()),
         "letters_min_pair": f"{lowercase[lo[0]]}-{lowercase[lo[1]]}",
         "letters_max_cos": float(off_l.max()),
@@ -396,17 +484,22 @@ def roundtrip_check() -> tuple[int, int, list[tuple[str, str]]]:
 
 
 def verify_substrate(verbose: bool = True) -> bool:
-    """The v7.2 conformance gate. HARD RULES — never loosen:
+    """The v8 conformance gate. HARD RULES — never loosen:
+      0. v8 STONE: every pre-v8 character vector byte-identical to v7
+         (SHA-256 == V7_CORE_SHA256). Trained checkpoints depend on this.
       1. No identity rows in the basis.
       2. Every alphabet character round-trips exactly.
       3. Lowercase letter pairwise cosines within [-0.30, 0.92].
       4. Topology: cos(d,t) > cos(d,q) + 0.05; cos(m,n) <= 0.92.
-      5. WRITING_SET (alphanumeric only): worst nearest-neighbor <= 0.97.
+      5. WRITING_SET (full v8 alphabet): worst nearest-neighbor <= 0.97.
       6. Adjacent digits on the circle separate: worst adjacent <= 0.97.
+      7. v8 symbols among themselves: worst nearest-neighbor <= 0.95.
     """
     rep = geometry_check()
     n_chars, n_fail, fails = roundtrip_check()
     rules = {
+        "v7_vectors_byte_identical": bool(rep["v7_bank_sha_ok"]),
+        "symbols_nn_margin": rep["symbols_worst_nn_cos"] <= 0.95,
         "no_identity_rows": rep["identity_rows"] == 0,
         "roundtrip_exact": n_fail == 0,
         "letters_band_low": rep["letters_min_cos"] >= -0.30,

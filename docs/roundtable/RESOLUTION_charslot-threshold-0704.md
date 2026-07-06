@@ -103,3 +103,30 @@ by more data, more parameters, or more steps.
 *Carved 2026-07-04. Operator: Jeff. Diagnosis, probe, port, and production
 runs: Claude (Cowork). The little guys learned to spell the moment we let
 them see the letters.*
+
+---
+
+## Addendum — Substrate v8: the code alphabet (LOCKED 2026-07-05)
+
+The dimension question was raised and settled by measurement: **16D stays.**
+The hand-authored bank operates at worst-pair cosine 0.9501 and the trained
+cores decode through it at 0.994; optimal packings of 96–128 characters in
+16D sit at 0.25–0.43. Capacity was never the constraint. Escape hatch to a
+wider substrate triggers only if (a) an authored bank cannot pass the
+geometry gates at margins the trained heads demonstrably need, or (b) the
+alphabet must exceed ~150 characters.
+
+v8 adds 28 code symbols — `( ) [ ] { } < > = + - * / % & | ^ ~ , ; : ' " #
+@ \ _ $` — as two hand-authored 14-symbol circles (planes (12,13) and
+(8,9)), family shells on dim 11, symbol flag on dim 14. Open/close pairs
+mirror at 180°. Worst symbol pair: 0.934 (`=`/`[`) — better separated than
+the frozen v7 digits (0.950). Alphabet: 67 → 95; order is append-only.
+
+**Rule 0 (the stone gate):** `verify_substrate` now hashes the 67 v7
+vectors + `<empty>` against the frozen constant `V7_CORE_SHA256`
+(`9a0e0414…`). Pre-v8 vectors are byte-identical forever; all checkpoints
+trained on v7 text remain valid. Growing the alphabet changes **no model
+shape** (cores emit 16D; the frozen bank classifies) — new characters cost
+a fine-tune, never a retrain. This is a designed-in property of
+prototype-decode and is itself doctrine: **alphabets are plugs, not
+foundations.**

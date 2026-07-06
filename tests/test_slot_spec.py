@@ -148,8 +148,15 @@ class TestSlotSpecValidation:
             pack_slot(text="hello\tworld")
 
     def test_invalid_edge_rejected(self):
+        # Backtick remains outside the v8 alphabet.
         with pytest.raises(ValueError, match="outside the substrate alphabet"):
-            pack_slot(text="dog", edges="{is_a:animal}")
+            pack_slot(text="dog", edges="`is_a animal`")
+
+    def test_v8_symbol_edge_accepted(self):
+        # v8: braces and colon are native substrate characters, so
+        # container-edge notation is spellable directly.
+        slot = pack_slot(text="dog", edges="{is_a:animal}")
+        assert slot is not None
 
 
 # -- Slot spec: control block -- #
