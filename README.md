@@ -70,11 +70,13 @@ See `docs/SOURCE_OF_TRUTH.md` for the full doctrine. Key points:
 - **Layer 0**: frozen 16D substrate alphabet (63 chars, no learned parameters).
 - **Layer 0+**: 8192D slots (4096D text + 2048D edge + 512D control + 1536D reserved).
 - **Layer 4**: semantic search surfaces dormant knowledge into active state each tick.
-- **Layer 5**: frozen adapters project 8192D → d_model (lossy read), codebook-snap
-  proposals → exact substrate (exact write).
+- **Layer 5**: frozen adapters project real substrate-packed 8192D slots -> d_model
+  (lossy read); core-emitted full-field deltas are decoded/snapped through
+  frozen arithmetic before commit.
 - **Layer 6**: cores with private temperature-tiered souls (hot/warm/cold/frozen).
 - **Layer 7**: forever tick loop, CPU-resident, matmul-light.
-- **Layer 8**: cores produce deltas in 8192D slot field space; consolidator commits.
+- **Layer 8**: cores produce full-field deltas; read-only regions target no-op,
+  writable regions such as `response_draft` carry exact text payload deltas.
 - **Layer 13**: discrete CE loss, smoke gates, no silent truncation, cf-probe-style proof.
 
 ## Recovered Dormant Corpus
@@ -95,15 +97,15 @@ ignored by Git.
 
 ## Adapter design (v2)
 
-The adapter has asymmetric read/write:
+The adapter has asymmetric read/commit behavior:
 
 - **DOWN (read)**: one frozen d_model vector per slot (lossy, deterministic).
   The core sees one summary per slot. Exact text lives in the 8192D field.
-- **UP (write)**: codebook-snap every 16D block to nearest substrate code.
-  Committed content is exact by construction.
+- **COMMIT**: a core emits a delta; the runtime codebook-snaps every decoded
+  16D block to the nearest substrate code. Committed content is exact by construction.
 - **Gates**: snap-idempotence (valid slots survive unchanged) and separability
   (distinct slots produce distinct projections).
-- **Core-owned output**: trainable write behavior lives inside the core. The
+- **Core-owned delta**: trainable response behavior lives inside the core. The
   adapter only performs frozen projection and deterministic substrate snapping.
 
 ## Identity

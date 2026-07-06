@@ -51,6 +51,7 @@ canonical slot width is 8192D everywhere.
 The active shared field is divided into regions:
 
 - `conversation_history`
+- `user_input`
 - `response_draft`
 - `structured_knowledge`
 - `tool_results`
@@ -87,7 +88,7 @@ All runtime construct/deconstruct is deterministic:
 
 `pack -> unpack -> identical text` is a hard substrate gate, lossless by
 arithmetic, 100 percent, gated in tests. There is no learned encoder or
-decoder in the runtime read/write path.
+decoder in the runtime read/commit path.
 
 Long text chains across slots. Each slot carries enough control-block
 information to know its kind, length, and the next slot in the chain, so a
@@ -289,6 +290,7 @@ The active state is the masked-in window of every region tape, attended over
 by the ensemble each tick. Regions:
 
 - `conversation_history`
+- `user_input`
 - `response_draft`
 - `tool_results`
 - `scratch`
@@ -389,7 +391,7 @@ size, not one per core.
 Adapters operate on the frozen 16D substrate basis: a slot's text payload
 (dims 0-4095) is a concatenation of frozen 16D character codes.
 
-READ AND WRITE ARE ASYMMETRIC (convener-signed 2026-07-03). The original exact round-trip gate through a
+READ AND COMMIT ARE ASYMMETRIC (convener-signed 2026-07-03). The original exact round-trip gate through a
 per-slot d_model bottleneck is information-theoretically impossible (256
 chars do not survive a frozen linear projection into 64 floats) and is
 superseded:
@@ -398,45 +400,45 @@ superseded:
   to ONE d_model summary vector (compute law: one attention token per
   slot). Exact text lives in the FIELD, which is the source of truth;
   English is decoded from the field, never from a core's compressed view.
-- WRITE is exact by construction: anything committed to the field is
+- COMMIT is exact by construction: anything committed to the field is
   codebook-snapped (each 16D block to the nearest substrate code).
 - Adapter gates (replacing the old round-trip gate, both verified at
   64/128/256D): SNAP-IDEMPOTENCE (validly packed slots survive
   DOWN -> UP -> snap unchanged) and SEPARABILITY (slots differing by one
   character produce distinct projections).
 
-### The Write Path (convener correction, 2026-07-03)
+### The Core Delta Path (convener correction, 2026-07-03)
 
 LOCKED LAW (convener): TRAINED PARAMETERS LIVE IN CORES AND NOWHERE ELSE.
-Everything between a core and the field — read or write — is FROZEN
+Everything between a core and the field - read or commit - is FROZEN
 ARITHMETIC: minted, deterministic, checkable, weightless. The prior
 shared trained decode organ violated this law and is RESCINDED.
 
-The conforming write path (the proven 16D-era pattern, generalized):
+The conforming delta path (the proven 16D-era pattern, generalized):
 
-- The CORE unrolls its own characters. When a core writes a span, its own
-  trained layers emit one d_model vector per character position — trained
+- The CORE emits the only outward product: a proposed field delta. For response
+  text, its own trained layers emit one d_model vector per character position -
   parameters inside the core, where they belong. The voice IS the core.
 - Each character vector crosses to the field through a FROZEN per-character
   prototype decode (same minted sign-vector family as the read adapter and
   the legacy rails): nearest-code, deterministic, no weights.
-- The deterministic packer and codebook snap commit the result. The field
+- The deterministic packer and codebook snap commit the decoded delta. The field
   stays exact by construction.
 - READ is unchanged: one frozen summary vector per slot (compute law).
-- COST placement: writing N characters costs N output positions inside the
-  writing core, only for spans it edits — never read-side attention, never
+- COST placement: proposing N characters costs N output positions inside the
+  producing core, only for spans it edits - never read-side attention, never
   a shared trained module.
 
-Surviving write-path rules that do not involve trained projection:
+Surviving commit rules that do not involve trained projection:
 
 - COMMIT ONLY DIFFS: the runtime diffs decoded output against the current
   slot and commits only changed positions as typed deltas.
 - Length is explicit and countable (declared in the typed delta / control
-  block) — truncation is never silent.
+  block) - truncation is never silent.
 - EDGES NEVER PASS THROUGH CHARACTER DECODE: typed edge deltas; the
   deterministic packer and canonical edge records remain authoritative.
-- Gates before any long run: read-fidelity probe plus the cf-probe write
-  gate — positive exact-fill > 90 percent, zero/swapped/irrelevant-field
+- Gates before any long run: read-fidelity probe plus the cf-probe delta
+  gate - positive exact-fill > 90 percent, zero/swapped/irrelevant-field
   controls < 5 percent.
 
 Kimi's recorded dissent (per-core voice, delta-declared length) is
@@ -654,15 +656,22 @@ Cores train in exactly the posture they will live in. Every trainer:
 
 1. Places the lesson in the shared field's regions (the trainer is just
    another writer of field slots); unused regions are masked.
-2. Requires the answer in the `response_draft` region — the same mouth,
-   the same typed-delta commit path as runtime.
-3. SOULS BREATHE EVERY STEP FROM DAY ONE (supersedes the nextsteps-0703
+2. Packs every visible region as real 8192D slots made from frozen 16D
+   substrate characters, then projects those slots down through the canonical
+   adapter for that d_model.
+3. Requires the core to emit a full-field delta over the active field. Read-only
+   regions such as `conversation_history` and `user_input` target no-op deltas;
+   writable regions such as `response_draft` target replacement/update payloads.
+   Exact response text payloads are still emitted by the core as per-character
+   d_model vectors and decoded through frozen prototypes before deterministic
+   substrate packing/commit.
+4. SOULS BREATHE EVERY STEP FROM DAY ONE (supersedes the nextsteps-0703
    deferral of tiered souls). Every training step: INHALE (read the soul)
-   -> attend the field -> produce the draft answer -> EXHALE (write the
+   -> attend the field -> produce the full-field delta -> EXHALE (write the
    soul). Fully built soul_v2 temperature mechanics from the first step.
    Garbage soul content early is expected and acceptable; the breathing
    must be real. "Soul" may be called PERSONAL MEMORY interchangeably.
-4. Input NEVER enters the soul first (unchanged): lessons through the
+5. Input NEVER enters the soul first (unchanged): lessons through the
    field, exhale after the act.
 
 ### Locked First Cores (convener, 2026-07-03)
@@ -683,13 +692,15 @@ during training (or an 8-bit optimizer); A and B train beside it.
 The "ingest massive data first, patterns emerge" recipe is the LLM recipe;
 here it is adapted, not copied: VOLUME COMES FIRST, BUT DELIVERED IN THE
 LIVE POSTURE. Phase 0 streams bulk text (curriculum corpus + dormant-state
-text) through the same loop as life itself — text packed into field slots,
-core inhales, attends, continues/reconstructs into response_draft, exhales
-— at high volume and low precision. Pattern recognition at scale, gained
-without ever leaving the train-as-you-live contract. Then the precision
+text) through the same loop as life itself: previous turns are packed into
+`conversation_history`, the current prompt/cue is packed into `user_input`,
+the visible draft seed is packed into `response_draft`, the core inhales,
+attends, emits a full-field delta, and exhales. The initial rung may show the
+exact draft for copy mechanics; later rungs progressively remove draft content
+so the task becomes repair, completion, and prediction. Pattern recognition at
+scale is gained without leaving the train-as-you-live contract. Then precision
 curricula (recall, edge prediction, exhale-filter, surfaced-knowledge QA)
-tighten the same loop on the same machinery. Pretraining is not a separate
-mode; it is the first, easiest, biggest rung of the curriculum.
+tighten the same loop on the same machinery.
 
 ### Locked Training Rules (R7)
 
@@ -811,7 +822,7 @@ API workers (Kimi/Hermes/cloud) staff the curator role. Propose/dispose split:
   self-reflection.
 - `runtime/bus/`: sidecar HTTP/WebSocket collaboration bus.
 - `slots/slot_spec.py`: 8192D slot pack/unpack (Step 0).
-- `slots/slot_field_contract.py`: nine-region field contract (Step 0).
+- `slots/slot_field_contract.py`: ten-region field contract (Step 0).
 - `adapters/slot_adapter.py`: 16D-basis state adapters (Step 0).
 
 Counterfactual probes remain required by Layer 13, but the previous legacy
@@ -839,7 +850,7 @@ rules in Layer 13:
 
 1. ~~Slot spec: 8192D pack/unpack, region layout, control-block, chains,
    edge overflow contract, exact-reconstruction gate.~~ (Step 0)
-2. ~~Slot field contract: nine regions, masking, materialization.~~ (Step 0)
+2. ~~Slot field contract: ten regions, masking, materialization.~~ (Step 0)
 3. ~~State adapter revival: 16D-basis adapters for 64/128/256D.~~ (Step 0)
 4. Container schema (promoted, needs slot-era integration).
 5. Semantic edge schema (promoted, needs slot-era integration).
@@ -871,7 +882,7 @@ rules in Layer 13:
 - Slots are the unit of the shared field. All runtime pack/unpack is
   deterministic concatenation of frozen 16D codes with exact round-trip.
 - The shared field is divided into regions: `conversation_history`,
-  `response_draft`, `structured_knowledge`, `tool_results`, `scratch`,
+  `user_input`, `response_draft`, `structured_knowledge`, `tool_results`, `scratch`,
   `diary`, `awareness`, `task_state`, `context_annotations`, and `control`.
 - One slot holds one semantic unit, typically one sentence of up to 256
   characters.
