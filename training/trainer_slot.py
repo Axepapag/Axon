@@ -292,6 +292,9 @@ class Phase0Curriculum:
         max_chars: int = 256,
         history_turns: int = 10,
         rng: random.Random | None = None,
+        text_corpus: str | None = None,
+        text_corpus_weight: float = 0.7,
+        text_corpus_max: int = 1_000_000,
     ):
         self.max_chars = max_chars
         self.history_turns = max(0, history_turns)
@@ -299,13 +302,38 @@ class Phase0Curriculum:
         self.sentences: list[str] = []
         self.eval_sentences: list[str] = []
         self.history: list[str] = []
+        # Optional second pool: a pre-cleaned one-sentence-per-line corpus
+        # (build_text_corpus.py output, e.g. TinyStories). Sampled with
+        # probability text_corpus_weight against the memories pool.
+        self.story_sentences: list[str] = []
+        self.story_weight = float(text_corpus_weight) if text_corpus else 0.0
         self._load(curriculum_dir, containers_path)
+        if text_corpus and os.path.exists(text_corpus):
+            with open(text_corpus, "r", encoding="utf-8") as f:
+                for i, line in enumerate(f):
+                    if i >= text_corpus_max:
+                        break
+                    line = line.rstrip("\n")
+                    if line:
+                        self.story_sentences.append(line)
+            self.rng.shuffle(self.story_sentences)
         self.rng.shuffle(self.sentences)
         eval_n = min(512, max(32, len(self.sentences) // 100)) if len(self.sentences) >= 64 else len(self.sentences)
         self.eval_sentences = self.sentences[:eval_n]
         self.sentences = self.sentences[eval_n:] or self.eval_sentences[:]
+        if self.story_sentences:
+            # Blend eval proportionally so metrics reflect both pools.
+            n_story_eval = max(8, int(round(len(self.eval_sentences) * self.story_weight)))
+            story_eval = self.story_sentences[:n_story_eval]
+            self.story_sentences = self.story_sentences[n_story_eval:] or story_eval[:]
+            keep = len(self.eval_sentences) - n_story_eval
+            mixed = story_eval + self.eval_sentences[: max(keep, 8)]
+            self.eval_sentences = mixed[: max(len(self.eval_sentences), len(mixed))]
         self._pos = 0
-        log("DATA", f"Phase0 sentences loaded: train={len(self.sentences)} eval={len(self.eval_sentences)}")
+        self._story_pos = 0
+        log("DATA", f"Phase0 sentences loaded: train={len(self.sentences)} "
+                    f"stories={len(self.story_sentences)} (weight={self.story_weight}) "
+                    f"eval={len(self.eval_sentences)}")
 
     def _substrate_safe(self, text: str) -> str:
         alphabet = set(default_alphabet())
@@ -398,11 +426,18 @@ class Phase0Curriculum:
         }
 
     def next(self) -> dict[str, Any]:
-        if self._pos >= len(self.sentences):
-            self.rng.shuffle(self.sentences)
-            self._pos = 0
-        sentence = self.sentences[self._pos]
-        self._pos += 1
+        if self.story_sentences and self.rng.random() < self.story_weight:
+            if self._story_pos >= len(self.story_sentences):
+                self.rng.shuffle(self.story_sentences)
+                self._story_pos = 0
+            sentence = self.story_sentences[self._story_pos]
+            self._story_pos += 1
+        else:
+            if self._pos >= len(self.sentences):
+                self.rng.shuffle(self.sentences)
+                self._pos = 0
+            sentence = self.sentences[self._pos]
+            self._pos += 1
         history_text = "\n".join(self.history[-self.history_turns:])
         ex = self._example_from_sentence(sentence, history_text=history_text)
         self.history.append(f"user {ex['user_input']}\naxon {ex['answer']}")
@@ -968,6 +1003,9 @@ def train_charslot(args: argparse.Namespace) -> None:
         max_chars=args.max_response_chars,
         history_turns=args.history_turns,
         rng=random.Random(args.seed),
+        text_corpus=args.text_corpus or None,
+        text_corpus_weight=args.text_corpus_weight,
+        text_corpus_max=args.text_corpus_max,
     )
     run_dir = pathlib.Path(args.run_dir)
     ckpt_mgr = CheckpointManager(run_dir, keep=3)
@@ -1355,6 +1393,13 @@ def main(argv: list[str] | None = None) -> int:
                     help="charslot: user_input region size in characters")
     ap.add_argument("--charslot-mode-weights", default="0.3,0.3,0.4",
                     help="charslot: sampling weights for copy,partial,blank drafts")
+    ap.add_argument("--text-corpus", default="",
+                    help="pre-cleaned one-sentence-per-line corpus (build_text_corpus.py) "
+                         "mixed into phase0")
+    ap.add_argument("--text-corpus-weight", type=float, default=0.7,
+                    help="probability of sampling from --text-corpus vs memories")
+    ap.add_argument("--text-corpus-max", type=int, default=1_000_000,
+                    help="cap on corpus sentences loaded into RAM")
     ap.add_argument("--core-cfg", default="A", help="Preset A/B/C or d,layers,heads,ffn")
     ap.add_argument("--device", default="cpu")
     ap.add_argument("--fp32", action="store_true", help="(kept for compat; float32 is already the doctrine default)")
