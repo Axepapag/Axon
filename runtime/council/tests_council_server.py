@@ -76,6 +76,7 @@ class FakeEngine:
             self.config = self.default_config()
             self.config_path.write_text(json.dumps(self.config, indent=2), encoding="utf-8")
         self.canonical_state = {r: "" for r in REGIONS}
+        self._masks = {r: {"mode": "tail", "offset": 0} for r in REGIONS}
         self.cores = [
             {"id": i, "soul_norm": 1.0 + 0.1 * i, "last_delta": "", "last_conf": 0.0}
             for i in range(int(self.config["cores"]))
@@ -148,6 +149,54 @@ class FakeEngine:
                 needs_restart.append(k)
             self.config[k] = v
         return sorted(needs_restart)
+
+    # -- shared field / masks (contract parity with the real engine) --------
+
+    def _fake_offset(self, region: str) -> int:
+        mask = self._masks[region]
+        content = self.canonical_state[region]
+        if mask["mode"] == "tail":
+            return max(0, len(content) - 256)
+        return max(0, min(int(mask["offset"]), len(content)))
+
+    def field_view(self) -> dict:
+        regions = {}
+        for region in REGIONS:
+            content = self.canonical_state[region]
+            offset = self._fake_offset(region)
+            regions[region] = {
+                "content": content,
+                "dormant": content[:offset],
+                "active": content[offset:],
+                "mask_offset": offset,
+                "mask_mode": self._masks[region]["mode"],
+                "total_chars": len(content),
+                "dormant_chars": offset,
+                "active_chars": len(content) - offset,
+                "visible": True,
+            }
+        return {"regions": regions, "active_region_chars": 256,
+                "model_window_chars": 128}
+
+    def set_mask(self, region: str, mode: str | None = None,
+                 offset: int | None = None) -> dict:
+        if region not in self._masks:
+            raise ValueError(f"unknown region {region!r}")
+        mask = self._masks[region]
+        if mode is not None:
+            if mode not in ("tail", "manual"):
+                raise ValueError("mode must be 'tail' or 'manual'")
+            mask["mode"] = mode
+        if offset is not None:
+            mask["mode"] = "manual"
+            mask["offset"] = max(0, int(offset))
+        return self.field_view()["regions"][region]
+
+    def set_region(self, region: str, content: str) -> dict:
+        if region not in self.canonical_state:
+            raise ValueError(f"unknown region {region!r}")
+        self.canonical_state[region] = str(content)
+        return self.field_view()["regions"][region]
 
     # -- internals ----------------------------------------------------------
 
@@ -307,6 +356,34 @@ def test_in_process() -> None:
         # POST /api/chat validation
         r = client.post("/api/chat", json={"text": ""})
         report("POST /api/chat empty -> 422", r.status_code == 422)
+
+        # shared field: view, mask move, region edit, validation
+        r = client.get("/api/field")
+        fv = r.json()
+        report("GET /api/field shape",
+               r.status_code == 200
+               and set(fv.get("regions", {})) == set(REGIONS)
+               and fv.get("model_window_chars") == 128)
+        r = client.post("/api/field/region",
+                        json={"region": "scratch", "content": "x" * 300})
+        report("POST /api/field/region edit",
+               r.status_code == 200 and r.json()["total_chars"] == 300)
+        r = client.post("/api/field/mask",
+                        json={"region": "scratch", "offset": 100})
+        m = r.json()
+        report("POST /api/field/mask manual offset",
+               r.status_code == 200 and m["mask_offset"] == 100
+               and m["mask_mode"] == "manual"
+               and m["dormant_chars"] == 100 and m["active_chars"] == 200)
+        r = client.post("/api/field/mask",
+                        json={"region": "scratch", "mode": "tail"})
+        m = r.json()
+        report("POST /api/field/mask follow tail",
+               r.status_code == 200 and m["mask_mode"] == "tail"
+               and m["mask_offset"] == 44)
+        r = client.post("/api/field/mask", json={"region": "nope", "offset": 1})
+        report("POST /api/field/mask unknown region -> 422", r.status_code == 422)
+        client.post("/api/field/region", json={"region": "scratch", "content": ""})
 
         # control: start
         r = client.post("/api/control", json={"action": "start"})

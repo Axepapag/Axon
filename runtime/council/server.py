@@ -260,6 +260,37 @@ def create_app(engine=None, hub: Optional[EventHub] = None,
         await eng.submit_user_message(text.strip())
         return {"ok": True}
 
+    # ---- Shared field & dormant state (Jeff's visibility + control) -------
+
+    @app.get("/api/field")
+    async def get_field():
+        eng = require_engine()
+        return eng.field_view()
+
+    @app.post("/api/field/mask")
+    async def post_field_mask(payload: dict = Body(...)):
+        eng = require_engine()
+        payload = payload or {}
+        try:
+            return eng.set_mask(
+                str(payload.get("region", "")),
+                mode=payload.get("mode"),
+                offset=payload.get("offset"),
+            )
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
+
+    @app.post("/api/field/region")
+    async def post_field_region(payload: dict = Body(...)):
+        eng = require_engine()
+        payload = payload or {}
+        try:
+            return eng.set_region(
+                str(payload.get("region", "")), payload.get("content", "")
+            )
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
+
     @app.post("/api/control")
     async def post_control(payload: dict = Body(...)):
         eng = require_engine()

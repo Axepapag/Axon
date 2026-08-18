@@ -40,7 +40,7 @@
   main {
     display: grid; gap: 10px; padding: 10px;
     grid-template-columns: minmax(340px, 1.2fr) minmax(300px, 1fr);
-    grid-template-areas: "chat cores" "draft cores" "config config" "log log";
+    grid-template-areas: "chat cores" "draft cores" "field field" "config config" "log log";
   }
   body.focus main { grid-template-columns: 1fr; grid-template-areas: "chat"; }
   body.focus .hide-on-focus { display: none; }
@@ -55,6 +55,7 @@
   #chatPanel { grid-area: chat; display: flex; flex-direction: column; }
   #draftPanel { grid-area: draft; }
   #coresPanel { grid-area: cores; }
+  #fieldPanel { grid-area: field; }
   #configPanel { grid-area: config; }
   #logPanel { grid-area: log; }
 
@@ -100,6 +101,40 @@
   .core .delta { display: none; margin-top: 6px; font-size: 12px; color: var(--text);
     background: #0a0d12; border-radius: 5px; padding: 6px; white-space: pre-wrap; word-break: break-word; }
   .core.expanded .delta { display: block; }
+
+  /* shared field */
+  #fieldNote { font-size: 11px; color: var(--warn); text-transform: none; letter-spacing: 0; }
+  #fieldLegend { font-size: 11px; color: var(--dim); margin-bottom: 8px; }
+  #fieldList { display: flex; flex-direction: column; gap: 6px; }
+  .region { background: var(--panel2); border: 1px solid var(--border); border-radius: 7px; }
+  .region summary {
+    display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+    text-transform: none; letter-spacing: 0; color: var(--text); font-size: 12px;
+  }
+  .region summary::before { content: "▸"; color: var(--dim); font-size: 10px; }
+  .region[open] summary::before { content: "▾"; }
+  .region .rname { font-weight: 600; }
+  .region .rmeta { margin-left: auto; color: var(--dim); font-size: 11px; }
+  .visdot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); flex: none; }
+  .visdot.off { background: var(--border); }
+  .region .rbody { padding: 0 8px 8px; }
+  .rtext {
+    background: #0a0d12; border-radius: 6px; padding: 6px 8px;
+    font: 11px/1.5 Consolas, monospace; white-space: pre-wrap; word-break: break-word;
+    max-height: 260px; overflow-y: auto;
+  }
+  .rtext .dormant { opacity: .45; background: rgba(124,135,152,.10); }
+  .maskmark { color: var(--warn); font-size: 10px; padding: 0 4px; user-select: none; }
+  .redit {
+    width: 100%; min-height: 120px; background: #0a0d12; border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); padding: 6px 8px;
+    font: 11px/1.5 Consolas, monospace; resize: vertical;
+  }
+  .redit:focus { outline: none; border-color: var(--accent); }
+  .rcontrols { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .rcontrols input[type=range] { flex: 1; accent-color: var(--accent); }
+  .rcontrols .rtail.on { border-color: var(--good); color: var(--good); }
+  .rmsg { font-size: 11px; color: var(--dim); }
 
   /* config */
   #configForm .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px 14px; }
@@ -166,6 +201,12 @@
     <div id="coreGrid"></div>
   </section>
 
+  <section id="fieldPanel" class="panel hide-on-focus">
+    <h2>Shared field <span id="fieldNote"></span></h2>
+    <div id="fieldLegend">Field is never truncated. Cores attend the last 128 chars (model window); active tail per region: 256 chars. Everything behind the mask is dormant, preserved, and restorable by moving the mask back.</div>
+    <div id="fieldList"></div>
+  </section>
+
   <section id="configPanel" class="panel hide-on-focus">
     <h2>Configuration</h2>
     <form id="configForm">
@@ -180,6 +221,10 @@
         <label>Max ticks (0 = forever) <input type="number" id="cfg_max_ticks" min="0" step="1"></label>
         <label>Council min confidence (gate) <input type="number" id="cfg_council_min_conf" min="0" max="1" step="0.05"></label>
         <label>Log path <input type="text" id="cfg_log_path"></label>
+        <label style="grid-column: 1 / -1;">Model roster (JSON — brothers side by side: 64D, 128D, 256D...)
+          <textarea id="cfg_models" rows="3" spellcheck="false"
+            placeholder='[{"checkpoint": "runs/.../ckpt.pt", "cores": 8}, {"checkpoint": "dist/.../ckpt_2.pt", "cores": 2}]'></textarea>
+        </label>
       </div>
       <h2 style="margin-top:12px">Visible regions</h2>
       <div class="regions" id="regionToggles"></div>
@@ -341,6 +386,7 @@ function renderCores() {
         <span class="crown" title="Consolidator this tick">👑</span>
         <div class="cid">Core ${id}</div>
         <div class="row"><span>soul norm</span><b class="soul">-</b></div>
+        <div class="row"><span>d-model</span><b class="size">-</b></div>
         <div class="row"><span>phase</span><b class="phase">idle</b></div>
         <div class="row"><span>confidence</span><b class="conf">-</b></div>
         <div class="confbar"><div></div></div>
@@ -360,6 +406,7 @@ function renderCores() {
     if (!card) return;
     card.querySelector(".soul").textContent =
       c.soul_norm != null ? Number(c.soul_norm).toFixed(3) : "-";
+    card.querySelector(".size").textContent = c.size != null ? c.size + "D" : "-";
     card.querySelector(".phase").textContent = c.phase || "idle";
     const conf = c.last_conf != null ? Number(c.last_conf) : 0;
     card.querySelector(".conf").textContent = conf.toFixed(2);
@@ -369,6 +416,165 @@ function renderCores() {
     card.classList.toggle("consolidator", isCon);
     card.querySelector(".crown").style.visibility = isCon ? "visible" : "hidden";
   });
+}
+
+// -------------------------------------------------------- shared field ---
+const fieldState = {
+  regions: {},           // name -> region object from GET /api/field
+  activeChars: 256,      // active_region_chars (fallback until first fetch)
+  windowChars: 128,      // model_window_chars  (fallback until first fetch)
+  unavailable: false,
+};
+const fieldUi = {};      // region -> {editing, dragging}
+const FIELD_OPEN_DEFAULT = new Set(["conversation_history", "response_draft"]);
+
+async function refreshField() {
+  try {
+    const fv = await api("/api/field");
+    fieldState.regions = fv.regions || {};
+    if (fv.active_region_chars != null) fieldState.activeChars = fv.active_region_chars;
+    if (fv.model_window_chars != null) fieldState.windowChars = fv.model_window_chars;
+    fieldState.unavailable = false;
+    renderField();
+  } catch (e) {
+    fieldState.unavailable = true;   // server down: muted note, interval retries
+    renderFieldNote();
+  }
+}
+
+function renderFieldNote() {
+  const note = $("fieldNote");
+  note.textContent = fieldState.unavailable ? "field unavailable — retrying" : "";
+}
+
+function renderFieldLegend() {
+  $("fieldLegend").textContent =
+    "Field is never truncated. Cores attend the last " + fieldState.windowChars +
+    " chars (model window); active tail per region: " + fieldState.activeChars +
+    " chars. Everything behind the mask is dormant, preserved, and restorable" +
+    " by moving the mask back.";
+}
+
+function renderField() {
+  renderFieldNote();
+  renderFieldLegend();
+  const list = $("fieldList");
+  REGION_NAMES.forEach((name) => {
+    const r = fieldState.regions[name];
+    if (!r) return;
+    let card = list.querySelector(`[data-region="${name}"]`);
+    if (!card) card = buildRegionCard(list, name);
+    updateRegionCard(card, r);
+  });
+}
+
+function buildRegionCard(list, name) {
+  fieldUi[name] = fieldUi[name] || { editing: false, dragging: false };
+  const card = document.createElement("details");
+  card.className = "region";
+  card.dataset.region = name;
+  if (FIELD_OPEN_DEFAULT.has(name)) card.open = true;
+  card.innerHTML = `
+    <summary><span class="visdot"></span><span class="rname">${esc(name)}</span><span class="rmeta"></span></summary>
+    <div class="rbody">
+      <div class="rtext"><span class="dormant"></span><span class="maskmark">— mask —</span><span class="active"></span></div>
+      <textarea class="redit" spellcheck="false" style="display:none"></textarea>
+      <div class="rcontrols">
+        <input type="range" class="rslider" min="0" max="0" value="0">
+        <button type="button" class="rtail" title="Auto-follow the newest chars">Follow tail</button>
+        <button type="button" class="reditbtn">Edit</button>
+        <button type="button" class="rsave primary" style="display:none">Save</button>
+        <button type="button" class="rcancel" style="display:none">Cancel</button>
+        <span class="rmsg"></span>
+      </div>
+    </div>`;
+  const ui = fieldUi[name];
+  const slider = card.querySelector(".rslider");
+  slider.addEventListener("pointerdown", () => { ui.dragging = true; });
+  slider.addEventListener("input", () => { ui.dragging = true; });
+  slider.addEventListener("blur", () => { ui.dragging = false; });
+  slider.addEventListener("change", () => {   // commit once, on release
+    ui.dragging = false;
+    postFieldMask(name, { region: name, offset: Number(slider.value) });
+  });
+  card.querySelector(".rtail").addEventListener("click", () => {
+    postFieldMask(name, { region: name, mode: "tail" });
+  });
+  card.querySelector(".reditbtn").addEventListener("click", () => setEditMode(card, true));
+  card.querySelector(".rcancel").addEventListener("click", () => setEditMode(card, false));
+  card.querySelector(".rsave").addEventListener("click", () => saveRegion(card));
+  list.appendChild(card);
+  return card;
+}
+
+function updateRegionCard(card, r) {
+  const ui = fieldUi[card.dataset.region] || { editing: false, dragging: false };
+  card.querySelector(".rmeta").textContent =
+    `total ${r.total_chars} · active ${r.active_chars} · dormant ${r.dormant_chars} · ${r.mask_mode}`;
+  const dot = card.querySelector(".visdot");
+  dot.classList.toggle("off", !r.visible);
+  dot.title = r.visible ? "visible to cores" : "hidden from cores";
+  card.querySelector(".rtail").classList.toggle("on", r.mask_mode === "tail");
+  if (!ui.editing) {          // never clobber a textarea Jeff is editing
+    card.querySelector(".dormant").textContent = r.dormant;
+    card.querySelector(".active").textContent = r.active;
+  }
+  if (!ui.dragging) {         // never yank a slider Jeff is dragging
+    const slider = card.querySelector(".rslider");
+    slider.max = r.total_chars;
+    slider.value = r.mask_offset;
+  }
+}
+
+async function postFieldMask(name, body) {
+  const card = $("fieldList").querySelector(`[data-region="${name}"]`);
+  const msg = card && card.querySelector(".rmsg");
+  try {
+    const r = await api("/api/field/mask", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    fieldState.regions[name] = r;
+    if (msg) msg.textContent = "";
+    if (card) updateRegionCard(card, r);
+  } catch (e) {
+    if (msg) { msg.textContent = "mask failed: " + e.message; msg.style.color = "var(--bad)"; }
+    logEvent({ type: "error", message: "field mask failed: " + e.message });
+  }
+}
+
+function setEditMode(card, on) {
+  const ui = fieldUi[card.dataset.region];
+  ui.editing = on;
+  card.querySelector(".rtext").style.display = on ? "none" : "";
+  card.querySelector(".redit").style.display = on ? "" : "none";
+  card.querySelector(".reditbtn").style.display = on ? "none" : "";
+  card.querySelector(".rsave").style.display = on ? "" : "none";
+  card.querySelector(".rcancel").style.display = on ? "" : "none";
+  if (on) {
+    const ta = card.querySelector(".redit");
+    ta.value = (fieldState.regions[card.dataset.region] || {}).content || "";
+    ta.focus();
+  }
+}
+
+async function saveRegion(card) {
+  const name = card.dataset.region;
+  const msg = card.querySelector(".rmsg");
+  msg.textContent = "saving..."; msg.style.color = "var(--dim)";
+  try {
+    const r = await api("/api/field/region", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ region: name, content: card.querySelector(".redit").value }),
+    });
+    fieldState.regions[name] = r;
+    setEditMode(card, false);
+    msg.textContent = ""; msg.style.color = "var(--dim)";
+    updateRegionCard(card, r);
+  } catch (e) {
+    msg.textContent = "save failed: " + e.message;
+    msg.style.color = "var(--bad)";
+  }
 }
 
 // ------------------------------------------------------------- config UI ---
@@ -386,6 +592,10 @@ function renderConfig() {
     const el = $("cfg_" + k);
     if (el && cfg[k] != null && document.activeElement !== el) el.value = cfg[k];
   });
+  const modelsEl = $("cfg_models");
+  if (modelsEl && cfg.models != null && document.activeElement !== modelsEl) {
+    modelsEl.value = JSON.stringify(cfg.models);
+  }
   // regions
   const rt = $("regionToggles");
   rt.innerHTML = "";
@@ -425,6 +635,14 @@ function gatherConfig() {
     if (!el) return;
     cfg[k] = el.type === "number" ? Number(el.value) : el.value;
   });
+  const modelsEl = $("cfg_models");
+  if (modelsEl && modelsEl.value.trim()) {
+    try {
+      cfg.models = JSON.parse(modelsEl.value);
+    } catch (e) {
+      throw new Error("model roster is not valid JSON: " + e.message);
+    }
+  }
   cfg.regions = {};
   document.querySelectorAll("#regionToggles input").forEach((cb) => {
     cfg.regions[cb.dataset.region] = cb.checked;
@@ -606,6 +824,9 @@ $("focusBtn").addEventListener("click", () => {
 $("configForm").addEventListener("submit", saveConfig);
 $("addAdvisorBtn").addEventListener("click", () => $("advisorRows").appendChild(advisorRow(null)));
 $("restartBtn").addEventListener("click", applyAndRestart);
+
+refreshField();                    // shared field: immediate load + 2s poll
+setInterval(refreshField, 2000);
 
 connect();
 </script>

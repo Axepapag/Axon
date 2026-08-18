@@ -23,6 +23,7 @@ ssh_helper.py
 *.pem
 # Council runtime local config — may carry advisor API keys (LOCAL ONLY)
 runtime/council/council_config.json
+runtime/council/council_config.test.json
 /council_config.json
 runtime/council/souls/
 # Session-start material remains local, except for the repository-wide

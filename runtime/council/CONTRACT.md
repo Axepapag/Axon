@@ -53,6 +53,21 @@ as labeled text inside the history window (e.g. `\nScratch: ...`). Never place
 text in the response region — the checkpoint was trained with blank drafts
 (verified OOD 2026-08-17).
 
+### The field is never truncated (Jeff's ruling 2026-08-18)
+
+Each region is the FULL logical document (runtime/field schema: the window
+limit belongs to the view, not the field). Nothing is ever truncated or
+deleted. Per region, a movable MASK (character offset) divides DORMANT prefix
+(preserved, inspectable) from ATTENDED tail (what the cores are shown):
+`{"mode": "tail"}` auto-follows the newest 256 chars; `{"mode": "manual",
+"offset": N}` pins the boundary where Jeff put it. Masks move backwards and
+forwards at any time. State locations follow the convener ruling
+(2026-07-03): the live field persists to `State/active/council_field.json`;
+every mask move and region edit appends an immutable record (masked /
+superseded text preserved byte-for-byte) to
+`State/dormant/council_field_tails.jsonl`. Both paths are config keys
+(`field_state_path`, `dormant_tails_path`) so tests never touch live state.
+
 ## Engine public API (module `runtime/council/engine.py`)
 
 ```python
@@ -68,13 +83,23 @@ class CouncilEngine:
     async def submit_user_message(self, text: str) -> None: ...
     def apply_config(self, cfg: dict) -> list[str]: ...
     # hot-applies runtime knobs; returns list of keys needing restart
+    def field_view(self) -> dict: ...
+    # {regions: {name: {content, dormant, active, mask_offset, mask_mode,
+    #   total_chars, dormant_chars, active_chars, visible}},
+    #  active_region_chars: 256, model_window_chars: 128}
+    def set_mask(self, region: str, mode: str|None = None,
+                 offset: int|None = None) -> dict: ...
+    # moves one region's mask backwards/forwards; offset implies manual mode
+    def set_region(self, region: str, content: str) -> dict: ...
+    # operator edit; prior text preserved in the dormant tails record
 ```
 
 Config file `runtime/council/council_config.json` (created with defaults if
 absent). Keys: checkpoint, device, cores, soul_noise, temperature_spread,
 tick_delay_ms, stable_ticks, max_ticks (0 = forever), regions (dict of
 region->bool visibility), advisors (list of
-{name, endpoint, api_key, model, enabled, temperature}), log_path.
+{name, endpoint, api_key, model, enabled, temperature}), log_path,
+field_state_path, dormant_tails_path.
 `council_config.json` is LOCAL ONLY — add it to .gitignore (it may carry API
 keys; Working Contract rule 4).
 
@@ -89,6 +114,8 @@ All events: `{"type": ..., "tick": int, "ts": float}` plus:
 - `advisor_delta` — `{advisor: str, text: str, conf: float, error: str|null}`
 - `consolidated` — `{core: int, text: str, conf: float, stable: int}`
 - `canonical` — `{state: {region: str}}` (after every commit)
+- `field_mask` — `{region: str, old_offset: int, new_offset: int, mode: str}`
+- `field_edit` — `{region: str, chars: int}`
 - `chat` — `{role: "user"|"axon", text: str}`
 - `error` — `{message: str}`
 
@@ -110,6 +137,12 @@ FastAPI. REST:
 - `POST /api/chat` `{"text": str}`
 - `POST /api/control` `{"action": "start"|"stop"|"pause"|"resume"}`
 - `GET /api/cores` — per-core detail
+- `GET /api/field` — full operator view of every region + masks
+- `POST /api/field/mask` `{"region", "mode"}` or `{"region", "offset"}` —
+  moves one region's mask (offset implies manual mode; mode "tail" resumes
+  auto-follow)
+- `POST /api/field/region` `{"region", "content"}` — operator edit; prior
+  text preserved in dormant tails
 - `GET /` serves the dashboard
 
 Single-page vanilla-JS dashboard, dark, dense, Jeff-operable (no file editing,
@@ -122,6 +155,11 @@ ever):
 - **Config panel** — form over every config key incl. advisor CRUD
   (name/endpoint/key/model/enabled). Save → POST; if `needs_restart`
   non-empty, show an "Apply & Restart" button.
+- **Shared Field panel** — one collapsible card per region: full content
+  with the dormant prefix dimmed, a mask slider (both directions), a
+  "Follow tail" toggle, and Edit/Save. Legend states plainly: field never
+  truncated; cores attend the 128-char model window over the active tail;
+  everything behind the mask is dormant, preserved, restorable.
 - **Event log** — collapsible rolling event tail.
 - WebSocket reconnect with backoff; all state recoverable via GET /api/status.
 
@@ -169,3 +207,20 @@ files changed, identity stamp (Kimmy subagent / kimi-k2 / 2026-08-17).
    committed as Council lines poisoned the next tick — 123 ticks, no
    convergence, garbage drafts. Gate-passing deltas only; the consolidator
    selects from the credible pool.
+6. **JEFF'S OVERRIDE (2026-08-18, supersedes amendment 5's default)**: the
+   draft is ALIVE. The response draft updates EVERY tick and always commits;
+   Axon is never blocked mid-thought and never halted early. Gibberish is
+   carried forward and rendered visible to every core next tick as a
+   "\nDraft: <text>" line so the council can refine it — mistakes, adjustment,
+   victory, wisdom, growth. `council_min_conf` now defaults to 0.0 (OFF) and
+   survives only as an experiment lever. A turn ends when Jeff speaks again
+   (the living draft commits to conversation_history as "Assistant: <draft>"),
+   never by internal halt.
+7. **Multi-size roster (Jeff, 2026-08-18)**: the engine runs brothers of
+   multiple d_model widths side by side over the same canonical 16D field.
+   Config key `models`: list of {"checkpoint": path, "cores": N}. Each unique
+   checkpoint loads ONCE and is shared by that size's member cores; the
+   consolidator crown rotates across all members of all sizes. Both soul
+   checkpoint formats are supported (conversational {soul,soul_mask} and
+   charslot_v2 SoulManagerV2 {tensor,active}). Verified roster:
+   64D conversational ckpt_461500 + 128D exact-v4 leg1 ckpt_2 (step 250000).

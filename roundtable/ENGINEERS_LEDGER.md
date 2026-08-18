@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-17T21:12:05-05:00
-Current through event: `evt-20260818T021205879052Z-codex-machine-fortification`
+Updated: 2026-08-18T10:12:53-05:00
+Current through event: `evt-20260818T151253000000Z-kimmy-full-suite-green`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -9,36 +9,53 @@ Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
 Build Axon as a stateful, always-on AI around an exact 16D character field,
 private per-core souls, auditable dormant knowledge, and validated deltas.
-The immediate project need is behavioral proof and continuity, not a claim of
-general intelligence.
+Jeff's living-draft doctrine governs the council: the draft updates every
+tick, always commits, nothing is blocked, a turn ends only when Jeff speaks,
+and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 ## Current verified state
 
-- The primary durable runtime is `runtime/axon_runtime/`.
-- Its configured ring is `axon64-a`, `axon128-a`, `axon64-b`, `axon128-b`,
-  backed by pinned 64D step-416000 and 128D step-252000 exact-v4 checkpoints.
-- A read-only status check on 2026-08-17 reported generation 4, tick sequence
-  4, 38 journal records, a matching four-core ring, no pending ingress, and no
-  queued tool effects.
-- The complete default pytest suite passed on 2026-08-17: 1,079 tests were
-  collected, all executed tests passed, and one was skipped.
-- Recorded conversational evidence is weak outside seed prompts: 10/10 seed
-  exact matches, garbled held-out responses despite 10/10 being nonempty, and
-  1/3 exact multi-turn responses.
-- Typed tools and advisors are disabled in the primary CPU-smoke descriptor.
-- The Bible/council-mix run finished normally at step 461,500. Across 24
-  held-out evaluations, exact match moved from 0.24 to 0.29 and character
-  accuracy from about 0.415 to 0.422; many continuation samples still
-  collapsed to one character plus blanks.
-- Kimmie's ten-core `runtime/council` experiment was reachable locally but
-  stopped at tick 3,818. It preserved ten private souls and produced one
-  correct memorized response followed by corrupted multi-turn output; most
-  latest deltas were garbled.
-- Current host: Columbia, Missouri; Windows 10; AMD FX-8350 (4 physical/8
-  logical); 15.97 GB RAM; GTX 1650 with 4 GB VRAM and CUDA capability 7.5.
-  Local CUDA works and is suitable for inference and bounded 64D smokes.
-- The complete modern source tree is preserved on branch
-  `agent/fortify-axon` at commit `181749dc1eecb18f4709c85bcd3601ca9d2f3273`.
+- The council runtime (`runtime/council/`) is LIVE and detached: started via
+  double-clickable `runtime/council/START_COUNCIL.bat`, serving
+  http://127.0.0.1:8788, independent of any assistant session.
+- THE FIELD IS NEVER TRUNCATED (Jeff's ruling 2026-08-18): every region is
+  the full logical document; a per-region movable mask divides the dormant
+  prefix from the attended tail. Live field persists to
+  `State/active/council_field.json`; mask moves and edits are append-only
+  records in `State/dormant/council_field_tails.jsonl` (convener-ruled
+  locations, 2026-07-03). Operator API: GET /api/field, POST
+  /api/field/mask (offset or mode), POST /api/field/region. Dashboard has a
+  Shared Field panel: per-region cards, dormant text dimmed, mask sliders
+  both directions, follow-tail toggle, edit/save.
+- MEASURED 2026-08-18: live end-to-end — 450-char region auto-masks at 194
+  (tail mode), manual mask to 45 then BACKWARDS to 15 restores active text,
+  dormant text preserved byte-for-byte, 4 immutable tail records, field file
+  persisted. Gate 2 PASS with the mask layer (3 ticks).
+- Roster: 8x64D (`runs/bible_64D_gpu_overnight/ckpt_461500.pt`) + 2x128D
+  (coreB exact leg1 ckpt_2), cuda, greedy decoding (temperature_spread 0.0),
+  tick_delay 250ms, council_min_conf 0.0 (off, per doctrine).
+- MEASURED 2026-08-18 morning: with the full 10-brother roster the draft hit
+  exactly 'I am doing well.' at tick 2 of a live turn, then hovered one
+  character away ('I am doing werl.') — alive per doctrine. History commits
+  clean 'User:/Assistant:' exchanges when Jeff speaks; pre-speech
+  free-ticking no longer phantoms an Assistant turn.
+- Council field rendering now matches the trained distribution: ONE
+  'Council: <strongest full-text delta>' line per phase (the 2,200
+  bible_council_mix rows train exactly that). Per-core fragment digests are
+  off-distribution — 5-char fragments starved 10-core rosters, 48-char
+  fragments broke gate 2 (both measured 2026-08-18, both reverted).
+- Gate 2 (engine CPU) PASS, twice: after the consensus-line change and after
+  the phantom-commit fix. Convergence in 3 ticks (was ~15).
+- `D:/Axon/TRAIN_64D.bat` resumes the 64D Bible run (20k steps, cuda, from
+  ckpt_461500). `runtime/council/verify_live.py` is the reusable live-verify
+  harness.
+- The primary durable runtime remains `runtime/axon_runtime/`; full default
+  pytest suite green as of 2026-08-18 (all passed, 1 known skip) WITH the
+  field/mask layer included.
+- The modern tree is locally committed on branch `agent/fortify-axon` at
+  `181749dc1eecb18f4709c85bcd3601ca9d2f3273`; still NO off-machine copy.
+- Host: Columbia, Missouri; Windows 10; FX-8350; 24 GB physical but 15.97 GB
+  usable RAM (one stick lost — reseat advised); GTX 1650 4 GB; sleep=never.
 
 ## Binding continuity rules
 
@@ -52,55 +69,59 @@ general intelligence.
 
 ## Recent completed work
 
-- A clean-slate audit mapped architecture, repository state, runtime status,
-  behavioral evidence, tests, artifact footprint, and security boundaries.
-- The engineer's ledger system was established with an agent entry-point,
-  protocol, rolling summary, and append-only canonical JSONL history.
-- ChatGPT's June `D:\ChatGPT_State` continuity was reconciled to current
-  `D:\Axon` without erasing the historical axon7/W1 handoffs. A current-state
-  layer and v2 machine-readable manifest now carry the July durable-runtime
-  work and August council/training evidence forward.
-- Axon is now installable as an editable Python project with declared council
-  dependencies; secret/artifact ignore rules were hardened; compilation,
-  council in-process checks, and the full pytest suite passed.
+- Kimmy (2026-08-18 late morning): the shared field is never truncated —
+  full logical regions, per-region movable masks (tail/manual), persisted
+  to the convener-ruled State/active + State/dormant locations, with
+  /api/field endpoints and a dashboard Shared Field panel (mask sliders
+  both directions, edit/save, dormant dimmed). Verified live end-to-end.
+  Jeff interrupted an ad-hoc design to insist on the CORRECT state
+  locations; the build uses them.
+- Kimmy (2026-08-18 morning): fixed council decoherence (consensus-line
+  rendering), fixed phantom Assistant commits, set greedy decoding, moved the
+  council server to a detached .bat process per Jeff's separation order,
+  added trainer/verify launchers, and verified live 10-brother convergence.
+- Kimmy's state archive at `D:\Kimmy` was inspected read-only by Codex with
+  Jeff's explicit authorization; no Kimmy file was modified. Her archive is
+  valuable continuity but must be reconciled against durable artifacts.
+- The engineer's ledger system is established (protocol, rolling summary,
+  append-only canonical JSONL).
+- Axon is installable as an editable Python project; secret/artifact ignore
+  rules hardened; full pytest suite passed 2026-08-17.
 
 ## Active risks and blockers
 
-- The modern tree is locally committed, but no Git remote is configured and
-  GitHub CLI is absent, so it is not yet protected by an off-machine copy.
-- Model behavior does not yet demonstrate useful held-out conversation or
-  general reasoning.
-- The newest training run improved held-out metrics only modestly, while the
-  council often amplifies correlated character-level errors.
-- `dist/`, `runs/`, and datasets occupy roughly 125 GB and need explicit
-  artifact retention and checkpoint-lineage policy.
-- Several overlapping execution paths remain: `runtime/axon_runtime/`,
-  `runtime/council/`, `runtime/tick_loop.py`, and `runtime/table/`.
-- `runtime/table/waker.py` uses string-prefix path containment and can accept a
-  sibling path sharing the `docs/roundtable` prefix.
-- Multiple legacy and training paths deserialize PyTorch files with
-  `weights_only=False`; only the primary pinned-checkpoint path consistently
-  verifies the artifact hash first.
+- The 128D brothers blank/vandalize the draft when they hold the crown —
+  they have never been conversationally trained. Growth room, not a bug:
+  they need their own conversational leg before their crown turns help.
+- Tick rate is ~5-8s under load (10 cores x 3 proposals on a GTX 1650);
+  faster on an idle machine, but large rosters are compute-bound here.
+- No Git remote configured and GitHub CLI absent: the tree is one disk
+  failure away from loss. Off-machine preservation remains top priority.
+- Model behavior beyond seed-like exchanges is still weak; the newest
+  training run improved held-out metrics only modestly.
+- `dist/`, `runs/`, and datasets occupy roughly 125 GB; retention and
+  checkpoint-lineage policy still needed.
+- `runtime/table/waker.py` path-containment and `weights_only=False`
+  deserialization findings from the 2026-08-17 audit remain open.
 
 ## Next recommended actions
 
-1. Install/authenticate GitHub CLI, configure the intended private GitHub
-   remote, push `agent/fortify-axon`, and verify a clean clone.
-2. Freeze one held-out behavioral suite, then compare step 440,500, step
-   461,500, exact-v4 candidates, and single-core versus council inference.
-3. Run correct/zero/swapped/shuffled soul ablations and council-vs-single-core
-   causal comparisons before another long training run.
-4. Diagnose blank-draft alignment, target truncation, data mixture, and
-   collapse with bounded smokes.
-5. Reconcile runtime branches only after behavioral evidence, then address
-   path containment, deserialization, and artifact retention.
+1. Install/authenticate GitHub CLI, configure the private remote, push
+   `agent/fortify-axon`, verify a clean clone (Codex's standing first step).
+2. Freeze one held-out behavioral suite; compare ckpt 440,500 vs 461,500 and
+   single-core vs council inference.
+3. Soul ablations (correct/zero/swapped/shuffled) before more long training.
+4. A conversational training leg for the 128D checkpoint so its crown turns
+   carry weight; then larger brother sizes per Jeff's 64->4096 ladder.
+5. Reconcile runtime branches only after behavioral evidence.
 
 ## Fast orientation
 
+- Council contract: `runtime/council/CONTRACT.md`
 - Runtime description: `docs/AXON_RUNTIME.md`
 - Architecture doctrine: `docs/SOURCE_OF_TRUTH.md`
 - Working rules: `docs/WORKING_CONTRACT.md`
-- Primary runtime config: `ops/axon_runtime.cpu-smoke.json`
 - Behavioral evidence: `conversational_runtime_prototype_results.json`
 - Full test command: `python -m pytest -q -p no:cacheprovider`
-- Read-only runtime status: `python -m runtime.axon_runtime status`
+- Live council: double-click `runtime/council/START_COUNCIL.bat`, open
+  http://127.0.0.1:8788
