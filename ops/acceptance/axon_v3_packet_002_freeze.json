@@ -1,0 +1,163 @@
+{
+  "schema": "axon-v3-packet-002-freeze-v1",
+  "status": "accepted_neural_free_isolated",
+  "frozen_at_utc": "2026-07-29T07:06:00Z",
+  "protocol": {
+    "name": "axon-runtime-protocol-v3",
+    "version": 3,
+    "authority": "append-only-hash-chained-journal",
+    "mutable_head_role": "replayable-nonauthoritative-projection"
+  },
+  "scope": {
+    "online_core_count": 3,
+    "offline_core_count": 1,
+    "phases": [
+      "INITIAL",
+      "REFINE",
+      "FINAL"
+    ],
+    "neural_calls": false,
+    "engine_integration": false,
+    "training": false,
+    "checkpoint_promotion": false,
+    "tool_or_advisor_execution": false
+  },
+  "artifacts": [
+    {
+      "path": "runtime/axon_runtime/v3_contracts.py",
+      "bytes": 65236,
+      "sha256": "4EC4A1632E4EA9002E15034B8CA38E5B0A34E606568029C6334B4E649C4BA08E"
+    },
+    {
+      "path": "runtime/axon_runtime/v3_serde.py",
+      "bytes": 30320,
+      "sha256": "43790A72E20F2B562A9CE52542ED976A2B33BEE603A1D079EC7838D4E81842F3"
+    },
+    {
+      "path": "tests/test_axon_runtime_v3_contracts.py",
+      "bytes": 58609,
+      "sha256": "08DCED04AA8D071634089DDBE724AB40E686FB04B96816ACC3EA3DC1CF40047B"
+    },
+    {
+      "path": "runtime/axon_runtime/v3_transaction.py",
+      "bytes": 77682,
+      "sha256": "F2C418393345D97245D26D304A62376F948A4CE0438B7FF3A9EBFDF240EB2F72"
+    },
+    {
+      "path": "runtime/axon_runtime/v3_store.py",
+      "bytes": 72045,
+      "sha256": "CC12A9377AF55606D1AFED229A385C409D364891FD3BAFC2988D1A1787A89A5F"
+    },
+    {
+      "path": "tests/test_axon_runtime_v3_store.py",
+      "bytes": 82995,
+      "sha256": "FC15E8A397E851CCF633D4DD75394FB09E4EAEC4E8C28AD35D72B7C4372B8A13"
+    }
+  ],
+  "parallel_conversational_prerequisites": [
+    {
+      "path": "training/build_conversational_curriculum.py",
+      "bytes": 41627,
+      "sha256": "3CFAE4255910A64A6A2E587FADAAEED2E75B22350D9D332E4CAF498C6F6D235A"
+    },
+    {
+      "path": "tests/test_conversational_curriculum.py",
+      "bytes": 19255,
+      "sha256": "38FBF2720ADFAB7405EB1B24DF511C2F64E5CED2C8C1D55A2001135FE48EC736"
+    },
+    {
+      "path": "training/conversational_objective.py",
+      "bytes": 14480,
+      "sha256": "28B1C75AAFC38EB9A39BBADE8E98A1263888CA5BB7F8B963263208A6E6DB7156"
+    },
+    {
+      "path": "tests/test_conversational_objective.py",
+      "bytes": 9179,
+      "sha256": "97DC5594097F2D59D6940F47D57F3F68769E7171A1A7FE777549C001C937335C"
+    },
+    {
+      "path": "training/conversational_no_gold.py",
+      "bytes": 29986,
+      "sha256": "EFBE68FD29230594B44486858C60187BAC6E31C932249736A53602E02B79E17B"
+    },
+    {
+      "path": "tests/test_conversational_no_gold.py",
+      "bytes": 11447,
+      "sha256": "FC990C6E139686E2806AB731E0C7026365304CC31EC2E2C88D0862197916116E"
+    }
+  ],
+  "validation": {
+    "v3_store_and_contracts": {
+      "passed": 134,
+      "command": "python -m pytest -p no:cacheprovider tests/test_axon_runtime_v3_store.py tests/test_axon_runtime_v3_contracts.py --tb=short"
+    },
+    "full_runtime": {
+      "passed": 281,
+      "command": "python -m pytest -p no:cacheprovider tests/test_axon_runtime_*.py --tb=short"
+    },
+    "conversational_prerequisites": {
+      "passed": 53,
+      "command": "python -m pytest -p no:cacheprovider tests/test_conversational_no_gold.py tests/test_conversational_objective.py tests/test_conversational_curriculum.py --tb=short"
+    },
+    "compileall": "passed",
+    "tracked_diff_check": "passed",
+    "untracked_whitespace_check": "passed"
+  },
+  "acceptance_audits": [
+    {
+      "job_id": "phase-b-002-r3-journal-reachability-20260729",
+      "output_sha256": "2A1A357E88B0E9104030B7DFC6A301EA3D01A6A8F9E4EAB78AD2F8E26160669F",
+      "disposition": "superseded_by_codex_acceptance_correction"
+    },
+    {
+      "job_id": "phase-b-002-r4-read-only-acceptance-20260729",
+      "output_sha256": "6D6329888610E35ED0AC3BB0764202400FB15B61264255B864B7C13E1FE25ACF",
+      "disposition": "acceptance_audit_pass"
+    }
+  ],
+  "independent_attack_gates": [
+    "noncanonical_genesis_context",
+    "hash_valid_persisted_nonzero_genesis_substep",
+    "hash_valid_persisted_duplicate_genesis_core",
+    "hash_valid_inside_frame_orphan",
+    "r2_trust_boundary_regressions",
+    "cross_frame_artifact_reuse",
+    "legal_rejection_tail_and_illegal_semantic_tail",
+    "mutable_head_drift"
+  ],
+  "protected_checkpoints": [
+    {
+      "name": "core64D_exact_v4_leg8_step416000",
+      "bytes": 615013017,
+      "sha256": "8FB8F4E8042D9B4687451C2B530A85DC4100E0488B4A67B04C30860AFFF1C5D1",
+      "promotion_status": "unpromoted_protected"
+    },
+    {
+      "name": "core128D_exact_v4_leg1_step252000",
+      "bytes": 2432310329,
+      "sha256": "276FAB962A485A52EF169082B83C24017D0F43F385AB2DAF2E84A9B9923923A8",
+      "promotion_status": "unpromoted_protected"
+    }
+  ],
+  "preserved_runtime": {
+    "state_root": "D:/Axon/State/axon_runtime",
+    "expected_generation": 4,
+    "expected_tick": 4,
+    "expected_field_id": "85a1b1d7d93dd588213f9d505e6f9a04e652393851d9d98610488c51ca6516f6",
+    "mutation_authorized": false
+  },
+  "next_boundary": {
+    "packet_003_started": false,
+    "requires_new_scope": true,
+    "first_permitted_shape": "isolated-no-neural-side-by-side-integration",
+    "still_forbidden": [
+      "neural_calls",
+      "training",
+      "Kaggle",
+      "checkpoint_promotion",
+      "tool_execution",
+      "advisor_execution",
+      "live_v2_state_mutation"
+    ]
+  }
+}

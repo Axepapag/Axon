@@ -1,0 +1,26 @@
+{
+  "schema": "axon_promotion_gate_v1",
+  "leg_kind": "quarantined_repair",
+  "source_step": 250000,
+  "target_step": 260000,
+  "metrics": {
+    "copy": {
+      "exact_fill": {"min": 1.0},
+      "char_acc": {"min": 1.0}
+    },
+    "partial": {
+      "suffix_char_acc": {"min": 0.170},
+      "suffix_exact": {"min": 0.277}
+    },
+    "blank": {
+      "char_acc": {"min": 0.347},
+      "suffix_char_acc": {"min": 0.205},
+      "suffix_exact": {"min": 0.121},
+      "collapse_var": {"min": 0.000001},
+      "pred_unique": {"min": 20},
+      "pred_entropy": {"min": 1.8},
+      "pred_top_frac": {"max": 0.85}
+    }
+  },
+  "failure_action": "stop_and_keep_quarantined"
+}

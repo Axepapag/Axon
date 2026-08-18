@@ -1,0 +1,152 @@
+{
+  "schema": "axon-runtime-bootstrap-config-v1",
+  "models": [
+    {
+      "model_id": "core64d-exact-v4-416k",
+      "d_model": 64,
+      "checkpoint_step": 416000,
+      "checkpoint_path": "D:\\Axon\\dist\\axon_exact_v4_leg8_train_soul_compress_output\\runs\\core64D_exact_v4_leg8\\ckpt_416000.pt",
+      "checkpoint_sha256": "8FB8F4E8042D9B4687451C2B530A85DC4100E0488B4A67B04C30860AFFF1C5D1"
+    },
+    {
+      "model_id": "core128d-exact-v4-252k",
+      "d_model": 128,
+      "checkpoint_step": 252000,
+      "checkpoint_path": "D:\\Axon\\dist\\axon_exact_v4_128D_leg1_train_soul_output\\runs\\core128D_exact_v4_leg1\\ckpt_252000.pt",
+      "checkpoint_sha256": "276FAB962A485A52EF169082B83C24017D0F43F385AB2DAF2E84A9B9923923A8"
+    }
+  ],
+  "cores": [
+    {
+      "core_id": "axon64-a",
+      "display_name": "Axon 64D A",
+      "model_id": "core64d-exact-v4-416k",
+      "soul_id": "soul64-a",
+      "adapter_namespace": "adapter.axon64.a",
+      "enabled": true,
+      "lineage": [
+        "exact-v4",
+        "64d-416k",
+        "clone-a"
+      ],
+      "role_capabilities": [
+        "proposer",
+        "consolidator",
+        "sleeper"
+      ]
+    },
+    {
+      "core_id": "axon128-a",
+      "display_name": "Axon 128D A",
+      "model_id": "core128d-exact-v4-252k",
+      "soul_id": "soul128-a",
+      "adapter_namespace": "adapter.axon128.a",
+      "enabled": true,
+      "lineage": [
+        "exact-v4",
+        "128d-252k",
+        "clone-a"
+      ],
+      "role_capabilities": [
+        "proposer",
+        "consolidator",
+        "sleeper"
+      ]
+    },
+    {
+      "core_id": "axon64-b",
+      "display_name": "Axon 64D B",
+      "model_id": "core64d-exact-v4-416k",
+      "soul_id": "soul64-b",
+      "adapter_namespace": "adapter.axon64.b",
+      "enabled": true,
+      "lineage": [
+        "exact-v4",
+        "64d-416k",
+        "clone-b"
+      ],
+      "role_capabilities": [
+        "proposer",
+        "consolidator",
+        "sleeper"
+      ]
+    },
+    {
+      "core_id": "axon128-b",
+      "display_name": "Axon 128D B",
+      "model_id": "core128d-exact-v4-252k",
+      "soul_id": "soul128-b",
+      "adapter_namespace": "adapter.axon128.b",
+      "enabled": true,
+      "lineage": [
+        "exact-v4",
+        "128d-252k",
+        "clone-b"
+      ],
+      "role_capabilities": [
+        "proposer",
+        "consolidator",
+        "sleeper"
+      ]
+    }
+  ],
+  "ring": {
+    "mode": "round_robin",
+    "core_ids": [
+      "axon64-a",
+      "axon128-a",
+      "axon64-b",
+      "axon128-b"
+    ]
+  },
+  "paths": {
+    "state_root": "D:\\Axon\\State\\axon_runtime",
+    "runtime_db": "D:\\Axon\\State\\axon_runtime\\runtime.sqlite3",
+    "soul_store": "D:\\Axon\\State\\axon_runtime\\souls",
+    "private_state_store": "D:\\Axon\\State\\axon_runtime\\private_states",
+    "dormant_db": "D:\\Axon\\State\\axon_runtime\\dormant.sqlite3",
+    "stop_file": "D:\\Axon\\State\\axon_runtime\\STOP"
+  },
+  "projection": {
+    "global_char_budget": 4096,
+    "max_selected_spans": 256,
+    "max_read_pages_per_action": 32,
+    "region_char_budgets": {
+      "conversation_history": 1024,
+      "user_input": 512,
+      "structured_knowledge": 1024,
+      "situation_awareness": 384,
+      "tool_results": 512,
+      "advisor_input": 384,
+      "task_state": 384,
+      "scratch": 512,
+      "response_draft": 512,
+      "diary": 256
+    },
+    "pinned_regions": [
+      "user_input",
+      "response_draft",
+      "scratch",
+      "tool_results"
+    ]
+  },
+  "idle": {
+    "capture_limit_per_quantum": 32,
+    "job_limit_per_quantum": 8,
+    "lease_ticks": 2,
+    "max_quanta_per_tick": 1
+  },
+  "loop": {
+    "continuous": true,
+    "tick_interval_ms": 100,
+    "idle_sleep_ms": 250,
+    "failure_backoff_initial_ms": 250,
+    "failure_backoff_max_ms": 30000,
+    "failure_backoff_multiplier": 2.0,
+    "stop_file_poll_ms": 250
+  },
+  "capabilities": {
+    "typed_tools_enabled": false,
+    "advisors_enabled": false
+  }
+}

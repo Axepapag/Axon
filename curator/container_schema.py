@@ -8,7 +8,7 @@ Doctrine:
     - Containers are structured, auditable records -- not token embeddings.
     - Semantic meaning is carried by spelled-out semantic edges: relation text
       plus target text. Opaque semantic-edge symbols are legacy-only and are not
-      used by the active 8192D shared-field path.
+      used by the active character-field path.
     - Containers must not become loose bags of whatever a trainer happened to
       emit. normalise_container() coerces existing loose dataset records into
       this typed schema.

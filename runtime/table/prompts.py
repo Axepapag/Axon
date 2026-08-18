@@ -171,7 +171,7 @@ End your reply with ONE fenced JSON block matching this schema:
   "text": "my contribution ...",      // post/dm: the message (markdown ok)
   "to": "kimi",                       // dm only
   "vote": {{"question": "...", "choice": "...", "why": "..."}},   // vote only
-  "artifact": {{"path": "docs/roundtable/Agent_delta_slots.md",
+  "artifact": {{"path": "docs/roundtable/Agent_delta_architecture.md",
                 "body": "full file content..."}},                 // artifact only
   "flag": {{"blocking": true, "item": "...", "problem": "...",
             "evidence": "...", "options": "...", "recommendation": "..."}},

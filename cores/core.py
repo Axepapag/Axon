@@ -1,20 +1,20 @@
-"""Axon v7 core — the transformer. Same architecture as v6 (RoPE attention,
+"""Axon v7 core - the transformer. Same architecture as v6 (RoPE attention,
 SwiGLU FFN, pre-norm), used by BOTH the trainer and the runtime. No
-generation head, no vocabulary — it refines fields in d_model space; the
+generation head, no vocabulary - it refines fields in d_model space; the
 ProjectionBank moves between 16D substrate and d_model.
 
-v7 config addition: `soul_rows` — the per-core private hidden state
+v7 config addition: `soul_rows` - the per-core private hidden state
 (Contract 5). Each soul row lives at full d_model width (128 in dev
-cores, 1024 at scale) — pre-language thought, never letter-encoded. The
+cores, 1024 at scale) - pre-language thought, never letter-encoded. The
 rows themselves are managed by the caller; the config records how many
 this core was built to carry.
 
-v7.1 soul mode: `act_reflect` — the soul is not concatenated as public
+v7.1 soul mode: `act_reflect` - the soul is not concatenated as public
 content. Each cycle first ingests the private soul, uses it to modulate
 the shared-state layers, then updates the soul from the action it just
 produced. The old `concat` mode remains loadable for prior checkpoints.
 
-v7.2 soul mode: `act_reflect_v2` — the soul stays private but remains
+v7.2 soul mode: `act_reflect_v2` - the soul stays private but remains
 row-addressable. Shared-state rows cross-attend into individual soul rows
 during the act pass, then soul rows cross-attend back over the produced
 shared action during reflection. No mean-pooled soul summary is used.
@@ -49,7 +49,7 @@ class CoreConfig:
     # of the last ticks carry gradients (deep supervision).
     n_ticks: int = 3
     grad_ticks: int = 2
-    # v7: the soul — per-core private hidden rows carried tick to tick.
+    # v7: the soul - per-core private hidden rows carried tick to tick.
     soul_rows: int = 64
     # "concat" keeps original v7 behavior. "act_reflect" implements the
     # soul-first / act / reflect cycle with pooled modulation.
@@ -67,29 +67,19 @@ class CoreConfig:
     # frozen alphabet base.
     #
     # v7.6: soul_write_mode controls how updates reach the hot rows:
-    #   "direct"       — raw update gated by soul_reflect_gate only.
-    #   "compartments" — pill-organizer write: K labeled compartments, a router
+    #   "direct"       - raw update gated by soul_reflect_gate only.
+    #   "compartments" - pill-organizer write: K labeled compartments, a router
     #                    head on the field output decides which compartment(s)
     #                    receive the update. Anything that doesn't route to a
     #                    compartment passes through unchanged.
     soul_hot_rows: int = 0
     soul_write_mode: str = "compartments"
     n_soul_compartments: int = 8
-    # Slot-era mode (SOURCE_OF_TRUTH Layer 5/13): core attends over d_model
-    # slot summaries from a frozen adapter and emits a response_draft delta
-    # through its own per-character d_model vectors + a frozen prototype decode.
-    slot_mode: bool = False
-    max_response_chars: int = 256
-    # Char-slot threshold (2026-07-04, probe-verified): the core attends the
-    # frozen 16D character substrate directly — one slot per character, lifted
-    # 16->d_model by a frozen orthogonal buffer (over-complete, lossless) plus
-    # learned region-type and position embeddings.  Text is written back by a
-    # shared per-slot head d_model->16 applied at EVERY response position and
-    # snapped to the frozen LetterBank by cosine.  Replaces the lossy
-    # 8192->d_model adapter + pooled ResponseDraftDeltaHead for this mode.
-    # A/B evidence: training/char_slot_probe.py — per-slot COPY char_acc=1.000
-    # by step 500 (157k params, CPU) vs pooled plateau 0.485 = the live 51M
-    # GPU-run ceiling.
+    # Char-field mode: the core attends the frozen 16D character substrate
+    # directly and keeps character position visible end to end. The field is
+    # lifted 16->d_model by a deterministic orthogonal buffer plus learned
+    # region/type position embeddings. Text returns through a per-position
+    # d_model->16 head and frozen LetterBank decode.
     char_slot_mode: bool = False
     char_slot_max_slots: int = 384
     char_n_regions: int = 3
@@ -116,8 +106,6 @@ class CoreConfig:
             soul_hot_rows=int(d.get("soul_hot_rows", 0)),
             soul_write_mode=str(d.get("soul_write_mode", "compartments")),
             n_soul_compartments=int(d.get("n_soul_compartments", 8)),
-            slot_mode=bool(d.get("slot_mode", False)),
-            max_response_chars=int(d.get("max_response_chars", 256)),
             char_slot_mode=bool(d.get("char_slot_mode", False)),
             char_slot_max_slots=int(d.get("char_slot_max_slots", 384)),
             char_n_regions=int(d.get("char_n_regions", 3)),
@@ -134,8 +122,6 @@ class CoreConfig:
             "soul_hot_rows": self.soul_hot_rows,
             "soul_write_mode": self.soul_write_mode,
             "n_soul_compartments": self.n_soul_compartments,
-            "slot_mode": self.slot_mode,
-            "max_response_chars": self.max_response_chars,
             "char_slot_mode": self.char_slot_mode,
             "char_slot_max_slots": self.char_slot_max_slots,
             "char_n_regions": self.char_n_regions,
@@ -216,6 +202,33 @@ class CrossAttention(nn.Module):
         M = context.shape[1]
         H, hd = self.n_heads, self.head_dim
         q = self.q(query).reshape(B, N, H, hd).transpose(1, 2)
+        return self._attend(q, context, context_mask)
+
+    def forward_identity_query(
+        self,
+        query: torch.Tensor,
+        context: torch.Tensor,
+        context_mask: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """Use ``query`` tokens directly as attention queries (no Q projection).
+
+        This keeps the soul-read path from collapsing: the core cannot learn
+        to zero out a projection that isn't there.
+        """
+        B, N, D = query.shape
+        H, hd = self.n_heads, self.head_dim
+        q = query.reshape(B, N, H, hd).transpose(1, 2)
+        return self._attend(q, context, context_mask)
+
+    def _attend(
+        self,
+        q: torch.Tensor,
+        context: torch.Tensor,
+        context_mask: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        B, N, D = q.shape[0], q.shape[-2], self.d_model
+        M = context.shape[1]
+        H, hd = self.n_heads, self.head_dim
         kv = self.kv(context).reshape(B, M, 2, H, hd).permute(2, 0, 3, 1, 4)
         k, v = kv.unbind(0)
         q = self._rope(q)
@@ -226,7 +239,7 @@ class CrossAttention(nn.Module):
             # If no context rows are active, the cross-attention contribution
             # is zero, which is the correct "no soul to read" semantics.
             if not context_mask.any():
-                return torch.zeros_like(query)
+                return torch.zeros((B, N, D), device=q.device, dtype=q.dtype)
             scores = scores.masked_fill(~context_mask[:, None, None, :], float("-inf"))
         attn = self.dropout(F.softmax(scores, dim=-1))
         out = torch.matmul(attn, v)
@@ -320,6 +333,10 @@ class SoulCrossAttentionTransformerLayer(TransformerLayer):
         self.cross_q_norm = nn.LayerNorm(d_model)
         self.cross_ctx_norm = nn.LayerNorm(d_model)
         self.soul_cross = CrossAttention(d_model, n_heads, dropout)
+        # Freeze the Q projection for the soul-read path and do not use it at
+        # runtime (forward_identity_query uses the normalized field tokens as
+        # queries). This prevents training from collapsing the read path to zero.
+        self.soul_cross.q.weight.requires_grad = False
         # v7.3: configurable gate init. Smoke configs may set this higher;
         # existing checkpoints keep their learned gate tensors via load_state_dict.
         self.soul_cross_gate = nn.Parameter(torch.tensor(soul_gate_init))
@@ -333,68 +350,19 @@ class SoulCrossAttentionTransformerLayer(TransformerLayer):
     ) -> torch.Tensor:
         x = x + self.dropout(self.attn(self.norm1(x), mask))
         if soul_rows is not None and soul_rows.shape[1] > 0:
-            cross = self.soul_cross(
+            cross = self.soul_cross.forward_identity_query(
                 self.cross_q_norm(x),
                 self.cross_ctx_norm(soul_rows),
                 context_mask=soul_mask,
             )
-            x = x + self.dropout(self.soul_cross_gate * cross)
+            # Keep the soul channel open: the gate can grow but cannot collapse
+            # to zero, so private memory rows always have a read path into the
+            # shared field.  Parameterize with softplus so gradients stay
+            # nonzero and the gradient-coverage contract stays satisfied.
+            gate = F.softplus(self.soul_cross_gate) + 0.5
+            x = x + self.dropout(gate * cross)
         x = x + self.dropout(self.ffn(self.norm2(x)))
         return x
-
-
-class ResponseDraftDeltaHead(nn.Module):
-    """Core-owned response-draft delta emitter for the slot-era path.
-
-    Takes a pooled representation of the response_draft slot(s) and unrolls a
-    proposed delta as per-character d_model vectors.  Each character vector is later
-    decoded to a substrate character by the frozen CharPrototypeTable in the
-    adapter.  All trainable parameters live inside the core; the prototype
-    table itself is frozen arithmetic.
-    """
-
-    def __init__(self, d_model: int, max_response_chars: int):
-        super().__init__()
-        self.d_model = d_model
-        self.max_response_chars = max_response_chars
-        self.mlp = nn.Sequential(
-            nn.LayerNorm(d_model),
-            nn.Linear(d_model, d_model * 4, bias=False),
-            nn.SiLU(),
-            nn.Linear(d_model * 4, max_response_chars * d_model, bias=False),
-        )
-        # Initialise conservatively: start near zero so the trainer controls
-        # when the response-delta path opens.
-        for m in self.mlp.modules():
-            if isinstance(m, nn.Linear):
-                nn.init.normal_(m.weight, std=0.02)
-
-    def forward(self, draft_slot_hidden: torch.Tensor) -> torch.Tensor:
-        """Args: draft_slot_hidden (B, d_model).  Returns (B, max_chars, d_model)."""
-        B = draft_slot_hidden.shape[0]
-        flat = self.mlp(draft_slot_hidden)
-        return flat.reshape(B, self.max_response_chars, self.d_model)
-
-
-class FieldDeltaHead(nn.Module):
-    """Core-owned full-field delta emitter in the core's d_model lane.
-
-    The runtime/trainer interprets this as a typed slot delta over the whole
-    active field. Read-only regions should learn near-zero no-op deltas;
-    writable regions may carry replacement/update payload summaries. Exact
-    text payloads still use the per-character response delta path because a
-    small d_model slot cannot exactly reconstruct an arbitrary 8192D text slot.
-    """
-
-    def __init__(self, d_model: int):
-        super().__init__()
-        self.norm = nn.LayerNorm(d_model)
-        self.proj = nn.Linear(d_model, d_model, bias=False)
-        nn.init.zeros_(self.proj.weight)
-
-    def forward(self, field_hidden: torch.Tensor) -> torch.Tensor:
-        """Args: field_hidden (B, n_slots, d_model). Returns same shape."""
-        return self.proj(self.norm(field_hidden))
 
 
 # Char-slot threshold constants/helpers (kept dependency-free: 16 mirrors
@@ -447,9 +415,9 @@ class AxonCore(nn.Module):
             self.action_to_soul = CrossAttention(
                 cfg.d_model, cfg.n_heads, cfg.dropout)
             self.soul_reflect_gate = nn.Parameter(torch.tensor(cfg.soul_gate_init))
-        # v7.6: compartment router — pill-organizer write.
+        # v7.6: compartment router - pill-organizer write.
         # K compartments, each gets rows_per_comp = hot_rows // K rows.
-        # Router: mean-pool field output → K logits → softmax → per-compartment gate.
+        # Router: mean-pool field output -> K logits -> softmax -> per-compartment gate.
         if cfg.soul_hot_rows > 0 and cfg.soul_write_mode == "compartments":
             assert cfg.soul_mode == "act_reflect_v2", (
                 "soul_hot_rows > 0 requires act_reflect_v2"
@@ -461,16 +429,6 @@ class AxonCore(nn.Module):
             self.soul_compartment_gate = nn.Parameter(torch.tensor(cfg.soul_gate_init))
             # rows per compartment (last compartment absorbs remainder)
             self._rows_per_comp = cfg.soul_hot_rows // K
-        # Slot-era per-character response delta (Layer 5/13).  Lives inside the
-        # core; the adapter provides only the frozen prototype decode.
-        if cfg.slot_mode:
-            assert cfg.soul_mode == "act_reflect_v2", (
-                "slot_mode requires act_reflect_v2 for soul_v2 inhale/exhale"
-            )
-            # Keep the historical attribute name for checkpoint compatibility.
-            self.char_write_head = ResponseDraftDeltaHead(cfg.d_model, cfg.max_response_chars)
-            self.draft_norm = nn.LayerNorm(cfg.d_model)
-            self.field_delta_head = FieldDeltaHead(cfg.d_model)
         # Char-slot threshold (see CoreConfig.char_slot_mode).  Position
         # survives end to end: no pooling anywhere on the text path.
         if cfg.char_slot_mode:
@@ -492,13 +450,13 @@ class AxonCore(nn.Module):
         # Gradient checkpointing: when True (set by the trainer during
         # training), each layer's activations are recomputed in the
         # backward pass instead of being stored. Trades a little compute
-        # for a large drop in memory — the fat FFN intermediate (rows x
+        # for a large drop in memory - the fat FFN intermediate (rows x
         # ffn_dim) is no longer held. Mathematically identical (PyTorch
         # preserves RNG state, so dropout matches on recompute). The
         # runtime leaves this off (inference runs under no_grad anyway).
         self.use_checkpoint = False
         # v7.x read-only soul: when True the body STILL reads/attends the soul
-        # rows, but the carried soul is never written (no reflect/update) —
+        # rows, but the carried soul is never written (no reflect/update) -
         # the soul stays bit-constant across all ticks/episodes. Set by the
         # trainer when a fixed soul (e.g. the alphabet codebook) is seeded.
         self.soul_readonly = False
@@ -530,7 +488,7 @@ class AxonCore(nn.Module):
         act_reflect_v2 keeps the same cycle but uses private cross-attention
         instead of mean-pooling the soul into one modulation vector.
 
-        soul_mask: (B, total_rows) bool — True for active soul rows. Inactive
+        soul_mask: (B, total_rows) bool - True for active soul rows. Inactive
         rows are masked out of cross-attention. This enables the dynamic
         temperature-tiered soul where rows inflate and deflate.
         """
@@ -574,7 +532,7 @@ class AxonCore(nn.Module):
                     write_mode = self.cfg.soul_write_mode
 
                     if write_mode == "direct":
-                        # v7.6 direct write — raw soul_update gated by reflect gate.
+                        # v7.6 direct write - raw soul_update gated by reflect gate.
                         hot_in = (
                             ingested_soul[:, base_rows:, :]
                             + self.soul_reflect_gate * soul_update[:, base_rows:, :]
@@ -585,7 +543,7 @@ class AxonCore(nn.Module):
 
                     elif write_mode == "compartments":
                         # v7.6 pill-organizer write.
-                        # Router: mean-pool the field output → K compartment logits.
+                        # Router: mean-pool the field output -> K compartment logits.
                         # Each compartment gets a slice of hot rows.
                         # Only routed compartments receive updates; the rest
                         # pass through unchanged.
@@ -593,6 +551,13 @@ class AxonCore(nn.Module):
                         rpc = self._rows_per_comp
                         field_pooled = self.soul_router_norm(field_out).mean(dim=1)  # (B, d)
                         router_logits = self.soul_router(field_pooled)  # (B, K)
+                        # Break the symmetric zero-initialization of the router
+                        # so that the first trainable-soul step receives a
+                        # nonzero gradient through the routing branch.
+                        if self.training:
+                            router_logits = router_logits + torch.randn_like(
+                                router_logits
+                            ) * 0.01
                         router_weights = F.softmax(router_logits, dim=-1)  # (B, K)
 
                         hot_old = ingested_soul[:, base_rows:, :]  # (B, M, d)
@@ -641,43 +606,6 @@ class AxonCore(nn.Module):
             soul_out = self.soul_reflect(reflect_in)
         return {"field": field_out, "soul": soul_out, "soul_kl": None}
 
-    def forward_slot(
-        self,
-        field: torch.Tensor,
-        soul: torch.Tensor,
-        mask: torch.Tensor | None = None,
-        soul_mask: torch.Tensor | None = None,
-        response_draft_slice: slice | None = None,
-    ) -> dict[str, torch.Tensor]:
-        """Slot-era forward: inhale soul, attend field, emit core-owned deltas.
-
-        Reuses the act_reflect_v2 path for inhale/attend/exhale, then runs the
-        core-owned full-field delta head over every slot. It also runs the
-        response-draft text payload head on response_draft hidden states to
-        produce exact per-character d_model delta vectors.  The frozen adapter
-        prototype table decodes those vectors outside the core.
-
-        Returns the same dict as forward_with_soul plus
-        ``field_delta``: (B, n_slots, d_model), and
-        ``response_delta_chars``: (B, max_response_chars, d_model).  The legacy
-        ``draft_chars`` key is retained as a temporary compatibility alias.
-        """
-        if not self.cfg.slot_mode:
-            raise ValueError("forward_slot requires slot_mode=True in CoreConfig")
-        out = self.forward_with_soul(field, soul, mask=mask, soul_mask=soul_mask)
-        field_out = out["field"]
-        if response_draft_slice is None:
-            # Default: last slot is the draft (used only in tests/smoke)
-            draft_hidden = field_out[:, -1:, :]
-        else:
-            draft_hidden = field_out[:, response_draft_slice, :]
-        pooled = self.draft_norm(draft_hidden).mean(dim=1)  # (B, d_model)
-        response_delta_chars = self.char_write_head(pooled)
-        out["field_delta"] = self.field_delta_head(field_out)
-        out["response_delta_chars"] = response_delta_chars
-        out["draft_chars"] = response_delta_chars
-        return out
-
     def forward_charslot(
         self,
         field16: torch.Tensor,
@@ -689,17 +617,17 @@ class AxonCore(nn.Module):
     ) -> dict[str, torch.Tensor]:
         """Char-slot forward: attend the frozen 16D substrate directly.
 
-        field16:    (B, n_slots, 16) — one frozen substrate slot per character
-        region_ids: (B, n_slots) int — region-type id per slot
+        field16:    (B, n_slots, 16) - one frozen substrate slot per character
+        region_ids: (B, n_slots) int - region-type id per slot
         response_slice: slot slice of the response_draft region
 
         Returns the forward_with_soul dict plus ``response_delta_16``:
-        (B, n_resp, 16) — a 16D delta PER response position (no pooling),
+        (B, n_resp, 16) - a 16D delta PER response position (no pooling),
         decoded outside by cosine against the frozen LetterBank.
         """
         if not self.cfg.char_slot_mode:
             raise ValueError("forward_charslot requires char_slot_mode=True in CoreConfig")
-        x = field16 @ self.char_lift  # (B, n, d) — lossless over-complete lift
+        x = field16 @ self.char_lift  # (B, n, d) - lossless over-complete lift
         n = x.shape[1]
         pos = torch.arange(n, device=x.device).unsqueeze(0)
         x = x + self.char_type_emb(region_ids) + self.char_pos_emb(pos)
@@ -715,16 +643,6 @@ class AxonCore(nn.Module):
         """
         v = F.normalize(delta16, dim=-1)
         return (v @ bank_unit.T) * self.char_temp
-
-    def char_logits(self, response_delta_chars: torch.Tensor) -> torch.Tensor:
-        """Cosine-similarity logits to the frozen alphabet prototype table.
-
-        Lazy import keeps the adapter table outside the core's import graph.
-        """
-        from adapters.slot_adapter import get_char_prototype_table
-        table = get_char_prototype_table(self.cfg.d_model)
-        return table.logits(response_delta_chars)
-
 
 if __name__ == "__main__":
     cfg = CoreConfig(d_model=32, ffn_dim=64, n_layers=1, soul_rows=8)
@@ -747,18 +665,16 @@ if __name__ == "__main__":
     assert out3["field"].shape == (1, 20, 32)
     assert out3["soul"].shape == (1, 8, 32)
 
-    # Slot-era mode sanity check
     cfg4 = CoreConfig(d_model=64, ffn_dim=128, n_layers=1, soul_rows=8,
-                      soul_mode="act_reflect_v2", slot_mode=True,
-                      max_response_chars=32)
+                      soul_mode="act_reflect_v2", char_slot_mode=True,
+                      char_slot_max_slots=12)
     core4 = AxonCore(cfg4)
-    field4 = torch.randn(1, 20, 64)
+    field4 = torch.randn(1, 12, CHAR_SLOT_DIM)
+    region4 = torch.zeros(1, 12, dtype=torch.long)
     soul4 = torch.randn(1, 8, 64)
-    out4 = core4.forward_slot(field4, soul4, response_draft_slice=slice(10, 12))
-    assert out4["field"].shape == (1, 20, 64)
+    out4 = core4.forward_charslot(field4, region4, soul4, response_slice=slice(8, 12))
+    assert out4["field"].shape == (1, 12, 64)
     assert out4["soul"].shape == (1, 8, 64)
-    assert out4["response_delta_chars"].shape == (1, 32, 64)
-    logits4 = core4.char_logits(out4["response_delta_chars"])
-    assert logits4.shape == (1, 32, 67)
+    assert out4["response_delta_16"].shape == (1, 4, CHAR_SLOT_DIM)
 
     print(f"core OK: {sum(p.numel() for p in core.parameters()):,} params, cfg={cfg.to_dict()}")

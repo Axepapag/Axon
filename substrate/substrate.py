@@ -352,6 +352,22 @@ def default_alphabet() -> list[str]:
 ALPHABET_SET = set(default_alphabet())
 
 
+def assert_supported_text(text: str) -> str:
+    """Return *text* unchanged, or reject characters outside the writing set.
+
+    This is intentionally strict.  Callers that need lossy normalization must
+    do it explicitly before crossing the 16D substrate boundary.
+    """
+    unsupported = [ch for ch in text if ch not in ALPHABET_SET]
+    if unsupported:
+        unique = "".join(sorted(set(unsupported)))
+        raise ValueError(
+            "text contains unsupported substrate characters "
+            f"({len(unsupported)} occurrence(s)): {unique!r}"
+        )
+    return text
+
+
 def _unit_rows(M: np.ndarray) -> np.ndarray:
     norms = np.linalg.norm(M, axis=1, keepdims=True).clip(min=1e-12)
     return M / norms

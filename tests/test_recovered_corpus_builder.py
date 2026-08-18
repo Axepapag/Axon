@@ -31,6 +31,9 @@ from recovered_corpus_builder import (
     build_diary_container,
     build_entity_container,
     build_fact_container,
+    build_message_container,
+    build_mission_container,
+    build_objective_container,
     build_procedure_container,
     build_relation_container,
     clean_text,
@@ -165,6 +168,48 @@ def backlog_db(tmp_path_obj: Path):
 
 
 @pytest.fixture
+def old_db(tmp_path_obj: Path):
+    path = str(tmp_path_obj / "old_memory.db")
+    conn = sqlite3.connect(path)
+    conn.executescript("""
+        CREATE TABLE messages (
+            id TEXT PRIMARY KEY,
+            role TEXT,
+            content TEXT,
+            timestamp TEXT,
+            metadata TEXT
+        );
+        INSERT INTO messages VALUES
+            ('m1', 'user', 'hello old memory', '2026-03-01T00:00:00', '{}');
+
+        CREATE TABLE missions (
+            id TEXT PRIMARY KEY,
+            goal TEXT,
+            status TEXT,
+            created_at TEXT,
+            completed_at TEXT
+        );
+        INSERT INTO missions VALUES
+            ('MSN-1', 'Restore Axon context', 'started', '2026-03-01', NULL);
+
+        CREATE TABLE objectives (
+            id TEXT PRIMARY KEY,
+            mission_id TEXT,
+            parent_id TEXT,
+            description TEXT,
+            status TEXT,
+            reason TEXT,
+            order_index INTEGER
+        );
+        INSERT INTO objectives VALUES
+            ('OBJ-1', 'MSN-1', NULL, 'Read recovered memory', 'completed', 'Needed context', 0);
+    """)
+    conn.commit()
+    conn.close()
+    return path
+
+
+@pytest.fixture
 def personal_log(tmp_path_obj: Path):
     path = str(tmp_path_obj / "personal_log.json")
     data = {
@@ -241,6 +286,36 @@ def test_build_diary_container_redaction():
     c = build_diary_container(entry, 0, "log.json", [])
     assert c.kind == "diary"
     assert c.metadata["redaction"] == "diary_only"
+
+
+def test_build_old_memory_containers():
+    msg = build_message_container(
+        {"id": "m1", "role": "user", "content": "Hello from old memory", "timestamp": "t", "metadata": "{}"},
+        "messages",
+        "old.db",
+        [],
+    )
+    assert msg.kind == "message"
+    assert msg.symbols == []
+    assert any(e.edge_type == "message role" and e.target == "user" for e in msg.edges)
+
+    mission = build_mission_container(
+        {"id": "MSN-1", "goal": "Restore Axon context", "status": "started"},
+        "missions",
+        "old.db",
+        [],
+    )
+    assert mission.kind == "mission"
+    assert any(e.edge_type == "has status" and e.target == "started" for e in mission.edges)
+
+    objective = build_objective_container(
+        {"id": "OBJ-1", "mission_id": "MSN-1", "description": "Read recovered memory", "status": "completed"},
+        "objectives",
+        "old.db",
+        [],
+    )
+    assert objective.kind == "objective"
+    assert any(e.edge_type == "belongs to mission" and e.target == "MSN 1" for e in objective.edges)
 
 
 def test_sha256_file(tmp_path_obj: Path):
@@ -327,6 +402,25 @@ class TestRecoveredCorpusBuilder:
         builder.run()
         containers = list(load_jsonl(tmp_path_obj / "out" / "containers.jsonl"))
         assert any(c["kind"] == "diary" for c in containers)
+
+    def test_old_db_included_when_configured(self, tmp_path_obj, semantic_db, episodic_db, backlog_db, old_db, personal_log):
+        out_dir = str(tmp_path_obj / "out")
+        builder = RecoveredCorpusBuilder(
+            semantic_db=semantic_db,
+            episodic_db=episodic_db,
+            old_db=old_db,
+            backlog_db=backlog_db,
+            personal_log=personal_log,
+            out_dir=out_dir,
+            limit=10,
+            no_personal_log=True,
+            no_vectors=True,
+        )
+        builder.run()
+        containers = list(load_jsonl(tmp_path_obj / "out" / "containers.jsonl"))
+        kinds = {c["kind"] for c in containers}
+        assert {"message", "mission", "objective"}.issubset(kinds)
+        assert all(c["symbols"] == [] for c in containers)
 
     def test_max_items_stops_early(self, tmp_path_obj, semantic_db):
         out_dir = str(tmp_path_obj / "out")

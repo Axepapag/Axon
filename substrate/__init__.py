@@ -20,6 +20,7 @@ from .substrate import (  # noqa: F401
     EMPTY_SLOT,
     ALPHABET_SET,
     WRITING_SET,
+    assert_supported_text,
     structural_features,
     build_basis_matrix,
     get_basis_matrix,

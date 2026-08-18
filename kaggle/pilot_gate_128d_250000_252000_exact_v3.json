@@ -1,0 +1,28 @@
+{
+  "schema": "axon_charslot_pilot_gate_v1",
+  "gate_role": "continuation",
+  "leg_kind": "quarantined_pilot",
+  "source_step": 250000,
+  "target_step": 252000,
+  "fixed_suite_sha256": "7653fa3dfc025b8eb28de2826d5b73ffe5b09939e8278bc8151b51137f35782b",
+  "continuation_metrics": {
+    "copy": {
+      "exact_fill": {"min": 0.95},
+      "char_acc": {"min": 0.99}
+    },
+    "partial": {
+      "suffix_exact": {"min": 0.20}
+    },
+    "blank": {
+      "char_acc": {"min": 0.27},
+      "suffix_char_acc": {"min": 0.20},
+      "pred_top_frac": {"max": 0.75},
+      "pred_unique": {"min": 30},
+      "collapse_var": {"min": 0.000001}
+    }
+  },
+  "promotion_authorized": false,
+  "promotion_metrics": null,
+  "success_action": "authorize_next_bounded_exact_v3_leg_without_canonical_promotion",
+  "failure_action": "stop_and_return_to_exact_v3_data_redesign"
+}

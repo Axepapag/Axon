@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 r"""recovered_corpus_builder.py - build dormant containers from recovered Axon DBs.
 
-This module reads the four recovered source files in D:\00 in streaming fashion,
+This module reads recovered source files in D:\00 in streaming fashion,
 converts every record into a container_schema.Container, assigns deterministic
 layout metadata for search/curation, and emits the dormant-state artifacts
 required by the rest of the Axon pipeline:
@@ -29,6 +29,7 @@ CLI:
     python curator/recovered_corpus_builder.py \
         --semantic-db D:\00\axon_semantic_memory.db \
         --episodic-db D:\00\axon_episodic_memory.db \
+        --old-db D:\00\axon_memory.db \
         --backlog-db D:\00\axon_memory_backlog.db \
         --personal-log D:\00\axon_personal_log.json \
         --out-dir D:\Axon\datasets\recovered\dormant_state_v1 \
@@ -76,6 +77,7 @@ from semantic_layout_machine import (
 
 DEFAULT_SEMANTIC_DB = r"D:\00\axon_semantic_memory.db"
 DEFAULT_EPISODIC_DB = r"D:\00\axon_episodic_memory.db"
+DEFAULT_OLD_DB = r"D:\00\axon_memory.db"
 DEFAULT_BACKLOG_DB = r"D:\00\axon_memory_backlog.db"
 DEFAULT_PERSONAL_LOG = r"D:\00\axon_personal_log.json"
 DEFAULT_OUT_DIR = os.path.join("datasets", "recovered", "dormant_state_v1")
@@ -528,6 +530,153 @@ def build_backlog_container(
     )
 
 
+def build_message_container(
+    row_dict: Dict[str, Any],
+    table_source: str,
+    source_db: str,
+    symbols: List[str],
+    tick: int = -1,
+) -> Container:
+    """Build a dormant container from a legacy messages row."""
+    role = clean_text(row_dict.get("role"), max_chars=64)
+    content = clean_text(row_dict.get("content"), max_chars=2048)
+    timestamp = clean_text(row_dict.get("timestamp"), max_chars=64)
+    metadata = safe_json(row_dict.get("metadata"))
+
+    edges: List[SemanticEdge] = []
+    if role:
+        edges.append(SemanticEdge(
+            edge_type="message role",
+            target=role,
+            confidence=0.7,
+            provenance=source_pointer(source_db, table_source, row_dict.get("id")),
+            status="dormant",
+        ))
+
+    return Container(
+        kind="message",
+        text=content,
+        source=source_pointer(source_db, table_source, row_dict.get("id")),
+        source_tick=tick,
+        created_tick=tick,
+        updated_tick=tick,
+        confidence=0.65,
+        provenance="recovered_corpus_builder:old_message_import:v1",
+        status=ContainerStatus.DORMANT,
+        edges=edges,
+        symbols=list(symbols),
+        metadata={
+            "role": role,
+            "timestamp": timestamp,
+            "metadata": metadata,
+            "source_table": table_source,
+            "source_id": row_dict.get("id"),
+            "origin_family": "old_memory_message",
+            "redaction": "conversation_history",
+        },
+    )
+
+
+def build_mission_container(
+    row_dict: Dict[str, Any],
+    table_source: str,
+    source_db: str,
+    symbols: List[str],
+    tick: int = -1,
+) -> Container:
+    """Build a dormant container from a legacy missions row."""
+    goal = clean_text(row_dict.get("goal"), max_chars=1024)
+    status = clean_text(row_dict.get("status"), max_chars=64)
+
+    edges: List[SemanticEdge] = []
+    if status:
+        edges.append(SemanticEdge(
+            edge_type="has status",
+            target=status,
+            confidence=0.7,
+            provenance=source_pointer(source_db, table_source, row_dict.get("id")),
+            status="dormant",
+        ))
+
+    return Container(
+        kind="mission",
+        text=goal,
+        source=source_pointer(source_db, table_source, row_dict.get("id")),
+        source_tick=tick,
+        created_tick=tick,
+        updated_tick=tick,
+        confidence=0.7,
+        provenance="recovered_corpus_builder:old_mission_import:v1",
+        status=ContainerStatus.DORMANT,
+        edges=edges,
+        symbols=list(symbols),
+        metadata={
+            "status": status,
+            "created_at": clean_text(row_dict.get("created_at"), max_chars=64),
+            "completed_at": clean_text(row_dict.get("completed_at"), max_chars=64),
+            "source_table": table_source,
+            "source_id": row_dict.get("id"),
+            "origin_family": "old_memory_mission",
+        },
+    )
+
+
+def build_objective_container(
+    row_dict: Dict[str, Any],
+    table_source: str,
+    source_db: str,
+    symbols: List[str],
+    tick: int = -1,
+) -> Container:
+    """Build a dormant container from a legacy objectives row."""
+    description = clean_text(row_dict.get("description"), max_chars=1024)
+    status = clean_text(row_dict.get("status"), max_chars=64)
+    mission_id = clean_text(row_dict.get("mission_id"), max_chars=128)
+    reason = clean_text(row_dict.get("reason"), max_chars=1024)
+
+    edges: List[SemanticEdge] = []
+    if mission_id:
+        edges.append(SemanticEdge(
+            edge_type="belongs to mission",
+            target=mission_id,
+            confidence=0.75,
+            provenance=source_pointer(source_db, table_source, row_dict.get("id")),
+            status="dormant",
+        ))
+    if status:
+        edges.append(SemanticEdge(
+            edge_type="has status",
+            target=status,
+            confidence=0.7,
+            provenance=source_pointer(source_db, table_source, row_dict.get("id")),
+            status="dormant",
+        ))
+
+    return Container(
+        kind="objective",
+        text=description,
+        source=source_pointer(source_db, table_source, row_dict.get("id")),
+        source_tick=tick,
+        created_tick=tick,
+        updated_tick=tick,
+        confidence=0.7,
+        provenance="recovered_corpus_builder:old_objective_import:v1",
+        status=ContainerStatus.DORMANT,
+        edges=edges,
+        symbols=list(symbols),
+        metadata={
+            "mission_id": mission_id,
+            "parent_id": clean_text(row_dict.get("parent_id"), max_chars=128),
+            "status": status,
+            "reason": reason,
+            "order_index": row_dict.get("order_index"),
+            "source_table": table_source,
+            "source_id": row_dict.get("id"),
+            "origin_family": "old_memory_objective",
+        },
+    )
+
+
 def build_diary_container(
     entry: Dict[str, Any],
     index: int,
@@ -650,6 +799,7 @@ class RecoveredCorpusBuilder:
         builder = RecoveredCorpusBuilder(
             semantic_db="D:\\00\\axon_semantic_memory.db",
             episodic_db="D:\\00\\axon_episodic_memory.db",
+            old_db="D:\\00\\axon_memory.db",
             backlog_db="D:\\00\\axon_memory_backlog.db",
             personal_log="D:\\00\\axon_personal_log.json",
             out_dir="datasets/recovered/dormant_state_v1",
@@ -663,6 +813,7 @@ class RecoveredCorpusBuilder:
         self,
         semantic_db: str = DEFAULT_SEMANTIC_DB,
         episodic_db: str = DEFAULT_EPISODIC_DB,
+        old_db: str = "",
         backlog_db: str = DEFAULT_BACKLOG_DB,
         personal_log: str = DEFAULT_PERSONAL_LOG,
         out_dir: str = DEFAULT_OUT_DIR,
@@ -678,6 +829,7 @@ class RecoveredCorpusBuilder:
     ):
         self.semantic_db = semantic_db
         self.episodic_db = episodic_db
+        self.old_db = old_db
         self.backlog_db = backlog_db
         self.personal_log = personal_log
         self.out_dir = out_dir
@@ -705,6 +857,7 @@ class RecoveredCorpusBuilder:
 
         item_count = 0
         item_count = self._process_semantic_db(item_count)
+        item_count = self._process_old_memory_db(item_count)
         item_count = self._process_episodic_db(item_count)
         item_count = self._process_backlog_db(item_count)
         if not self.no_personal_log:
@@ -721,7 +874,9 @@ class RecoveredCorpusBuilder:
     # -- source file registration --
 
     def _record_source_files(self) -> None:
-        for path in [self.semantic_db, self.episodic_db, self.backlog_db, self.personal_log]:
+        for path in [self.semantic_db, self.old_db, self.episodic_db, self.backlog_db, self.personal_log]:
+            if not path:
+                continue
             if os.path.exists(path):
                 self.stats.source_files.append({
                     "path": os.path.abspath(path),
@@ -920,7 +1075,7 @@ class RecoveredCorpusBuilder:
             if len(vectors) >= sample_limit:
                 break
 
-        self.stats.vector_sample_count = len(vectors)
+        self.stats.vector_sample_count += len(vectors)
         if vectors:
             try:
                 import numpy as np
@@ -937,6 +1092,137 @@ class RecoveredCorpusBuilder:
                 child.item_count += len(vectors)
             except Exception:
                 pass
+
+    # -- old mixed memory DB --
+
+    def _process_old_memory_db(self, item_count: int) -> int:
+        if not self.old_db:
+            return item_count
+        if not os.path.exists(self.old_db):
+            self.stats.add_skip("old_db_missing")
+            return item_count
+        conn = open_readonly(self.old_db)
+        try:
+            tables = get_tables(conn)
+            self.stats.table_counts[f"old_memory:{self.old_db}"] = len([t for t in tables if t != "sqlite_sequence"])
+
+            for table, processor in [
+                ("extracted_entities", self._process_entities),
+                ("extracted_facts", self._process_facts),
+                ("extracted_relations", self._process_relations),
+            ]:
+                if table in tables:
+                    item_count = processor(conn, self.old_db, table, item_count)
+
+            if "messages" in tables:
+                item_count = self._process_old_messages(conn, self.old_db, "messages", item_count)
+            if "missions" in tables:
+                item_count = self._process_old_missions(conn, self.old_db, "missions", item_count)
+            if "objectives" in tables:
+                item_count = self._process_old_objectives(conn, self.old_db, "objectives", item_count)
+
+            if not self.no_vectors and "knowledge_vectors" in tables:
+                self._process_knowledge_vectors(conn, self.old_db, "knowledge_vectors")
+
+            return item_count
+        finally:
+            conn.close()
+
+    def _process_old_messages(
+        self,
+        conn: sqlite3.Connection,
+        db_path: str,
+        table: str,
+        item_count: int,
+    ) -> int:
+        columns = get_columns(conn, table)
+        select_cols = [c for c in ["id", "role", "content", "timestamp", "metadata"] if c in columns]
+        effective_limit = self.limit if self.limit > 0 else -1
+
+        for row in stream_rows(conn, table, select_cols, limit=effective_limit):
+            if self._check_max_items(item_count):
+                break
+            row_dict = row_to_dict(row, select_cols)
+            content = clean_text(row_dict.get("content"))
+            if not content:
+                self.stats.add_skip("old_message_empty_content")
+                continue
+
+            broad_kind = "message"
+            layout_symbols = _assign_group_symbols(self.registry, broad_kind, content, self.levels)
+
+            container = build_message_container(row_dict, table, db_path, symbols=[])
+            container.metadata["layout_symbols"] = layout_symbols
+            self._emit_container(container)
+            for e in container.edges:
+                self._emit_edge(container.container_id, container.text, e)
+            item_count += 1
+
+        return item_count
+
+    def _process_old_missions(
+        self,
+        conn: sqlite3.Connection,
+        db_path: str,
+        table: str,
+        item_count: int,
+    ) -> int:
+        columns = get_columns(conn, table)
+        select_cols = [c for c in ["id", "goal", "status", "created_at", "completed_at"] if c in columns]
+        effective_limit = self.limit if self.limit > 0 else -1
+
+        for row in stream_rows(conn, table, select_cols, limit=effective_limit):
+            if self._check_max_items(item_count):
+                break
+            row_dict = row_to_dict(row, select_cols)
+            goal = clean_text(row_dict.get("goal"))
+            if not goal:
+                self.stats.add_skip("old_mission_empty_goal")
+                continue
+
+            broad_kind = "mission"
+            layout_symbols = _assign_group_symbols(self.registry, broad_kind, goal, self.levels)
+
+            container = build_mission_container(row_dict, table, db_path, symbols=[])
+            container.metadata["layout_symbols"] = layout_symbols
+            self._emit_container(container)
+            for e in container.edges:
+                self._emit_edge(container.container_id, container.text, e)
+            item_count += 1
+
+        return item_count
+
+    def _process_old_objectives(
+        self,
+        conn: sqlite3.Connection,
+        db_path: str,
+        table: str,
+        item_count: int,
+    ) -> int:
+        columns = get_columns(conn, table)
+        select_cols = [c for c in ["id", "mission_id", "parent_id", "description", "status", "reason", "order_index"] if c in columns]
+        effective_limit = self.limit if self.limit > 0 else -1
+
+        for row in stream_rows(conn, table, select_cols, limit=effective_limit):
+            if self._check_max_items(item_count):
+                break
+            row_dict = row_to_dict(row, select_cols)
+            description = clean_text(row_dict.get("description"))
+            if not description:
+                self.stats.add_skip("old_objective_empty_description")
+                continue
+
+            broad_kind = "objective"
+            layout_symbols = _assign_group_symbols(self.registry, broad_kind, description, self.levels)
+
+            container = build_objective_container(row_dict, table, db_path, symbols=[])
+            container.metadata["layout_symbols"] = layout_symbols
+            self._emit_container(container)
+            for e in container.edges:
+                self._emit_edge(container.container_id, container.text, e)
+            item_count += 1
+
+        return item_count
 
     # -- episodic DB --
 
@@ -1188,7 +1474,7 @@ class RecoveredCorpusBuilder:
                 "dry_run": self.dry_run,
             },
             "notes": "Bootstrap dormant state from recovered DBs. Semantic edges are spelled out. "
-            "Layout IDs are metadata only. Personal log excluded by default.",
+            "Layout IDs are metadata only. Personal log is included only when explicitly requested.",
         }
 
 
@@ -1203,6 +1489,8 @@ def _parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     )
     ap.add_argument("--semantic-db", default=DEFAULT_SEMANTIC_DB, help="Path to axon_semantic_memory.db")
     ap.add_argument("--episodic-db", default=DEFAULT_EPISODIC_DB, help="Path to axon_episodic_memory.db")
+    ap.add_argument("--old-db", default=DEFAULT_OLD_DB, help="Path to axon_memory.db")
+    ap.add_argument("--no-old-db", action="store_true", help="Do not import axon_memory.db")
     ap.add_argument("--backlog-db", default=DEFAULT_BACKLOG_DB, help="Path to axon_memory_backlog.db")
     ap.add_argument("--personal-log", default=DEFAULT_PERSONAL_LOG, help="Path to axon_personal_log.json")
     ap.add_argument("--out-dir", default=DEFAULT_OUT_DIR, help="Output directory")
@@ -1228,12 +1516,14 @@ def main(argv: List[str] | None = None) -> int:
         args.max_items = 500 if args.max_items < 0 else args.max_items
         args.no_vectors = True
         args.no_personal_log = True
+        args.no_old_db = True
 
     no_personal_log = args.no_personal_log or not args.include_personal_log
 
     builder = RecoveredCorpusBuilder(
         semantic_db=args.semantic_db,
         episodic_db=args.episodic_db,
+        old_db="" if args.no_old_db else args.old_db,
         backlog_db=args.backlog_db,
         personal_log=args.personal_log,
         out_dir=args.out_dir,

@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 ENV_FILE = Path(r"D:\cloudflare-tunnel\.env.local")
 CHAT_URL = "http://127.0.0.1:8765/"
-DEFAULT_BRIEF = "docs/roundtable/RoundTable_SlotArchitecture.md"
+DEFAULT_BRIEF = "docs/roundtable/RoundTable_CurrentArchitecture.md"
 
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))

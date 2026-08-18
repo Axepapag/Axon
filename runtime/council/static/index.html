@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Axon Council</title>
+<style>
+  :root {
+    --bg: #0b0e14; --panel: #11161f; --panel2: #161c27; --border: #232b3a;
+    --text: #d7dee9; --dim: #7c8798; --accent: #4da3ff; --good: #3fb96b;
+    --warn: #e0a23c; --bad: #e05c5c; --axon: #b98cff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 13px/1.45 "Segoe UI", system-ui, sans-serif;
+  }
+  header {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 10;
+  }
+  header h1 { font-size: 15px; margin: 0; letter-spacing: .5px; }
+  .chip {
+    padding: 2px 8px; border-radius: 10px; font-size: 11px;
+    background: var(--panel2); border: 1px solid var(--border); color: var(--dim);
+  }
+  .chip.on { color: var(--good); border-color: var(--good); }
+  .chip.off { color: var(--bad); border-color: var(--bad); }
+  .chip.paused { color: var(--warn); border-color: var(--warn); }
+  #conn { width: 10px; height: 10px; border-radius: 50%; background: var(--bad); display: inline-block; }
+  #conn.ok { background: var(--good); }
+  button {
+    background: var(--panel2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 5px; padding: 4px 10px; cursor: pointer; font-size: 12px;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: #06121f; border-color: var(--accent); font-weight: 600; }
+  button.warn { background: var(--warn); color: #1a1204; border-color: var(--warn); font-weight: 600; }
+  main {
+    display: grid; gap: 10px; padding: 10px;
+    grid-template-columns: minmax(340px, 1.2fr) minmax(300px, 1fr);
+    grid-template-areas: "chat cores" "draft cores" "config config" "log log";
+  }
+  body.focus main { grid-template-columns: 1fr; grid-template-areas: "chat"; }
+  body.focus .hide-on-focus { display: none; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px; min-width: 0;
+  }
+  .panel h2 {
+    margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--dim); display: flex; justify-content: space-between; align-items: center;
+  }
+  #chatPanel { grid-area: chat; display: flex; flex-direction: column; }
+  #draftPanel { grid-area: draft; }
+  #coresPanel { grid-area: cores; }
+  #configPanel { grid-area: config; }
+  #logPanel { grid-area: log; }
+
+  /* chat */
+  #chatLog {
+    flex: 1; min-height: 220px; max-height: 55vh; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 6px; padding: 4px;
+  }
+  .msg { max-width: 85%; padding: 6px 10px; border-radius: 8px; white-space: pre-wrap; word-break: break-word; }
+  .msg.user { align-self: flex-end; background: #1d3a5f; }
+  .msg.axon { align-self: flex-start; background: #2a2140; color: #e6dcff; }
+  .msg.pending { opacity: .65; border: 1px dashed var(--accent); }
+  .msg .who { font-size: 10px; color: var(--dim); display: block; margin-bottom: 2px; }
+  #chatForm { display: flex; gap: 6px; margin-top: 8px; }
+  #chatInput {
+    flex: 1; background: var(--panel2); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); padding: 8px; font-size: 13px;
+  }
+  #chatInput:focus { outline: none; border-color: var(--accent); }
+
+  /* draft */
+  #draftBox {
+    background: var(--panel2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 10px; min-height: 54px; white-space: pre-wrap; word-break: break-word;
+    transition: background .15s, border-color .15s;
+  }
+  #draftBox.flash { background: #2b3b1e; border-color: var(--good); }
+  #draftMeta { font-size: 11px; color: var(--dim); margin-top: 6px; }
+
+  /* cores */
+  #coreGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+  .core {
+    background: var(--panel2); border: 1px solid var(--border); border-radius: 7px;
+    padding: 8px; cursor: pointer; position: relative;
+  }
+  .core.consolidator { border-color: var(--warn); box-shadow: 0 0 6px rgba(224,162,60,.35); }
+  .core .crown { position: absolute; top: 6px; right: 8px; font-size: 14px; }
+  .core .cid { font-weight: 700; }
+  .core .row { display: flex; justify-content: space-between; color: var(--dim); font-size: 11px; margin-top: 3px; }
+  .core .row b { color: var(--text); font-weight: 600; }
+  .confbar { height: 6px; background: #0a0d12; border-radius: 3px; margin-top: 6px; overflow: hidden; }
+  .confbar > div { height: 100%; background: var(--accent); width: 0%; transition: width .2s; }
+  .core .delta { display: none; margin-top: 6px; font-size: 12px; color: var(--text);
+    background: #0a0d12; border-radius: 5px; padding: 6px; white-space: pre-wrap; word-break: break-word; }
+  .core.expanded .delta { display: block; }
+
+  /* config */
+  #configForm .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px 14px; }
+  #configForm label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--dim); }
+  #configForm input[type=text], #configForm input[type=number], #configForm input[type=password] {
+    background: var(--panel2); border: 1px solid var(--border); border-radius: 5px;
+    color: var(--text); padding: 5px 7px; font-size: 12px;
+  }
+  .regions { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 8px 0; }
+  .regions label { display: flex; flex-direction: row !important; align-items: center; gap: 5px; font-size: 12px; color: var(--text); }
+  #advisorRows { display: flex; flex-direction: column; gap: 6px; margin: 6px 0; }
+  .adv { display: grid; grid-template-columns: 1fr 1.6fr 1.2fr 1fr .7fr .6fr auto; gap: 6px; align-items: center; }
+  .adv input { width: 100%; background: var(--panel2); border: 1px solid var(--border); border-radius: 5px; color: var(--text); padding: 4px 6px; font-size: 12px; }
+  .adv .enabled { justify-self: center; }
+  .adv-head { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: .5px; }
+  #saveStatus { font-size: 12px; margin-left: 8px; }
+  #restartBtn { display: none; margin-left: 8px; }
+
+  /* event log */
+  details summary { cursor: pointer; color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  #eventLog {
+    margin-top: 8px; max-height: 240px; overflow-y: auto; font: 11px/1.5 Consolas, monospace;
+    background: #0a0d12; border-radius: 6px; padding: 6px 8px;
+  }
+  #eventLog .ev { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #eventLog .ev .t { color: var(--dim); }
+  #eventLog .ev.error { color: var(--bad); }
+  #eventLog .ev.consolidated { color: var(--good); }
+  #eventLog .ev.chat { color: var(--axon); }
+</style>
+</head>
+<body>
+<header>
+  <span id="conn" title="WebSocket"></span>
+  <h1>Axon Council</h1>
+  <span id="runChip" class="chip off">stopped</span>
+  <span class="chip">tick <b id="tickNum">0</b></span>
+  <button id="startBtn">Start</button>
+  <button id="stopBtn">Stop</button>
+  <button id="pauseBtn">Pause</button>
+  <button id="resumeBtn">Resume</button>
+  <span style="flex:1"></span>
+  <button id="focusBtn" title="Show only the chat panel">Focus chat</button>
+</header>
+
+<main>
+  <section id="chatPanel" class="panel">
+    <h2>Conversation</h2>
+    <div id="chatLog"></div>
+    <form id="chatForm">
+      <input id="chatInput" type="text" placeholder="Talk to Axon..." autocomplete="off">
+      <button type="submit" class="primary">Send</button>
+    </form>
+  </section>
+
+  <section id="draftPanel" class="panel hide-on-focus">
+    <h2>Response draft <span id="draftStable"></span></h2>
+    <div id="draftBox">(empty)</div>
+    <div id="draftMeta"></div>
+  </section>
+
+  <section id="coresPanel" class="panel hide-on-focus">
+    <h2>Cores</h2>
+    <div id="coreGrid"></div>
+  </section>
+
+  <section id="configPanel" class="panel hide-on-focus">
+    <h2>Configuration</h2>
+    <form id="configForm">
+      <div class="grid">
+        <label>Checkpoint path <input type="text" id="cfg_checkpoint"></label>
+        <label>Device <input type="text" id="cfg_device" placeholder="cpu"></label>
+        <label>Cores (count) <input type="number" id="cfg_cores" min="1" step="1"></label>
+        <label>Soul noise <input type="number" id="cfg_soul_noise" step="any"></label>
+        <label>Temperature spread <input type="number" id="cfg_temperature_spread" step="any"></label>
+        <label>Tick delay (ms) <input type="number" id="cfg_tick_delay_ms" min="0" step="1"></label>
+        <label>Stable ticks (turn ends after) <input type="number" id="cfg_stable_ticks" min="1" step="1"></label>
+        <label>Max ticks (0 = forever) <input type="number" id="cfg_max_ticks" min="0" step="1"></label>
+        <label>Council min confidence (gate) <input type="number" id="cfg_council_min_conf" min="0" max="1" step="0.05"></label>
+        <label>Log path <input type="text" id="cfg_log_path"></label>
+      </div>
+      <h2 style="margin-top:12px">Visible regions</h2>
+      <div class="regions" id="regionToggles"></div>
+      <h2 style="margin-top:12px">Advisors</h2>
+      <div class="adv adv-head">
+        <span>Name</span><span>Endpoint</span><span>API key</span><span>Model</span>
+        <span>Temp</span><span>On</span><span></span>
+      </div>
+      <div id="advisorRows"></div>
+      <button type="button" id="addAdvisorBtn">+ Add advisor</button>
+      <div style="margin-top:12px">
+        <button type="submit" class="primary">Save configuration</button>
+        <button type="button" id="restartBtn" class="warn">Apply &amp; Restart</button>
+        <span id="saveStatus"></span>
+      </div>
+    </form>
+  </section>
+
+  <section id="logPanel" class="panel hide-on-focus">
+    <details open>
+      <summary>Event log</summary>
+      <div id="eventLog"></div>
+    </details>
+  </section>
+</main>
+
+<script>
+"use strict";
+
+// ---------------------------------------------------------------- state ---
+const state = {
+  status: null,          // last GET /api/status payload
+  cores: {},             // id -> {id, soul_norm, phase, last_delta, last_conf}
+  consolidator: null,
+  tick: 0,
+  stable: 0,
+  lastDraft: "",
+  events: [],
+};
+const MAX_EVENTS = 200;
+const $ = (id) => document.getElementById(id);
+
+// ------------------------------------------------------------ websocket ---
+let ws = null;
+let backoff = 1000;
+const BACKOFF_MAX = 15000;
+
+function connect() {
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  ws = new WebSocket(`${proto}://${location.host}/ws`);
+  ws.onopen = () => {
+    backoff = 1000;
+    $("conn").classList.add("ok");
+    refreshStatus();           // full re-render on (re)connect
+  };
+  ws.onmessage = (m) => {
+    let ev;
+    try { ev = JSON.parse(m.data); } catch { return; }
+    handleEvent(ev);
+  };
+  ws.onclose = () => {
+    $("conn").classList.remove("ok");
+    setTimeout(connect, backoff);
+    backoff = Math.min(backoff * 2, BACKOFF_MAX);
+  };
+  ws.onerror = () => { try { ws.close(); } catch {} };
+}
+
+// ------------------------------------------------------------- rest api ---
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  if (!r.ok) {
+    let detail = r.statusText;
+    try { detail = (await r.json()).detail || detail; } catch {}
+    throw new Error(`${r.status}: ${detail}`);
+  }
+  return r.json();
+}
+
+async function refreshStatus() {
+  try {
+    const st = await api("/api/status");
+    applyStatus(st);
+    renderAll();
+  } catch (e) { logEvent({ type: "error", message: "status fetch failed: " + e.message }); }
+}
+
+function applyStatus(st) {
+  state.status = st;
+  state.tick = st.tick || 0;
+  state.consolidator = st.consolidator_core;
+  (st.cores || []).forEach((c) => {
+    state.cores[c.id] = Object.assign({ phase: "idle" }, state.cores[c.id], c);
+  });
+  const draft = (st.canonical_state || {}).response_draft || "";
+  if (draft !== state.lastDraft) { state.lastDraft = draft; }
+}
+
+// ------------------------------------------------------------ rendering ---
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function renderHeader() {
+  const st = state.status || {};
+  const chip = $("runChip");
+  if (st.running && st.paused) { chip.textContent = "paused"; chip.className = "chip paused"; }
+  else if (st.running) { chip.textContent = "running"; chip.className = "chip on"; }
+  else { chip.textContent = "stopped"; chip.className = "chip off"; }
+  $("tickNum").textContent = state.tick;
+}
+
+function renderChat() {
+  const cs = (state.status || {}).canonical_state || {};
+  const log = $("chatLog");
+  log.innerHTML = "";
+  const hist = (cs.conversation_history || "").split("\n").map((l) => l.trim()).filter(Boolean);
+  hist.forEach((line) => {
+    const axon = /^axon\s*:/i.test(line);
+    const text = line.replace(/^[^:]{1,12}:\s*/, "");
+    log.appendChild(makeMsg(axon ? "axon" : "user", text, false));
+  });
+  if ((cs.user_input || "").trim()) {
+    log.appendChild(makeMsg("user", cs.user_input.trim(), true)); // awaiting answer
+  }
+  log.scrollTop = log.scrollHeight;
+}
+
+function makeMsg(who, text, pending) {
+  const div = document.createElement("div");
+  div.className = "msg " + who + (pending ? " pending" : "");
+  div.innerHTML = `<span class="who">${who === "axon" ? "Axon" : "You"}${pending ? " (sent, waiting)" : ""}</span>${esc(text)}`;
+  return div;
+}
+
+function renderDraft(flash) {
+  const box = $("draftBox");
+  box.textContent = state.lastDraft || "(empty)";
+  $("draftStable").textContent = state.stable > 0 ? `stable ${state.stable}` : "";
+  if (flash) {
+    box.classList.remove("flash");
+    void box.offsetWidth;         // restart animation
+    box.classList.add("flash");
+    setTimeout(() => box.classList.remove("flash"), 700);
+  }
+}
+
+function renderCores() {
+  const grid = $("coreGrid");
+  const ids = Object.keys(state.cores).map(Number).sort((a, b) => a - b);
+  // build missing cards
+  ids.forEach((id) => {
+    if (!grid.querySelector(`[data-core="${id}"]`)) {
+      const card = document.createElement("div");
+      card.className = "core";
+      card.dataset.core = id;
+      card.innerHTML = `
+        <span class="crown" title="Consolidator this tick">👑</span>
+        <div class="cid">Core ${id}</div>
+        <div class="row"><span>soul norm</span><b class="soul">-</b></div>
+        <div class="row"><span>phase</span><b class="phase">idle</b></div>
+        <div class="row"><span>confidence</span><b class="conf">-</b></div>
+        <div class="confbar"><div></div></div>
+        <div class="delta"></div>`;
+      card.addEventListener("click", () => card.classList.toggle("expanded"));
+      grid.appendChild(card);
+    }
+  });
+  // remove stale cards
+  grid.querySelectorAll(".core").forEach((card) => {
+    if (!ids.includes(Number(card.dataset.core))) card.remove();
+  });
+  // update
+  ids.forEach((id) => {
+    const c = state.cores[id];
+    const card = grid.querySelector(`[data-core="${id}"]`);
+    if (!card) return;
+    card.querySelector(".soul").textContent =
+      c.soul_norm != null ? Number(c.soul_norm).toFixed(3) : "-";
+    card.querySelector(".phase").textContent = c.phase || "idle";
+    const conf = c.last_conf != null ? Number(c.last_conf) : 0;
+    card.querySelector(".conf").textContent = conf.toFixed(2);
+    card.querySelector(".confbar > div").style.width = Math.round(conf * 100) + "%";
+    card.querySelector(".delta").textContent = c.last_delta || "(no delta yet)";
+    const isCon = id === state.consolidator;
+    card.classList.toggle("consolidator", isCon);
+    card.querySelector(".crown").style.visibility = isCon ? "visible" : "hidden";
+  });
+}
+
+// ------------------------------------------------------------- config UI ---
+const CONFIG_KEYS = ["checkpoint", "device", "cores", "soul_noise",
+  "temperature_spread", "tick_delay_ms", "stable_ticks", "max_ticks",
+  "council_min_conf", "log_path"];
+const REGION_NAMES = ["conversation_history", "user_input", "response_draft",
+  "structured_knowledge", "situation_awareness", "scratch", "tool_results",
+  "advisor_input", "task_state", "diary"];
+
+function renderConfig() {
+  const cfg = (state.status || {}).config;
+  if (!cfg) return;
+  CONFIG_KEYS.forEach((k) => {
+    const el = $("cfg_" + k);
+    if (el && cfg[k] != null && document.activeElement !== el) el.value = cfg[k];
+  });
+  // regions
+  const rt = $("regionToggles");
+  rt.innerHTML = "";
+  const regions = cfg.regions || {};
+  REGION_NAMES.forEach((name) => {
+    const on = regions[name] !== false;
+    const label = document.createElement("label");
+    label.innerHTML = `<input type="checkbox" data-region="${name}" ${on ? "checked" : ""}> ${name}`;
+    rt.appendChild(label);
+  });
+  // advisors
+  const rows = $("advisorRows");
+  rows.innerHTML = "";
+  (cfg.advisors || []).forEach((a) => rows.appendChild(advisorRow(a)));
+}
+
+function advisorRow(a) {
+  a = a || {};
+  const div = document.createElement("div");
+  div.className = "adv";
+  div.innerHTML = `
+    <input type="text" data-f="name" placeholder="name" value="${esc(a.name || "")}">
+    <input type="text" data-f="endpoint" placeholder="https://..." value="${esc(a.endpoint || "")}">
+    <input type="password" data-f="api_key" placeholder="api key" value="${esc(a.api_key || "")}">
+    <input type="text" data-f="model" placeholder="model" value="${esc(a.model || "")}">
+    <input type="number" data-f="temperature" step="any" value="${a.temperature != null ? a.temperature : 0.7}">
+    <input type="checkbox" class="enabled" data-f="enabled" ${a.enabled ? "checked" : ""}>
+    <button type="button" title="Remove advisor">✕</button>`;
+  div.querySelector("button").addEventListener("click", () => div.remove());
+  return div;
+}
+
+function gatherConfig() {
+  const cfg = {};
+  CONFIG_KEYS.forEach((k) => {
+    const el = $("cfg_" + k);
+    if (!el) return;
+    cfg[k] = el.type === "number" ? Number(el.value) : el.value;
+  });
+  cfg.regions = {};
+  document.querySelectorAll("#regionToggles input").forEach((cb) => {
+    cfg.regions[cb.dataset.region] = cb.checked;
+  });
+  cfg.advisors = [];
+  document.querySelectorAll("#advisorRows .adv").forEach((row) => {
+    const adv = {};
+    row.querySelectorAll("[data-f]").forEach((inp) => {
+      const f = inp.dataset.f;
+      if (inp.type === "checkbox") adv[f] = inp.checked;
+      else if (inp.type === "number") adv[f] = Number(inp.value);
+      else adv[f] = inp.value;
+    });
+    cfg.advisors.push(adv);
+  });
+  return cfg;
+}
+
+let pendingRestartKeys = [];
+async function saveConfig(ev) {
+  ev.preventDefault();
+  const ss = $("saveStatus");
+  ss.textContent = "saving...";
+  try {
+    const res = await api("/api/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(gatherConfig()),
+    });
+    pendingRestartKeys = res.needs_restart || [];
+    if (pendingRestartKeys.length) {
+      ss.textContent = `saved. Needs restart: ${pendingRestartKeys.join(", ")}`;
+      ss.style.color = "var(--warn)";
+      $("restartBtn").style.display = "inline-block";
+    } else {
+      ss.textContent = res.applied && res.applied.length
+        ? `saved & applied: ${res.applied.join(", ")}` : "saved (no changes)";
+      ss.style.color = "var(--good)";
+      $("restartBtn").style.display = "none";
+    }
+    refreshStatus();
+  } catch (e) {
+    ss.textContent = "save failed: " + e.message;
+    ss.style.color = "var(--bad)";
+  }
+}
+
+async function applyAndRestart() {
+  const ss = $("saveStatus");
+  ss.textContent = "restarting...";
+  try {
+    await api("/api/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "stop" }) });
+    await api("/api/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "start" }) });
+    ss.textContent = "restarted with new configuration";
+    ss.style.color = "var(--good)";
+    $("restartBtn").style.display = "none";
+    pendingRestartKeys = [];
+  } catch (e) {
+    ss.textContent = "restart failed: " + e.message;
+    ss.style.color = "var(--bad)";
+  }
+}
+
+// ------------------------------------------------------------ event log ---
+function logEvent(ev) {
+  state.events.push(ev);
+  if (state.events.length > MAX_EVENTS) state.events.splice(0, state.events.length - MAX_EVENTS);
+  const log = $("eventLog");
+  const div = document.createElement("div");
+  div.className = "ev " + (ev.type || "");
+  const ts = ev.ts ? new Date(ev.ts * 1000).toLocaleTimeString() : "";
+  const tick = ev.tick != null ? ` t${ev.tick}` : "";
+  div.innerHTML = `<span class="t">${ts}${tick}</span> ${esc(ev.type || "?")} ${esc(summarize(ev))}`;
+  log.appendChild(div);
+  while (log.children.length > MAX_EVENTS) log.removeChild(log.firstChild);
+  log.scrollTop = log.scrollHeight;
+}
+
+function summarize(ev) {
+  const parts = [];
+  for (const k of ["core", "phase", "consolidator", "role", "advisor", "stable", "message"]) {
+    if (ev[k] != null) parts.push(`${k}=${ev[k]}`);
+  }
+  if (ev.text) parts.push(JSON.stringify(ev.text.slice(0, 80)));
+  return parts.join(" ");
+}
+
+// --------------------------------------------------------- event handler ---
+function handleEvent(ev) {
+  logEvent(ev);
+  switch (ev.type) {
+    case "status":
+      applyStatus(ev);           // status events carry the full status() payload
+      renderAll();
+      break;
+    case "tick_start":
+      state.tick = ev.tick != null ? ev.tick : state.tick + 1;
+      state.consolidator = ev.consolidator;
+      Object.values(state.cores).forEach((c) => { c.phase = "A"; });
+      renderHeader(); renderCores();
+      break;
+    case "core_delta": {
+      const c = state.cores[ev.core] || (state.cores[ev.core] = { id: ev.core });
+      c.phase = ev.phase; c.last_delta = ev.text; c.last_conf = ev.conf;
+      renderCores();
+      break;
+    }
+    case "soul": {
+      const c = state.cores[ev.core] || (state.cores[ev.core] = { id: ev.core });
+      c.soul_norm = ev.soul_norm; c.phase = ev.phase === "inhale" ? (c.phase || "A") : c.phase;
+      renderCores();
+      break;
+    }
+    case "consolidated":
+      state.stable = ev.stable || 0;
+      if ((ev.text || "") !== state.lastDraft) {
+        state.lastDraft = ev.text || "";
+        renderDraft(true);
+      } else {
+        renderDraft(false);
+      }
+      if (state.cores[ev.core]) { state.cores[ev.core].phase = "consolidating"; renderCores(); }
+      break;
+    case "canonical":
+      if (state.status) state.status.canonical_state = ev.state;
+      else state.status = { canonical_state: ev.state };
+      if (ev.state && ev.state.response_draft != null && ev.state.response_draft !== state.lastDraft) {
+        state.lastDraft = ev.state.response_draft;
+        renderDraft(true);
+      }
+      renderChat();
+      break;
+    case "chat":
+      // chat content renders from canonical state; ask for a fresh snapshot
+      refreshStatus();
+      break;
+    case "advisor_delta":
+    case "error":
+    default:
+      break; // already in the log
+  }
+}
+
+function renderAll() {
+  renderHeader(); renderChat(); renderDraft(false); renderCores(); renderConfig();
+}
+
+// ---------------------------------------------------------------- wiring ---
+$("chatForm").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const input = $("chatInput");
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = "";
+  try {
+    await api("/api/chat", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+  } catch (e) { logEvent({ type: "error", message: "chat send failed: " + e.message }); }
+});
+
+["start", "stop", "pause", "resume"].forEach((action) => {
+  $(action + "Btn").addEventListener("click", async () => {
+    try {
+      const res = await api("/api/control", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (res.status) { applyStatus(res.status); renderAll(); }
+    } catch (e) { logEvent({ type: "error", message: action + " failed: " + e.message }); }
+  });
+});
+
+$("focusBtn").addEventListener("click", () => {
+  document.body.classList.toggle("focus");
+  $("focusBtn").textContent = document.body.classList.contains("focus") ? "Exit focus" : "Focus chat";
+});
+$("configForm").addEventListener("submit", saveConfig);
+$("addAdvisorBtn").addEventListener("click", () => $("advisorRows").appendChild(advisorRow(null)));
+$("restartBtn").addEventListener("click", applyAndRestart);
+
+connect();
+</script>
+</body>
+</html>

@@ -121,7 +121,7 @@ class RoundTable:
     def _compute_sha256(path: str | Path) -> str:
         h = hashlib.sha256()
         with open(path, "rb") as f:
-            for chunk in iter(lambda: f.read(8192), b""):
+            for chunk in iter(lambda: f.read(64 * 1024), b""):
                 h.update(chunk)
         return h.hexdigest()
 

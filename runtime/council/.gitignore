@@ -1,0 +1,5 @@
+# Local-only artifacts (CONTRACT.md: council_config.json may carry API keys)
+council_config.json
+test_council_config*.json
+council.log
+__pycache__/

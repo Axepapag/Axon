@@ -1,0 +1,167 @@
+{
+  "checkpoint": "D:\\Axon\\runs\\conversational_cpu_autopilot\\ckpt_440500.pt",
+  "step": 440500,
+  "schema": "axon_conversational_cpu_checkpoint_v1",
+  "seed_correct": 10,
+  "seed_total": 10,
+  "held_out_nonempty": 10,
+  "held_out_total": 10,
+  "multi_turn_correct": 1,
+  "multi_turn_total": 3,
+  "results": [
+    {
+      "kind": "seed",
+      "prompt": "What time is it?",
+      "expected": "I do not know the time.",
+      "response": "I do not know the time.",
+      "exact_match": true
+    },
+    {
+      "kind": "seed",
+      "prompt": "What is your favorite color?",
+      "expected": "I like blue best.",
+      "response": "I like blue best.",
+      "exact_match": true
+    },
+    {
+      "kind": "seed",
+      "prompt": "How are you?",
+      "expected": "I am doing well.",
+      "response": "I am doing well.",
+      "exact_match": true
+    },
+    {
+      "kind": "seed",
+      "prompt": "Thank you",
+      "expected": "You are welcome.",
+      "response": "You are welcome.",
+      "exact_match": true
+    },
+    {
+      "kind": "seed",
+      "prompt": "How old are you?",
+      "expected": "I am a young AI.",
+      "response": "I am a young AI.",
+      "exact_match": true
+    },
+    {
+      "kind": "seed",
+      "prompt": "Hello.",
+      "expected": "Hello there.",
+      "response": "Hello there.",
+      "exact_match": true
+    },
+    {
+      "kind": "seed",
+      "prompt": "Can you help me?",
+      "expected": "Yes I can help.",
+      "response": "Yes I can help.",
+      "exact_match": true
+    },
+    {
+      "kind": "seed",
+      "prompt": "Is it raining?",
+      "expected": "I cannot see outside.",
+      "response": "I cannot see outside.",
+      "exact_match": true
+    },
+    {
+      "kind": "seed",
+      "prompt": "What is your name?",
+      "expected": "My name is Axon.",
+      "response": "My name is Axon.",
+      "exact_match": true
+    },
+    {
+      "kind": "seed",
+      "prompt": "Goodbye.",
+      "expected": "Goodbye for now.",
+      "response": "Goodbye for now.",
+      "exact_match": true
+    },
+    {
+      "kind": "held_out",
+      "prompt": "What is the weather today?",
+      "response": "N lla&e 1s5o",
+      "nonempty": true
+    },
+    {
+      "kind": "held_out",
+      "prompt": "Tell me a joke.",
+      "response": "Iad\\odlaola\\",
+      "nonempty": true
+    },
+    {
+      "kind": "held_out",
+      "prompt": "What is two plus two?",
+      "response": "9 doamo 1tMAson.",
+      "nonempty": true
+    },
+    {
+      "kind": "held_out",
+      "prompt": "Why is the sky blue?",
+      "response": "I  @>eow see \\.e  dime.",
+      "nonempty": true
+    },
+    {
+      "kind": "held_out",
+      "prompt": "What do you think about robots?",
+      "response": "Iilfl! 0l e  0",
+      "nonempty": true
+    },
+    {
+      "kind": "held_out",
+      "prompt": "Can you write a poem?",
+      "response": "I s  doan neloI.",
+      "nonempty": true
+    },
+    {
+      "kind": "held_out",
+      "prompt": "What is your purpose?",
+      "response": "M  #ke blsi0zes.",
+      "nonempty": true
+    },
+    {
+      "kind": "held_out",
+      "prompt": "Do you like music?",
+      "response": "Iramaae nsav A..",
+      "nonempty": true
+    },
+    {
+      "kind": "held_out",
+      "prompt": "What is the capital of France?",
+      "response": "? ll",
+      "nonempty": true
+    },
+    {
+      "kind": "held_out",
+      "prompt": "How do you learn new things?",
+      "response": "Molmc#onoundkey!?",
+      "nonempty": true
+    },
+    {
+      "kind": "multi_turn",
+      "history": "",
+      "user_input": "Hello.",
+      "expected": "Hello there.",
+      "response": "Hello there.",
+      "exact_match": true
+    },
+    {
+      "kind": "multi_turn",
+      "history": "Hello.\nAssistant: Hello there.",
+      "user_input": "How are you?",
+      "expected": "I am doing well.",
+      "response": "I  m",
+      "exact_match": false
+    },
+    {
+      "kind": "multi_turn",
+      "history": "What is your name?\nAssistant: My name is Axon.",
+      "user_input": "What time is it?",
+      "expected": "I do not know the time.",
+      "response": "'n noeoeon e  t eeloe",
+      "exact_match": false
+    }
+  ]
+}

@@ -1,11 +1,18 @@
 __pycache__/
 .pytest_cache/
 .venv/
+*.egg-info/
+build/
 State/
 datasets/
 checkpoints/
 runs/
+dist/
+kaggle_upload_tmp/
+.ipynb_checkpoints/
 adapters/*.pt
+*.pt
+*.zip
 *.log
 *.part
 # Credential-bearing files — never promoted
@@ -14,9 +21,27 @@ ssh_helper.py
 .env
 *.key
 *.pem
-# Session-start duplicate; canonicals live in docs/roundtable/
-/roundtable/
+# Council runtime local config — may carry advisor API keys (LOCAL ONLY)
+runtime/council/council_config.json
+/council_config.json
+runtime/council/souls/
+# Session-start material remains local, except for the repository-wide
+# engineering ledgers.  Those ledgers must travel with every checkout.
+!/roundtable/
+/roundtable/*
+!/roundtable/ENGINEERS_LEDGER.md
+!/roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl
+!/roundtable/ENGINEERS_LEDGER_PROTOCOL.md
 
 # State/ holds canonical state only; README documents the ruling
 !State/README.md
 ops/
+!ops/
+ops/*
+!ops/*.json
+!ops/acceptance/
+ops/acceptance/*
+!ops/acceptance/*.json
+!ops/kimi_packets/
+ops/kimi_packets/*
+!ops/kimi_packets/*.md
