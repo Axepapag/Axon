@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-18T12:38:41-05:00
-Current through event: `evt-20260818T173841818526Z-codex-chatgpt-curriculum-mission`
+Updated: 2026-08-18T13:55:36-05:00
+Current through event: `evt-20260818T185536963057Z-codex-curriculum-package-review`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -104,6 +104,15 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 ## Recent completed work
 
+- Codex reviewed ChatGPT's returned twelve-artifact curriculum ZIP and wrote
+  `docs/roundtable/REVIEW_chatgpt-complete-field-curriculum-2026-08-18.md`.
+  The package is conditionally accepted as a strong design draft: all supplied
+  JSON/JSONL records passed their schemas, and two isolated 64-record CPU
+  generator runs were byte-identical. Integration/training is blocked because
+  sibling deltas lack machine identity and page coverage, council phases are
+  modeled as separate ticks, the generator puts all evidence in the first
+  position bin, omits one-page defaults, emits one incomplete variant group,
+  and overstates validations not performed inside the builder.
 - Codex created `docs/CHATGPT_COMPLETE_FIELD_CURRICULUM_MISSION.md`, a
   self-contained mission Jeff can give to ChatGPT. It requires a twelve-file
   inspection package spanning width-independent reader/core curricula, strict
@@ -163,6 +172,13 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 ## Active risks and blockers
 
+- The returned ChatGPT curriculum inspection package is not production-ready.
+  Its council schema cannot prove every complete sibling delta was read, and
+  its starter episode incorrectly represents proposal/refinement/consolidation
+  as ticks 0/1/2 instead of phases in one tick. The reference generator's
+  default smoke collapses evidence_position to first=64 with no other bins,
+  emits zero one-page cases, and leaves one 4/5 counterfactual group. See the
+  2026-08-18 roundtable review before using any package artifact.
 - The largest gap is now explicitly both structural and behavioral. The
   current wrapper neither attends the full shared field nor carries all deltas
   between phases, and the 64D checkpoint fails unseen identity, arithmetic,
@@ -191,10 +207,10 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 ## Next recommended actions
 
-1. Give `docs/CHATGPT_COMPLETE_FIELD_CURRICULUM_MISSION.md` to ChatGPT with the
-   recommended non-private attachments and obtain its twelve-artifact
-   inspection package.
-2. Reconcile the returned schemas, generator plan, and gates against Axon's
+1. Produce a corrected curriculum inspection package v0.2 using
+   `docs/roundtable/REVIEW_chatgpt-complete-field-curriculum-2026-08-18.md`;
+   fix blockers B1-B6 before any integration.
+2. Reconcile the corrected schemas, generator plan, and gates against Axon's
    exact runtime field and typed-delta contracts; reject any fixed logical
    field cap or silent truncation.
 3. Add a `CompleteFieldReader` API that receives ordered exact-character pages,
