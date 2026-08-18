@@ -276,6 +276,8 @@ def create_app(engine=None, hub: Optional[EventHub] = None,
                 str(payload.get("region", "")),
                 mode=payload.get("mode"),
                 offset=payload.get("offset"),
+                unit=payload.get("unit"),
+                retain=payload.get("retain"),
             )
         except (ValueError, TypeError) as exc:
             raise HTTPException(status_code=422, detail=str(exc))

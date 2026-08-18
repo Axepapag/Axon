@@ -47,6 +47,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -104,6 +105,7 @@ HOT_CONFIG_KEYS = frozenset(
 )
 
 DEFAULT_ADVISOR_TIMEOUT_S = 20.0
+MASK_UNITS = ("chars", "lines", "paragraphs", "turns")
 
 
 def _sanitize(text: str) -> str:
@@ -113,6 +115,51 @@ def _sanitize(text: str) -> str:
 
 def _region_label(region: str) -> str:
     return region.replace("_", " ").title()
+
+
+def _unit_starts(content: str, unit: str, region: str) -> list[int]:
+    """Return exact character offsets for each addressable retention unit."""
+    if unit == "chars":
+        return list(range(len(content)))
+    if unit == "turns":
+        if region != "conversation_history":
+            raise ValueError("turn thresholds are only valid for conversation_history")
+        return [m.start() for m in re.finditer(r"(?m)^User:\s", content)]
+    lines = content.splitlines(keepends=True)
+    if not lines:
+        return []
+    starts: list[int] = []
+    offset = 0
+    in_paragraph = False
+    for line in lines:
+        if unit == "lines":
+            starts.append(offset)
+        elif unit == "paragraphs":
+            nonempty = bool(line.strip())
+            if nonempty and not in_paragraph:
+                starts.append(offset)
+            in_paragraph = nonempty
+        else:
+            raise ValueError(f"unknown mask unit {unit!r}")
+        offset += len(line)
+    return starts
+
+
+def retention_offset(content: str, unit: str, retain: int, region: str) -> int:
+    """Boundary that retains the newest N exact units in the shared field."""
+    if unit not in MASK_UNITS:
+        raise ValueError(f"unit must be one of: {', '.join(MASK_UNITS)}")
+    retain = int(retain)
+    if retain < 0:
+        raise ValueError("retain must be non-negative")
+    if unit == "chars":
+        return max(0, len(content) - retain)
+    starts = _unit_starts(content, unit, region)
+    if retain == 0:
+        return len(content)
+    if not starts or retain >= len(starts):
+        return 0
+    return starts[-retain]
 
 
 def _mask_config(cfg: dict[str, Any]) -> dict[str, Any]:
@@ -291,19 +338,33 @@ class CouncilEngine:
             text = regions.get(region)
             self.canonical_state[region] = text if isinstance(text, str) else ""
             mask = masks.get(region)
-            if isinstance(mask, dict) and mask.get("mode") in ("tail", "manual"):
+            if isinstance(mask, dict) and mask.get("mode") in ("tail", "manual", "threshold"):
+                unit = str(mask.get("unit") or "chars")
+                retain = max(0, int(mask.get("retain") or ACTIVE_REGION_CHARS))
+                if unit not in MASK_UNITS or (unit == "turns" and region != "conversation_history"):
+                    unit = "chars"
                 self._masks[region] = {
                     "mode": mask["mode"],
                     "offset": max(0, int(mask.get("offset") or 0)),
+                    "unit": unit,
+                    "retain": retain,
                 }
             else:
-                self._masks[region] = {"mode": "tail", "offset": 0}
+                self._masks[region] = {
+                    "mode": "tail", "offset": 0,
+                    "unit": "chars", "retain": ACTIVE_REGION_CHARS,
+                }
 
     def _save_field(self) -> None:
         payload = {
             "regions": self.canonical_state,
             "masks": {
-                r: {"mode": m["mode"], "offset": self.mask_offset(r)}
+                r: {
+                    "mode": m["mode"],
+                    "offset": self.mask_offset(r),
+                    "unit": m.get("unit", "chars"),
+                    "retain": int(m.get("retain", ACTIVE_REGION_CHARS)),
+                }
                 for r, m in self._masks.items()
             },
         }
@@ -337,6 +398,13 @@ class CouncilEngine:
         mask = self._masks[region]
         if mask["mode"] == "tail":
             return max(0, len(content) - ACTIVE_REGION_CHARS)
+        if mask["mode"] == "threshold":
+            return retention_offset(
+                content,
+                str(mask.get("unit") or "chars"),
+                int(mask.get("retain", ACTIVE_REGION_CHARS)),
+                region,
+            )
         return max(0, min(int(mask["offset"]), len(content)))
 
     def _active(self, region: str) -> str:
@@ -355,6 +423,12 @@ class CouncilEngine:
                 "active": content[offset:],
                 "mask_offset": offset,
                 "mask_mode": self._masks[region]["mode"],
+                "mask_unit": self._masks[region].get("unit", "chars"),
+                "mask_retain": int(self._masks[region].get("retain", ACTIVE_REGION_CHARS)),
+                "mask_supported_units": [
+                    unit for unit in MASK_UNITS
+                    if unit != "turns" or region == "conversation_history"
+                ],
                 "total_chars": len(content),
                 "dormant_chars": offset,
                 "active_chars": len(content) - offset,
@@ -367,7 +441,8 @@ class CouncilEngine:
         }
 
     def set_mask(
-        self, region: str, mode: str | None = None, offset: int | None = None
+        self, region: str, mode: str | None = None, offset: int | None = None,
+        unit: str | None = None, retain: int | None = None,
     ) -> dict[str, Any]:
         """Move one region's mask backwards or forwards (Jeff's control)."""
         if region not in self._masks:
@@ -375,12 +450,22 @@ class CouncilEngine:
         old = self.mask_offset(region)
         mask = self._masks[region]
         if mode is not None:
-            if mode not in ("tail", "manual"):
-                raise ValueError("mode must be 'tail' or 'manual'")
+            if mode not in ("tail", "manual", "threshold"):
+                raise ValueError("mode must be 'tail', 'manual', or 'threshold'")
             mask["mode"] = mode
         if offset is not None:
             mask["mode"] = "manual"
             mask["offset"] = max(0, min(int(offset), len(self.canonical_state[region])))
+        if unit is not None or retain is not None:
+            chosen_unit = str(unit if unit is not None else mask.get("unit") or "chars")
+            chosen_retain = int(
+                retain if retain is not None else mask.get("retain", ACTIVE_REGION_CHARS)
+            )
+            # Computes once for fail-closed validation before state changes.
+            retention_offset(self.canonical_state[region], chosen_unit, chosen_retain, region)
+            mask["mode"] = "threshold"
+            mask["unit"] = chosen_unit
+            mask["retain"] = chosen_retain
         new = self.mask_offset(region)
         self._record_tail(
             {
@@ -389,6 +474,8 @@ class CouncilEngine:
                 "old_offset": old,
                 "new_offset": new,
                 "mode": mask["mode"],
+                "unit": mask.get("unit", "chars"),
+                "retain": int(mask.get("retain", ACTIVE_REGION_CHARS)),
                 "masked_text": self.canonical_state[region][:new],
             }
         )

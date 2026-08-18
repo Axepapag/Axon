@@ -34,12 +34,17 @@ Each region contains ordered character cells plus metadata spans. Words, sentenc
 
 No active exact-text path may collapse a paragraph into one opaque vector and then ask a small core to recover exact text from that vector.
 
-Every core pass attends the entire canonical shared field. A physical model
-window may be used as one page in a complete ordered sweep, but it is not an
-attention limit and may not silently omit field characters. Every logical pass
-must produce an auditable coverage record proving that each exact field
-character was visited. Operator masks are navigation/presentation controls;
-they do not remove canonical shared-field text from neural attention.
+Every core pass attends the entire currently unmasked shared field. A physical
+model window may be used as one page in a complete ordered sweep, but it is not
+an attention limit and may not silently omit unmasked field characters. Every
+logical pass must produce an auditable coverage record proving that each exact
+shared-field character was visited.
+
+Each persisted region may contain an unmasked shared-field portion and a masked
+dormant portion. Per-region policies may retain exact characters, lines,
+paragraphs, containers, or conversational turns. Changing a threshold moves
+the boundary only: masked text is preserved exactly, and moving the boundary
+back immediately restores that material to the shared field.
 
 ## Dormant State
 
@@ -49,10 +54,9 @@ source chunks, and provenance.
 
 Dormant memory is not attended directly. Search and surfacing copy relevant readable material into active regions.
 
-Masking is not truncation and is not permission to hide part of the canonical
-shared field from a core. Material becomes dormant through an explicit,
-auditable field-to-dormant transaction, not because it fell outside a model
-window.
+Masking is not truncation. It is an explicit, auditable shared-to-dormant
+membership transition governed independently per region. A model window may
+never move this boundary implicitly.
 
 ## Semantic Edges
 

@@ -133,7 +133,9 @@
   .redit:focus { outline: none; border-color: var(--accent); }
   .rcontrols { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
   .rcontrols input[type=range] { flex: 1; accent-color: var(--accent); }
-  .rcontrols .rtail.on { border-color: var(--good); color: var(--good); }
+  .rcontrols .rretain { width: 76px; }
+  .rcontrols .runit { width: 108px; }
+  .rcontrols .rtail.on, .rcontrols .rthreshold.on { border-color: var(--good); color: var(--good); }
   .rmsg { font-size: 11px; color: var(--dim); }
 
   /* config */
@@ -449,10 +451,10 @@ function renderFieldNote() {
 
 function renderFieldLegend() {
   $("fieldLegend").textContent =
-    "Field is never truncated. Cores attend the last " + fieldState.windowChars +
-    " chars (model window); active tail per region: " + fieldState.activeChars +
-    " chars. Everything behind the mask is dormant, preserved, and restorable" +
-    " by moving the mask back.";
+    "Persisted region text is never deleted. Each region mask controls shared-field" +
+    " membership versus dormant state; thresholds can use chars, lines, paragraphs," +
+    " or conversational turns. CURRENT BOOTSTRAP LIMITATION: the loaded checkpoint" +
+    " still receives only a " + fieldState.windowChars + "-character history lane.";
 }
 
 function renderField() {
@@ -482,6 +484,9 @@ function buildRegionCard(list, name) {
       <div class="rcontrols">
         <input type="range" class="rslider" min="0" max="0" value="0">
         <button type="button" class="rtail" title="Auto-follow the newest chars">Follow tail</button>
+        <select class="runit" title="Retention threshold unit"></select>
+        <input type="number" class="rretain" min="0" step="1" value="256" title="Newest units kept in the shared field">
+        <button type="button" class="rthreshold">Keep newest</button>
         <button type="button" class="reditbtn">Edit</button>
         <button type="button" class="rsave primary" style="display:none">Save</button>
         <button type="button" class="rcancel" style="display:none">Cancel</button>
@@ -500,6 +505,14 @@ function buildRegionCard(list, name) {
   card.querySelector(".rtail").addEventListener("click", () => {
     postFieldMask(name, { region: name, mode: "tail" });
   });
+  card.querySelector(".rthreshold").addEventListener("click", () => {
+    postFieldMask(name, {
+      region: name,
+      mode: "threshold",
+      unit: card.querySelector(".runit").value,
+      retain: Number(card.querySelector(".rretain").value),
+    });
+  });
   card.querySelector(".reditbtn").addEventListener("click", () => setEditMode(card, true));
   card.querySelector(".rcancel").addEventListener("click", () => setEditMode(card, false));
   card.querySelector(".rsave").addEventListener("click", () => saveRegion(card));
@@ -515,6 +528,15 @@ function updateRegionCard(card, r) {
   dot.classList.toggle("off", !r.visible);
   dot.title = r.visible ? "visible to cores" : "hidden from cores";
   card.querySelector(".rtail").classList.toggle("on", r.mask_mode === "tail");
+  card.querySelector(".rthreshold").classList.toggle("on", r.mask_mode === "threshold");
+  const units = r.mask_supported_units || ["chars", "lines", "paragraphs"];
+  const unitEl = card.querySelector(".runit");
+  if (document.activeElement !== unitEl) {
+    unitEl.innerHTML = units.map((u) => `<option value="${esc(u)}">${esc(u)}</option>`).join("");
+    unitEl.value = r.mask_unit || "chars";
+  }
+  const retainEl = card.querySelector(".rretain");
+  if (document.activeElement !== retainEl) retainEl.value = r.mask_retain == null ? 256 : r.mask_retain;
   if (!ui.editing) {          // never clobber a textarea Jeff is editing
     card.querySelector(".dormant").textContent = r.dormant;
     card.querySelector(".active").textContent = r.active;

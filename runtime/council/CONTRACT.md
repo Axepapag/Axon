@@ -55,13 +55,16 @@ text in the response region — the checkpoint was trained with blank drafts
 
 ### The field is never truncated (Jeff's ruling 2026-08-18)
 
-Each region is the FULL logical document (runtime/field schema: the window
-limit belongs to the view, not the field). Nothing is ever truncated or
-deleted. Per region, a movable MASK (character offset) divides DORMANT prefix
-(preserved, inspectable) from ATTENDED tail (what the cores are shown):
-`{"mode": "tail"}` auto-follows the newest 256 chars; `{"mode": "manual",
-"offset": N}` pins the boundary where Jeff put it. Masks move backwards and
-forwards at any time. State locations follow the convener ruling
+Each persisted region is the FULL logical document (runtime/field schema: the
+window limit belongs to the view, not the field). Nothing is ever truncated or
+deleted. Per region, a movable MASK divides the DORMANT prefix (preserved,
+inspectable) from the SHARED-FIELD portion that cores must attend completely.
+`{"mode": "tail"}` follows the newest 256 chars; `{"mode": "manual",
+"offset": N}` pins an exact boundary; and `{"mode": "threshold", "unit":
+"chars|lines|paragraphs|turns", "retain": N}` automatically keeps the newest
+N exact units. `turns` is conversation-history-only and counts a user
+utterance plus its following assistant reply as one conversational turn. Masks
+move backwards and forwards at any time. State locations follow the convener ruling
 (2026-07-03): the live field persists to `State/active/council_field.json`;
 every mask move and region edit appends an immutable record (masked /
 superseded text preserved byte-for-byte) to
@@ -86,11 +89,13 @@ class CouncilEngine:
     # hot-applies runtime knobs; returns list of keys needing restart
     def field_view(self) -> dict: ...
     # {regions: {name: {content, dormant, active, mask_offset, mask_mode,
+    #   mask_unit, mask_retain, mask_supported_units,
     #   total_chars, dormant_chars, active_chars, visible}},
     #  active_region_chars: 256, model_window_chars: 128}
     def set_mask(self, region: str, mode: str|None = None,
-                 offset: int|None = None) -> dict: ...
-    # moves one region's mask backwards/forwards; offset implies manual mode
+                 offset: int|None = None, unit: str|None = None,
+                 retain: int|None = None) -> dict: ...
+    # offset implies manual; unit/retain imply an automatic threshold
     def set_region(self, region: str, content: str) -> dict: ...
     # operator edit; prior text preserved in the dormant tails record
 ```
@@ -139,9 +144,10 @@ FastAPI. REST:
 - `POST /api/control` `{"action": "start"|"stop"|"pause"|"resume"}`
 - `GET /api/cores` — per-core detail
 - `GET /api/field` — full operator view of every region + masks
-- `POST /api/field/mask` `{"region", "mode"}` or `{"region", "offset"}` —
-  moves one region's mask (offset implies manual mode; mode "tail" resumes
-  auto-follow)
+- `POST /api/field/mask` accepts `{"region", "mode"}`,
+  `{"region", "offset"}`, or `{"region", "unit", "retain"}`. Offset implies
+  manual mode; unit/retain imply threshold mode; mode "tail" resumes the
+  fixed 256-character bootstrap tail.
 - `POST /api/field/region` `{"region", "content"}` — operator edit; prior
   text preserved in dormant tails
 - `GET /` serves the dashboard
@@ -156,11 +162,12 @@ ever):
 - **Config panel** — form over every config key incl. advisor CRUD
   (name/endpoint/key/model/enabled). Save → POST; if `needs_restart`
   non-empty, show an "Apply & Restart" button.
-- **Shared Field panel** — one collapsible card per region: full content
-  with the dormant prefix dimmed, a mask slider (both directions), a
-  "Follow tail" toggle, and Edit/Save. Legend states plainly: field never
-  truncated; cores attend the 128-char model window over the active tail;
-  everything behind the mask is dormant, preserved, restorable.
+- **Shared Field panel** — one collapsible card per region: full content with
+  the dormant prefix dimmed, an exact mask slider, Follow-tail, retention-unit
+  selector, numeric threshold, and Edit/Save. Conversation history supports
+  conversational-turn thresholds; other regions support chars, lines, and
+  paragraphs. The legend separates lossless persistence/masking from the
+  current checkpoint's noncompliant 128-character bootstrap lane.
 - **Event log** — collapsible rolling event tail.
 - WebSocket reconnect with backoff; all state recoverable via GET /api/status.
 

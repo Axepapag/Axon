@@ -8,10 +8,18 @@ mechanism remains an implementation design requiring smoke and promotion gates
 
 ## Binding ruling
 
-The canonical shared field is not an archive that merely preserves unseen
-text. Every core must be influenced by every exact character in the shared
-field during every logical attention pass. A fixed checkpoint window is a
-physical processing page only. It is not the logical context boundary.
+The persisted field is not an archive that merely preserves unseen text. Each
+region has an explicit boundary between its unmasked shared-field material and
+its exact dormant history. Every core must be influenced by every exact
+character currently in the shared field during every logical attention pass.
+A fixed checkpoint window is a physical processing page only. It is not the
+logical context boundary and may never advance a region mask implicitly.
+
+Region mask thresholds are independently operator-controlled. Conversation
+history may retain a chosen number of user/assistant conversational turns;
+other regions may use appropriate exact units such as characters, lines,
+paragraphs, or typed containers. Increasing or moving a threshold backward
+restores the exact dormant material to the shared field.
 
 One logical tick is one atomic three-stage transaction:
 

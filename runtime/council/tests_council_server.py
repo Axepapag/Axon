@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -76,7 +77,10 @@ class FakeEngine:
             self.config = self.default_config()
             self.config_path.write_text(json.dumps(self.config, indent=2), encoding="utf-8")
         self.canonical_state = {r: "" for r in REGIONS}
-        self._masks = {r: {"mode": "tail", "offset": 0} for r in REGIONS}
+        self._masks = {
+            r: {"mode": "tail", "offset": 0, "unit": "chars", "retain": 256}
+            for r in REGIONS
+        }
         self.cores = [
             {"id": i, "soul_norm": 1.0 + 0.1 * i, "last_delta": "", "last_conf": 0.0}
             for i in range(int(self.config["cores"]))
@@ -157,6 +161,26 @@ class FakeEngine:
         content = self.canonical_state[region]
         if mask["mode"] == "tail":
             return max(0, len(content) - 256)
+        if mask["mode"] == "threshold":
+            unit, retain = mask["unit"], int(mask["retain"])
+            if unit == "chars":
+                return max(0, len(content) - retain)
+            if unit == "turns":
+                starts = [m.start() for m in re.finditer(r"(?m)^User:\s", content)]
+            else:
+                starts, offset, in_paragraph = [], 0, False
+                for line in content.splitlines(keepends=True):
+                    if unit == "lines":
+                        starts.append(offset)
+                    elif unit == "paragraphs":
+                        nonempty = bool(line.strip())
+                        if nonempty and not in_paragraph:
+                            starts.append(offset)
+                        in_paragraph = nonempty
+                    offset += len(line)
+            if retain == 0:
+                return len(content)
+            return 0 if not starts or retain >= len(starts) else starts[-retain]
         return max(0, min(int(mask["offset"]), len(content)))
 
     def field_view(self) -> dict:
@@ -170,6 +194,10 @@ class FakeEngine:
                 "active": content[offset:],
                 "mask_offset": offset,
                 "mask_mode": self._masks[region]["mode"],
+                "mask_unit": self._masks[region]["unit"],
+                "mask_retain": self._masks[region]["retain"],
+                "mask_supported_units": ["chars", "lines", "paragraphs"] +
+                    (["turns"] if region == "conversation_history" else []),
                 "total_chars": len(content),
                 "dormant_chars": offset,
                 "active_chars": len(content) - offset,
@@ -179,17 +207,22 @@ class FakeEngine:
                 "model_window_chars": 128}
 
     def set_mask(self, region: str, mode: str | None = None,
-                 offset: int | None = None) -> dict:
+                 offset: int | None = None, unit: str | None = None,
+                 retain: int | None = None) -> dict:
         if region not in self._masks:
             raise ValueError(f"unknown region {region!r}")
         mask = self._masks[region]
         if mode is not None:
-            if mode not in ("tail", "manual"):
-                raise ValueError("mode must be 'tail' or 'manual'")
+            if mode not in ("tail", "manual", "threshold"):
+                raise ValueError("invalid mode")
             mask["mode"] = mode
         if offset is not None:
             mask["mode"] = "manual"
             mask["offset"] = max(0, int(offset))
+        if unit is not None or retain is not None:
+            mask["mode"] = "threshold"
+            mask["unit"] = str(unit or mask["unit"])
+            mask["retain"] = max(0, int(retain if retain is not None else mask["retain"]))
         return self.field_view()["regions"][region]
 
     def set_region(self, region: str, content: str) -> dict:
@@ -381,6 +414,18 @@ def test_in_process() -> None:
         report("POST /api/field/mask follow tail",
                r.status_code == 200 and m["mask_mode"] == "tail"
                and m["mask_offset"] == 44)
+        r = client.post("/api/field/region", json={
+            "region": "conversation_history",
+            "content": "User: one\nAssistant: a\nUser: two\nAssistant: b\nUser: three\nAssistant: c",
+        })
+        r = client.post("/api/field/mask", json={
+            "region": "conversation_history", "unit": "turns", "retain": 2,
+        })
+        m = r.json()
+        report("POST /api/field/mask conversational turns",
+               r.status_code == 200 and m["mask_mode"] == "threshold"
+               and m["mask_unit"] == "turns" and m["mask_retain"] == 2
+               and m["active"].startswith("User: two"))
         r = client.post("/api/field/mask", json={"region": "nope", "offset": 1})
         report("POST /api/field/mask unknown region -> 422", r.status_code == 422)
         client.post("/api/field/region", json={"region": "scratch", "content": ""})

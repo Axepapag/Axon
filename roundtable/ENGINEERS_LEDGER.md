@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-18T11:37:23-05:00
-Current through event: `evt-20260818T163723974272Z-codex-full-field-ruling-state-root`
+Updated: 2026-08-18T12:00:53-05:00
+Current through event: `evt-20260818T170053984686Z-codex-unit-aware-field-masks`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -15,10 +15,9 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 ## Current verified state
 
-- The detached council HTTP server remains reachable at 127.0.0.1:8788, but
-  its engine is STOPPED at tick 1320. Windows denied graceful termination of
-  the elevated listener PID, so a privileged/manual server restart is needed
-  to load the latest code and local config.
+- The detached council HTTP server is running at 127.0.0.1:8788 with eight
+  64D CUDA cores and souls rooted at `State/souls/council`. Codex restarted
+  the stopped service on 2026-08-18 and verified the rendered interface.
 - COMPLETE-FIELD ATTENTION (Jeff's ruling 2026-08-18): every logical core pass
   must visit every exact character in the canonical shared field and prove
   coverage. Phase A produces every brother's proposal; Phase B consumes the
@@ -29,6 +28,12 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 - CURRENT COUNCIL IS NONCOMPLIANT: it supplies only 128 history characters to
   a fixed 384-slot checkpoint and carries one strongest 48-character proposal
   between phases. The UI now labels this plainly as a bootstrap limitation.
+- Every field region now exposes persisted mask policy in the API and UI:
+  manual offset, automatic tail, or newest-N thresholds by characters, lines,
+  or paragraphs; conversation history also supports newest-N conversational
+  turns. Masked text remains exact dormant state and can be restored. These
+  controls define shared-field membership; they do not yet give the checkpoint
+  complete-field neural coverage.
 - MEASURED 2026-08-18: live end-to-end — 450-char region auto-masks at 194
   (tail mode), manual mask to 45 then BACKWARDS to 15 restores active text,
   dormant text preserved byte-for-byte, 4 immutable tail records, field file
@@ -99,6 +104,11 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 ## Recent completed work
 
+- Codex implemented unit-aware per-region mask thresholds, including
+  conversational-turn retention, persisted the policy, documented the
+  shared/dormant membership distinction, restarted the live eight-core
+  council, and verified the rendered controls in the in-app browser. Focused
+  tests passed (4/4), Python compilation passed, and CPU Gate 2 passed.
 - Jeff's full-field, all-delta, three-phase soul protocol and State-root ruling
   are recorded in `docs/SOURCE_OF_TRUTH.md` and
   `docs/roundtable/RESOLUTION_full-field-attention-offline-learning-2026-08-18.md`.
@@ -167,14 +177,16 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 ## Next recommended actions
 
-1. Manually/elevated restart `runtime/council/START_COUNCIL.bat`; verify eight
-   souls reload from `State/souls/council` and the UI shows the limitation.
-2. Build a bounded complete-field reader with exact coverage manifests and
+1. Build a bounded complete-field reader with exact coverage manifests and
    early/middle/late character counterfactuals.
-3. Replace strongest-only 48-character council summaries with immutable full
+2. Replace strongest-only 48-character council summaries with immutable full
    proposal/refinement sets consumed by later complete sweeps.
-4. Build one disposable offline LoRA smoke from a frozen memory batch with
+3. Build one disposable offline LoRA smoke from a frozen Grade-A/B memory
+   batch with exact provenance and no synthetic autobiography, then require
    retention, identity, provenance, and adapter counterfactual gates.
+4. Add governed curriculum adapters for language/reasoning, arithmetic, code,
+   conversation, science, literature/poetry, and psychology only after the
+   disposable memory-adapter path can promote and roll back safely.
 5. Only then align the 64D curriculum to the complete-sweep runtime and train.
 
 ## Fast orientation
