@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-18T10:12:53-05:00
-Current through event: `evt-20260818T151253000000Z-kimmy-full-suite-green`
+Updated: 2026-08-18T10:21:17-05:00
+Current through event: `evt-20260818T152117860996Z-codex-kimmy-council-commit`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -52,8 +52,9 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 - The primary durable runtime remains `runtime/axon_runtime/`; full default
   pytest suite green as of 2026-08-18 (all passed, 1 known skip) WITH the
   field/mask layer included.
-- The modern tree is locally committed on branch `agent/fortify-axon` at
-  `181749dc1eecb18f4709c85bcd3601ca9d2f3273`; still NO off-machine copy.
+- The modern tree and Kimmy's 2026-08-18 living-council/shared-field work are
+  locally committed on branch `agent/fortify-axon` through `25a8bb4`; still
+  NO off-machine copy.
 - Host: Columbia, Missouri; Windows 10; FX-8350; 24 GB physical but 15.97 GB
   usable RAM (one stick lost — reseat advised); GTX 1650 4 GB; sleep=never.
 
@@ -69,6 +70,11 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 ## Recent completed work
 
+- Codex independently inspected Kimmy's 2026-08-18 council diff and live
+  service, verified the 10-region field and 10-core roster, passed the safe
+  in-process server test and compilation, excluded generated test artifacts,
+  and committed the bounded change as `25a8bb4`. The external browser
+  extension was not connected, so no browser evidence was claimed.
 - Kimmy (2026-08-18 late morning): the shared field is never truncated —
   full logical regions, per-region movable masks (tail/manual), persisted
   to the convener-ruled State/active + State/dormant locations, with
