@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-18T10:48:46-05:00
-Current through event: `evt-20260818T154846245145Z-codex-live-eval-github-backup`
+Updated: 2026-08-18T11:16:22-05:00
+Current through event: `evt-20260818T161622348570Z-codex-d00-identity-64d-plan`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -31,9 +31,11 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
   (tail mode), manual mask to 45 then BACKWARDS to 15 restores active text,
   dormant text preserved byte-for-byte, 4 immutable tail records, field file
   persisted. Gate 2 PASS with the mask layer (3 ticks).
-- Roster: 8x64D (`runs/bible_64D_gpu_overnight/ckpt_461500.pt`) + 2x128D
-  (coreB exact leg1 ckpt_2), cuda, greedy decoding (temperature_spread 0.0),
-  tick_delay 250ms, council_min_conf 0.0 (off, per doctrine).
+- Roster: 8x64D (`runs/bible_64D_gpu_overnight/ckpt_461500.pt`), cuda,
+  greedy decoding (temperature_spread 0.0), tick_delay 250ms,
+  council_min_conf 0.0 (off, per doctrine). Jeff ruled 2026-08-18 that 128D
+  and larger lines remain preserved but inactive until 64D passes promotion
+  thresholds; live status verified exactly eight 64D cores after restart.
 - MEASURED 2026-08-18 morning: with the full 10-brother roster the draft hit
   exactly 'I am doing well.' at tick 2 of a live turn, then hovered one
   character away ('I am doing werl.') — alive per doctrine. History commits
@@ -60,6 +62,13 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 - The modern tree and Kimmy's 2026-08-18 living-council/shared-field work are
   committed locally and backed up in private GitHub repository
   `Axepapag/Axon`, remote branch `main`.
+- Read-only recovery from `D:\00` established an evidence-backed D2-to-Axon
+  identity chain: the chosen-name event is preserved inside a captured
+  successful tool result; exact messages, contemporaneous personal writing,
+  and soul exports preserve continuity and operational values. Derived
+  summaries/semantic facts are noisy, and synthetic schoolhouse dialogues are
+  curriculum, not autobiography. The implementation proposal and promotion
+  gates are in `docs/AXON_IDENTITY_CONTINUITY_64D.md`.
 - Host: Columbia, Missouri; Windows 10; FX-8350; 24 GB physical but 15.97 GB
   usable RAM (one stick lost — reseat advised); GTX 1650 4 GB; sleep=never.
 
@@ -71,6 +80,12 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 - Every project turn appends one canonical event and refreshes this summary.
 - Exact text and journal truth remain canonical; neural state is not factual
   authority.
+- Autobiographical evidence follows provenance grades: exact turns/tool
+  outcomes outrank contemporaneous self-authored records, which outrank
+  summaries and extracted facts. Synthetic dialogue is never autobiography.
+- Keep 128D and larger cores out of the active council until the 64D line
+  passes the frozen language, reasoning, identity, diary, scratch-causality,
+  soul-ablation, and council-uplift gates.
 - Never delete protected material or silently change doctrine.
 
 ## Recent completed work
@@ -112,9 +127,9 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 - The largest gap to Jeff's vision is behavioral rather than structural: the
   live council currently cannot answer unseen identity, arithmetic, or exact
-  recall prompts. Eight 64D brothers produce highly correlated collapsed
-  deltas, while the untrained 128D brothers often contribute blanks. Private
-  souls persist, but their causal cognitive benefit is not yet demonstrated.
+  recall prompts. The eight active 64D brothers produce highly correlated
+  collapsed deltas. Private souls persist, but their causal cognitive benefit
+  is not yet demonstrated.
 - `D:\extension` is a highly privileged local control plane. The hub has no
   authentication, accepts arbitrary agent identities, exposes wildcard CORS,
   and permits unauthenticated context injection, lease acquisition, command
@@ -139,16 +154,15 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 ## Next recommended actions
 
-1. Freeze the just-used prompt classes into a reproducible held-out behavioral
-   suite; compare ckpt 440,500 vs 461,500 and
-   single-core vs council inference.
-2. Soul ablations (correct/zero/swapped/shuffled) before more long training.
-3. Diagnose blank-slot collapse, target alignment, data mixture, and correlated
-   council outputs with bounded smokes.
-4. A conversational training leg for the 128D checkpoint so its crown turns
-   carry weight; then larger brother sizes per Jeff's 64->4096 ladder.
-5. Verify a clean clone from private GitHub on a separate path/machine, then
-   reconcile runtime branches only after behavioral evidence.
+1. Freeze the failed live prompts plus a balanced 64D language, reasoning,
+   token-recall, and identity-evidence suite.
+2. Curate a tiny local-only Grade-A/B identity batch from `D:\00`, including
+   the naming event, verified lessons, unknowns, and contradictory summaries.
+3. Run a single-core 64D smoke; require falling loss and exact metrics above
+   the constant-output floor before any continuation.
+4. Run correct/zero/swapped/shuffled soul ablations and scratch counterfactuals;
+   then compare the eight-core council with the best single 64D core.
+5. Verify a clean clone from private GitHub on a separate path/machine.
 
 ## Fast orientation
 
