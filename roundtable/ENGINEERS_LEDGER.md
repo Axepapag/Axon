@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-17T20:54:00-05:00
-Current through event: `evt-20260818T015400643353Z-chatgpt-state-reconciliation`
+Updated: 2026-08-17T21:12:05-05:00
+Current through event: `evt-20260818T021205879052Z-codex-machine-fortification`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -34,6 +34,11 @@ general intelligence.
   stopped at tick 3,818. It preserved ten private souls and produced one
   correct memorized response followed by corrupted multi-turn output; most
   latest deltas were garbled.
+- Current host: Columbia, Missouri; Windows 10; AMD FX-8350 (4 physical/8
+  logical); 15.97 GB RAM; GTX 1650 with 4 GB VRAM and CUDA capability 7.5.
+  Local CUDA works and is suitable for inference and bounded 64D smokes.
+- The complete modern source tree is preserved on branch
+  `agent/fortify-axon` at commit `181749dc1eecb18f4709c85bcd3601ca9d2f3273`.
 
 ## Binding continuity rules
 
@@ -55,11 +60,14 @@ general intelligence.
   `D:\Axon` without erasing the historical axon7/W1 handoffs. A current-state
   layer and v2 machine-readable manifest now carry the July durable-runtime
   work and August council/training evidence forward.
+- Axon is now installable as an editable Python project with declared council
+  dependencies; secret/artifact ignore rules were hardened; compilation,
+  council in-process checks, and the full pytest suite passed.
 
 ## Active risks and blockers
 
-- Most of the modern runtime and test suite are untracked or uncommitted; the
-  current Git commit does not reconstruct the audited system.
+- The modern tree is locally committed, but no Git remote is configured and
+  GitHub CLI is absent, so it is not yet protected by an off-machine copy.
 - Model behavior does not yet demonstrate useful held-out conversation or
   general reasoning.
 - The newest training run improved held-out metrics only modestly, while the
@@ -76,8 +84,8 @@ general intelligence.
 
 ## Next recommended actions
 
-1. Preserve the modern working tree in intentional, reviewable commits and
-   prove a clean checkout reconstructs it.
+1. Install/authenticate GitHub CLI, configure the intended private GitHub
+   remote, push `agent/fortify-axon`, and verify a clean clone.
 2. Freeze one held-out behavioral suite, then compare step 440,500, step
    461,500, exact-v4 candidates, and single-core versus council inference.
 3. Run correct/zero/swapped/shuffled soul ablations and council-vs-single-core
