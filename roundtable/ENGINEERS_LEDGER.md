@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-18T10:31:25-05:00
-Current through event: `evt-20260818T153125942769Z-codex-extension-audit`
+Updated: 2026-08-18T10:48:46-05:00
+Current through event: `evt-20260818T154846245145Z-codex-live-eval-github-backup`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -52,9 +52,14 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 - The primary durable runtime remains `runtime/axon_runtime/`; full default
   pytest suite green as of 2026-08-18 (all passed, 1 known skip) WITH the
   field/mask layer included.
+- A live extension-driven held-out conversation on 2026-08-18 tested identity,
+  elementary multiplication, and exact-token recall. The council kept ticking
+  and committing turns, but drafts collapsed to `n`/`ni` plus blanks and did
+  not answer any prompt. Runtime embodiment is strong; learned conversational,
+  reasoning, and working-memory behavior remains pre-capability.
 - The modern tree and Kimmy's 2026-08-18 living-council/shared-field work are
-  locally committed on branch `agent/fortify-axon` through `25a8bb4`; still
-  NO off-machine copy.
+  committed locally and backed up in private GitHub repository
+  `Axepapag/Axon`, remote branch `main`.
 - Host: Columbia, Missouri; Windows 10; FX-8350; 24 GB physical but 15.97 GB
   usable RAM (one stick lost — reseat advised); GTX 1650 4 GB; sleep=never.
 
@@ -70,6 +75,10 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 ## Recent completed work
 
+- Codex interacted with Axon through `D:\extension`, recorded a bounded live
+  capability probe, created private GitHub repository `Axepapag/Axon`, added
+  `origin`, authenticated Git Credential Manager through the existing signed-in
+  browser session, and pushed the full preserved history to `main`.
 - Codex completed a read-only audit of `D:\extension`: the Chrome extension,
   loopback hub, client/wrapper, live-DOM export, OCR assets, runtime health,
   permissions, command/lease flow, and redaction boundary. The hub was healthy
@@ -101,6 +110,11 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 ## Active risks and blockers
 
+- The largest gap to Jeff's vision is behavioral rather than structural: the
+  live council currently cannot answer unseen identity, arithmetic, or exact
+  recall prompts. Eight 64D brothers produce highly correlated collapsed
+  deltas, while the untrained 128D brothers often contribute blanks. Private
+  souls persist, but their causal cognitive benefit is not yet demonstrated.
 - `D:\extension` is a highly privileged local control plane. The hub has no
   authentication, accepts arbitrary agent identities, exposes wildcard CORS,
   and permits unauthenticated context injection, lease acquisition, command
@@ -125,14 +139,16 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 ## Next recommended actions
 
-1. Install/authenticate GitHub CLI, configure the private remote, push
-   `agent/fortify-axon`, verify a clean clone (Codex's standing first step).
-2. Freeze one held-out behavioral suite; compare ckpt 440,500 vs 461,500 and
+1. Freeze the just-used prompt classes into a reproducible held-out behavioral
+   suite; compare ckpt 440,500 vs 461,500 and
    single-core vs council inference.
-3. Soul ablations (correct/zero/swapped/shuffled) before more long training.
+2. Soul ablations (correct/zero/swapped/shuffled) before more long training.
+3. Diagnose blank-slot collapse, target alignment, data mixture, and correlated
+   council outputs with bounded smokes.
 4. A conversational training leg for the 128D checkpoint so its crown turns
    carry weight; then larger brother sizes per Jeff's 64->4096 ladder.
-5. Reconcile runtime branches only after behavioral evidence.
+5. Verify a clean clone from private GitHub on a separate path/machine, then
+   reconcile runtime branches only after behavioral evidence.
 
 ## Fast orientation
 
