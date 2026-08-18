@@ -32,7 +32,7 @@ if str(ROOT) not in sys.path:
 from runtime.council.engine import CouncilEngine  # noqa: E402
 
 CONFIG_PATH = Path(__file__).resolve().parent / "council_config.test.json"
-SOULS_DIR = Path(__file__).resolve().parent / "souls"
+SOULS_DIR = ROOT / "State" / "souls" / "council_test"
 FIELD_PATH = ROOT / "State" / "active" / "council_field.test.json"
 TAILS_PATH = ROOT / "State" / "dormant" / "council_field_tails.test.jsonl"
 TIMEOUT_S = 300.0
@@ -63,6 +63,7 @@ async def main() -> int:
                          "council_min_conf": 0.0,
                          "field_state_path": str(FIELD_PATH),
                          "dormant_tails_path": str(TAILS_PATH),
+                         "souls_path": str(SOULS_DIR),
                          "models": [{"checkpoint": "runs/bible_64D_gpu_overnight/ckpt_461500.pt",
                                      "cores": 3}]})
 

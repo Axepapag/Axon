@@ -94,6 +94,8 @@ ACTIVE_REGION_CHARS = HISTORY_CHARS * 2
 # records under State/dormant (masked text preserved byte-for-byte).
 ACTIVE_FIELD_PATH = ROOT / "State" / "active" / "council_field.json"
 DORMANT_TAILS_PATH = ROOT / "State" / "dormant" / "council_field_tails.jsonl"
+COUNCIL_SOULS_PATH = ROOT / "State" / "souls" / "council"
+LEGACY_COUNCIL_SOULS_PATH = Path(__file__).resolve().parent / "souls"
 
 # Config keys that can be hot-applied without reloading the checkpoint.
 HOT_CONFIG_KEYS = frozenset(
@@ -201,6 +203,7 @@ class CouncilEngine:
             "log_path": "",
             "field_state_path": "State/active/council_field.json",
             "dormant_tails_path": "State/dormant/council_field_tails.jsonl",
+            "souls_path": "State/souls/council",
         }
 
     def apply_config(self, cfg: dict) -> list[str]:
@@ -444,7 +447,7 @@ class CouncilEngine:
 
     @property
     def _souls_dir(self) -> Path:
-        return Path(__file__).resolve().parent / "souls"
+        return self._state_path("souls_path", COUNCIL_SOULS_PATH)
 
     async def start(self) -> None:
         """Load every model size, clone+perturb souls per member, start ticking."""
@@ -580,6 +583,12 @@ class CouncilEngine:
         self, core_id: int, shape: torch.Size, device: torch.device
     ) -> torch.Tensor | None:
         path = self._souls_dir / f"core_{core_id}.pt"
+        # One-way compatibility: a pre-ruling council may have persisted under
+        # runtime/council/souls. New writes always land in D:/Axon/State.
+        if not path.exists():
+            legacy_path = LEGACY_COUNCIL_SOULS_PATH / f"core_{core_id}.pt"
+            if legacy_path.exists():
+                path = legacy_path
         if not path.exists():
             return None
         try:

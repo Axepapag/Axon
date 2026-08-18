@@ -1,6 +1,6 @@
 # Axon Source Of Truth
 
-Last updated: 2026-07-18
+Last updated: 2026-08-18
 
 ## Core Doctrine
 
@@ -34,13 +34,25 @@ Each region contains ordered character cells plus metadata spans. Words, sentenc
 
 No active exact-text path may collapse a paragraph into one opaque vector and then ask a small core to recover exact text from that vector.
 
+Every core pass attends the entire canonical shared field. A physical model
+window may be used as one page in a complete ordered sweep, but it is not an
+attention limit and may not silently omit field characters. Every logical pass
+must produce an auditable coverage record proving that each exact field
+character was visited. Operator masks are navigation/presentation controls;
+they do not remove canonical shared-field text from neural attention.
+
 ## Dormant State
 
-Dormant state is masked structured memory. It stores containers, edges, facts, procedures, episodes, diary entries, source chunks, and provenance.
+Dormant state is structured memory outside the current canonical shared field.
+It stores containers, edges, facts, procedures, episodes, diary entries,
+source chunks, and provenance.
 
 Dormant memory is not attended directly. Search and surfacing copy relevant readable material into active regions.
 
-Masking is not truncation. Region histories may grow dormant while active masks expose only the current working window.
+Masking is not truncation and is not permission to hide part of the canonical
+shared field from a core. Material becomes dormant through an explicit,
+auditable field-to-dormant transaction, not because it fell outside a model
+window.
 
 ## Semantic Edges
 
@@ -76,11 +88,17 @@ Per tick:
 
 1. Runtime materializes the active field.
 2. Each core inhales its private soul.
-3. Each core attends the active field.
+3. Each core attends every exact character of the active field through a
+   complete, coverage-proven pass.
 4. Each core emits a proposed delta.
-5. Cores may refine against gathered deltas.
-6. A consolidator selects or merges the committed delta.
-7. Each core exhales experience into hot soul rows.
+5. Each core exhales experience into its soul.
+6. Each core inhales its updated soul again, attends the full active field plus
+   every complete first-pass core delta, emits a refined delta, and exhales.
+7. The rotating consolidator inhales its updated soul, attends the full active
+   field plus every complete refined delta, and emits one typed delta against
+   the entire shared field.
+8. Runtime validates and atomically commits that delta as the next canonical
+   shared field; the consolidator exhales its experience.
 
 Input does not enter the soul first. The shared field is the input interface.
 
@@ -101,6 +119,11 @@ Training must match runtime:
 - core emits deltas,
 - loss is applied to the delta/response target,
 - core exhales after action.
+
+Full-field training must reproduce the same complete ordered sweep, all-delta
+refinement, consolidator pass, soul boundaries, and typed canonical commit used
+at runtime. A short physical page may not be trained or reported as though it
+were the complete field.
 
 Current trainer:
 
@@ -126,7 +149,19 @@ Additive full-field path:
 
 The 384-character view and three learned type IDs are physical
 checkpoint-compatibility roles, not the complete logical field. They do not
-limit canonical field length or logical-region count.
+limit canonical field length or logical-region count. Existing checkpoints
+that consume only one such view are bootstrap checkpoints and do not satisfy
+the required full-field council protocol until a trained complete-sweep reader
+has been added and passed coverage and behavioral gates.
+
+## Canonical state root
+
+All living or durable Axon runtime state resides beneath `D:\Axon\State`,
+including canonical field state, dormant memory, private souls, active adapter
+pointers and promoted adapters, cursors, and offline-learning control records.
+Candidate training artifacts and reproducible run logs may remain under
+`runs/`; promotion copies the active state-bearing artifact into `State/` with
+provenance.
 
 The differentiable writer is not yet production soul doctrine. It remains
 pilot-only until real 64D and 128D write-delay-recall suites independently pass

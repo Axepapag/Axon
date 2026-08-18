@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-18T11:16:22-05:00
-Current through event: `evt-20260818T161622348570Z-codex-d00-identity-64d-plan`
+Updated: 2026-08-18T11:37:23-05:00
+Current through event: `evt-20260818T163723974272Z-codex-full-field-ruling-state-root`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -15,18 +15,20 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 ## Current verified state
 
-- The council runtime (`runtime/council/`) is LIVE and detached: started via
-  double-clickable `runtime/council/START_COUNCIL.bat`, serving
-  http://127.0.0.1:8788, independent of any assistant session.
-- THE FIELD IS NEVER TRUNCATED (Jeff's ruling 2026-08-18): every region is
-  the full logical document; a per-region movable mask divides the dormant
-  prefix from the attended tail. Live field persists to
-  `State/active/council_field.json`; mask moves and edits are append-only
-  records in `State/dormant/council_field_tails.jsonl` (convener-ruled
-  locations, 2026-07-03). Operator API: GET /api/field, POST
-  /api/field/mask (offset or mode), POST /api/field/region. Dashboard has a
-  Shared Field panel: per-region cards, dormant text dimmed, mask sliders
-  both directions, follow-tail toggle, edit/save.
+- The detached council HTTP server remains reachable at 127.0.0.1:8788, but
+  its engine is STOPPED at tick 1320. Windows denied graceful termination of
+  the elevated listener PID, so a privileged/manual server restart is needed
+  to load the latest code and local config.
+- COMPLETE-FIELD ATTENTION (Jeff's ruling 2026-08-18): every logical core pass
+  must visit every exact character in the canonical shared field and prove
+  coverage. Phase A produces every brother's proposal; Phase B consumes the
+  full field plus ALL complete proposals; the rotating consolidator consumes
+  the full field plus ALL complete refined deltas and commits one typed atomic
+  field delta. Souls inhale/exhale at every phase. Model pages and operator
+  masks may not become logical attention limits.
+- CURRENT COUNCIL IS NONCOMPLIANT: it supplies only 128 history characters to
+  a fixed 384-slot checkpoint and carries one strongest 48-character proposal
+  between phases. The UI now labels this plainly as a bootstrap limitation.
 - MEASURED 2026-08-18: live end-to-end — 450-char region auto-masks at 194
   (tail mode), manual mask to 45 then BACKWARDS to 15 restores active text,
   dormant text preserved byte-for-byte, 4 immutable tail records, field file
@@ -80,6 +82,13 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 - Every project turn appends one canonical event and refreshes this summary.
 - Exact text and journal truth remain canonical; neural state is not factual
   authority.
+- All Axon runtime state lives beneath `D:\Axon\State`. Council soul writes now
+  target `State/souls/council`; active cores 0-7 were copied there with all
+  hashes matching, while legacy copies were preserved.
+- A complete-field pass may use trained streaming/linear pages only when every
+  character can causally affect output and a coverage manifest proves none was
+  omitted. Dense 100k-by-100k attention is not required and is not feasible on
+  the current 4 GB GPU.
 - Autobiographical evidence follows provenance grades: exact turns/tool
   outcomes outrank contemporaneous self-authored records, which outrank
   summaries and extracted facts. Synthetic dialogue is never autobiography.
@@ -90,6 +99,11 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 ## Recent completed work
 
+- Jeff's full-field, all-delta, three-phase soul protocol and State-root ruling
+  are recorded in `docs/SOURCE_OF_TRUTH.md` and
+  `docs/roundtable/RESOLUTION_full-field-attention-offline-learning-2026-08-18.md`.
+  Codex also documented a rotating sabbatical LoRA learner design; it remains
+  unimplemented and no training was launched.
 - Codex interacted with Axon through `D:\extension`, recorded a bounded live
   capability probe, created private GitHub repository `Axepapag/Axon`, added
   `origin`, authenticated Git Credential Manager through the existing signed-in
@@ -125,11 +139,11 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 ## Active risks and blockers
 
-- The largest gap to Jeff's vision is behavioral rather than structural: the
-  live council currently cannot answer unseen identity, arithmetic, or exact
-  recall prompts. The eight active 64D brothers produce highly correlated
-  collapsed deltas. Private souls persist, but their causal cognitive benefit
-  is not yet demonstrated.
+- The largest gap is now explicitly both structural and behavioral. The
+  current wrapper neither attends the full shared field nor carries all deltas
+  between phases, and the 64D checkpoint fails unseen identity, arithmetic,
+  and exact recall with correlated collapsed outputs. Private-soul causality
+  remains unproven.
 - `D:\extension` is a highly privileged local control plane. The hub has no
   authentication, accepts arbitrary agent identities, exposes wildcard CORS,
   and permits unauthenticated context injection, lease acquisition, command
@@ -138,13 +152,12 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
   origins—can exercise it. DOM capture redacts password and selected
   autocomplete fields only; ordinary text inputs, textareas, page text, URLs,
   and the plaintext `00_LIVE_DOM.md` may expose sensitive material.
-- The 128D brothers blank/vandalize the draft when they hold the crown —
-  they have never been conversationally trained. Growth room, not a bug:
-  they need their own conversational leg before their crown turns help.
-- Tick rate is ~5-8s under load (10 cores x 3 proposals on a GTX 1650);
-  faster on an idle machine, but large rosters are compute-bound here.
-- No Git remote configured and GitHub CLI absent: the tree is one disk
-  failure away from loss. Off-machine preservation remains top priority.
+- Complete dense pairwise attention over 100k characters is physically
+  incompatible with the GTX 1650 4 GB (about 40 GB for one float32 attention
+  score matrix per head/layer). The required reader must be a trained
+  coverage-proven streaming or linear mechanism.
+- Offline LoRA learning, adapter promotion/rollback, and rotating learner
+  scheduling do not yet exist.
 - Model behavior beyond seed-like exchanges is still weak; the newest
   training run improved held-out metrics only modestly.
 - `dist/`, `runs/`, and datasets occupy roughly 125 GB; retention and
@@ -154,15 +167,15 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 ## Next recommended actions
 
-1. Freeze the failed live prompts plus a balanced 64D language, reasoning,
-   token-recall, and identity-evidence suite.
-2. Curate a tiny local-only Grade-A/B identity batch from `D:\00`, including
-   the naming event, verified lessons, unknowns, and contradictory summaries.
-3. Run a single-core 64D smoke; require falling loss and exact metrics above
-   the constant-output floor before any continuation.
-4. Run correct/zero/swapped/shuffled soul ablations and scratch counterfactuals;
-   then compare the eight-core council with the best single 64D core.
-5. Verify a clean clone from private GitHub on a separate path/machine.
+1. Manually/elevated restart `runtime/council/START_COUNCIL.bat`; verify eight
+   souls reload from `State/souls/council` and the UI shows the limitation.
+2. Build a bounded complete-field reader with exact coverage manifests and
+   early/middle/late character counterfactuals.
+3. Replace strongest-only 48-character council summaries with immutable full
+   proposal/refinement sets consumed by later complete sweeps.
+4. Build one disposable offline LoRA smoke from a frozen memory batch with
+   retention, identity, provenance, and adapter counterfactual gates.
+5. Only then align the 64D curriculum to the complete-sweep runtime and train.
 
 ## Fast orientation
 

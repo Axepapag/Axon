@@ -65,8 +65,9 @@ forwards at any time. State locations follow the convener ruling
 (2026-07-03): the live field persists to `State/active/council_field.json`;
 every mask move and region edit appends an immutable record (masked /
 superseded text preserved byte-for-byte) to
-`State/dormant/council_field_tails.jsonl`. Both paths are config keys
-(`field_state_path`, `dormant_tails_path`) so tests never touch live state.
+`State/dormant/council_field_tails.jsonl`. Private council souls persist under
+`State/souls/council`. All three paths are config keys (`field_state_path`,
+`dormant_tails_path`, `souls_path`) so tests never touch live state.
 
 ## Engine public API (module `runtime/council/engine.py`)
 
@@ -99,7 +100,7 @@ absent). Keys: checkpoint, device, cores, soul_noise, temperature_spread,
 tick_delay_ms, stable_ticks, max_ticks (0 = forever), regions (dict of
 region->bool visibility), advisors (list of
 {name, endpoint, api_key, model, enabled, temperature}), log_path,
-field_state_path, dormant_tails_path.
+field_state_path, dormant_tails_path, souls_path.
 `council_config.json` is LOCAL ONLY — add it to .gitignore (it may carry API
 keys; Working Contract rule 4).
 
