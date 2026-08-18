@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-18T12:17:23-05:00
-Current through event: `evt-20260818T171723656824Z-codex-complete-field-reader-plan`
+Updated: 2026-08-18T12:38:41-05:00
+Current through event: `evt-20260818T173841818526Z-codex-chatgpt-curriculum-mission`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -104,6 +104,13 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 ## Recent completed work
 
+- Codex created `docs/CHATGPT_COMPLETE_FIELD_CURRICULUM_MISSION.md`, a
+  self-contained mission Jeff can give to ChatGPT. It requires a twelve-file
+  inspection package spanning width-independent reader/core curricula, strict
+  schemas, deterministic generators, frozen evals, staged 64D-first training,
+  CPU-correct inference, council/soul/scratch/delta gates, and a separate
+  evidence-graded private-memory lane. No dataset generation or training was
+  launched; returned artifacts must be reviewed before integration.
 - Codex mapped the current 64D char-slot core and council wrapper to a concrete
   complete-field reader plan. The required path is an ordered, query-aware
   page sweep with carried reader state, global positions, exact coverage
@@ -184,18 +191,24 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 ## Next recommended actions
 
-1. Add a `CompleteFieldReader` API that receives ordered exact-character pages,
+1. Give `docs/CHATGPT_COMPLETE_FIELD_CURRICULUM_MISSION.md` to ChatGPT with the
+   recommended non-private attachments and obtain its twelve-artifact
+   inspection package.
+2. Reconcile the returned schemas, generator plan, and gates against Axon's
+   exact runtime field and typed-delta contracts; reject any fixed logical
+   field cap or silent truncation.
+3. Add a `CompleteFieldReader` API that receives ordered exact-character pages,
    global region/offset metadata, and a carried reader state; it must emit a
    coverage manifest and only decode after every active span is visited.
-2. Replace strongest-only 48-character council summaries with immutable full
+4. Replace strongest-only 48-character council summaries with immutable full
    proposal/refinement sets consumed by later complete sweeps.
-3. Train the 64D reader first on variable-length cross-page copy, retrieval,
+5. Train a fresh 64D reader first on variable-length cross-page copy, retrieval,
    aggregation, contradiction, and typed-delta tasks, then require positional
    and length-generalization counterfactual gates.
-4. Build one disposable offline LoRA smoke from a frozen Grade-A/B memory
+6. Build one disposable offline LoRA smoke from a frozen Grade-A/B memory
    batch with exact provenance and no synthetic autobiography, then require
    retention, identity, provenance, and adapter counterfactual gates.
-5. Add governed curriculum adapters for language/reasoning, arithmetic, code,
+7. Add governed curriculum adapters for language/reasoning, arithmetic, code,
    conversation, science, literature/poetry, and psychology only after the
    disposable memory-adapter path can promote and roll back safely.
 
