@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-18T10:21:17-05:00
-Current through event: `evt-20260818T152117860996Z-codex-kimmy-council-commit`
+Updated: 2026-08-18T10:31:25-05:00
+Current through event: `evt-20260818T153125942769Z-codex-extension-audit`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -70,6 +70,11 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 ## Recent completed work
 
+- Codex completed a read-only audit of `D:\extension`: the Chrome extension,
+  loopback hub, client/wrapper, live-DOM export, OCR assets, runtime health,
+  permissions, command/lease flow, and redaction boundary. The hub was healthy
+  on 127.0.0.1:9191 with one controller and six retained tab snapshots; Python
+  modules compiled. No extension file was modified.
 - Codex independently inspected Kimmy's 2026-08-18 council diff and live
   service, verified the 10-region field and 10-core roster, passed the safe
   in-process server test and compilation, excluded generated test artifacts,
@@ -96,6 +101,14 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 ## Active risks and blockers
 
+- `D:\extension` is a highly privileged local control plane. The hub has no
+  authentication, accepts arbitrary agent identities, exposes wildcard CORS,
+  and permits unauthenticated context injection, lease acquisition, command
+  queueing, result injection, and WebSocket subscriptions. Loopback binding
+  limits remote reach but any local process—and potentially permitted browser
+  origins—can exercise it. DOM capture redacts password and selected
+  autocomplete fields only; ordinary text inputs, textareas, page text, URLs,
+  and the plaintext `00_LIVE_DOM.md` may expose sensitive material.
 - The 128D brothers blank/vandalize the draft when they hold the crown —
   they have never been conversationally trained. Growth room, not a bug:
   they need their own conversational leg before their crown turns help.
