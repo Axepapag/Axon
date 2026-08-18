@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-18T12:00:53-05:00
-Current through event: `evt-20260818T170053984686Z-codex-unit-aware-field-masks`
+Updated: 2026-08-18T12:17:23-05:00
+Current through event: `evt-20260818T171723656824Z-codex-complete-field-reader-plan`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -104,6 +104,13 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 ## Recent completed work
 
+- Codex mapped the current 64D char-slot core and council wrapper to a concrete
+  complete-field reader plan. The required path is an ordered, query-aware
+  page sweep with carried reader state, global positions, exact coverage
+  manifests, final delta decoding, and one soul exhale per complete logical
+  phase. Exact field text remains revisit-able because no finite hidden state
+  can preserve arbitrary unlimited text perfectly. This was design analysis;
+  no reader code or training was claimed.
 - Codex implemented unit-aware per-region mask thresholds, including
   conversational-turn retention, persisted the policy, documented the
   shared/dormant membership distinction, restarted the live eight-core
@@ -177,17 +184,20 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 ## Next recommended actions
 
-1. Build a bounded complete-field reader with exact coverage manifests and
-   early/middle/late character counterfactuals.
+1. Add a `CompleteFieldReader` API that receives ordered exact-character pages,
+   global region/offset metadata, and a carried reader state; it must emit a
+   coverage manifest and only decode after every active span is visited.
 2. Replace strongest-only 48-character council summaries with immutable full
    proposal/refinement sets consumed by later complete sweeps.
-3. Build one disposable offline LoRA smoke from a frozen Grade-A/B memory
+3. Train the 64D reader first on variable-length cross-page copy, retrieval,
+   aggregation, contradiction, and typed-delta tasks, then require positional
+   and length-generalization counterfactual gates.
+4. Build one disposable offline LoRA smoke from a frozen Grade-A/B memory
    batch with exact provenance and no synthetic autobiography, then require
    retention, identity, provenance, and adapter counterfactual gates.
-4. Add governed curriculum adapters for language/reasoning, arithmetic, code,
+5. Add governed curriculum adapters for language/reasoning, arithmetic, code,
    conversation, science, literature/poetry, and psychology only after the
    disposable memory-adapter path can promote and roll back safely.
-5. Only then align the 64D curriculum to the complete-sweep runtime and train.
 
 ## Fast orientation
 
