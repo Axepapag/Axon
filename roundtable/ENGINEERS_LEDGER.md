@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-18T20:02:10-05:00
-Current through event: `evt-20260819T010210364018Z-chatgpt-v021-64d-focus`
+Updated: 2026-08-18T20:04:44-05:00
+Current through event: `evt-20260819T010444422527Z-chatgpt-v021-publish-correction`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -25,6 +25,8 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
   byte-identical replays. Package-manifest SHA-256 is
   `2979d93e88096c60fb9615e469a0e01402f375f8a1075040d5e8f76d88963f67`.
   No runtime integration, private-memory ingestion, or training occurred.
+  Commit `83885bba700859af85a88c6f119c50eb5c6a02b4` is verified on private
+  GitHub `main`.
 
 - Codex answered all thirteen v0.2 contract questions in
   `roundtable/CHATGPT_CODEX_COLLABORATION.md`. The agreed engineering target is
