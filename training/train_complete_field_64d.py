@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from substrate import default_alphabet, roundtrip_check
+from substrate import assert_supported_text, default_alphabet, roundtrip_check
 from training.complete_field_64d import (
     CompleteField64D,
     CompleteFieldPager,
@@ -55,13 +55,31 @@ def load_jsonl(path: Path, split: str | None = None) -> list[dict[str, Any]]:
             record = json.loads(line)
             if split is not None and record.get("split") != split:
                 continue
+            if record.get("schema") != "axon-complete-field-r0-example-v2":
+                raise ValueError(f"{path}:{line_number}: counterfactual R0 schema v2 is required")
             field = canonical_field(record["field"])
             targets = record["targets"]
             if set(targets) != {"scratch", "response_draft"}:
                 raise ValueError(f"{path}:{line_number}: target regions are not R0 scratch/response")
+            assert_supported_text(targets["scratch"])
+            assert_supported_text(targets["response_draft"])
+            counterfactuals = record.get("response_counterfactuals", [])
+            if not isinstance(counterfactuals, list):
+                raise ValueError(f"{path}:{line_number}: response_counterfactuals must be a list")
+            for counterfactual in counterfactuals:
+                if set(counterfactual) != {"variant_id", "scratch", "response_draft"}:
+                    raise ValueError(f"{path}:{line_number}: malformed response counterfactual")
+                assert_supported_text(counterfactual["variant_id"])
+                assert_supported_text(counterfactual["scratch"])
+                assert_supported_text(counterfactual["response_draft"])
+                if counterfactual["scratch"] == targets["scratch"]:
+                    raise ValueError(f"{path}:{line_number}: counterfactual scratch is not an intervention")
+                if counterfactual["response_draft"] == targets["response_draft"]:
+                    raise ValueError(f"{path}:{line_number}: counterfactual response did not change")
             if record.get("write_authority", {}).get("diary") is not False:
                 raise ValueError(f"{path}:{line_number}: diary must be disabled in R0")
             record["field"] = field
+            record["response_counterfactuals"] = counterfactuals
             records.append(record)
     if not records:
         raise ValueError(f"no records loaded from {path}")
@@ -124,7 +142,7 @@ def evaluate_teacher(
     model: CompleteField64D,
     records: list[dict[str, Any]],
     max_examples: int,
-    causal_examples: int = 8,
+    causal_examples: int = 16,
 ) -> dict[str, Any]:
     model.eval()
     scratch_losses: list[float] = []
@@ -133,6 +151,8 @@ def evaluate_teacher(
     response_acc: list[float] = []
     empty_deltas: list[float] = []
     corrupt_deltas: list[float] = []
+    counterfactual_losses: list[float] = []
+    counterfactual_acc: list[float] = []
     samples = stratified_records(records, max(1, max_examples))
     for index, record in enumerate(samples):
         out = model.forward_transaction(
@@ -151,6 +171,15 @@ def evaluate_teacher(
                 state, _ = model.read_field(ablated)
                 logits, targets = model.decode_teacher(state, record["targets"]["response_draft"], head=1)
                 collector.append(float(sequence_cross_entropy(logits, targets).item() - rl.item()))
+        for counterfactual in record["response_counterfactuals"]:
+            if len(counterfactual_losses) >= causal_examples:
+                break
+            intervened = dict(record["field"])
+            intervened["scratch"] = counterfactual["scratch"]
+            state, _ = model.read_field(intervened)
+            logits, targets = model.decode_teacher(state, counterfactual["response_draft"], head=1)
+            counterfactual_losses.append(float(sequence_cross_entropy(logits, targets).item()))
+            counterfactual_acc.append(teacher_char_accuracy(logits, targets))
     result = {
         "examples": len(samples),
         "mean_scratch_loss": float(np.mean(scratch_losses)),
@@ -160,6 +189,13 @@ def evaluate_teacher(
         "response_teacher_char_accuracy": float(np.mean(response_acc)),
         "causal_empty_scratch_ce_delta": float(np.mean(empty_deltas)) if empty_deltas else 0.0,
         "causal_corrupt_scratch_ce_delta": float(np.mean(corrupt_deltas)) if corrupt_deltas else 0.0,
+        "counterfactual_examples": len(counterfactual_losses),
+        "counterfactual_teacher_loss": (
+            float(np.mean(counterfactual_losses)) if counterfactual_losses else math.inf
+        ),
+        "counterfactual_teacher_char_accuracy": (
+            float(np.mean(counterfactual_acc)) if counterfactual_acc else 0.0
+        ),
     }
     model.train()
     return result
@@ -191,6 +227,51 @@ def observable_samples(model: CompleteField64D, records: list[dict[str, Any]], c
     return output
 
 
+@torch.no_grad()
+def forced_counterfactual_samples(
+    model: CompleteField64D,
+    records: list[dict[str, Any]],
+    count: int,
+) -> list[dict[str, Any]]:
+    """Decode the same field after correct and matched scratch interventions."""
+    model.eval()
+    causal_records = [record for record in records if record["response_counterfactuals"]]
+    output: list[dict[str, Any]] = []
+    for record in stratified_records(causal_records, len(causal_records)):
+        correct_field = dict(record["field"])
+        correct_field["scratch"] = record["targets"]["scratch"]
+        correct_state, _ = model.read_field(correct_field)
+        correct_response, correct_terminated = model.decode_greedy(correct_state, head=1)
+        for counterfactual in record["response_counterfactuals"]:
+            intervened = dict(record["field"])
+            intervened["scratch"] = counterfactual["scratch"]
+            counterfactual_state, _ = model.read_field(intervened)
+            counterfactual_response, counterfactual_terminated = model.decode_greedy(
+                counterfactual_state, head=1
+            )
+            output.append(
+                {
+                    "example_id": record["example_id"],
+                    "family": record["family"],
+                    "variant_id": counterfactual["variant_id"],
+                    "correct_scratch": record["targets"]["scratch"],
+                    "counterfactual_scratch": counterfactual["scratch"],
+                    "gold_correct_response": record["targets"]["response_draft"],
+                    "gold_counterfactual_response": counterfactual["response_draft"],
+                    "predicted_correct_response": correct_response,
+                    "predicted_counterfactual_response": counterfactual_response,
+                    "correct_terminated": correct_terminated,
+                    "counterfactual_terminated": counterfactual_terminated,
+                    "response_changed": correct_response != counterfactual_response,
+                }
+            )
+            if len(output) >= count:
+                model.train()
+                return output
+    model.train()
+    return output
+
+
 def checkpoint_payload(
     model: CompleteField64D,
     optimizer: torch.optim.Optimizer,
@@ -202,7 +283,7 @@ def checkpoint_payload(
     sampler_state: object,
 ) -> dict[str, Any]:
     return {
-        "schema": "axon-complete-field-r0-checkpoint-v1",
+        "schema": "axon-complete-field-r0-checkpoint-v2",
         "step": step,
         "model_state": model.state_dict(),
         "optimizer_state": optimizer.state_dict(),
@@ -262,7 +343,7 @@ def restore(
     device: torch.device,
 ) -> tuple[int, dict[str, Any], object | None]:
     payload = torch.load(path, map_location=device, weights_only=False)
-    if payload.get("schema") != "axon-complete-field-r0-checkpoint-v1":
+    if payload.get("schema") != "axon-complete-field-r0-checkpoint-v2":
         raise ValueError(f"unsupported checkpoint schema in {path}")
     model.load_state_dict(payload["model_state"])
     optimizer.load_state_dict(payload["optimizer_state"])
@@ -297,9 +378,8 @@ def main() -> int:
     parser.add_argument("--weight-decay", type=float, default=0.01)
     parser.add_argument("--grad-accum", type=int, default=1)
     parser.add_argument("--clip-grad", type=float, default=1.0)
-    parser.add_argument("--causal-weight", type=float, default=0.10)
-    parser.add_argument("--causal-margin", type=float, default=0.20)
-    parser.add_argument("--causal-every", type=int, default=4)
+    parser.add_argument("--causal-weight", type=float, default=0.50)
+    parser.add_argument("--causal-every", type=int, default=1)
     parser.add_argument("--eval-every", type=int, default=1000)
     parser.add_argument("--sample-every", type=int, default=250)
     parser.add_argument("--checkpoint-every", type=int, default=250)
@@ -308,11 +388,12 @@ def main() -> int:
     parser.add_argument("--sample-count", type=int, default=4)
     parser.add_argument("--seed", type=int, default=64018)
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--resume-if-available", action="store_true")
     parser.add_argument("--amp", action=argparse.BooleanOptionalAction, default=False)
     args = parser.parse_args()
 
-    if args.steps < 1 or args.grad_accum < 1:
-        raise ValueError("steps and grad_accum must be positive")
+    if args.steps < 1 or args.grad_accum < 1 or args.causal_every < 1:
+        raise ValueError("steps, grad_accum, and causal_every must be positive")
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -324,6 +405,10 @@ def main() -> int:
     eval_records = load_jsonl(args.eval)
     coverage_gate(train_records)
     coverage_gate(eval_records)
+    causal_train_records = [record for record in train_records if record["response_counterfactuals"]]
+    causal_eval_records = [record for record in eval_records if record["response_counterfactuals"]]
+    if not causal_train_records or not causal_eval_records:
+        raise ValueError("matched response counterfactuals are required in train and eval")
 
     device = torch.device(args.device)
     if device.type == "cuda" and not torch.cuda.is_available():
@@ -338,7 +423,7 @@ def main() -> int:
     atomic_json(
         args.run_dir / "config.json",
         {
-            "schema": "axon-complete-field-r0-run-config-v1",
+            "schema": "axon-complete-field-r0-run-config-v2",
             "reader": asdict(config),
             "trainer": {k: str(v) if isinstance(v, Path) else v for k, v in vars(args).items()},
             "device": str(device),
@@ -346,18 +431,23 @@ def main() -> int:
             "parameter_count": sum(parameter.numel() for parameter in model.parameters()),
             "train_records": len(train_records),
             "eval_records": len(eval_records),
+            "causal_train_records": len(causal_train_records),
+            "causal_eval_records": len(causal_eval_records),
         },
     )
 
     step = 0
     baseline: dict[str, Any] = {}
     sampler_state: object | None = None
-    if args.resume:
+    if args.resume or args.resume_if_available:
         checkpoint = newest_checkpoint(args.run_dir)
-        if checkpoint is None:
+        if checkpoint is None and args.resume:
             raise FileNotFoundError("--resume requested but no checkpoint exists")
-        step, baseline, sampler_state = restore(checkpoint, model, optimizer, scaler, device)
-        print(f"resumed {checkpoint} at step {step}", flush=True)
+        if checkpoint is not None:
+            step, baseline, sampler_state = restore(checkpoint, model, optimizer, scaler, device)
+            print(f"resumed {checkpoint} at step {step}", flush=True)
+        else:
+            print("no checkpoint found; starting a fresh run", flush=True)
     if not baseline:
         baseline = evaluate_teacher(model, eval_records, args.eval_examples)
         baseline["step"] = step
@@ -385,19 +475,23 @@ def main() -> int:
                 scratch_loss = sequence_cross_entropy(out["scratch_logits"], out["scratch_targets"])
                 response_loss = sequence_cross_entropy(out["response_logits"], out["response_targets"])
                 causal_loss = torch.zeros((), device=device)
+                causal_accuracy = 0.0
+                causal_example_id: str | None = None
+                causal_variant_id: str | None = None
                 if args.causal_weight > 0 and step % args.causal_every == 0:
-                    wrong_record = train_records[rng.randrange(len(train_records))]
-                    wrong_scratch = wrong_record["targets"]["scratch"]
-                    if wrong_scratch == record["targets"]["scratch"]:
-                        wrong_scratch = corruption(wrong_scratch)
-                    wrong_field = dict(record["field"])
-                    wrong_field["scratch"] = wrong_scratch
-                    wrong_state, _ = model.read_field(wrong_field)
-                    wrong_logits, wrong_targets = model.decode_teacher(
-                        wrong_state, record["targets"]["response_draft"], head=1
+                    causal_record = causal_train_records[rng.randrange(len(causal_train_records))]
+                    counterfactuals = causal_record["response_counterfactuals"]
+                    counterfactual = counterfactuals[rng.randrange(len(counterfactuals))]
+                    intervened = dict(causal_record["field"])
+                    intervened["scratch"] = counterfactual["scratch"]
+                    causal_state, _ = model.read_field(intervened)
+                    causal_logits, causal_targets = model.decode_teacher(
+                        causal_state, counterfactual["response_draft"], head=1
                     )
-                    wrong_loss = sequence_cross_entropy(wrong_logits, wrong_targets)
-                    causal_loss = torch.relu(args.causal_margin + response_loss - wrong_loss)
+                    causal_loss = sequence_cross_entropy(causal_logits, causal_targets)
+                    causal_accuracy = teacher_char_accuracy(causal_logits.detach(), causal_targets)
+                    causal_example_id = causal_record["example_id"]
+                    causal_variant_id = counterfactual["variant_id"]
                 loss = scratch_loss + response_loss + args.causal_weight * causal_loss
                 scaled_loss = loss / args.grad_accum
             scaler.scale(scaled_loss).backward()
@@ -425,7 +519,10 @@ def main() -> int:
                 "loss": loss_value,
                 "scratch_loss": float(scratch_loss.detach().item()),
                 "response_loss": float(response_loss.detach().item()),
-                "causal_hinge": float(causal_loss.detach().item()),
+                "counterfactual_loss": float(causal_loss.detach().item()),
+                "counterfactual_teacher_char_accuracy": causal_accuracy,
+                "counterfactual_example_id": causal_example_id,
+                "counterfactual_variant_id": causal_variant_id,
                 "scratch_teacher_char_accuracy": teacher_char_accuracy(
                     out["scratch_logits"].detach(), out["scratch_targets"]
                 ),
@@ -527,20 +624,47 @@ def main() -> int:
 
     final_eval = evaluate_teacher(model, eval_records, args.eval_examples)
     final_samples = observable_samples(model, eval_records, min(16, len(eval_records)))
+    final_counterfactuals = forced_counterfactual_samples(
+        model, causal_eval_records, min(16, len(causal_eval_records) * 2)
+    )
+    atomic_json(
+        args.run_dir / "counterfactual_samples.json",
+        {
+            "schema": "axon-complete-field-r0-counterfactual-samples-v1",
+            "step": step,
+            "samples": final_counterfactuals,
+        },
+    )
     predicted_responses = [sample["predicted_response"] for sample in final_samples]
     response_termination_rate = float(np.mean([sample["response_terminated"] for sample in final_samples]))
     scratch_termination_rate = float(np.mean([sample["scratch_terminated"] for sample in final_samples]))
     response_nonblank_rate = float(np.mean([bool(text.strip()) for text in predicted_responses]))
     unique_response_count = len(set(predicted_responses))
+    counterfactual_response_change_rate = float(
+        np.mean([sample["response_changed"] for sample in final_counterfactuals])
+    )
+    forced_correct_termination_rate = float(
+        np.mean([sample["correct_terminated"] for sample in final_counterfactuals])
+    )
+    forced_counterfactual_termination_rate = float(
+        np.mean([sample["counterfactual_terminated"] for sample in final_counterfactuals])
+    )
     loss_improved = final_eval["mean_total_loss"] < float(
         baseline.get("mean_total_loss", math.inf)
     )
     accuracy_improved = final_eval["response_teacher_char_accuracy"] > float(
         baseline.get("response_teacher_char_accuracy", 0.0)
     )
+    counterfactual_accuracy_improved = (
+        final_eval["counterfactual_teacher_char_accuracy"]
+        >= float(baseline.get("counterfactual_teacher_char_accuracy", 0.0)) + 0.10
+    )
     causal_passed = (
-        final_eval["causal_empty_scratch_ce_delta"] > 0.02
-        and final_eval["causal_corrupt_scratch_ce_delta"] > 0.02
+        final_eval["counterfactual_teacher_char_accuracy"] >= 0.50
+        and counterfactual_accuracy_improved
+        and counterfactual_response_change_rate >= 0.75
+        and forced_correct_termination_rate >= 0.95
+        and forced_counterfactual_termination_rate >= 0.95
     )
     free_running_passed = (
         response_termination_rate >= 0.95
@@ -549,7 +673,7 @@ def main() -> int:
         and unique_response_count >= 2
     )
     gate = {
-        "schema": "axon-complete-field-r0-run-gate-v1",
+        "schema": "axon-complete-field-r0-run-gate-v2",
         "step": step,
         "target_step": args.steps,
         "baseline_total_loss": baseline.get("mean_total_loss"),
@@ -558,8 +682,18 @@ def main() -> int:
         "response_accuracy_improved": accuracy_improved,
         "coverage_contract_passed": True,
         "diary_writes_observed": 0,
-        "causal_empty_scratch_ce_delta": final_eval["causal_empty_scratch_ce_delta"],
-        "causal_corrupt_scratch_ce_delta": final_eval["causal_corrupt_scratch_ce_delta"],
+        "diagnostic_empty_scratch_ce_delta": final_eval["causal_empty_scratch_ce_delta"],
+        "diagnostic_corrupt_scratch_ce_delta": final_eval["causal_corrupt_scratch_ce_delta"],
+        "baseline_counterfactual_teacher_char_accuracy": baseline.get(
+            "counterfactual_teacher_char_accuracy"
+        ),
+        "final_counterfactual_teacher_char_accuracy": final_eval[
+            "counterfactual_teacher_char_accuracy"
+        ],
+        "counterfactual_accuracy_improved": counterfactual_accuracy_improved,
+        "counterfactual_response_change_rate": counterfactual_response_change_rate,
+        "forced_correct_termination_rate": forced_correct_termination_rate,
+        "forced_counterfactual_termination_rate": forced_counterfactual_termination_rate,
         "causal_scratch_gate_passed": causal_passed,
         "scratch_termination_rate": scratch_termination_rate,
         "response_termination_rate": response_termination_rate,

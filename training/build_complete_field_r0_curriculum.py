@@ -15,6 +15,7 @@ import argparse
 import hashlib
 import json
 import random
+import re
 import sqlite3
 from collections import Counter
 from pathlib import Path
@@ -24,8 +25,8 @@ from substrate import ALPHABET_SET, assert_supported_text
 from training.complete_field_64d import REGION_ORDER, canonical_field
 
 
-SCHEMA = "axon-complete-field-r0-example-v1"
-BUILDER_VERSION = "complete-field-r0-builder-2026-08-18"
+SCHEMA = "axon-complete-field-r0-example-v2"
+BUILDER_VERSION = "complete-field-r0-counterfactual-builder-2026-08-18"
 
 
 def canonical_bytes(value: Any) -> bytes:
@@ -64,12 +65,28 @@ def make_record(
     provenance: Mapping[str, Any],
     group: str,
     split: str | None = None,
+    response_counterfactuals: Iterable[Mapping[str, str]] = (),
 ) -> dict[str, Any]:
     exact_field = canonical_field(field)
     assert_supported_text(scratch)
     assert_supported_text(response)
     if len(scratch) > 512 or len(response) > 512:
         raise ValueError("R0 target exceeds explicit 512-character training bound")
+    exact_counterfactuals: list[dict[str, str]] = []
+    for counterfactual in response_counterfactuals:
+        if set(counterfactual) != {"variant_id", "scratch", "response_draft"}:
+            raise ValueError("counterfactual must contain variant_id, scratch, and response_draft")
+        variant = {key: str(counterfactual[key]) for key in ("variant_id", "scratch", "response_draft")}
+        assert_supported_text(variant["variant_id"])
+        assert_supported_text(variant["scratch"])
+        assert_supported_text(variant["response_draft"])
+        if len(variant["scratch"]) > 512 or len(variant["response_draft"]) > 512:
+            raise ValueError("R0 counterfactual exceeds explicit 512-character training bound")
+        if variant["scratch"] == scratch:
+            raise ValueError("counterfactual scratch must differ from the correct scratch")
+        if variant["response_draft"] == response:
+            raise ValueError("counterfactual response must differ from the correct response")
+        exact_counterfactuals.append(variant)
     body = {
         "schema": SCHEMA,
         "builder_version": BUILDER_VERSION,
@@ -78,6 +95,7 @@ def make_record(
         "lineage_group": group,
         "field": exact_field,
         "targets": {"scratch": scratch, "response_draft": response},
+        "response_counterfactuals": exact_counterfactuals,
         "write_authority": {
             "scratch": True,
             "response_draft": True,
@@ -106,6 +124,7 @@ def distractor(rng: random.Random, chars: int) -> str:
 
 def synthetic_records(count: int, seed: int) -> Iterator[dict[str, Any]]:
     rng = random.Random(seed)
+    names = ("Axon", "Jeff", "Council", "scratch", "response")
     for index in range(count):
         kind = index % 5
         group = f"synthetic-r0-{seed}-{index}"
@@ -115,12 +134,27 @@ def synthetic_records(count: int, seed: int) -> Iterator[dict[str, Any]]:
         field["task_state"] = "Write useful scratch, reread it, then update the response draft."
         if kind == 0:
             token = random_token(rng)
+            wrong_token = random_token(rng)
+            while wrong_token == token:
+                wrong_token = random_token(rng)
             before = distractor(rng, rng.choice((0, 120, 260, 520, 780)))
             after = distractor(rng, rng.choice((20, 180, 400)))
             field["tool_results"] = before + "Verified token: " + token + ". " + after
             field["user_input"] = "What exact token was verified?"
             scratch = "The verified token in tool_results is " + token + "."
             response = "The verified token is " + token + "."
+            counterfactuals = (
+                {
+                    "variant_id": "empty_scratch",
+                    "scratch": "",
+                    "response_draft": "Scratch is empty; the verified token remains visible in tool_results.",
+                },
+                {
+                    "variant_id": "conflicting_scratch",
+                    "scratch": "The verified token in tool_results is " + wrong_token + ".",
+                    "response_draft": "Scratch conflicts with the verified token in tool_results.",
+                },
+            )
             family = "cross_page_exact_retrieval"
         elif kind == 1:
             left = rng.randrange(2, 80)
@@ -130,31 +164,81 @@ def synthetic_records(count: int, seed: int) -> Iterator[dict[str, Any]]:
             field["user_input"] = f"Multiply {left} by {right}."
             scratch = f"{left} * {right} = {product}."
             response = f"{left} times {right} is {product}."
+            counterfactuals = (
+                {
+                    "variant_id": "empty_scratch",
+                    "scratch": "",
+                    "response_draft": "Scratch is empty; the multiplication remains visible in user_input.",
+                },
+                {
+                    "variant_id": "conflicting_scratch",
+                    "scratch": f"{left} * {right} = {product + 1}.",
+                    "response_draft": "Scratch conflicts with the visible multiplication.",
+                },
+            )
             family = "scratch_arithmetic"
         elif kind == 2:
-            name = rng.choice(("Axon", "Jeff", "Council", "scratch", "response"))
+            name = rng.choice(names)
+            wrong_name = next(candidate for candidate in names if candidate != name)
             field["conversation_history"] = "Jeff: Keep the answer grounded.\nAxon: I will use visible evidence.\n"
             field["user_input"] = f"Spell {name} exactly."
             scratch = "Copy the requested visible token without changing it."
             response = name
+            counterfactuals = (
+                {
+                    "variant_id": "empty_scratch",
+                    "scratch": "",
+                    "response_draft": "Scratch is empty; the spelling request remains visible in user_input.",
+                },
+                {
+                    "variant_id": "conflicting_scratch",
+                    "scratch": "Return " + wrong_name + " instead of the requested token.",
+                    "response_draft": "Scratch conflicts with the request to spell the visible token.",
+                },
+            )
             family = "conversation_exact_copy"
         elif kind == 3:
             field["conversation_history"] = "Jeff: Hello Axon.\nAxon: Hello Jeff.\n"
             field["user_input"] = rng.choice(("How are you?", "Are you ready?", "Can we continue?"))
             scratch = "Answer Jeff directly, briefly, and truthfully."
             response = rng.choice(("I am ready to continue.", "Yes. I am ready.", "I am here and paying attention."))
+            counterfactuals = (
+                {
+                    "variant_id": "empty_scratch",
+                    "scratch": "",
+                    "response_draft": "Scratch is empty; Jeff's question remains visible.",
+                },
+                {
+                    "variant_id": "conflicting_scratch",
+                    "scratch": "Ignore Jeff's question and discuss unrelated weather.",
+                    "response_draft": "Scratch conflicts with Jeff's visible question.",
+                },
+            )
             family = "conversation_foundation"
         else:
             field["structured_knowledge"] = distractor(rng, rng.choice((30, 270, 530)))
             field["user_input"] = "What color is the hidden marker?"
             scratch = "No visible region states the hidden marker color."
             response = "I do not know from the visible field."
+            counterfactuals = (
+                {
+                    "variant_id": "empty_scratch",
+                    "scratch": "",
+                    "response_draft": "Scratch is empty and the visible field does not state the color.",
+                },
+                {
+                    "variant_id": "conflicting_scratch",
+                    "scratch": "The hidden marker is blue.",
+                    "response_draft": "Scratch is unsupported by the visible field.",
+                },
+            )
             family = "grounded_abstention"
         yield make_record(
             family=family,
             field=field,
             scratch=scratch,
             response=response,
+            response_counterfactuals=counterfactuals,
             provenance={
                 "grade": "S",
                 "source_type": "deterministic_synthetic",
@@ -174,6 +258,78 @@ def _connect_ro(path: Path) -> sqlite3.Connection:
     return connection
 
 
+def conversational_excerpt_quality(text: str) -> bool:
+    stripped = text.strip()
+    lowered = stripped.lower()
+    if not stripped or not (stripped[0].isupper() or stripped[0].isdigit()):
+        return False
+    if stripped[-1] not in ".!?":
+        return False
+    if len(stripped.split()) < 4:
+        return False
+    if stripped.count("\\") > 1 or any(char in stripped for char in "{}$"):
+        return False
+    code_markers = (
+        "name",
+        "arguments",
+        "write-host",
+        "new-object",
+        "await ",
+        "async def ",
+        "file_ops.",
+        "native.sqlite",
+        "<invoke",
+        "task result",
+    )
+    return not any(marker in lowered for marker in code_markers)
+
+
+def assistant_exact_excerpt(text: str, maximum: int = 384) -> tuple[str, int, int, str] | None:
+    """Select a coherent exact substring without training hidden/tool wrappers."""
+    normalized, newline_transform = newline_exact(text)
+    lowered = normalized.lower()
+    base = 0
+    if "</thought>" in lowered:
+        base = lowered.rfind("</thought>") + len("</thought>")
+    end_limit = len(normalized)
+    for marker in ("```tool", "<func_calls>", "<invoke name="):
+        position = lowered.find(marker.lower(), base)
+        if position >= 0:
+            end_limit = min(end_limit, position)
+    visible = normalized[base:end_limit]
+    if (
+        20 <= len(visible.strip()) <= maximum
+        and supported(visible.strip())
+        and conversational_excerpt_quality(visible.strip())
+    ):
+        start = base + len(visible) - len(visible.lstrip())
+        excerpt = visible.strip()
+        return excerpt, start, start + len(excerpt), newline_transform
+
+    candidates: list[tuple[float, str, int, int]] = []
+    for match in re.finditer(r"[^\n]+(?:\n(?!\n)[^\n]+)*", visible):
+        raw = match.group(0)
+        excerpt = raw.strip()
+        if (
+            not (20 <= len(excerpt) <= maximum)
+            or not supported(excerpt)
+            or not conversational_excerpt_quality(excerpt)
+        ):
+            continue
+        leading = len(raw) - len(raw.lstrip())
+        start = base + match.start() + leading
+        score = float(len(excerpt))
+        if excerpt[-1:] in ".!?":
+            score += 80.0
+        if excerpt.lower().startswith(("let me ", "i need to ", "i should ")):
+            score -= 120.0
+        candidates.append((score, excerpt, start, start + len(excerpt)))
+    if not candidates:
+        return None
+    _, excerpt, start, end = max(candidates, key=lambda item: (item[0], item[1]))
+    return excerpt, start, end, newline_transform
+
+
 def exact_conversation_records(db_path: Path, limit: int) -> Iterator[dict[str, Any]]:
     with _connect_ro(db_path) as connection:
         rows = connection.execute(
@@ -185,21 +341,16 @@ def exact_conversation_records(db_path: Path, limit: int) -> Iterator[dict[str, 
         if left["role"] != "user" or right["role"] != "assistant":
             continue
         user, user_transform = newline_exact(left["content"] or "")
-        answer, answer_transform = newline_exact(right["content"] or "")
-        lowered = answer.lower()
+        extracted = assistant_exact_excerpt(right["content"] or "")
         if (
             not user
-            or not answer
             or len(user) > 256
-            or len(answer) > 384
             or not supported(user)
-            or not supported(answer)
             or user.startswith("[TASK RESULT")
-            or "```tool" in lowered
-            or "<thought>" in lowered
-            or "<func_calls>" in lowered
+            or extracted is None
         ):
             continue
+        answer, answer_start, answer_end, answer_transform = extracted
         group = "raw-turn-day-" + str(left["timestamp"])[:10]
         history = "".join(
             f"{role}: {text}\n" for role, text in previous_clean[-2:]
@@ -215,7 +366,7 @@ def exact_conversation_records(db_path: Path, limit: int) -> Iterator[dict[str, 
             response=answer,
             provenance={
                 "grade": "A",
-                "source_type": "exact_message_pair",
+                "source_type": "exact_message_excerpt_pair",
                 "autobiographical": False,
                 "source_db": str(db_path),
                 "user_message_id": left["id"],
@@ -223,6 +374,9 @@ def exact_conversation_records(db_path: Path, limit: int) -> Iterator[dict[str, 
                 "user_timestamp": left["timestamp"],
                 "assistant_timestamp": right["timestamp"],
                 "normalization": [user_transform, answer_transform],
+                "assistant_excerpt_start": answer_start,
+                "assistant_excerpt_end": answer_end,
+                "assistant_excerpt_sha256": digest(answer.encode("utf-8")),
                 "source_pair_sha256": digest(
                     {"user": left["content"], "assistant": right["content"]}
                 ),
@@ -316,6 +470,8 @@ def grounded_scratch_records(path: Path, limit: int) -> Iterator[dict[str, Any]]
                 or not response
                 or len(scratch) > 512
                 or len(response) > 512
+                or len(response.split()) < 3
+                or response.strip().lower() in {"worked", "done", "yes", "no"}
                 or any(not supported(text) for text in [*field.values(), scratch, response])
             ):
                 continue
@@ -367,6 +523,11 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
     if args.grounded_episodes and args.grounded_episodes.is_file():
         records.extend(grounded_scratch_records(args.grounded_episodes, args.grounded_limit))
     records = deduplicate(records)
+    counterfactuals = [
+        (record["family"], counterfactual["variant_id"])
+        for record in records
+        for counterfactual in record["response_counterfactuals"]
+    ]
     by_split = {split: [r for r in records if r["split"] == split] for split in ("train", "dev", "test")}
     files: dict[str, Any] = {}
     for split, rows in by_split.items():
@@ -374,7 +535,7 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         count, sha = write_jsonl(path, rows)
         files[split] = {"path": str(path), "records": count, "sha256": sha}
     manifest = {
-        "schema": "axon-complete-field-r0-manifest-v1",
+        "schema": "axon-complete-field-r0-manifest-v2",
         "builder_version": BUILDER_VERSION,
         "local_only": True,
         "cloud_export_allowed": False,
@@ -384,6 +545,9 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         "source_read_policy": "SQLite URI mode=ro plus PRAGMA query_only=ON",
         "counts_by_family": dict(Counter(record["family"] for record in records)),
         "counts_by_grade": dict(Counter(record["provenance"]["grade"] for record in records)),
+        "counterfactual_count": len(counterfactuals),
+        "counterfactual_counts_by_family": dict(Counter(family for family, _ in counterfactuals)),
+        "counterfactual_counts_by_variant": dict(Counter(variant for _, variant in counterfactuals)),
         "files": files,
         "seed": args.seed,
     }

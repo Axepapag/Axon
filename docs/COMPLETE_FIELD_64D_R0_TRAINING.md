@@ -35,13 +35,17 @@ typed whole-region replacement operations only for `scratch` and
 
 ## Evidence classes
 
-- Grade A exact raw message pairs teach conversation. Exact IDs, timestamps,
-  hashes, and newline-normalization audits stay with each local-only example.
+- Grade A exact raw user messages plus exact, quality-filtered assistant
+  substrings teach conversation. Source IDs, timestamps, source-pair hashes,
+  excerpt offsets/hashes, and newline-normalization audits stay with each
+  local-only example. Hidden reasoning and tool wrappers are excluded.
 - The exact March 6 Axon naming event is a Grade A autobiographical anchor.
 - Grade D grounded procedure episodes teach scratch behavior only and are
   explicitly prohibited from becoming sole autobiographical evidence.
 - Grade S deterministic examples teach page mechanics, retrieval, arithmetic,
-  conversation foundations, and abstention.
+  conversation foundations, and abstention. Every synthetic family contains
+  matched empty-scratch and conflicting-scratch interventions with explicitly
+  different verified response targets.
 
 Private output remains under `State/private_curriculum` and is not committed.
 The D00 SQLite source opens with URI `mode=ro` and `PRAGMA query_only=ON`.
@@ -49,7 +53,8 @@ The D00 SQLite source opens with URI `mode=ro` and `PRAGMA query_only=ON`.
 ## Observability and recovery
 
 Every step records component losses, scratch/response character accuracy,
-coverage characters/pages, gradient norm, rate, family, and example ID.
+matched-counterfactual loss/accuracy and intervention identity, coverage
+characters/pages, gradient norm, rate, family, and example ID.
 `samples.jsonl` and `live.json` show the user input, gold and predicted scratch,
 gold and predicted response, termination, coverage, and typed delta.
 
@@ -60,8 +65,11 @@ Checkpoints are atomic, keep a rolling three, and update `pointer.json` plus
 
 1. contract and CPU tests;
 2. bounded GPU smoke with baseline and actual samples;
-3. behavioral pilot with frozen eval and scratch ablations;
-4. only if loss, output, coverage, and causal-use gates pass, resume the clean
-   committed implementation toward 200,000 steps.
+3. a 5,000-step behavioral promotion stage with frozen eval, matched scratch
+   interventions, forced correct/counterfactual decodes, and actual free-running
+   scratch/response samples;
+4. only if loss, output, coverage, termination, diversity, and causal-use gates
+   all pass, automatically resume the same checkpoint lineage toward 200,000
+   steps. The root training launcher enforces this boundary.
 
 Step count alone is never a success metric.

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import torch
 
+from training.build_complete_field_r0_curriculum import synthetic_records
 from training.complete_field_64d import (
     CompleteField64D,
     CompleteFieldPager,
@@ -51,3 +52,18 @@ def test_teacher_path_accepts_output_longer_than_64_characters() -> None:
     output = model.forward_transaction(field_fixture(), "inspect exact visible evidence.", target)
     assert output["response_targets"].shape[1] == 97
     assert output["response_logits"].shape[1] == 97
+
+
+def test_synthetic_families_have_empty_and_conflicting_scratch_interventions() -> None:
+    records = list(synthetic_records(5, seed=7))
+    assert len({record["family"] for record in records}) == 5
+    for record in records:
+        counterfactuals = record["response_counterfactuals"]
+        assert [item["variant_id"] for item in counterfactuals] == [
+            "empty_scratch",
+            "conflicting_scratch",
+        ]
+        assert counterfactuals[0]["scratch"] == ""
+        for counterfactual in counterfactuals:
+            assert counterfactual["scratch"] != record["targets"]["scratch"]
+            assert counterfactual["response_draft"] != record["targets"]["response_draft"]
