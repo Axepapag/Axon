@@ -102,13 +102,14 @@ Training must match runtime:
 - loss is applied to the delta/response target,
 - core exhales after action.
 
-Current trainer:
+Current R0 trainer:
 
-- `training/trainer_slot.py`
-- exact 16D charfield input,
-- copy / partial / blank response draft modes,
-- suffix-only partial metrics,
-- story-aware continuation where available.
+- `training/train_complete_field_64d.py`,
+- exact frozen 16D character input lifted into one 64D core,
+- complete ordered paging across all ten active regions before decoding,
+- scratch commit/rematerialize followed by a second complete sweep,
+- variable-length response-draft decoding with explicit termination,
+- diary, conversation history, and tool results sealed in R0.
 
 Additive full-field path:
 

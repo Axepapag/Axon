@@ -62,7 +62,7 @@ if str(ROOT) not in sys.path:
 from cores.core import AxonCore, CoreConfig  # noqa: E402
 from substrate import ALPHABET_SET  # noqa: E402
 from training.conversational_objective import decode_parallel_logits  # noqa: E402
-from training.trainer_slot import CharSlotFieldBuilder  # noqa: E402
+from runtime.field.charslot import CharSlotFieldBuilder  # noqa: E402
 
 # Doctrine regions (SOURCE_OF_TRUTH: Active Shared Field). Order is fixed.
 REGIONS: tuple[str, ...] = (

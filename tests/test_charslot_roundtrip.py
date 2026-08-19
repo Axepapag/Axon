@@ -4,7 +4,7 @@ import pytest
 import torch
 
 from substrate import SLOT_DIM, default_alphabet
-from training.trainer_slot import CharSlotFieldBuilder, run_charslot_roundtrip_gate
+from runtime.field.charslot import CharSlotFieldBuilder, run_charslot_roundtrip_gate
 
 
 def _builder() -> CharSlotFieldBuilder:

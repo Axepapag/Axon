@@ -144,13 +144,15 @@ refinement, consolidator pass, soul boundaries, and typed canonical commit used
 at runtime. A short physical page may not be trained or reported as though it
 were the complete field.
 
-Current trainer:
+Current R0 trainer:
 
-- `training/trainer_slot.py`
-- exact 16D charfield input,
-- copy / partial / blank response draft modes,
-- suffix-only partial metrics,
-- story-aware continuation where available.
+- `training/train_complete_field_64d.py`,
+- exact frozen 16D character input lifted into one 64D core,
+- complete ordered paging across all ten active regions before decoding,
+- a scratch delta followed by commit/rematerialize and a second complete sweep,
+- variable-length response-draft decoding with an explicit end token,
+- diary, conversation history, and tool results sealed in R0,
+- coverage, behavioral samples, scratch ablations, and rolling recovery checkpoints.
 
 Additive full-field path:
 

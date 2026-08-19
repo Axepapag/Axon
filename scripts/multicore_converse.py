@@ -46,7 +46,7 @@ if str(ROOT) not in sys.path:
 
 from cores.core import AxonCore, CoreConfig
 from training.conversational_objective import decode_parallel_logits
-from training.trainer_slot import CharSlotFieldBuilder
+from runtime.field.charslot import CharSlotFieldBuilder
 
 DEFAULT_CKPT = ROOT / "runs" / "conversational_cpu_autopilot" / "ckpt_440500.pt"
 HISTORY_CHARS = 128

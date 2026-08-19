@@ -30,7 +30,7 @@ if str(_ROOT) not in sys.path:
 from cores.core import AxonCore, CoreConfig  # noqa: E402
 from cores.soul_v2 import SoulManagerV2, SoulState, SoulV2Config, TierSpec  # noqa: E402
 from curator.kg_search import KGSearch  # noqa: E402
-from training.trainer_slot import CharSlotFieldBuilder, log  # noqa: E402
+from runtime.field.charslot import CharSlotFieldBuilder, log  # noqa: E402
 
 
 CONTAINERS = "State/dormant/containers.jsonl"

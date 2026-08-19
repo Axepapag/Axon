@@ -31,21 +31,15 @@ D:\Axon\
 ```powershell
 python -m pytest -q -p no:cacheprovider
 python substrate/substrate.py
-python training/trainer_slot.py --smoke --threshold charslot
+python -m pytest -q -p no:cacheprovider tests/test_complete_field_64d.py
 python runtime/tick_loop.py --dry-run --list-checkpoints
 ```
 
 ## Current Training Path
 
-`training/trainer_slot.py` is charfield-only. It trains cores on:
+`training/train_complete_field_64d.py` is the active R0 trainer. It trains one shallow 64D core to sweep every active character in all ten regions, write scratch, reread the complete committed field, and write a variable-length response draft. Coverage manifests block decoding on gaps. Diary, conversation history, and tool results remain sealed. See `docs/COMPLETE_FIELD_64D_R0_TRAINING.md`.
 
-- exact 16D field input,
-- copy / partial / blank response draft modes,
-- suffix-only scoring for partial completions,
-- story-aware context where available,
-- soul inhale/exhale every step.
-
-The default small rung is core A: `d_model=64`, 2 layers, 1 head, large FFN.
+The prior direct fixed-window conversational trainer is preserved under `archive/legacy_fixed_window_trainer_2026-08-18/` and is not an active launch path.
 
 ## Recovered Dormant Corpus
 

@@ -1,0 +1,53 @@
+from __future__ import annotations
+
+import torch
+
+from training.complete_field_64d import (
+    CompleteField64D,
+    CompleteFieldPager,
+    REGION_ORDER,
+    ReaderConfig,
+)
+
+
+def field_fixture() -> dict[str, str]:
+    return {name: (name + " evidence. " if name != "diary" else "") for name in REGION_ORDER}
+
+
+def test_pages_cover_every_character_and_region_at_multiple_sizes() -> None:
+    field = field_fixture()
+    expected = sum(map(len, field.values()))
+    identities = set()
+    for page_size in (7, 16, 64):
+        pages, manifest = CompleteFieldPager(page_size).paginate(field)
+        assert manifest.complete
+        assert manifest.expected_characters == expected
+        assert manifest.observed_characters == expected
+        assert manifest.visited_regions == REGION_ORDER
+        assert any(page.region == "diary" and page.text == "" for page in pages)
+        identities.add(manifest.field_sha256)
+    assert len(identities) == 1
+
+
+def test_cpu_transaction_writes_only_scratch_and_response() -> None:
+    torch.manual_seed(1)
+    model = CompleteField64D(
+        ReaderConfig(page_size=32, max_output_chars=80, dropout=0.0)
+    ).cpu()
+    model.eval()
+    result = model.run_transaction(field_fixture())
+    assert result["coverage_tick1"]["complete"]
+    assert result["coverage_tick2"]["complete"]
+    regions = [operation["region"] for operation in result["typed_delta"]["operations"]]
+    assert regions == ["scratch", "response_draft"]
+    assert "diary" not in regions
+
+
+def test_teacher_path_accepts_output_longer_than_64_characters() -> None:
+    model = CompleteField64D(
+        ReaderConfig(page_size=64, max_output_chars=128, dropout=0.0)
+    ).cpu()
+    target = "A" * 96
+    output = model.forward_transaction(field_fixture(), "inspect exact visible evidence.", target)
+    assert output["response_targets"].shape[1] == 97
+    assert output["response_logits"].shape[1] == 97
