@@ -9,11 +9,18 @@ from pathlib import Path
 
 
 def render(state: dict) -> str:
+    latest = state.get("latest_evaluation", {})
     lines = [
         f"status={state.get('status')} step={state.get('step')}/{state.get('target_step')}",
         f"progress={100*float(state.get('progress', 0)):.2f}% loss={state.get('mean_recent_loss')}",
         f"rate={float(state.get('steps_per_second', 0)):.3f} steps/s eta={float(state.get('eta_seconds', 0))/3600:.2f}h",
         f"coverage_enforced={state.get('coverage_enforced')} diary_writes={state.get('diary_writes_enabled')}",
+        (
+            "teacher_accuracy "
+            f"scratch={latest.get('scratch_teacher_char_accuracy')} "
+            f"response={latest.get('response_teacher_char_accuracy')} "
+            f"counterfactual={latest.get('counterfactual_teacher_char_accuracy')}"
+        ),
     ]
     for sample in state.get("latest_samples", []):
         lines.extend(

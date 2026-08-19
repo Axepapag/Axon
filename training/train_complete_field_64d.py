@@ -354,9 +354,9 @@ def restore(
     if rng.get("numpy") is not None:
         np.random.set_state(rng["numpy"])
     if rng.get("torch") is not None:
-        torch.set_rng_state(rng["torch"])
+        torch.set_rng_state(rng["torch"].cpu())
     if torch.cuda.is_available() and rng.get("cuda") is not None:
-        torch.cuda.set_rng_state_all(rng["cuda"])
+        torch.cuda.set_rng_state_all([state.cpu() for state in rng["cuda"]])
     return int(payload["step"]), dict(payload.get("baseline", {})), rng.get("sampler")
 
 
@@ -386,14 +386,22 @@ def main() -> int:
     parser.add_argument("--keep-checkpoints", type=int, default=3)
     parser.add_argument("--eval-examples", type=int, default=32)
     parser.add_argument("--sample-count", type=int, default=4)
+    parser.add_argument("--counterfactual-sample-count", type=int, default=16)
     parser.add_argument("--seed", type=int, default=64018)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--resume-if-available", action="store_true")
     parser.add_argument("--amp", action=argparse.BooleanOptionalAction, default=False)
     args = parser.parse_args()
 
-    if args.steps < 1 or args.grad_accum < 1 or args.causal_every < 1:
-        raise ValueError("steps, grad_accum, and causal_every must be positive")
+    if (
+        args.steps < 1
+        or args.grad_accum < 1
+        or args.causal_every < 1
+        or args.counterfactual_sample_count < 1
+    ):
+        raise ValueError(
+            "steps, grad_accum, causal_every, and counterfactual_sample_count must be positive"
+        )
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -452,6 +460,7 @@ def main() -> int:
         baseline = evaluate_teacher(model, eval_records, args.eval_examples)
         baseline["step"] = step
         atomic_json(args.run_dir / "baseline.json", baseline)
+    latest_evaluation = dict(baseline)
 
     rng = random.Random()
     if sampler_state is None:
@@ -547,6 +556,7 @@ def main() -> int:
                 evaluation = evaluate_teacher(model, eval_records, args.eval_examples)
                 evaluation.update({"schema": "axon-complete-field-r0-eval-v1", "step": step, "time": time.time()})
                 append_jsonl(args.run_dir / "evaluations.jsonl", evaluation)
+                latest_evaluation = dict(evaluation)
             if step == 1 or step % args.sample_every == 0 or step == args.steps:
                 samples = observable_samples(model, eval_records, args.sample_count)
                 append_jsonl(
@@ -568,7 +578,7 @@ def main() -> int:
                 )
 
             if evaluation is not None or samples is not None or step == 1:
-                last_eval = evaluation or {}
+                last_eval = latest_evaluation
                 atomic_json(
                     args.run_dir / "live.json",
                     {
@@ -625,7 +635,9 @@ def main() -> int:
     final_eval = evaluate_teacher(model, eval_records, args.eval_examples)
     final_samples = observable_samples(model, eval_records, min(16, len(eval_records)))
     final_counterfactuals = forced_counterfactual_samples(
-        model, causal_eval_records, min(16, len(causal_eval_records) * 2)
+        model,
+        causal_eval_records,
+        min(args.counterfactual_sample_count, len(causal_eval_records) * 2),
     )
     atomic_json(
         args.run_dir / "counterfactual_samples.json",
