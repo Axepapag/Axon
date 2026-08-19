@@ -25,7 +25,9 @@ rem Stage 1 is a hard promotion gate. A failed gate exits before the 200k contin
   --eval-every 1000 ^
   --keep-checkpoints 3 ^
   --resume-if-available
-if errorlevel 1 exit /b %errorlevel%
+if not exist "%AXON_RUN%\gate.json" exit /b 2
+"%AXON_PY%" -c "import json,pathlib,sys; g=json.loads(pathlib.Path(r'%AXON_RUN%\gate.json').read_text(encoding='utf-8')); sys.exit(0 if g.get('promotion_allowed') is True and g.get('step') == 5000 and g.get('target_step') == 5000 else 2)"
+if errorlevel 1 exit /b 2
 
 rem Only a passing 5k gate reaches this continuation. Resume preserves model,
 rem optimizer, scaler, global RNG, CUDA RNG, and sampler RNG state.

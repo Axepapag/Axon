@@ -68,8 +68,11 @@ Checkpoints are atomic, keep a rolling three, and update `pointer.json` plus
 3. a 5,000-step behavioral promotion stage with frozen eval, matched scratch
    interventions, forced correct/counterfactual decodes, and actual free-running
    scratch/response samples;
-4. only if loss, output, coverage, termination, diversity, and causal-use gates
-   all pass, automatically resume the same checkpoint lineage toward 200,000
-   steps. The root training launcher enforces this boundary.
+4. only if loss, output, coverage, termination, diversity, matched causal-use,
+   and free-running exact-match gates for copy, conversation, cross-page
+   retrieval, abstention, and arithmetic all pass, automatically resume the
+   same checkpoint lineage toward 200,000 steps. The root training launcher
+   enforces this boundary and independently rereads the gate artifact before
+   continuation.
 
 Step count alone is never a success metric.

@@ -652,6 +652,31 @@ def main() -> int:
     scratch_termination_rate = float(np.mean([sample["scratch_terminated"] for sample in final_samples]))
     response_nonblank_rate = float(np.mean([bool(text.strip()) for text in predicted_responses]))
     unique_response_count = len(set(predicted_responses))
+    semantic_families = (
+        "conversation_exact_copy",
+        "conversation_foundation",
+        "cross_page_exact_retrieval",
+        "grounded_abstention",
+        "scratch_arithmetic",
+    )
+    semantic_exact_match_by_family: dict[str, float] = {}
+    for family in semantic_families:
+        rows = [sample for sample in final_samples if sample["family"] == family]
+        semantic_exact_match_by_family[family] = (
+            float(
+                np.mean(
+                    [
+                        sample["predicted_response"] == sample["gold_response"]
+                        for sample in rows
+                    ]
+                )
+            )
+            if rows
+            else 0.0
+        )
+    semantic_family_gate_passed = all(
+        rate >= 0.50 for rate in semantic_exact_match_by_family.values()
+    )
     counterfactual_response_change_rate = float(
         np.mean([sample["response_changed"] for sample in final_counterfactuals])
     )
@@ -711,9 +736,15 @@ def main() -> int:
         "response_termination_rate": response_termination_rate,
         "response_nonblank_rate": response_nonblank_rate,
         "unique_response_count": unique_response_count,
+        "semantic_exact_match_by_family": semantic_exact_match_by_family,
+        "semantic_family_gate_passed": semantic_family_gate_passed,
         "free_running_gate_passed": free_running_passed,
         "promotion_allowed": (
-            loss_improved and accuracy_improved and causal_passed and free_running_passed
+            loss_improved
+            and accuracy_improved
+            and causal_passed
+            and semantic_family_gate_passed
+            and free_running_passed
         ),
     }
     atomic_json(args.run_dir / "gate.json", gate)
