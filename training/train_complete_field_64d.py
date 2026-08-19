@@ -378,6 +378,7 @@ def main() -> int:
     parser.add_argument("--weight-decay", type=float, default=0.01)
     parser.add_argument("--grad-accum", type=int, default=1)
     parser.add_argument("--clip-grad", type=float, default=1.0)
+    parser.add_argument("--teacher-forcing-ratio", type=float, default=1.0)
     parser.add_argument("--causal-weight", type=float, default=0.50)
     parser.add_argument("--causal-every", type=int, default=1)
     parser.add_argument("--eval-every", type=int, default=1000)
@@ -398,9 +399,10 @@ def main() -> int:
         or args.grad_accum < 1
         or args.causal_every < 1
         or args.counterfactual_sample_count < 1
+        or not 0.0 <= args.teacher_forcing_ratio <= 1.0
     ):
         raise ValueError(
-            "steps, grad_accum, causal_every, and counterfactual_sample_count must be positive"
+            "positive counts and a teacher_forcing_ratio between zero and one are required"
         )
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -468,6 +470,7 @@ def main() -> int:
     else:
         rng.setstate(sampler_state)
     recent_losses: list[float] = []
+    run_start_step = step
     started = time.time()
     optimizer.zero_grad(set_to_none=True)
     status = "running"
@@ -480,6 +483,7 @@ def main() -> int:
                     record["field"],
                     record["targets"]["scratch"],
                     record["targets"]["response_draft"],
+                    teacher_forcing_ratio=args.teacher_forcing_ratio,
                 )
                 scratch_loss = sequence_cross_entropy(out["scratch_logits"], out["scratch_targets"])
                 response_loss = sequence_cross_entropy(out["response_logits"], out["response_targets"])
@@ -494,8 +498,11 @@ def main() -> int:
                     intervened = dict(causal_record["field"])
                     intervened["scratch"] = counterfactual["scratch"]
                     causal_state, _ = model.read_field(intervened)
-                    causal_logits, causal_targets = model.decode_teacher(
-                        causal_state, counterfactual["response_draft"], head=1
+                    causal_logits, causal_targets = model.decode_scheduled(
+                        causal_state,
+                        counterfactual["response_draft"],
+                        head=1,
+                        teacher_forcing_ratio=args.teacher_forcing_ratio,
                     )
                     causal_loss = sequence_cross_entropy(causal_logits, causal_targets)
                     causal_accuracy = teacher_char_accuracy(causal_logits.detach(), causal_targets)
@@ -522,10 +529,13 @@ def main() -> int:
             recent_losses.append(loss_value)
             recent_losses = recent_losses[-100:]
             elapsed = max(1e-6, time.time() - started)
+            completed_this_run = step - run_start_step
+            run_rate = completed_this_run / elapsed
             metric = {
                 "schema": "axon-complete-field-r0-metric-v1",
                 "step": step,
                 "loss": loss_value,
+                "teacher_forcing_ratio": args.teacher_forcing_ratio,
                 "scratch_loss": float(scratch_loss.detach().item()),
                 "response_loss": float(response_loss.detach().item()),
                 "counterfactual_loss": float(causal_loss.detach().item()),
@@ -543,7 +553,7 @@ def main() -> int:
                 "coverage_tick2_chars": out["coverage_tick2"].observed_characters,
                 "coverage_tick2_pages": out["coverage_tick2"].page_count,
                 "grad_norm": grad_norm,
-                "steps_per_second": step / elapsed,
+                "steps_per_second": run_rate,
                 "example_id": record["example_id"],
                 "family": record["family"],
                 "time": time.time(),
@@ -588,8 +598,8 @@ def main() -> int:
                         "target_step": args.steps,
                         "progress": step / args.steps,
                         "mean_recent_loss": float(np.mean(recent_losses)),
-                        "steps_per_second": step / elapsed,
-                        "eta_seconds": (args.steps - step) / max(1e-9, step / elapsed),
+                        "steps_per_second": run_rate,
+                        "eta_seconds": (args.steps - step) / max(1e-9, run_rate),
                         "baseline": baseline,
                         "latest_evaluation": last_eval,
                         "latest_samples": samples or [],
@@ -602,7 +612,7 @@ def main() -> int:
                 print(
                     f"step={step} loss={loss_value:.4f} scratch={scratch_loss.item():.4f} "
                     f"response={response_loss.item():.4f} pages={out['coverage_tick1'].page_count} "
-                    f"chars={out['coverage_tick1'].observed_characters} rate={step/elapsed:.3f}/s",
+                    f"chars={out['coverage_tick1'].observed_characters} rate={run_rate:.3f}/s",
                     flush=True,
                 )
     except KeyboardInterrupt:

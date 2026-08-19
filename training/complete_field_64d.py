@@ -306,6 +306,40 @@ class CompleteField64D(nn.Module):
         output, _ = self.decoder(self.decoder_embedding(decoder_input), hidden)
         return self.decoder_output(self.decoder_norm(output)), targets
 
+    def decode_scheduled(
+        self,
+        reader_state: torch.Tensor,
+        target: str,
+        head: int,
+        teacher_forcing_ratio: float,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Train on model-generated prefixes so greedy behavior cannot hide behind teacher forcing."""
+        if not 0.0 <= teacher_forcing_ratio <= 1.0:
+            raise ValueError("teacher_forcing_ratio must be between zero and one")
+        if teacher_forcing_ratio >= 1.0:
+            return self.decode_teacher(reader_state, target, head)
+        targets = self._target_indices(target).unsqueeze(0)
+        summary = reader_state.mean(dim=1)
+        head_vec = self.decoder_head_embedding(torch.tensor([head], device=self.device))
+        hidden = torch.tanh(self.decoder_init(torch.cat((summary, head_vec), dim=-1))).unsqueeze(0)
+        token = torch.full((1, 1), self.bos_index, dtype=torch.long, device=self.device)
+        logits: list[torch.Tensor] = []
+        for position in range(targets.shape[1]):
+            output, hidden = self.decoder(self.decoder_embedding(token), hidden)
+            step_logits = self.decoder_output(self.decoder_norm(output[:, -1:]))
+            logits.append(step_logits)
+            if position + 1 >= targets.shape[1]:
+                continue
+            use_teacher = bool(
+                torch.rand((), device=self.device).item() < teacher_forcing_ratio
+            )
+            token = (
+                targets[:, position : position + 1]
+                if use_teacher
+                else step_logits.argmax(dim=-1).detach()
+            )
+        return torch.cat(logits, dim=1), targets
+
     @torch.no_grad()
     def decode_greedy(self, reader_state: torch.Tensor, head: int, max_chars: int | None = None) -> tuple[str, bool]:
         limit = self.cfg.max_output_chars if max_chars is None else min(max_chars, self.cfg.max_output_chars)
@@ -333,14 +367,19 @@ class CompleteField64D(nn.Module):
         field: Mapping[str, str],
         scratch_target: str,
         response_target: str,
+        teacher_forcing_ratio: float = 1.0,
     ) -> dict[str, Any]:
         exact = canonical_field(field)
         state1, coverage1 = self.read_field(exact)
-        scratch_logits, scratch_indices = self.decode_teacher(state1, scratch_target, head=0)
+        scratch_logits, scratch_indices = self.decode_scheduled(
+            state1, scratch_target, head=0, teacher_forcing_ratio=teacher_forcing_ratio
+        )
         second_field = dict(exact)
         second_field["scratch"] = scratch_target
         state2, coverage2 = self.read_field(second_field)
-        response_logits, response_indices = self.decode_teacher(state2, response_target, head=1)
+        response_logits, response_indices = self.decode_scheduled(
+            state2, response_target, head=1, teacher_forcing_ratio=teacher_forcing_ratio
+        )
         return {
             "scratch_logits": scratch_logits,
             "scratch_targets": scratch_indices,

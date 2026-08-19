@@ -33,6 +33,13 @@ declared bound fail loudly; they are never silently clipped. The writer emits
 typed whole-region replacement operations only for `scratch` and
 `response_draft`.
 
+Training supports deterministic scheduled prefix exposure. With a ratio below
+one, each scratch, response, and matched-counterfactual decoder sometimes
+receives its own previous argmax token instead of the gold previous character.
+This prevents high teacher-path accuracy from hiding a free-running decoder
+that ignores reader/scratch state. The chosen ratio is recorded in every metric
+and checkpoint.
+
 ## Evidence classes
 
 - Grade A exact raw user messages plus exact, quality-filtered assistant

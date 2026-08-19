@@ -54,6 +54,34 @@ def test_teacher_path_accepts_output_longer_than_64_characters() -> None:
     assert output["response_logits"].shape[1] == 97
 
 
+def test_scheduled_decoder_matches_teacher_path_at_ratio_one() -> None:
+    torch.manual_seed(3)
+    model = CompleteField64D(
+        ReaderConfig(page_size=64, max_output_chars=128, dropout=0.0)
+    ).cpu()
+    model.eval()
+    state, _ = model.read_field(field_fixture())
+    teacher_logits, teacher_targets = model.decode_teacher(state, "Axon is ready.", head=1)
+    scheduled_logits, scheduled_targets = model.decode_scheduled(
+        state, "Axon is ready.", head=1, teacher_forcing_ratio=1.0
+    )
+    assert torch.equal(teacher_targets, scheduled_targets)
+    assert torch.equal(teacher_logits, scheduled_logits)
+
+
+def test_scheduled_decoder_accepts_model_prefixes() -> None:
+    torch.manual_seed(4)
+    model = CompleteField64D(
+        ReaderConfig(page_size=64, max_output_chars=128, dropout=0.0)
+    ).cpu()
+    state, _ = model.read_field(field_fixture())
+    logits, targets = model.decode_scheduled(
+        state, "Use visible evidence.", head=0, teacher_forcing_ratio=0.0
+    )
+    assert logits.shape[:2] == targets.shape
+    assert torch.isfinite(logits).all()
+
+
 def test_synthetic_families_have_empty_and_conflicting_scratch_interventions() -> None:
     records = list(synthetic_records(5, seed=7))
     assert len({record["family"] for record in records}) == 5

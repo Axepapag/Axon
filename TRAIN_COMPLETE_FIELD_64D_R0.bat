@@ -20,6 +20,7 @@ rem Stage 1 is a hard promotion gate. A failed gate exits before the 200k contin
   --max-output-chars 512 ^
   --causal-weight 0.5 ^
   --causal-every 1 ^
+  --teacher-forcing-ratio 0.75 ^
   --checkpoint-every 250 ^
   --sample-every 250 ^
   --eval-every 1000 ^
@@ -42,6 +43,7 @@ rem optimizer, scaler, global RNG, CUDA RNG, and sampler RNG state.
   --max-output-chars 512 ^
   --causal-weight 0.5 ^
   --causal-every 1 ^
+  --teacher-forcing-ratio 0.75 ^
   --checkpoint-every 250 ^
   --sample-every 250 ^
   --eval-every 1000 ^
