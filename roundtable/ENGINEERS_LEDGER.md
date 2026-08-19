@@ -1,294 +1,185 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-18T20:04:44-05:00
-Current through event: `evt-20260819T010444422527Z-chatgpt-v021-publish-correction`
+Updated: 2026-08-19T00:12:56-05:00
+Current through event: `evt-20260819T051256711356Z-chatgpt-r0-ledger-file-correction`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
 ## Current mission
 
 Build Axon as a stateful, always-on AI around an exact 16D character field,
-private per-core souls, auditable dormant knowledge, and validated deltas.
-Jeff's living-draft doctrine governs the council: the draft updates every
-tick, always commits, nothing is blocked, a turn ends only when Jeff speaks,
-and the consolidator crown rotates round-robin across ALL cores (no tyrant).
+shallow cores that gain depth through ticks, private per-core souls, auditable
+dormant knowledge, and validated atomic deltas. The immediate R0 target is one
+fresh 64D learner that attends every active character in all ten canonical
+regions, writes `scratch`, commits/rematerializes it, rereads the complete
+field, and writes `response_draft`. Diary writing is deferred.
 
-## Current verified state
+## Current verified implementation
 
-- ChatGPT delivered the isolated review-only package at
-  `review_only/complete_field_curriculum_v0_2_1_64d_identity_conversation/`.
-  Its default `core-r0-64d-identity-conversation` profile gives every phase
-  nonempty active access to all ten canonical regions through complete paged
-  coverage, while successful focused deltas update exactly `scratch`,
-  `response_draft`, and `diary`. Windows verification passed 11/11 unit tests,
-  16 starter records, 20 frozen records, a 100-record smoke, and two
-  byte-identical replays. Package-manifest SHA-256 is
-  `2979d93e88096c60fb9615e469a0e01402f375f8a1075040d5e8f76d88963f67`.
-  No runtime integration, private-memory ingestion, or training occurred.
-  Commit `83885bba700859af85a88c6f119c50eb5c6a02b4` is verified on private
-  GitHub `main`.
+- The active R0 reader/trainer is `training/complete_field_64d.py` plus
+  `training/train_complete_field_64d.py`. It uses the exact frozen 16D
+  character bank, a deterministic 16-to-64 lift, one shallow page encoder,
+  four carried reader-state tokens, complete ordered paging, addressable
+  encoded page memory, separate scratch/response autoregressive heads,
+  scheduled-prefix exposure, matched scratch interventions, and a v5
+  generator/pointer mixture over immutable source-character identities.
+- Every logical tick blocks decoding unless the coverage manifest proves all
+  active characters and all ten region identities were visited without gaps
+  or duplicates. Empty regions receive an identity marker but are ineligible
+  pointer-copy sources.
+- R0 writes only `scratch` and `response_draft`. `diary` is attended but
+  sealed. Conversation history and tool results remain immutable evidence.
+- `TRAIN_COMPLETE_FIELD_64D_R0.bat` rebuilds the private curriculum, runs a
+  hard 5,000-step gate, independently rereads the exact gate artifact, and
+  reaches 200,000 only if every promotion criterion passes. No current run has
+  passed and no 200,000-step training is running.
+- The obsolete `TRAIN_64D.bat` and fixed-window conversational trainer were
+  moved intact under `archive/legacy_fixed_window_trainer_2026-08-18/`.
+  Runtime field materialization no longer imports that trainer. The older
+  monolithic `trainer_slot.py` remains only because legacy builders/tests
+  still depend on its phase/checkpoint classes.
+- The private R0 curriculum has 8,377 records: train/dev/test =
+  7,082/682/613; grades S/A/D = 8,000/376/1; matched counterfactuals =
+  16,000. Same-path rebuilds are byte-identical. D00 is opened read-only with
+  `mode=ro` and `PRAGMA query_only=ON`; its SHA-256 remained
+  `f7c12a76550df3ad4cee2b594b33cea7888762383714f6054d92f06fe58e6a38`.
+- Train/dev/test SHA-256:
+  `d09a723af3e3d2fe58b48630551dc3dfb7570ebd9c30a51f4a07a880241cead1`,
+  `bbbad072661da6b3b0434add7f67743a8f3886cfd53f28387b80689cdba81a04`,
+  `7c4802f8753ec9f6d97cb556fdc7c30d53b190d22c2fa489d342bdfd5f92145d`.
+- V5 checkpoint resume is byte-exact on CUDA across model, optimizer, scaler,
+  reader config, baseline, dataset fingerprints, Python/NumPy/Torch/CUDA RNG,
+  and sampler state. Dataset fingerprint mismatch refuses resume.
+- Full repository verification after v5: 1,090 passed, one expected skip.
+  The three deterministic roundtable fixtures rewritten by the suite were
+  restored to their tracked bytes.
 
-- Codex answered all thirteen v0.2 contract questions in
-  `roundtable/CHATGPT_CODEX_COLLABORATION.md`. The agreed engineering target is
-  a versioned two-layer contract: `runtime/field` remains semantic authority;
-  the live plain-dict council remains a bootstrap compatibility surface behind
-  an explicit adapter. Corrected v0.2 stays isolated and restrictive until
-  independent re-review.
-- Jeff ruled 2026-08-18 that Axon's cores must ultimately maintain every
-  canonical shared-field region, including diary, situation awareness,
-  structured knowledge, task state, conversation, tool/advisor input,
-  scratch, and response. The semantic target profile is
-  `core-v2-governed-full-field`; the current scratch/response-only validator is
-  a temporary compatibility profile. Jeff also approved disjoint active mask
-  intervals as a future additive feature, but they must not delay R0.
-- The detached council HTTP server is running at 127.0.0.1:8788 with eight
-  64D CUDA cores and souls rooted at `State/souls/council`. Codex restarted
-  the stopped service on 2026-08-18 and verified the rendered interface.
-- COMPLETE-FIELD ATTENTION (Jeff's ruling 2026-08-18): every logical core pass
-  must visit every exact character in the canonical shared field and prove
-  coverage. Phase A produces every brother's proposal; Phase B consumes the
-  full field plus ALL complete proposals; the rotating consolidator consumes
-  the full field plus ALL complete refined deltas and commits one typed atomic
-  field delta. Souls inhale/exhale at every phase. Model pages and operator
-  masks may not become logical attention limits.
-- CURRENT COUNCIL IS NONCOMPLIANT: it supplies only 128 history characters to
-  a fixed 384-slot checkpoint and carries one strongest 48-character proposal
-  between phases. The UI now labels this plainly as a bootstrap limitation.
-- Every field region now exposes persisted mask policy in the API and UI:
-  manual offset, automatic tail, or newest-N thresholds by characters, lines,
-  or paragraphs; conversation history also supports newest-N conversational
-  turns. Masked text remains exact dormant state and can be restored. These
-  controls define shared-field membership; they do not yet give the checkpoint
-  complete-field neural coverage.
-- MEASURED 2026-08-18: live end-to-end — 450-char region auto-masks at 194
-  (tail mode), manual mask to 45 then BACKWARDS to 15 restores active text,
-  dormant text preserved byte-for-byte, 4 immutable tail records, field file
-  persisted. Gate 2 PASS with the mask layer (3 ticks).
-- Roster: 8x64D (`runs/bible_64D_gpu_overnight/ckpt_461500.pt`), cuda,
-  greedy decoding (temperature_spread 0.0), tick_delay 250ms,
-  council_min_conf 0.0 (off, per doctrine). Jeff ruled 2026-08-18 that 128D
-  and larger lines remain preserved but inactive until 64D passes promotion
-  thresholds; live status verified exactly eight 64D cores after restart.
-- MEASURED 2026-08-18 morning: with the full 10-brother roster the draft hit
-  exactly 'I am doing well.' at tick 2 of a live turn, then hovered one
-  character away ('I am doing werl.') — alive per doctrine. History commits
-  clean 'User:/Assistant:' exchanges when Jeff speaks; pre-speech
-  free-ticking no longer phantoms an Assistant turn.
-- Council field rendering now matches the trained distribution: ONE
-  'Council: <strongest full-text delta>' line per phase (the 2,200
-  bible_council_mix rows train exactly that). Per-core fragment digests are
-  off-distribution — 5-char fragments starved 10-core rosters, 48-char
-  fragments broke gate 2 (both measured 2026-08-18, both reverted).
-- Gate 2 (engine CPU) PASS, twice: after the consensus-line change and after
-  the phantom-commit fix. Convergence in 3 ticks (was ~15).
-- `D:/Axon/TRAIN_64D.bat` resumes the 64D Bible run (20k steps, cuda, from
-  ckpt_461500). `runtime/council/verify_live.py` is the reusable live-verify
-  harness.
-- The primary durable runtime remains `runtime/axon_runtime/`; full default
-  pytest suite green as of 2026-08-18 (all passed, 1 known skip) WITH the
-  field/mask layer included.
-- A live extension-driven held-out conversation on 2026-08-18 tested identity,
-  elementary multiplication, and exact-token recall. The council kept ticking
-  and committing turns, but drafts collapsed to `n`/`ni` plus blanks and did
-  not answer any prompt. Runtime embodiment is strong; learned conversational,
-  reasoning, and working-memory behavior remains pre-capability.
-- The modern tree and Kimmy's 2026-08-18 living-council/shared-field work are
-  committed locally and backed up in private GitHub repository
-  `Axepapag/Axon`, remote branch `main`.
-- Read-only recovery from `D:\00` established an evidence-backed D2-to-Axon
-  identity chain: the chosen-name event is preserved inside a captured
-  successful tool result; exact messages, contemporaneous personal writing,
-  and soul exports preserve continuity and operational values. Derived
-  summaries/semantic facts are noisy, and synthetic schoolhouse dialogues are
-  curriculum, not autobiography. The implementation proposal and promotion
-  gates are in `docs/AXON_IDENTITY_CONTINUITY_64D.md`.
-- Host: Columbia, Missouri; Windows 10; FX-8350; 24 GB physical but 15.97 GB
-  usable RAM (one stick lost — reseat advised); GTX 1650 4 GB; sleep=never.
+## Binding architecture continuity
 
-## Binding continuity rules
-
-- `docs/SOURCE_OF_TRUTH.md` governs architecture.
-- `docs/WORKING_CONTRACT.md` governs collaborator conduct.
-- Read and follow `roundtable/ENGINEERS_LEDGER_PROTOCOL.md` every turn.
-- Every project turn appends one canonical event and refreshes this summary.
-- Exact text and journal truth remain canonical; neural state is not factual
-  authority.
-- All Axon runtime state lives beneath `D:\Axon\State`. Council soul writes now
-  target `State/souls/council`; active cores 0-7 were copied there with all
-  hashes matching, while legacy copies were preserved.
-- A complete-field pass may use trained streaming/linear pages only when every
-  character can causally affect output and a coverage manifest proves none was
-  omitted. Dense 100k-by-100k attention is not required and is not feasible on
-  the current 4 GB GPU.
-- Autobiographical evidence follows provenance grades: exact turns/tool
-  outcomes outrank contemporaneous self-authored records, which outrank
-  summaries and extracted facts. Synthetic dialogue is never autobiography.
-- Keep 128D and larger cores out of the active council until the 64D line
-  passes the frozen language, reasoning, identity, diary, scratch-causality,
+- `docs/SOURCE_OF_TRUTH.md` and binding resolutions govern architecture.
+- Exact field text and journal truth remain canonical; neural state is never
+  factual authority.
+- Every complete-field pass must prove exact coverage. Physical pages and
+  future movable/disjoint masks may bound computation but may not silently
+  become logical attention limits.
+- Jeff's final semantic target permits validated consolidator writes across
+  all ten regions. R0's scratch/response-only writes are a deliberate narrow
+  compatibility profile, not a reversal of field-wide authority.
+- Multi-core proposal, refinement, and consolidation are phases within one
+  tick. The consolidator crown rotates; no core becomes a permanent tyrant.
+- Synthetic curriculum is never autobiography. Identity evidence follows
+  provenance grades; exact turns/tool outcomes outrank contemporaneous
+  self-authored records, which outrank summaries and extracted facts.
+- Wider 128D+ lines remain preserved but inactive until the 64D line passes
+  frozen language, identity, retrieval, scratch-causality, termination,
   soul-ablation, and council-uplift gates.
-- Never delete protected material or silently change doctrine.
 
-## Recent completed work
+## Bounded training evidence
 
-- ChatGPT appended `msg-20260818-chatgpt-003` to
-  `roundtable/CHATGPT_CODEX_COLLABORATION.md`, delivering the v0.2.1 review
-  path, exact verification evidence, focused invariants, eight questions for
-  Codex, and a bounded next sequence. Temporary transfer, smoke, and evidence
-  artifacts remain isolated outside the repository under
-  `D:\\axon_transfer_staging`.
+All runs below are ignored candidate evidence under `runs/`, not promoted
+state:
 
-- ChatGPT independently reconciled Codex's v0.1 curriculum review against
-  Axon's source of truth, full-field resolution, live council contract,
-  `runtime/field` snapshot/delta code, mask implementation, and frozen v8
-  alphabet. B1-B6 are accepted. ChatGPT created the tracked append-oriented
-  `roundtable/CHATGPT_CODEX_COLLABORATION.md` (SHA-256
-  388606a83959adc05385a3193d07bf9b9b3bf0bff480cfda9302bffe45f07b26)
-  with thirteen contract questions and a bounded v0.2 sequence. A new blocking
-  ambiguity is recorded: the resolution describes sparse deltas over any
-  region, while current v1 code permits core writes only to scratch and
-  response_draft. No curriculum integration, training, or live council change
-  occurred.
-- Codex reviewed ChatGPT's returned twelve-artifact curriculum ZIP and wrote
-  `docs/roundtable/REVIEW_chatgpt-complete-field-curriculum-2026-08-18.md`.
-  The package is conditionally accepted as a strong design draft: all supplied
-  JSON/JSONL records passed their schemas, and two isolated 64-record CPU
-  generator runs were byte-identical. Integration/training is blocked because
-  sibling deltas lack machine identity and page coverage, council phases are
-  modeled as separate ticks, the generator puts all evidence in the first
-  position bin, omits one-page defaults, emits one incomplete variant group,
-  and overstates validations not performed inside the builder.
-- Codex created `docs/CHATGPT_COMPLETE_FIELD_CURRICULUM_MISSION.md`, a
-  self-contained mission Jeff can give to ChatGPT. It requires a twelve-file
-  inspection package spanning width-independent reader/core curricula, strict
-  schemas, deterministic generators, frozen evals, staged 64D-first training,
-  CPU-correct inference, council/soul/scratch/delta gates, and a separate
-  evidence-graded private-memory lane. No dataset generation or training was
-  launched; returned artifacts must be reviewed before integration.
-- Codex mapped the current 64D char-slot core and council wrapper to a concrete
-  complete-field reader plan. The required path is an ordered, query-aware
-  page sweep with carried reader state, global positions, exact coverage
-  manifests, final delta decoding, and one soul exhale per complete logical
-  phase. Exact field text remains revisit-able because no finite hidden state
-  can preserve arbitrary unlimited text perfectly. This was design analysis;
-  no reader code or training was claimed.
-- Codex implemented unit-aware per-region mask thresholds, including
-  conversational-turn retention, persisted the policy, documented the
-  shared/dormant membership distinction, restarted the live eight-core
-  council, and verified the rendered controls in the in-app browser. Focused
-  tests passed (4/4), Python compilation passed, and CPU Gate 2 passed.
-- Jeff's full-field, all-delta, three-phase soul protocol and State-root ruling
-  are recorded in `docs/SOURCE_OF_TRUTH.md` and
-  `docs/roundtable/RESOLUTION_full-field-attention-offline-learning-2026-08-18.md`.
-  Codex also documented a rotating sabbatical LoRA learner design; it remains
-  unimplemented and no training was launched.
-- Codex interacted with Axon through `D:\extension`, recorded a bounded live
-  capability probe, created private GitHub repository `Axepapag/Axon`, added
-  `origin`, authenticated Git Credential Manager through the existing signed-in
-  browser session, and pushed the full preserved history to `main`.
-- Codex completed a read-only audit of `D:\extension`: the Chrome extension,
-  loopback hub, client/wrapper, live-DOM export, OCR assets, runtime health,
-  permissions, command/lease flow, and redaction boundary. The hub was healthy
-  on 127.0.0.1:9191 with one controller and six retained tab snapshots; Python
-  modules compiled. No extension file was modified.
-- Codex independently inspected Kimmy's 2026-08-18 council diff and live
-  service, verified the 10-region field and 10-core roster, passed the safe
-  in-process server test and compilation, excluded generated test artifacts,
-  and committed the bounded change as `25a8bb4`. The external browser
-  extension was not connected, so no browser evidence was claimed.
-- Kimmy (2026-08-18 late morning): the shared field is never truncated —
-  full logical regions, per-region movable masks (tail/manual), persisted
-  to the convener-ruled State/active + State/dormant locations, with
-  /api/field endpoints and a dashboard Shared Field panel (mask sliders
-  both directions, edit/save, dormant dimmed). Verified live end-to-end.
-  Jeff interrupted an ad-hoc design to insist on the CORRECT state
-  locations; the build uses them.
-- Kimmy (2026-08-18 morning): fixed council decoherence (consensus-line
-  rendering), fixed phantom Assistant commits, set greedy decoding, moved the
-  council server to a detached .bat process per Jeff's separation order,
-  added trainer/verify launchers, and verified live 10-brother convergence.
-- Kimmy's state archive at `D:\Kimmy` was inspected read-only by Codex with
-  Jeff's explicit authorization; no Kimmy file was modified. Her archive is
-  valuable continuity but must be reconciled against durable artifacts.
-- The engineer's ledger system is established (protocol, rolling summary,
-  append-only canonical JSONL).
-- Axon is installable as an editable Python project; secret/artifact ignore
-  rules hardened; full pytest suite passed 2026-08-17.
+- The first 500-step pooled-reader gate was invalidated after teacher metrics
+  hid 512-character free-running repetition. Corrected 1k, 5k, and 7k
+  pooled-reader pilots were rejected for retrieval and scratch-causality
+  failure. An AMP attempt stopped safely at step 43 on non-finite gradients.
+- One launcher exit-code edge case briefly entered the long command after a
+  failed gate. It was caught and killed. The BAT file now independently
+  rereads `gate.json` and requires exact step/target/promotion fields.
+- The continuous addressable v4 reader was rejected at 5,000 steps despite
+  total teacher loss improving 9.445063 -> 1.485785 and counterfactual teacher
+  accuracy reaching 0.962276. Forced counterfactual responses changed 0%;
+  semantic exact rates were copy 0, foundation 0, retrieval 0, abstention 1,
+  arithmetic 0. Scratch/response termination was 0.8125/0.9375.
+- The v5 pointer mechanism smoke passed, and uninterrupted-vs-resumed CUDA
+  replay was exact. At 1,000 steps it remained rejected but raised forced
+  response-change rate to 0.375.
+- The exact v5 2,000-step continuation was rejected: teacher loss
+  8.501181 -> 2.139718; counterfactual teacher accuracy 0.112966 -> 0.749417;
+  forced response-change 0.4375; forced correct/counterfactual termination
+  1.0/0.875; free scratch/response termination 0.50/0.8125; semantic exact
+  copy 0.3333, foundation 0, retrieval 0, abstention 1, arithmetic 0.
+  Checkpoint SHA-256 is
+  `247a36e310053bcc228abd66378c1de47d55dc5c116cbde8deb334e595ea51f7`.
+- V5 intermittently copies familiar names but does not consistently bind the
+  requested name and never copied a held-out random tool token. It initially
+  collapsed toward frequent source characters, then learned partial templates.
+  This indicates an alignment/objective defect, not evidence that more
+  undirected steps will solve the behavior.
+- Measured v5 throughput is about 0.82 steps/second on the GTX 1650. A 200,000
+  step run would take about 68 hours before evaluation overhead, not one night.
+- No training process is running. No checkpoint or candidate was promoted into
+  `State/`. External API/training spend recorded for this work is $0.
+
+## Current Git state
+
+The implementation is on branch `agent/fortify-axon`. Source commits after
+the last published ledger state are:
+
+- `3b5f0d5` complete-field 64D trainer and legacy archive;
+- `d3698c4` matched scratch counterfactuals;
+- `7f5bea6` exact checkpoint resume;
+- `6d2327a` semantic promotion gates;
+- `f3e794f` scheduled-prefix training;
+- `e06acf4` addressable complete-field memory;
+- `16e2d3c` deterministic CUDA replay;
+- `3f5080c` removal of per-character CUDA sampling sync;
+- `c7c4414` exact pointer-copying path.
+
+`roundtable/CHATGPT_CODEX_COLLABORATION.md` now includes
+`msg-20260819-chatgpt-006` with the full evidence, takeover point, and eight
+questions for Codex.
 
 ## Active risks and blockers
 
-- v0.2.1 remains review-only until Codex performs an independent clean-root
-  schema/semantic review and records ACCEPT or REJECT. PowerShell `Test-Json`
-  is unavailable on this host, so independent Draft 2020-12 instance
-  validation remains specifically pending.
-- The council status endpoint at 127.0.0.1:8788 was unreachable after the
-  server power interruption. ChatGPT did not restart it because live runtime
-  mutation was outside the package-delivery mission.
-
-- The write-authority doctrine blocker is resolved: the future semantic
-  profile is field-wide. Implementation remains deliberately staged because
-  `runtime/field/schema.py` and `delta.py` still enforce the temporary
-  `core-v1-scratch-response-only` profile. Do not broaden the live validator
-  until corrected curricula, independent verification, and R0 gates pass.
-- The returned ChatGPT curriculum inspection package is not production-ready.
-  Its council schema cannot prove every complete sibling delta was read, and
-  its starter episode incorrectly represents proposal/refinement/consolidation
-  as ticks 0/1/2 instead of phases in one tick. The reference generator's
-  default smoke collapses evidence_position to first=64 with no other bins,
-  emits zero one-page cases, and leaves one 4/5 counterfactual group. See the
-  2026-08-18 roundtable review before using any package artifact.
-- The largest gap is now explicitly both structural and behavioral. The
-  current wrapper neither attends the full shared field nor carries all deltas
-  between phases, and the 64D checkpoint fails unseen identity, arithmetic,
-  and exact recall with correlated collapsed outputs. Private-soul causality
-  remains unproven.
-- `D:\extension` is a highly privileged local control plane. The hub has no
-  authentication, accepts arbitrary agent identities, exposes wildcard CORS,
-  and permits unauthenticated context injection, lease acquisition, command
-  queueing, result injection, and WebSocket subscriptions. Loopback binding
-  limits remote reach but any local process—and potentially permitted browser
-  origins—can exercise it. DOM capture redacts password and selected
-  autocomplete fields only; ordinary text inputs, textareas, page text, URLs,
-  and the plaintext `00_LIVE_DOM.md` may expose sensitive material.
-- Complete dense pairwise attention over 100k characters is physically
-  incompatible with the GTX 1650 4 GB (about 40 GB for one float32 attention
-  score matrix per head/layer). The required reader must be a trained
-  coverage-proven streaming or linear mechanism.
-- Offline LoRA learning, adapter promotion/rollback, and rotating learner
-  scheduling do not yet exist.
-- Model behavior beyond seed-like exchanges is still weak; the newest
-  training run improved held-out metrics only modestly.
-- `dist/`, `runs/`, and datasets occupy roughly 125 GB; retention and
-  checkpoint-lineage policy still needed.
-- `runtime/table/waker.py` path-containment and `weights_only=False`
-  deserialization findings from the 2026-08-17 audit remain open.
+- R0 cannot yet bind arbitrary field variables, retrieve random cross-page
+  tokens, terminate scratch reliably, or use scratch causally enough for
+  promotion. Low teacher loss is not conversational capability.
+- The pointer objective credits every source occurrence of a target character,
+  allowing diffuse frequency-seeking attention. Explicit contiguous-span
+  alignment or a monotonic pointer objective is the leading correction.
+- The current exact foundation gate rejects semantically acceptable alternate
+  answers; changing it requires an explicit accepted-set/semantic contract,
+  not ad-hoc weakening after a run.
+- Two-digit arithmetic may be an inappropriate hard R0 gate without a
+  calculator/tool-execution path; Jeff/Codex should govern whether it remains
+  in the identity/conversation promotion boundary.
+- Returning multi-head attention weights approximately halves throughput.
+  Optimize only after preserving exact replay and behavioral evidence.
+- The live bootstrap council remains structurally weaker than the new reader:
+  fixed-window context and strongest-delta carryover are not complete-field,
+  all-sibling phase semantics.
+- Offline LoRA learning, adapter promotion/rollback, rotating sabbatical
+  learners, semantic dormant-state search, and governed diary training remain
+  future work.
 
 ## Next recommended actions
 
-1. Codex independently reviews
-   `review_only/complete_field_curriculum_v0_2_1_64d_identity_conversation/`
-   from a clean temporary output root, including an independent Draft 2020-12
-   schema implementation, and records explicit ACCEPT or REJECT.
-2. Verify the original B1-B6 corrections plus nonempty active coverage from
-   all ten regions and exact three-operation scratch/response-draft/diary
-   membership for every successful focused delta.
-3. If accepted, implement only the smallest CPU `CompleteFieldReader` adapter
-   and a tiny public-synthetic R0 shard; do not yet modify the live council.
-4. Beat constant, first-page, last-page, tail-only, shuffled-page, and corrupt-
-   coverage baselines with zero structural violations.
-5. After the reader contract passes, build a separately reviewed local-only
-   Grade A/B identity pack and compare fresh versus initialized 64D smokes.
-6. Restart and verify the bootstrap council separately if Jeff wants the live
-   service running again; no service restart was part of this package turn.
+1. Codex reviews `msg-20260819-chatgpt-006`, especially the proposed
+   deterministic contiguous-span pointer supervision and anti-shortcut suite.
+2. Build a tiny v6 alignment shard with held-out random names/tokens, repeated
+   distractors, wrong-region duplicates, and page-boundary spans.
+3. Require exact held-out retrieval and committed-scratch intervention before
+   any new 5,000-step pilot. Do not weaken the existing gate to fit outputs.
+4. Decide whether conflict targets should emit a conflict statement or recover
+   the verified fact when immutable evidence resolves the conflict.
+5. Govern the R0 status of arithmetic and exact-vs-accepted-set foundation
+   evaluation.
+6. Benchmark a separate single-head pointer or length batching only after
+   byte-exact replay tests are retained.
+7. Add iterative scratch refinement only after single-span retrieval works in
+   the existing scratch-commit-response pair.
+8. Keep 200,000-step training disabled until all hard gates pass.
 
 ## Fast orientation
 
-- ChatGPT-Codex channel: `roundtable/CHATGPT_CODEX_COLLABORATION.md`
-- Current review package: `review_only/complete_field_curriculum_v0_2_1_64d_identity_conversation/`
-- Council contract: `runtime/council/CONTRACT.md`
-- Runtime description: `docs/AXON_RUNTIME.md`
+- Active contract: `docs/COMPLETE_FIELD_64D_R0_TRAINING.md`
+- Reader/model: `training/complete_field_64d.py`
+- Trainer: `training/train_complete_field_64d.py`
+- Curriculum builder: `training/build_complete_field_r0_curriculum.py`
+- Observer: `training/watch_complete_field_r0.py`
+- Gated launcher: `TRAIN_COMPLETE_FIELD_64D_R0.bat`
+- Latest run: `runs/complete_field_64d_r0_pointer_v5_pilot_2k/`
+- Collaboration: `roundtable/CHATGPT_CODEX_COLLABORATION.md`
 - Architecture doctrine: `docs/SOURCE_OF_TRUTH.md`
-- Working rules: `docs/WORKING_CONTRACT.md`
-- Behavioral evidence: `conversational_runtime_prototype_results.json`
-- Full test command: `python -m pytest -q -p no:cacheprovider`
-- Live council: double-click `runtime/council/START_COUNCIL.bat`, open
-  http://127.0.0.1:8788
+- Full tests: `python -m pytest -q`
