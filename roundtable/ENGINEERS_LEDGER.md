@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-19T00:12:56-05:00
-Current through event: `evt-20260819T051256711356Z-chatgpt-r0-ledger-file-correction`
+Updated: 2026-08-19T17:41:59-05:00
+Current through event: `evt-20260819T224159061900Z-codex-r0-takeover-audit`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -43,6 +43,12 @@ field, and writes `response_draft`. Diary writing is deferred.
   16,000. Same-path rebuilds are byte-identical. D00 is opened read-only with
   `mode=ro` and `PRAGMA query_only=ON`; its SHA-256 remained
   `f7c12a76550df3ad4cee2b594b33cea7888762383714f6054d92f06fe58e6a38`.
+- Codex's independent 2026-08-19 audit found the installed curriculum's
+  foundation labels contradictory and exact fields leaking across splits.
+  The corrected builder now uses held-out random binding strings and refuses
+  contradictory or cross-split exact fields. An isolated rebuild remained
+  8,377 records with splits 7,037/662/678, zero contradictions, and zero exact
+  field overlap. The old private curriculum was deliberately not overwritten.
 - Train/dev/test SHA-256:
   `d09a723af3e3d2fe58b48630551dc3dfb7570ebd9c30a51f4a07a880241cead1`,
   `bbbad072661da6b3b0434add7f67743a8f3886cfd53f28387b80689cdba81a04`,
@@ -127,8 +133,8 @@ the last published ledger state are:
 - `c7c4414` exact pointer-copying path.
 
 `roundtable/CHATGPT_CODEX_COLLABORATION.md` now includes
-`msg-20260819-chatgpt-006` with the full evidence, takeover point, and eight
-questions for Codex.
+`msg-20260819-codex-003` with Codex's independent audit, answers to all eight
+questions, completed curriculum repair, and the v6 firing solution.
 
 ## Active risks and blockers
 
@@ -137,39 +143,42 @@ questions for Codex.
   promotion. Low teacher loss is not conversational capability.
 - The pointer objective credits every source occurrence of a target character,
   allowing diffuse frequency-seeking attention. Explicit contiguous-span
-  alignment or a monotonic pointer objective is the leading correction.
-- The current exact foundation gate rejects semantically acceptable alternate
-  answers; changing it requires an explicit accepted-set/semantic contract,
-  not ad-hoc weakening after a run.
-- Two-digit arithmetic may be an inappropriate hard R0 gate without a
-  calculator/tool-execution path; Jeff/Codex should govern whether it remains
-  in the identity/conversation promotion boundary.
+  alignment is the required next correction; monotonic state waits until exact
+  single-span retrieval passes.
+- The existing scratch counterfactual targets incorrectly demand generic
+  empty/conflict prose even when immutable evidence resolves the answer. The
+  next evaluator must test evidence-over-scratch correctness, not unconditional
+  response change.
+- Foundation training must use one deterministic canonical target per exact
+  field, with a frozen accepted semantic set at evaluation. Two-digit
+  arithmetic is diagnostic rather than a hard identity/conversation R0 gate.
 - Returning multi-head attention weights approximately halves throughput.
   Optimize only after preserving exact replay and behavioral evidence.
 - The live bootstrap council remains structurally weaker than the new reader:
   fixed-window context and strongest-delta carryover are not complete-field,
-  all-sibling phase semantics.
+  all-sibling phase semantics. It was also stopped/unreachable during Codex's
+  2026-08-19 audit and was deliberately not restarted.
 - Offline LoRA learning, adapter promotion/rollback, rotating sabbatical
   learners, semantic dormant-state search, and governed diary training remain
   future work.
 
 ## Next recommended actions
 
-1. Codex reviews `msg-20260819-chatgpt-006`, especially the proposed
-   deterministic contiguous-span pointer supervision and anti-shortcut suite.
-2. Build a tiny v6 alignment shard with held-out random names/tokens, repeated
-   distractors, wrong-region duplicates, and page-boundary spans.
-3. Require exact held-out retrieval and committed-scratch intervention before
-   any new 5,000-step pilot. Do not weaken the existing gate to fit outputs.
-4. Decide whether conflict targets should emit a conflict statement or recover
-   the verified fact when immutable evidence resolves the conflict.
-5. Govern the R0 status of arithmetic and exact-vs-accepted-set foundation
-   evaluation.
-6. Benchmark a separate single-head pointer or length batching only after
-   byte-exact replay tests are retained.
-7. Add iterative scratch refinement only after single-span retrieval works in
-   the existing scratch-commit-response pair.
-8. Keep 200,000-step training disabled until all hard gates pass.
+1. Implement checkpoint/schema v6 alignment labels for unambiguous exact
+   source spans and copy/generate positions.
+2. Add a separate single-head position pointer; preserve byte-exact resume.
+3. Build a tiny anti-shortcut shard with unseen mixed-case tokens, repeated and
+   wrong-region decoys, page-boundary spans, and first/middle/last positions.
+4. Replace unconditional scratch-response-change targets with governed
+   evidence authority: verified immutable evidence wins over conflicting
+   scratch; clean scratch may receive a supervised response-copy prior.
+5. Rebuild the corrected curriculum into a new versioned private directory;
+   never resume v5 against changed fingerprints.
+6. Require 100% exact held-out retrieval, correct conflict behavior, complete
+   coverage, termination, and exact interrupted resume before a 1,000-step
+   v6 comparison.
+7. Add no third tick until the existing two-read single-span mechanism passes.
+8. Keep 5,000- and 200,000-step training disabled.
 
 ## Fast orientation
 
@@ -180,6 +189,7 @@ questions for Codex.
 - Observer: `training/watch_complete_field_r0.py`
 - Gated launcher: `TRAIN_COMPLETE_FIELD_64D_R0.bat`
 - Latest run: `runs/complete_field_64d_r0_pointer_v5_pilot_2k/`
+- Takeover audit: `docs/roundtable/AUDIT_r0-takeover-and-v6-shot-2026-08-19.md`
 - Collaboration: `roundtable/CHATGPT_CODEX_COLLABORATION.md`
 - Architecture doctrine: `docs/SOURCE_OF_TRUTH.md`
 - Full tests: `python -m pytest -q`
