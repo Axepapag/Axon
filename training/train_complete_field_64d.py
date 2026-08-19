@@ -313,7 +313,7 @@ def checkpoint_payload(
     dataset_sha256: Mapping[str, str],
 ) -> dict[str, Any]:
     return {
-        "schema": "axon-complete-field-r0-checkpoint-v3",
+        "schema": "axon-complete-field-r0-checkpoint-v4",
         "step": step,
         "model_state": model.state_dict(),
         "optimizer_state": optimizer.state_dict(),
@@ -386,7 +386,7 @@ def restore(
     expected_dataset_sha256: Mapping[str, str],
 ) -> tuple[int, dict[str, Any], object | None]:
     payload = torch.load(path, map_location=device, weights_only=False)
-    if payload.get("schema") != "axon-complete-field-r0-checkpoint-v3":
+    if payload.get("schema") != "axon-complete-field-r0-checkpoint-v4":
         raise ValueError(f"unsupported checkpoint schema in {path}")
     if payload.get("dataset_sha256") != dict(expected_dataset_sha256):
         raise ValueError(f"dataset fingerprint mismatch in {path}; refusing unsafe resume")
@@ -487,7 +487,7 @@ def main() -> int:
     atomic_json(
         args.run_dir / "config.json",
         {
-            "schema": "axon-complete-field-r0-run-config-v3",
+            "schema": "axon-complete-field-r0-run-config-v4",
             "reader": asdict(config),
             "trainer": {k: str(v) if isinstance(v, Path) else v for k, v in vars(args).items()},
             "device": str(device),

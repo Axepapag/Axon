@@ -71,9 +71,10 @@ gold and predicted response, termination, coverage, and typed delta.
 
 Checkpoints are atomic, keep a rolling three, and update `pointer.json` plus
 `checkpoint_done.json`. Interruption writes a recovery checkpoint. Checkpoint
-schema v3 binds every resume to the exact SHA-256 fingerprints of both training
-and evaluation datasets; pooled-memory v2 checkpoints are intentionally
-incompatible with the addressable reader.
+schema v4 binds every resume to the exact SHA-256 fingerprints of both training
+and evaluation datasets and records a deterministic, single-transfer scheduled
+prefix mask. Pooled-memory v2 and per-character-sync v3 checkpoints are
+intentionally incompatible with the active addressable reader.
 
 ## Promotion sequence
 

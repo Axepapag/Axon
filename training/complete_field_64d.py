@@ -364,6 +364,10 @@ class CompleteField64D(nn.Module):
         head_vec = self.decoder_head_embedding(torch.tensor([head], device=self.device))
         hidden = torch.tanh(self.decoder_init(torch.cat((summary, head_vec), dim=-1))).unsqueeze(0)
         token = torch.full((1, 1), self.bos_index, dtype=torch.long, device=self.device)
+        teacher_choices = (
+            torch.rand(max(0, targets.shape[1] - 1), device=self.device)
+            < teacher_forcing_ratio
+        ).tolist()
         logits: list[torch.Tensor] = []
         for position in range(targets.shape[1]):
             output, hidden = self.decoder(self.decoder_embedding(token), hidden)
@@ -371,9 +375,7 @@ class CompleteField64D(nn.Module):
             logits.append(step_logits)
             if position + 1 >= targets.shape[1]:
                 continue
-            use_teacher = bool(
-                torch.rand((), device=self.device).item() < teacher_forcing_ratio
-            )
+            use_teacher = bool(teacher_choices[position])
             token = (
                 targets[:, position : position + 1]
                 if use_teacher
