@@ -37,7 +37,7 @@ python runtime/tick_loop.py --dry-run --list-checkpoints
 
 ## Current Training Path
 
-`training/train_complete_field_64d.py` is the active R0 trainer. It trains one shallow 64D core to sweep every active character in all ten regions, write scratch, reread the complete committed field, and write a variable-length response draft. Coverage manifests block decoding on gaps. Diary, conversation history, and tool results remain sealed. See `docs/COMPLETE_FIELD_64D_R0_TRAINING.md`.
+`training/train_complete_field_64d.py` is the active R0 trainer. It trains one shallow 64D core to sweep every active character in all ten regions, retain the encoded page tokens as addressable decoder memory, write scratch, reread the complete committed field, and write a variable-length response draft. Coverage manifests block decoding on gaps. Diary, conversation history, and tool results remain sealed. See `docs/COMPLETE_FIELD_64D_R0_TRAINING.md`.
 
 The prior direct fixed-window conversational trainer is preserved under `archive/legacy_fixed_window_trainer_2026-08-18/` and is not an active launch path.
 

@@ -26,7 +26,7 @@ from training.complete_field_64d import REGION_ORDER, canonical_field
 
 
 SCHEMA = "axon-complete-field-r0-example-v2"
-BUILDER_VERSION = "complete-field-r0-counterfactual-builder-2026-08-18"
+BUILDER_VERSION = "complete-field-r0-addressable-builder-2026-08-18"
 
 
 def canonical_bytes(value: Any) -> bytes:
@@ -182,7 +182,7 @@ def synthetic_records(count: int, seed: int) -> Iterator[dict[str, Any]]:
             wrong_name = next(candidate for candidate in names if candidate != name)
             field["conversation_history"] = "Jeff: Keep the answer grounded.\nAxon: I will use visible evidence.\n"
             field["user_input"] = f"Spell {name} exactly."
-            scratch = "Copy the requested visible token without changing it."
+            scratch = f"The requested exact spelling is {name}."
             response = name
             counterfactuals = (
                 {

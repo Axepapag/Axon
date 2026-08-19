@@ -149,6 +149,8 @@ Current R0 trainer:
 - `training/train_complete_field_64d.py`,
 - exact frozen 16D character input lifted into one 64D core,
 - complete ordered paging across all ten active regions before decoding,
+- decoder cross-attention over every encoded page token, while the four carried
+  state tokens remain a compact recurrent summary rather than an exact-text bottleneck,
 - a scratch delta followed by commit/rematerialize and a second complete sweep,
 - variable-length response-draft decoding with an explicit end token,
 - diary, conversation history, and tool results sealed in R0,

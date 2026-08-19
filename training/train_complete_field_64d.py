@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -44,6 +45,14 @@ def append_jsonl(path: Path, value: Mapping[str, Any]) -> None:
     with path.open("a", encoding="utf-8", newline="\n") as handle:
         handle.write(json.dumps(value, ensure_ascii=False, sort_keys=True) + "\n")
         handle.flush()
+
+
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 def load_jsonl(path: Path, split: str | None = None) -> list[dict[str, Any]]:
@@ -168,16 +177,26 @@ def evaluate_teacher(
             for variant, collector in (("", empty_deltas), (corruption(record["targets"]["scratch"]), corrupt_deltas)):
                 ablated = dict(record["field"])
                 ablated["scratch"] = variant
-                state, _ = model.read_field(ablated)
-                logits, targets = model.decode_teacher(state, record["targets"]["response_draft"], head=1)
+                state, memory, _ = model.read_field_with_memory(ablated)
+                logits, targets = model.decode_teacher(
+                    state,
+                    record["targets"]["response_draft"],
+                    head=1,
+                    memory=memory,
+                )
                 collector.append(float(sequence_cross_entropy(logits, targets).item() - rl.item()))
         for counterfactual in record["response_counterfactuals"]:
             if len(counterfactual_losses) >= causal_examples:
                 break
             intervened = dict(record["field"])
             intervened["scratch"] = counterfactual["scratch"]
-            state, _ = model.read_field(intervened)
-            logits, targets = model.decode_teacher(state, counterfactual["response_draft"], head=1)
+            state, memory, _ = model.read_field_with_memory(intervened)
+            logits, targets = model.decode_teacher(
+                state,
+                counterfactual["response_draft"],
+                head=1,
+                memory=memory,
+            )
             counterfactual_losses.append(float(sequence_cross_entropy(logits, targets).item()))
             counterfactual_acc.append(teacher_char_accuracy(logits, targets))
     result = {
@@ -240,14 +259,22 @@ def forced_counterfactual_samples(
     for record in stratified_records(causal_records, len(causal_records)):
         correct_field = dict(record["field"])
         correct_field["scratch"] = record["targets"]["scratch"]
-        correct_state, _ = model.read_field(correct_field)
-        correct_response, correct_terminated = model.decode_greedy(correct_state, head=1)
+        correct_state, correct_memory, _ = model.read_field_with_memory(correct_field)
+        correct_response, correct_terminated = model.decode_greedy(
+            correct_state,
+            head=1,
+            memory=correct_memory,
+        )
         for counterfactual in record["response_counterfactuals"]:
             intervened = dict(record["field"])
             intervened["scratch"] = counterfactual["scratch"]
-            counterfactual_state, _ = model.read_field(intervened)
+            counterfactual_state, counterfactual_memory, _ = model.read_field_with_memory(
+                intervened
+            )
             counterfactual_response, counterfactual_terminated = model.decode_greedy(
-                counterfactual_state, head=1
+                counterfactual_state,
+                head=1,
+                memory=counterfactual_memory,
             )
             output.append(
                 {
@@ -281,9 +308,10 @@ def checkpoint_payload(
     args: argparse.Namespace,
     baseline: Mapping[str, Any],
     sampler_state: object,
+    dataset_sha256: Mapping[str, str],
 ) -> dict[str, Any]:
     return {
-        "schema": "axon-complete-field-r0-checkpoint-v2",
+        "schema": "axon-complete-field-r0-checkpoint-v3",
         "step": step,
         "model_state": model.state_dict(),
         "optimizer_state": optimizer.state_dict(),
@@ -291,6 +319,7 @@ def checkpoint_payload(
         "reader_config": asdict(config),
         "trainer_args": {key: str(value) if isinstance(value, Path) else value for key, value in vars(args).items()},
         "baseline": dict(baseline),
+        "dataset_sha256": dict(dataset_sha256),
         "rng": {
             "python": random.getstate(),
             "numpy": np.random.get_state(),
@@ -312,12 +341,23 @@ def save_checkpoint(
     baseline: Mapping[str, Any],
     sampler_state: object,
     keep: int,
+    dataset_sha256: Mapping[str, str],
 ) -> Path:
     run_dir.mkdir(parents=True, exist_ok=True)
     final = run_dir / f"ckpt_{step:09d}.pt"
     temporary = final.with_suffix(".pt.tmp")
     torch.save(
-        checkpoint_payload(model, optimizer, scaler, step, config, args, baseline, sampler_state),
+        checkpoint_payload(
+            model,
+            optimizer,
+            scaler,
+            step,
+            config,
+            args,
+            baseline,
+            sampler_state,
+            dataset_sha256,
+        ),
         temporary,
     )
     os.replace(temporary, final)
@@ -341,10 +381,13 @@ def restore(
     optimizer: torch.optim.Optimizer,
     scaler: torch.amp.GradScaler,
     device: torch.device,
+    expected_dataset_sha256: Mapping[str, str],
 ) -> tuple[int, dict[str, Any], object | None]:
     payload = torch.load(path, map_location=device, weights_only=False)
-    if payload.get("schema") != "axon-complete-field-r0-checkpoint-v2":
+    if payload.get("schema") != "axon-complete-field-r0-checkpoint-v3":
         raise ValueError(f"unsupported checkpoint schema in {path}")
+    if payload.get("dataset_sha256") != dict(expected_dataset_sha256):
+        raise ValueError(f"dataset fingerprint mismatch in {path}; refusing unsafe resume")
     model.load_state_dict(payload["model_state"])
     optimizer.load_state_dict(payload["optimizer_state"])
     scaler.load_state_dict(payload.get("scaler_state", {}))
@@ -413,6 +456,10 @@ def main() -> int:
     substrate_gate()
     train_records = load_jsonl(args.train)
     eval_records = load_jsonl(args.eval)
+    dataset_sha256 = {
+        "train": file_sha256(args.train),
+        "eval": file_sha256(args.eval),
+    }
     coverage_gate(train_records)
     coverage_gate(eval_records)
     causal_train_records = [record for record in train_records if record["response_counterfactuals"]]
@@ -433,7 +480,7 @@ def main() -> int:
     atomic_json(
         args.run_dir / "config.json",
         {
-            "schema": "axon-complete-field-r0-run-config-v2",
+            "schema": "axon-complete-field-r0-run-config-v3",
             "reader": asdict(config),
             "trainer": {k: str(v) if isinstance(v, Path) else v for k, v in vars(args).items()},
             "device": str(device),
@@ -443,6 +490,7 @@ def main() -> int:
             "eval_records": len(eval_records),
             "causal_train_records": len(causal_train_records),
             "causal_eval_records": len(causal_eval_records),
+            "dataset_sha256": dataset_sha256,
         },
     )
 
@@ -454,7 +502,14 @@ def main() -> int:
         if checkpoint is None and args.resume:
             raise FileNotFoundError("--resume requested but no checkpoint exists")
         if checkpoint is not None:
-            step, baseline, sampler_state = restore(checkpoint, model, optimizer, scaler, device)
+            step, baseline, sampler_state = restore(
+                checkpoint,
+                model,
+                optimizer,
+                scaler,
+                device,
+                dataset_sha256,
+            )
             print(f"resumed {checkpoint} at step {step}", flush=True)
         else:
             print("no checkpoint found; starting a fresh run", flush=True)
@@ -497,12 +552,13 @@ def main() -> int:
                     counterfactual = counterfactuals[rng.randrange(len(counterfactuals))]
                     intervened = dict(causal_record["field"])
                     intervened["scratch"] = counterfactual["scratch"]
-                    causal_state, _ = model.read_field(intervened)
+                    causal_state, causal_memory, _ = model.read_field_with_memory(intervened)
                     causal_logits, causal_targets = model.decode_scheduled(
                         causal_state,
                         counterfactual["response_draft"],
                         head=1,
                         teacher_forcing_ratio=args.teacher_forcing_ratio,
+                        memory=causal_memory,
                     )
                     causal_loss = sequence_cross_entropy(causal_logits, causal_targets)
                     causal_accuracy = teacher_char_accuracy(causal_logits.detach(), causal_targets)
@@ -585,6 +641,7 @@ def main() -> int:
                     baseline,
                     rng.getstate(),
                     args.keep_checkpoints,
+                    dataset_sha256,
                 )
 
             if evaluation is not None or samples is not None or step == 1:
@@ -634,6 +691,7 @@ def main() -> int:
                 baseline,
                 rng.getstate(),
                 args.keep_checkpoints,
+                dataset_sha256,
             )
         live_path = args.run_dir / "live.json"
         live: dict[str, Any] = {}

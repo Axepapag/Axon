@@ -227,11 +227,18 @@ class CompleteField64D(nn.Module):
         )
         self.page_encoder = nn.TransformerEncoder(layer, num_layers=cfg.n_layers)
         self.state_norm = nn.LayerNorm(cfg.d_model)
+        self.memory_norm = nn.LayerNorm(cfg.d_model)
 
         self.decoder_embedding = nn.Embedding(self.vocab_size + 2, cfg.d_model)
         self.decoder_head_embedding = nn.Embedding(2, cfg.d_model)
         self.decoder_init = nn.Linear(cfg.d_model * 2, cfg.d_model)
         self.decoder = nn.GRU(cfg.d_model, cfg.d_model, batch_first=True)
+        self.decoder_memory_attention = nn.MultiheadAttention(
+            cfg.d_model,
+            cfg.n_heads,
+            dropout=cfg.dropout,
+            batch_first=True,
+        )
         self.decoder_norm = nn.LayerNorm(cfg.d_model)
         self.decoder_output = nn.Linear(cfg.d_model, self.vocab_size + 1)
 
@@ -272,16 +279,27 @@ class CompleteField64D(nn.Module):
         global_features = torch.tensor([start, end], device=self.device).expand(length, 2)
         return chars + region + self.local_position(local) + page_pos + self.global_position(global_features)
 
-    def read_field(self, field: Mapping[str, str]) -> tuple[torch.Tensor, CoverageManifest]:
+    def read_field_with_memory(
+        self,
+        field: Mapping[str, str],
+    ) -> tuple[torch.Tensor, torch.Tensor, CoverageManifest]:
+        """Sweep every page and retain addressable encoded page tokens for decoding."""
         pages, manifest = CompleteFieldPager(self.cfg.page_size).paginate(field)
         if not manifest.complete:
             raise RuntimeError("coverage manifest is incomplete; decoder finalization denied")
         state = self.initial_state.unsqueeze(0)
+        memory: list[torch.Tensor] = []
         for page in pages:
             tokens = self._page_tensor(page).unsqueeze(0)
             encoded = self.page_encoder(torch.cat((state, tokens), dim=1))
             state = encoded[:, : self.cfg.state_tokens]
-        return self.state_norm(state), manifest
+            memory.append(encoded[:, self.cfg.state_tokens :])
+        addressable_memory = self.memory_norm(torch.cat(memory, dim=1))
+        return self.state_norm(state), addressable_memory, manifest
+
+    def read_field(self, field: Mapping[str, str]) -> tuple[torch.Tensor, CoverageManifest]:
+        state, _, manifest = self.read_field_with_memory(field)
+        return state, manifest
 
     def _target_indices(self, text: str) -> torch.Tensor:
         assert_supported_text(text)
@@ -296,7 +314,29 @@ class CompleteField64D(nn.Module):
             device=self.device,
         )
 
-    def decode_teacher(self, reader_state: torch.Tensor, target: str, head: int) -> tuple[torch.Tensor, torch.Tensor]:
+    def _decoder_logits(
+        self,
+        output: torch.Tensor,
+        memory: torch.Tensor | None,
+    ) -> torch.Tensor:
+        """Project decoder states after optional cross-attention over every encoded page token."""
+        if memory is not None:
+            context, _ = self.decoder_memory_attention(
+                output,
+                memory,
+                memory,
+                need_weights=False,
+            )
+            output = output + context
+        return self.decoder_output(self.decoder_norm(output))
+
+    def decode_teacher(
+        self,
+        reader_state: torch.Tensor,
+        target: str,
+        head: int,
+        memory: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         targets = self._target_indices(target).unsqueeze(0)
         bos = torch.full((1, 1), self.bos_index, dtype=torch.long, device=self.device)
         decoder_input = torch.cat((bos, targets[:, :-1]), dim=1)
@@ -304,7 +344,7 @@ class CompleteField64D(nn.Module):
         head_vec = self.decoder_head_embedding(torch.tensor([head], device=self.device))
         hidden = torch.tanh(self.decoder_init(torch.cat((summary, head_vec), dim=-1))).unsqueeze(0)
         output, _ = self.decoder(self.decoder_embedding(decoder_input), hidden)
-        return self.decoder_output(self.decoder_norm(output)), targets
+        return self._decoder_logits(output, memory), targets
 
     def decode_scheduled(
         self,
@@ -312,12 +352,13 @@ class CompleteField64D(nn.Module):
         target: str,
         head: int,
         teacher_forcing_ratio: float,
+        memory: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Train on model-generated prefixes so greedy behavior cannot hide behind teacher forcing."""
         if not 0.0 <= teacher_forcing_ratio <= 1.0:
             raise ValueError("teacher_forcing_ratio must be between zero and one")
         if teacher_forcing_ratio >= 1.0:
-            return self.decode_teacher(reader_state, target, head)
+            return self.decode_teacher(reader_state, target, head, memory=memory)
         targets = self._target_indices(target).unsqueeze(0)
         summary = reader_state.mean(dim=1)
         head_vec = self.decoder_head_embedding(torch.tensor([head], device=self.device))
@@ -326,7 +367,7 @@ class CompleteField64D(nn.Module):
         logits: list[torch.Tensor] = []
         for position in range(targets.shape[1]):
             output, hidden = self.decoder(self.decoder_embedding(token), hidden)
-            step_logits = self.decoder_output(self.decoder_norm(output[:, -1:]))
+            step_logits = self._decoder_logits(output[:, -1:], memory)
             logits.append(step_logits)
             if position + 1 >= targets.shape[1]:
                 continue
@@ -341,7 +382,13 @@ class CompleteField64D(nn.Module):
         return torch.cat(logits, dim=1), targets
 
     @torch.no_grad()
-    def decode_greedy(self, reader_state: torch.Tensor, head: int, max_chars: int | None = None) -> tuple[str, bool]:
+    def decode_greedy(
+        self,
+        reader_state: torch.Tensor,
+        head: int,
+        max_chars: int | None = None,
+        memory: torch.Tensor | None = None,
+    ) -> tuple[str, bool]:
         limit = self.cfg.max_output_chars if max_chars is None else min(max_chars, self.cfg.max_output_chars)
         summary = reader_state.mean(dim=1)
         head_vec = self.decoder_head_embedding(torch.tensor([head], device=self.device))
@@ -350,7 +397,7 @@ class CompleteField64D(nn.Module):
         chars: list[str] = []
         for _ in range(limit + 1):
             output, hidden = self.decoder(self.decoder_embedding(token), hidden)
-            logits = self.decoder_output(self.decoder_norm(output[:, -1]))
+            logits = self._decoder_logits(output[:, -1:], memory).squeeze(1)
             index = int(logits.argmax(dim=-1).item())
             if index == self.eos_index:
                 return "".join(chars), True
@@ -370,15 +417,23 @@ class CompleteField64D(nn.Module):
         teacher_forcing_ratio: float = 1.0,
     ) -> dict[str, Any]:
         exact = canonical_field(field)
-        state1, coverage1 = self.read_field(exact)
+        state1, memory1, coverage1 = self.read_field_with_memory(exact)
         scratch_logits, scratch_indices = self.decode_scheduled(
-            state1, scratch_target, head=0, teacher_forcing_ratio=teacher_forcing_ratio
+            state1,
+            scratch_target,
+            head=0,
+            teacher_forcing_ratio=teacher_forcing_ratio,
+            memory=memory1,
         )
         second_field = dict(exact)
         second_field["scratch"] = scratch_target
-        state2, coverage2 = self.read_field(second_field)
+        state2, memory2, coverage2 = self.read_field_with_memory(second_field)
         response_logits, response_indices = self.decode_scheduled(
-            state2, response_target, head=1, teacher_forcing_ratio=teacher_forcing_ratio
+            state2,
+            response_target,
+            head=1,
+            teacher_forcing_ratio=teacher_forcing_ratio,
+            memory=memory2,
         )
         return {
             "scratch_logits": scratch_logits,
@@ -393,12 +448,20 @@ class CompleteField64D(nn.Module):
     @torch.no_grad()
     def run_transaction(self, field: Mapping[str, str]) -> dict[str, Any]:
         exact = canonical_field(field)
-        state1, coverage1 = self.read_field(exact)
-        scratch, scratch_terminated = self.decode_greedy(state1, head=0)
+        state1, memory1, coverage1 = self.read_field_with_memory(exact)
+        scratch, scratch_terminated = self.decode_greedy(
+            state1,
+            head=0,
+            memory=memory1,
+        )
         second_field = dict(exact)
         second_field["scratch"] = scratch
-        state2, coverage2 = self.read_field(second_field)
-        response, response_terminated = self.decode_greedy(state2, head=1)
+        state2, memory2, coverage2 = self.read_field_with_memory(second_field)
+        response, response_terminated = self.decode_greedy(
+            state2,
+            head=1,
+            memory=memory2,
+        )
         if not coverage1.complete or not coverage2.complete:
             raise RuntimeError("complete coverage required before field delta")
         return {

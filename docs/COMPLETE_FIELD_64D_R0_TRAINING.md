@@ -18,12 +18,16 @@ Conversation history and tool results remain immutable evidence.
 The frozen 16D substrate is lifted losslessly into 64D. A configurable physical
 page defaults to 256 characters. Four temporary reader-state tokens pass from
 page to page through one shallow Transformer encoder layer. Empty regions still
-receive a region marker. The decoder is locked until a coverage manifest proves
-all active characters and all ten region identities were visited without gaps
-or duplicates.
+receive a region marker. Every encoded page token is retained as addressable
+read-only memory, and each autoregressive decoder step cross-attends that memory.
+The four state tokens carry a compact recurrent summary; they are not required
+to memorize exact names, spans, or tool output. The decoder is locked until a
+coverage manifest proves all active characters and all ten region identities
+were visited without gaps or duplicates.
 
-Page size bounds one physical operation, not logical context. Runtime cost grows
-with field length. Exact text stays external and addressable.
+Page size bounds one physical operation, not logical context. Runtime and decoder
+attention cost grow with field length. Exact field text remains external,
+immutable where sealed, and directly addressable through its encoded page tokens.
 
 ## Writer and ticks
 
@@ -66,7 +70,10 @@ characters/pages, gradient norm, rate, family, and example ID.
 gold and predicted response, termination, coverage, and typed delta.
 
 Checkpoints are atomic, keep a rolling three, and update `pointer.json` plus
-`checkpoint_done.json`. Interruption writes a recovery checkpoint.
+`checkpoint_done.json`. Interruption writes a recovery checkpoint. Checkpoint
+schema v3 binds every resume to the exact SHA-256 fingerprints of both training
+and evaluation datasets; pooled-memory v2 checkpoints are intentionally
+incompatible with the addressable reader.
 
 ## Promotion sequence
 

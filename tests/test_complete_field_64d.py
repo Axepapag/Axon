@@ -60,10 +60,19 @@ def test_scheduled_decoder_matches_teacher_path_at_ratio_one() -> None:
         ReaderConfig(page_size=64, max_output_chars=128, dropout=0.0)
     ).cpu()
     model.eval()
-    state, _ = model.read_field(field_fixture())
-    teacher_logits, teacher_targets = model.decode_teacher(state, "Axon is ready.", head=1)
+    state, memory, _ = model.read_field_with_memory(field_fixture())
+    teacher_logits, teacher_targets = model.decode_teacher(
+        state,
+        "Axon is ready.",
+        head=1,
+        memory=memory,
+    )
     scheduled_logits, scheduled_targets = model.decode_scheduled(
-        state, "Axon is ready.", head=1, teacher_forcing_ratio=1.0
+        state,
+        "Axon is ready.",
+        head=1,
+        teacher_forcing_ratio=1.0,
+        memory=memory,
     )
     assert torch.equal(teacher_targets, scheduled_targets)
     assert torch.equal(teacher_logits, scheduled_logits)
@@ -74,9 +83,13 @@ def test_scheduled_decoder_accepts_model_prefixes() -> None:
     model = CompleteField64D(
         ReaderConfig(page_size=64, max_output_chars=128, dropout=0.0)
     ).cpu()
-    state, _ = model.read_field(field_fixture())
+    state, memory, _ = model.read_field_with_memory(field_fixture())
     logits, targets = model.decode_scheduled(
-        state, "Use visible evidence.", head=0, teacher_forcing_ratio=0.0
+        state,
+        "Use visible evidence.",
+        head=0,
+        teacher_forcing_ratio=0.0,
+        memory=memory,
     )
     assert logits.shape[:2] == targets.shape
     assert torch.isfinite(logits).all()
@@ -95,3 +108,40 @@ def test_synthetic_families_have_empty_and_conflicting_scratch_interventions() -
         for counterfactual in counterfactuals:
             assert counterfactual["scratch"] != record["targets"]["scratch"]
             assert counterfactual["response_draft"] != record["targets"]["response_draft"]
+
+
+def test_addressable_memory_retains_every_page_token() -> None:
+    torch.manual_seed(5)
+    config = ReaderConfig(page_size=16, max_output_chars=80, dropout=0.0)
+    model = CompleteField64D(config).cpu().eval()
+    field = field_fixture()
+    pages, _ = CompleteFieldPager(config.page_size).paginate(field)
+
+    _, memory, manifest = model.read_field_with_memory(field)
+
+    expected_tokens = sum(max(1, len(page.text)) for page in pages)
+    assert manifest.complete
+    assert memory.shape == (1, expected_tokens, config.d_model)
+
+
+def test_decoder_cross_attention_changes_logits() -> None:
+    torch.manual_seed(6)
+    model = CompleteField64D(
+        ReaderConfig(page_size=32, max_output_chars=80, dropout=0.0)
+    ).cpu().eval()
+    state, memory, _ = model.read_field_with_memory(field_fixture())
+
+    addressed, targets = model.decode_teacher(
+        state,
+        "Use the requested evidence.",
+        head=1,
+        memory=memory,
+    )
+    pooled_only, pooled_targets = model.decode_teacher(
+        state,
+        "Use the requested evidence.",
+        head=1,
+    )
+
+    assert torch.equal(targets, pooled_targets)
+    assert not torch.equal(addressed, pooled_only)
