@@ -14,6 +14,8 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
+os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+
 import numpy as np
 import torch
 
@@ -447,6 +449,11 @@ def main() -> int:
         raise ValueError(
             "positive counts and a teacher_forcing_ratio between zero and one are required"
         )
+    torch.use_deterministic_algorithms(True)
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cuda.matmul.allow_tf32 = False
+    torch.backends.cudnn.allow_tf32 = False
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -486,6 +493,8 @@ def main() -> int:
             "device": str(device),
             "cuda_name": torch.cuda.get_device_name(device) if device.type == "cuda" else None,
             "parameter_count": sum(parameter.numel() for parameter in model.parameters()),
+            "deterministic_algorithms": torch.are_deterministic_algorithms_enabled(),
+            "cublas_workspace_config": os.environ.get("CUBLAS_WORKSPACE_CONFIG"),
             "train_records": len(train_records),
             "eval_records": len(eval_records),
             "causal_train_records": len(causal_train_records),
