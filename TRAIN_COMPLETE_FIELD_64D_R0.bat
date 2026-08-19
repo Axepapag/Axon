@@ -3,7 +3,7 @@ setlocal
 cd /d D:\axon
 set "AXON_PY=C:\Users\axema\AppData\Local\Programs\Python\Python312\python.exe"
 set "AXON_DATA=State\private_curriculum\complete_field_r0"
-set "AXON_RUN=runs\complete_field_64d_r0_addressable_200k"
+set "AXON_RUN=runs\complete_field_64d_r0_pointer_200k"
 
 "%AXON_PY%" training\build_complete_field_r0_curriculum.py --output-dir "%AXON_DATA%"
 if errorlevel 1 exit /b %errorlevel%

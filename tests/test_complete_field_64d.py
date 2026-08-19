@@ -120,8 +120,20 @@ def test_addressable_memory_retains_every_page_token() -> None:
     _, memory, manifest = model.read_field_with_memory(field)
 
     expected_tokens = sum(max(1, len(page.text)) for page in pages)
+    expected_char_indices = [
+        model.char_to_index[char] if page.text else -1
+        for page in pages
+        for char in (page.text or "\0")
+    ]
+    expected_region_ids = [
+        page.region_id
+        for page in pages
+        for _ in (page.text or "\0")
+    ]
     assert manifest.complete
-    assert memory.shape == (1, expected_tokens, config.d_model)
+    assert memory.states.shape == (1, expected_tokens, config.d_model)
+    assert memory.char_indices.squeeze(0).tolist() == expected_char_indices
+    assert memory.region_ids.squeeze(0).tolist() == expected_region_ids
 
 
 def test_decoder_cross_attention_changes_logits() -> None:
@@ -145,3 +157,20 @@ def test_decoder_cross_attention_changes_logits() -> None:
 
     assert torch.equal(targets, pooled_targets)
     assert not torch.equal(addressed, pooled_only)
+
+
+def test_pointer_distribution_can_copy_exact_source_character() -> None:
+    torch.manual_seed(7)
+    config = ReaderConfig(page_size=16, max_output_chars=80, dropout=0.0)
+    model = CompleteField64D(config).cpu().eval()
+    field = {name: "" for name in REGION_ORDER}
+    field["user_input"] = "Z"
+    _, memory, _ = model.read_field_with_memory(field)
+    with torch.no_grad():
+        model.copy_gate.weight.zero_()
+        model.copy_gate.bias.fill_(-30.0)
+
+    decoder_state = torch.zeros(1, 1, config.d_model)
+    logits = model._decoder_logits(decoder_state, memory)
+
+    assert int(logits.argmax(dim=-1).item()) == model.char_to_index["Z"]

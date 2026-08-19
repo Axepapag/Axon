@@ -92,6 +92,15 @@ class CoverageManifest:
         return asdict(self)
 
 
+@dataclass(frozen=True)
+class AddressableMemory:
+    """Encoded field tokens paired with their immutable source identities."""
+
+    states: torch.Tensor
+    char_indices: torch.Tensor
+    region_ids: torch.Tensor
+
+
 def _sha(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
@@ -241,10 +250,13 @@ class CompleteField64D(nn.Module):
         )
         self.decoder_norm = nn.LayerNorm(cfg.d_model)
         self.decoder_output = nn.Linear(cfg.d_model, self.vocab_size + 1)
+        self.copy_gate = nn.Linear(cfg.d_model * 2, 1)
 
         nn.init.normal_(self.region_embedding.weight, std=0.02)
         nn.init.normal_(self.local_position.weight, std=0.02)
         nn.init.normal_(self.page_position.weight, std=0.02)
+        nn.init.zeros_(self.copy_gate.weight)
+        nn.init.constant_(self.copy_gate.bias, 1.5)
 
     @property
     def device(self) -> torch.device:
@@ -282,19 +294,45 @@ class CompleteField64D(nn.Module):
     def read_field_with_memory(
         self,
         field: Mapping[str, str],
-    ) -> tuple[torch.Tensor, torch.Tensor, CoverageManifest]:
-        """Sweep every page and retain addressable encoded page tokens for decoding."""
+    ) -> tuple[torch.Tensor, AddressableMemory, CoverageManifest]:
+        """Sweep every page and retain encoded tokens plus exact source identities."""
         pages, manifest = CompleteFieldPager(self.cfg.page_size).paginate(field)
         if not manifest.complete:
             raise RuntimeError("coverage manifest is incomplete; decoder finalization denied")
         state = self.initial_state.unsqueeze(0)
-        memory: list[torch.Tensor] = []
+        memory_states: list[torch.Tensor] = []
+        memory_char_indices: list[torch.Tensor] = []
+        memory_region_ids: list[torch.Tensor] = []
         for page in pages:
             tokens = self._page_tensor(page).unsqueeze(0)
             encoded = self.page_encoder(torch.cat((state, tokens), dim=1))
             state = encoded[:, : self.cfg.state_tokens]
-            memory.append(encoded[:, self.cfg.state_tokens :])
-        addressable_memory = self.memory_norm(torch.cat(memory, dim=1))
+            page_memory = encoded[:, self.cfg.state_tokens :]
+            memory_states.append(page_memory)
+            if page.text:
+                page_chars = torch.tensor(
+                    [self.char_to_index[char] for char in page.text],
+                    dtype=torch.long,
+                    device=self.device,
+                )
+            else:
+                # Empty-region markers remain addressable context but are never
+                # eligible copy sources.
+                page_chars = torch.full((1,), -1, dtype=torch.long, device=self.device)
+            memory_char_indices.append(page_chars.unsqueeze(0))
+            memory_region_ids.append(
+                torch.full(
+                    (1, page_memory.shape[1]),
+                    page.region_id,
+                    dtype=torch.long,
+                    device=self.device,
+                )
+            )
+        addressable_memory = AddressableMemory(
+            states=self.memory_norm(torch.cat(memory_states, dim=1)),
+            char_indices=torch.cat(memory_char_indices, dim=1),
+            region_ids=torch.cat(memory_region_ids, dim=1),
+        )
         return self.state_norm(state), addressable_memory, manifest
 
     def read_field(self, field: Mapping[str, str]) -> tuple[torch.Tensor, CoverageManifest]:
@@ -317,25 +355,49 @@ class CompleteField64D(nn.Module):
     def _decoder_logits(
         self,
         output: torch.Tensor,
-        memory: torch.Tensor | None,
+        memory: AddressableMemory | None,
     ) -> torch.Tensor:
-        """Project decoder states after optional cross-attention over every encoded page token."""
-        if memory is not None:
-            context, _ = self.decoder_memory_attention(
-                output,
-                memory,
-                memory,
-                need_weights=False,
-            )
-            output = output + context
-        return self.decoder_output(self.decoder_norm(output))
+        """Mix generated characters with an exact copy distribution over field text."""
+        if memory is None:
+            return self.decoder_output(self.decoder_norm(output))
+
+        context, attention = self.decoder_memory_attention(
+            output,
+            memory.states,
+            memory.states,
+            need_weights=True,
+            average_attn_weights=True,
+        )
+        fused = self.decoder_norm(output + context)
+        generated = F.softmax(self.decoder_output(fused), dim=-1)
+
+        valid_sources = memory.char_indices.ge(0).unsqueeze(1)
+        copy_attention = attention * valid_sources.to(attention.dtype)
+        copy_mass = copy_attention.sum(dim=-1, keepdim=True)
+        safe_indices = memory.char_indices.clamp_min(0).unsqueeze(1).expand(
+            -1,
+            output.shape[1],
+            -1,
+        )
+        copied = torch.zeros_like(generated).scatter_add(
+            dim=-1,
+            index=safe_indices,
+            src=copy_attention,
+        )
+        copied = copied / copy_mass.clamp_min(torch.finfo(copied.dtype).tiny)
+
+        generate_gate = torch.sigmoid(self.copy_gate(torch.cat((output, context), dim=-1)))
+        has_copy_source = copy_mass.gt(0).to(generate_gate.dtype)
+        generate_gate = generate_gate * has_copy_source + (1.0 - has_copy_source)
+        probabilities = generate_gate * generated + (1.0 - generate_gate) * copied
+        return probabilities.clamp_min(torch.finfo(probabilities.dtype).tiny).log()
 
     def decode_teacher(
         self,
         reader_state: torch.Tensor,
         target: str,
         head: int,
-        memory: torch.Tensor | None = None,
+        memory: AddressableMemory | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         targets = self._target_indices(target).unsqueeze(0)
         bos = torch.full((1, 1), self.bos_index, dtype=torch.long, device=self.device)
@@ -352,7 +414,7 @@ class CompleteField64D(nn.Module):
         target: str,
         head: int,
         teacher_forcing_ratio: float,
-        memory: torch.Tensor | None = None,
+        memory: AddressableMemory | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Train on model-generated prefixes so greedy behavior cannot hide behind teacher forcing."""
         if not 0.0 <= teacher_forcing_ratio <= 1.0:
@@ -389,7 +451,7 @@ class CompleteField64D(nn.Module):
         reader_state: torch.Tensor,
         head: int,
         max_chars: int | None = None,
-        memory: torch.Tensor | None = None,
+        memory: AddressableMemory | None = None,
     ) -> tuple[str, bool]:
         limit = self.cfg.max_output_chars if max_chars is None else min(max_chars, self.cfg.max_output_chars)
         summary = reader_state.mean(dim=1)

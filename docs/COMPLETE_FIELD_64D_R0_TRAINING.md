@@ -19,9 +19,12 @@ The frozen 16D substrate is lifted losslessly into 64D. A configurable physical
 page defaults to 256 characters. Four temporary reader-state tokens pass from
 page to page through one shallow Transformer encoder layer. Empty regions still
 receive a region marker. Every encoded page token is retained as addressable
-read-only memory, and each autoregressive decoder step cross-attends that memory.
-The four state tokens carry a compact recurrent summary; they are not required
-to memorize exact names, spans, or tool output. The decoder is locked until a
+read-only memory together with its immutable source character and region identity.
+Each autoregressive decoder step cross-attends that memory, then a learned gate
+mixes generated-character probability with a pointer distribution scattered onto
+the exact source-character alphabet. Empty-region markers remain context but
+cannot be copied. The four state tokens carry a compact recurrent summary; they
+are not required to memorize exact names, spans, or tool output. The decoder is locked until a
 coverage manifest proves all active characters and all ten region identities
 were visited without gaps or duplicates.
 
@@ -71,10 +74,11 @@ gold and predicted response, termination, coverage, and typed delta.
 
 Checkpoints are atomic, keep a rolling three, and update `pointer.json` plus
 `checkpoint_done.json`. Interruption writes a recovery checkpoint. Checkpoint
-schema v4 binds every resume to the exact SHA-256 fingerprints of both training
+schema v5 binds every resume to the exact SHA-256 fingerprints of both training
 and evaluation datasets and records a deterministic, single-transfer scheduled
-prefix mask. Pooled-memory v2 and per-character-sync v3 checkpoints are
-intentionally incompatible with the active addressable reader.
+prefix mask. Pooled-memory v2, per-character-sync v3, and continuous-only
+addressable v4 checkpoints are intentionally incompatible with the active
+pointer-generator reader.
 
 ## Promotion sequence
 
