@@ -26,7 +26,7 @@ from training.complete_field_64d import REGION_ORDER, canonical_field
 
 
 SCHEMA = "axon-complete-field-r0-example-v2"
-BUILDER_VERSION = "complete-field-r0-addressable-builder-2026-08-18"
+BUILDER_VERSION = "complete-field-r0-heldout-binding-builder-2026-08-19"
 
 
 def canonical_bytes(value: Any) -> bytes:
@@ -124,10 +124,8 @@ def distractor(rng: random.Random, chars: int) -> str:
 
 def synthetic_records(count: int, seed: int) -> Iterator[dict[str, Any]]:
     rng = random.Random(seed)
-    names = ("Axon", "Jeff", "Council", "scratch", "response")
     for index in range(count):
         kind = index % 5
-        group = f"synthetic-r0-{seed}-{index}"
         field = {name: "" for name in REGION_ORDER}
         field["situation_awareness"] = "One 64D core is learning complete field coverage."
         field["advisor_input"] = "Use exact visible evidence and admit uncertainty."
@@ -156,6 +154,7 @@ def synthetic_records(count: int, seed: int) -> Iterator[dict[str, Any]]:
                 },
             )
             family = "cross_page_exact_retrieval"
+            group = "synthetic-r0-retrieval-" + token
         elif kind == 1:
             left = rng.randrange(2, 80)
             right = rng.randrange(2, 80)
@@ -177,9 +176,16 @@ def synthetic_records(count: int, seed: int) -> Iterator[dict[str, Any]]:
                 },
             )
             family = "scratch_arithmetic"
+            # Identical arithmetic questions belong to one lineage so they can
+            # never leak across train/dev/test if the random pair repeats.
+            group = f"synthetic-r0-arithmetic-{left}-{right}"
         elif kind == 2:
-            name = rng.choice(names)
-            wrong_name = next(candidate for candidate in names if candidate != name)
+            # Random held-out strings make this a binding/copy task rather than
+            # a five-label memorization task over Axon/Jeff/Council.
+            name = random_token(rng)
+            wrong_name = random_token(rng)
+            while wrong_name == name:
+                wrong_name = random_token(rng)
             field["conversation_history"] = "Jeff: Keep the answer grounded.\nAxon: I will use visible evidence.\n"
             field["user_input"] = f"Spell {name} exactly."
             scratch = f"The requested exact spelling is {name}."
@@ -197,11 +203,13 @@ def synthetic_records(count: int, seed: int) -> Iterator[dict[str, Any]]:
                 },
             )
             family = "conversation_exact_copy"
+            group = "synthetic-r0-exact-copy-" + name
         elif kind == 3:
+            item = random_token(rng, length=8)
             field["conversation_history"] = "Jeff: Hello Axon.\nAxon: Hello Jeff.\n"
-            field["user_input"] = rng.choice(("How are you?", "Are you ready?", "Can we continue?"))
+            field["user_input"] = f"Are you ready to continue with item {item}?"
             scratch = "Answer Jeff directly, briefly, and truthfully."
-            response = rng.choice(("I am ready to continue.", "Yes. I am ready.", "I am here and paying attention."))
+            response = f"Yes. I am ready to continue with item {item}."
             counterfactuals = (
                 {
                     "variant_id": "empty_scratch",
@@ -215,10 +223,12 @@ def synthetic_records(count: int, seed: int) -> Iterator[dict[str, Any]]:
                 },
             )
             family = "conversation_foundation"
+            group = "synthetic-r0-foundation-" + item
         else:
+            marker = random_token(rng, length=8)
             field["structured_knowledge"] = distractor(rng, rng.choice((30, 270, 530)))
-            field["user_input"] = "What color is the hidden marker?"
-            scratch = "No visible region states the hidden marker color."
+            field["user_input"] = f"What color is hidden marker {marker}?"
+            scratch = f"No visible region states the color of marker {marker}."
             response = "I do not know from the visible field."
             counterfactuals = (
                 {
@@ -233,6 +243,7 @@ def synthetic_records(count: int, seed: int) -> Iterator[dict[str, Any]]:
                 },
             )
             family = "grounded_abstention"
+            group = "synthetic-r0-abstention-" + marker
         yield make_record(
             family=family,
             field=field,
@@ -508,6 +519,31 @@ def deduplicate(records: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     return sorted(by_id.values(), key=lambda item: (item["split"], item["family"], item["example_id"]))
 
 
+def validate_exact_field_isolation(records: Iterable[Mapping[str, Any]]) -> None:
+    """Reject contradictory labels and exact-field leakage across data splits."""
+    seen: dict[bytes, tuple[str, bytes, str]] = {}
+    for record in records:
+        field_identity = canonical_bytes(record["field"])
+        target_identity = canonical_bytes(record["targets"])
+        split = str(record["split"])
+        example_id = str(record["example_id"])
+        prior = seen.get(field_identity)
+        if prior is None:
+            seen[field_identity] = (split, target_identity, example_id)
+            continue
+        prior_split, prior_target, prior_id = prior
+        if prior_target != target_identity:
+            raise ValueError(
+                "identical exact field has contradictory targets: "
+                f"{prior_id} versus {example_id}"
+            )
+        if prior_split != split:
+            raise ValueError(
+                "identical exact field crosses data splits: "
+                f"{prior_id} ({prior_split}) versus {example_id} ({split})"
+            )
+
+
 def write_jsonl(path: Path, rows: Iterable[Mapping[str, Any]]) -> tuple[int, str]:
     payload = b"".join(canonical_bytes(row) + b"\n" for row in rows)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -523,6 +559,7 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
     if args.grounded_episodes and args.grounded_episodes.is_file():
         records.extend(grounded_scratch_records(args.grounded_episodes, args.grounded_limit))
     records = deduplicate(records)
+    validate_exact_field_isolation(records)
     counterfactuals = [
         (record["family"], counterfactual["variant_id"])
         for record in records
@@ -542,6 +579,7 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         "diary_target_count": 0,
         "region_order": list(REGION_ORDER),
         "target_regions": ["scratch", "response_draft"],
+        "exact_field_isolation_verified": True,
         "source_read_policy": "SQLite URI mode=ro plus PRAGMA query_only=ON",
         "counts_by_family": dict(Counter(record["family"] for record in records)),
         "counts_by_grade": dict(Counter(record["provenance"]["grade"] for record in records)),

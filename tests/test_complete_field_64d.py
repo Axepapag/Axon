@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import json
+
 import torch
 
-from training.build_complete_field_r0_curriculum import synthetic_records
+from training.build_complete_field_r0_curriculum import (
+    synthetic_records,
+    validate_exact_field_isolation,
+)
 from training.complete_field_64d import (
     CompleteField64D,
     CompleteFieldPager,
@@ -108,6 +113,59 @@ def test_synthetic_families_have_empty_and_conflicting_scratch_interventions() -
         for counterfactual in counterfactuals:
             assert counterfactual["scratch"] != record["targets"]["scratch"]
             assert counterfactual["response_draft"] != record["targets"]["response_draft"]
+
+
+def test_synthetic_fields_have_one_target_and_do_not_cross_splits() -> None:
+    records = list(synthetic_records(1000, seed=64018))
+    field_targets: dict[str, set[tuple[str, str]]] = {}
+    field_splits: dict[str, set[str]] = {}
+    for record in records:
+        identity = json.dumps(record["field"], sort_keys=True, separators=(",", ":"))
+        field_targets.setdefault(identity, set()).add(
+            (record["targets"]["scratch"], record["targets"]["response_draft"])
+        )
+        field_splits.setdefault(identity, set()).add(record["split"])
+
+    assert all(len(targets) == 1 for targets in field_targets.values())
+    assert all(len(splits) == 1 for splits in field_splits.values())
+
+
+def test_exact_copy_uses_heldout_variable_strings() -> None:
+    records = list(synthetic_records(1000, seed=64018))
+    values_by_split: dict[str, set[str]] = {"train": set(), "dev": set(), "test": set()}
+    for record in records:
+        if record["family"] == "conversation_exact_copy":
+            values_by_split[record["split"]].add(record["targets"]["response_draft"])
+
+    assert all(values_by_split.values())
+    assert values_by_split["train"].isdisjoint(values_by_split["dev"])
+    assert values_by_split["train"].isdisjoint(values_by_split["test"])
+    assert values_by_split["dev"].isdisjoint(values_by_split["test"])
+    assert not values_by_split["train"].intersection({"Axon", "Jeff", "Council"})
+
+
+def test_builder_rejects_contradictory_or_cross_split_exact_fields() -> None:
+    base = list(synthetic_records(1, seed=9))[0]
+    contradictory = dict(base)
+    contradictory["example_id"] = "contradictory"
+    contradictory["targets"] = dict(base["targets"])
+    contradictory["targets"]["response_draft"] = "A different answer."
+    try:
+        validate_exact_field_isolation([base, contradictory])
+    except ValueError as exc:
+        assert "contradictory targets" in str(exc)
+    else:
+        raise AssertionError("contradictory exact field was accepted")
+
+    leaked = dict(base)
+    leaked["example_id"] = "leaked"
+    leaked["split"] = "dev" if base["split"] != "dev" else "test"
+    try:
+        validate_exact_field_isolation([base, leaked])
+    except ValueError as exc:
+        assert "crosses data splits" in str(exc)
+    else:
+        raise AssertionError("cross-split exact field was accepted")
 
 
 def test_addressable_memory_retains_every_page_token() -> None:
