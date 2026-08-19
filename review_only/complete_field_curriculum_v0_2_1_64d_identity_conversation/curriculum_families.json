@@ -1,0 +1,30 @@
+{
+  "schema": "axon-curriculum-family-catalog-v0.2",
+  "stamp": "ChatGPT / GPT-5 / 2026-08-18",
+  "width_independent": true,
+  "cpu_inference_required": true,
+  "global_invariants": [
+    "Every current active character is covered before decoding.",
+    "Every required sibling envelope is covered exactly once.",
+    "Content and attention authority are independent default-deny switches.",
+    "Immutable evidence may be masked but never rewritten by a core.",
+    "Focused 64D records expose active text from all ten regions and write exactly scratch, response_draft, and diary.",
+    "Every positive mechanism claim has a matched causal counterfactual.",
+    "Synthetic material is never autobiographical."
+  ],
+  "families": [
+    {"id":"A","name":"Exact substrate and page mechanics","objectives":["character round trip","page boundary reconstruction","global offsets","coverage corruption detection","exact span reread"],"counterfactuals":["missing page","duplicate page","reordered page","hash corruption"],"primary_metrics":["exact character accuracy","coverage violation rate"]},
+    {"id":"B","name":"Cross-page retrieval","objectives":["exact needle retrieval","multi-needle retrieval","cross-region references","unknown when absent","provenance selection"],"counterfactuals":["needle removed","near match","weak provenance conflict"],"primary_metrics":["exact span accuracy","abstention accuracy"]},
+    {"id":"C","name":"Cross-page aggregation and reasoning","objectives":["distributed arithmetic","ordering","sets","rules","contradictions","cited synthesis"],"counterfactuals":["operand swap","rule removal","distractor insertion"],"primary_metrics":["answer accuracy","evidence sufficiency"]},
+    {"id":"D","name":"Region semantics and masks","objectives":["ten-region meaning","dormant exclusion","exact restoration","core-private boundary choice","retrieval surfacing"],"counterfactuals":["wrong region","unauthorized mask move","content mutation during mask"],"primary_metrics":["restoration exactness","mask policy accuracy"]},
+    {"id":"E","name":"Language and conversation foundation","objectives":["grammar","questions and corrections","topic shifts","natural responses","partial draft completion"],"counterfactuals":["missing instruction","wrong speaker history","premature termination"],"primary_metrics":["task accuracy","completion integrity"]},
+    {"id":"F","name":"Scratch as a causal workspace","objectives":["write compact work product","commit and reread","verify","use in final delta","archive or retain"],"counterfactuals":["scratch removed","scratch swapped","scratch corrupted","scratch irrelevant"],"primary_metrics":["causal uplift","final correctness"]},
+    {"id":"G","name":"Tools code science and external evidence","objectives":["interpret exact tool results","separate request from completion","debug and test","reason from supplied evidence"],"counterfactuals":["failed tool","stale result","contradictory result","fabricated success trap"],"primary_metrics":["grounded correctness","false-success rate"]},
+    {"id":"H","name":"Literature creativity and psychology","objectives":["long prose comprehension","tone and metaphor","original creation","perspective","empathetic uncertainty"],"counterfactuals":["fiction-memory confusion","unsupported mind reading","voice mismatch"],"primary_metrics":["rubric score","evidence fidelity"]},
+    {"id":"I","name":"Typed deltas and multi-tick correction","objectives":["insert delete replace","append as insert","no-change outcome","chunk assembly","atomic commit","regional authority"],"counterfactuals":["stale base","overlap","disabled region","chunk gap","immutable evidence write"],"primary_metrics":["delta validity","atomic replay accuracy"]},
+    {"id":"J","name":"Council proposal refinement consolidation","objectives":["all proposals","all refinements","minority evidence","rotating crown","one tick three phases"],"counterfactuals":["missing sibling","duplicate sibling","wrong phase","strongest-only summary","wrong crown"],"primary_metrics":["roster completeness","council uplift"]},
+    {"id":"K","name":"Private soul use","objectives":["phase inhale exhale","write delay recall","private habits","abstention","no per-page write"],"counterfactuals":["zero soul","swapped soul","shuffled soul","stale soul","irrelevant soul"],"primary_metrics":["causal soul effect","donor following"]},
+    {"id":"L","name":"Diary and autobiographical judgment","objectives":["completed-event grounding","meaning and lesson","confidence","identity from evidence","summary correction"],"counterfactuals":["unsupported event","weak summary conflict","synthetic biography","empty event"],"primary_metrics":["provenance accuracy","unsupported claim rate"]},
+    {"id":"M","name":"Robustness and length generalization","objectives":["held-out lengths","page-size invariance","region order identity","CPU parity","deterministic replay"],"counterfactuals":["tail-only reader","first-page reader","last-page reader","shuffled pages"],"primary_metrics":["held-out accuracy","CPU correctness","replay identity"]}
+  ]
+}

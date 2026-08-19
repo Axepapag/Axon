@@ -1,0 +1,90 @@
+{
+  "checks": {
+    "alphabet_manifest": "PASS",
+    "atomic_chunk_assembly": "PASS",
+    "authority_profiles": "PASS",
+    "base_and_sibling_coverage": "PASS",
+    "counterfactual_completeness": "PASS",
+    "eligible_evidence_positions": "PASS",
+    "focus_all_ten_regions_attended": "PASS",
+    "focus_three_region_delta": "PASS",
+    "immutable_evidence_content": "PASS",
+    "independent_attention_switches": "PASS",
+    "one_tick_three_phases": "PASS",
+    "package_manifest": "PASS",
+    "page_strata_1_2_4_8": "PASS",
+    "schema_documents_parse": "PASS",
+    "sibling_identity_and_roster": "PASS",
+    "snapshot_identity": "PASS",
+    "soul_phase_bindings": "PASS",
+    "two_clean_run_byte_replay": "PASS"
+  },
+  "failures": [],
+  "frozen": {
+    "digest": "3e640ce3549cdcd09e3d7cc9c60c1fb57abf38885f7db5a5bab11b2e64ba2e18",
+    "records": 20
+  },
+  "package_files": {
+    "CURRICULUM_ARCHITECTURE.md": "3ce7c5458ce7d0abf26315ead4699efea0e8a2251ae7a6e4db679d55e10b160d",
+    "DECISION_MATRIX.md": "f66b634cd56998248e6a055050cca78e69b338e52fbf42700d68c103580d0f34",
+    "GENERATOR_SPEC.md": "1f61451870a6a4aac422911769cae502c24e1a965d9cae90dea5426869989125",
+    "OPEN_QUESTIONS.md": "38763eba91db891fe1f9910e7a3af4ee20226eee61b959dc98741cdc4e6f3917",
+    "PRIVATE_MEMORY_INGESTION_SPEC.md": "a8d949293c082997065d3d11989892185b5eb546397a586803c6f3756652dadd",
+    "README.md": "a7486d6caf7e8baa9fa43d76250f3a5c6148a934eb22309311e57c456769b645",
+    "REVIEW_CHECKLIST.md": "5a0b05e1edd19ec5650178c713da8adf70412e95256f4d657426f7f679db2798",
+    "TRAINING_SCHEDULE.md": "9c5cd7504a269f01e5442ad1ce9cb25382a830f40a9c84c7957efe1da3a3ca33",
+    "alphabet_manifest.json": "b20c021fd619a2a861551aeef8d139827b519dcee0629e3834f322ebc2c32ebd",
+    "authority_profiles.json": "983a272c43516940602d4ee3519e01687bc5a19a3a5d4a0deef1c311391ce3e1",
+    "authority_profiles.schema.json": "ed122df533476a5302259621fdbfc311214619bda5c0bd01a14ba78fd3df5ac6",
+    "complete_field_example.schema.json": "0e00565d7b223851b9d232c576e3cad389189d124c65230cc07234bb15b3f831",
+    "curriculum_families.json": "9d7997f9732a47575def3c1290a0ed9f0724d404259c133f530a3f4178ac383a",
+    "curriculum_manifest.schema.json": "89640e87c49ed5ed2d04362c5952226b4b430cc0565a6d00c8bdb7b1e094f34b",
+    "frozen_evals.jsonl": "3e640ce3549cdcd09e3d7cc9c60c1fb57abf38885f7db5a5bab11b2e64ba2e18",
+    "generate_curriculum.py": "da8238c39e9b9998bc146f9cc827aed7186f13e5a93c9d18169042f93f576583",
+    "starter_examples.jsonl": "e1deea0759eb12a85428abd0efdf62233d82bea35c1e2c36d841381c2e36e783",
+    "tests/test_generate_curriculum.py": "55962939d60ad8eefd366eec876036620c0a5ba2fb7414fc7dd58a39f3ba43b5",
+    "verify_curriculum.py": "a9e715d7c5aa1cc67fbc470be3b36beec4879011235cdf37ce0d5542cc179fb8"
+  },
+  "package_manifest": {
+    "digest": "2979d93e88096c60fb9615e469a0e01402f375f8a1075040d5e8f76d88963f67",
+    "files": 19
+  },
+  "provided_generated_root": null,
+  "replay": {
+    "files": {
+      "dev.jsonl": "029f848b2f72717585dec3a9300695184e9e5e45fd94da2429f53463d28234b0",
+      "manifest.json": "98e6c2779291e2bd5c799263c24fdb73fbabdd8b7a7de2cf8891e1554de9f705",
+      "test.jsonl": "bc86c46c3134672ae857a358e9ddefbecf8b1f9fde676f64a94f24b427bd2590",
+      "train.jsonl": "334254fe14c194494bc434dc222bb2f4a9626b50b24b359abee405edeb3d4bc1"
+    },
+    "validation": {
+      "evidence_positions": {
+        "early": 2,
+        "first": 11,
+        "last": 4,
+        "late": 2,
+        "middle": 1
+      },
+      "groups": 20,
+      "manifest_digest": "98e6c2779291e2bd5c799263c24fdb73fbabdd8b7a7de2cf8891e1554de9f705",
+      "page_strata": {
+        "1": 5,
+        "2": 5,
+        "4": 5,
+        "8": 5
+      },
+      "records": 100
+    }
+  },
+  "run_id": "verify-20260819T005742452873Z",
+  "runtime_modified": false,
+  "schema": "axon-curriculum-verification-evidence-v0.2",
+  "stamp": "ChatGPT / GPT-5 / 2026-08-18",
+  "starter": {
+    "digest": "e1deea0759eb12a85428abd0efdf62233d82bea35c1e2c36d841381c2e36e783",
+    "records": 16
+  },
+  "status": "PASS",
+  "training_launched": false,
+  "verifier_version": "axon-complete-field-verifier-v0.2"
+}

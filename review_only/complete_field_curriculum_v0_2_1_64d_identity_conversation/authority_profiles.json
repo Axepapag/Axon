@@ -1,0 +1,183 @@
+{
+  "schema": "axon-core-authority-profiles-v0.2",
+  "stamp": "ChatGPT / GPT-5 / 2026-08-18",
+  "default_decision": "deny",
+  "contract_scope": "The semantic policy plane can address every canonical region. The first 64D identity and conversation profile reads all ten active regions and may write only scratch, response_draft, and diary.",
+  "content_immutable_to_cores": [
+    "conversation_history",
+    "user_input",
+    "tool_results",
+    "advisor_input"
+  ],
+  "immutable_ingress_owner": {
+    "conversation_history": "runtime conversation committer",
+    "user_input": "runtime input adapter",
+    "tool_results": "runtime tool-result adapter",
+    "advisor_input": "runtime advisor adapter"
+  },
+  "profiles": {
+    "core-v1-scratch-response-only": {
+      "description": "Current bootstrap compatibility policy. Core content writes are limited to scratch and response_draft. Mask movement remains operator/runtime-owned.",
+      "mask_scope": "canonical_shared_boundary",
+      "cores": {
+        "core-alpha": {
+          "content": {
+            "scratch": ["insert", "delete", "replace"],
+            "response_draft": ["insert", "delete", "replace"]
+          },
+          "attention": {}
+        },
+        "core-beta": {
+          "content": {
+            "scratch": ["insert", "delete", "replace"],
+            "response_draft": ["insert", "delete", "replace"]
+          },
+          "attention": {}
+        },
+        "core-gamma": {
+          "content": {
+            "scratch": ["insert", "delete", "replace"],
+            "response_draft": ["insert", "delete", "replace"]
+          },
+          "attention": {}
+        }
+      }
+    },
+    "core-v2-governed-full-field": {
+      "description": "Future semantic contract with independent per-core content and attention switches. The name means the policy plane covers the full field; it does not grant every region to every core.",
+      "mask_scope": "core_private_attention_view",
+      "future_interval_feature_enabled": false,
+      "cores": {
+        "core-alpha": {
+          "content": {
+            "scratch": ["insert", "delete", "replace"],
+            "response_draft": ["insert", "delete", "replace"]
+          },
+          "attention": {
+            "conversation_history": ["set_boundary"],
+            "user_input": ["set_boundary"],
+            "structured_knowledge": ["set_boundary"],
+            "situation_awareness": ["set_boundary"],
+            "tool_results": ["set_boundary"],
+            "advisor_input": ["set_boundary"],
+            "task_state": ["set_boundary"],
+            "scratch": ["set_boundary"],
+            "response_draft": ["set_boundary"],
+            "diary": ["set_boundary"]
+          }
+        },
+        "core-beta": {
+          "content": {
+            "structured_knowledge": ["insert", "delete", "replace"],
+            "situation_awareness": ["insert", "delete", "replace"],
+            "task_state": ["insert", "delete", "replace"]
+          },
+          "attention": {
+            "conversation_history": ["set_boundary"],
+            "user_input": ["set_boundary"],
+            "structured_knowledge": ["set_boundary"],
+            "situation_awareness": ["set_boundary"],
+            "tool_results": ["set_boundary"],
+            "advisor_input": ["set_boundary"],
+            "task_state": ["set_boundary"],
+            "scratch": ["set_boundary"],
+            "response_draft": ["set_boundary"],
+            "diary": ["set_boundary"]
+          }
+        },
+        "core-gamma": {
+          "content": {
+            "diary": ["insert", "delete", "replace"],
+            "response_draft": ["insert", "delete", "replace"]
+          },
+          "attention": {
+            "conversation_history": ["set_boundary"],
+            "user_input": ["set_boundary"],
+            "structured_knowledge": ["set_boundary"],
+            "situation_awareness": ["set_boundary"],
+            "tool_results": ["set_boundary"],
+            "advisor_input": ["set_boundary"],
+            "task_state": ["set_boundary"],
+            "scratch": ["set_boundary"],
+            "response_draft": ["set_boundary"],
+            "diary": ["set_boundary"]
+          }
+        }
+      }
+    },
+    "core-r0-64d-identity-conversation": {
+      "description": "Jeff's first bounded 64D identity and conversation profile. Every core phase receives a complete paged view of all ten active regions. A validated content delta may update scratch, response_draft, and diary only; all other content writes remain denied.",
+      "mask_scope": "core_private_attention_view",
+      "future_interval_feature_enabled": false,
+      "cores": {
+        "core-alpha": {
+          "content": {
+            "scratch": ["insert", "delete", "replace"],
+            "response_draft": ["insert", "delete", "replace"],
+            "diary": ["insert", "delete", "replace"]
+          },
+          "attention": {
+            "conversation_history": ["set_boundary"],
+            "user_input": ["set_boundary"],
+            "structured_knowledge": ["set_boundary"],
+            "situation_awareness": ["set_boundary"],
+            "tool_results": ["set_boundary"],
+            "advisor_input": ["set_boundary"],
+            "task_state": ["set_boundary"],
+            "scratch": ["set_boundary"],
+            "response_draft": ["set_boundary"],
+            "diary": ["set_boundary"]
+          }
+        },
+        "core-beta": {
+          "content": {
+            "scratch": ["insert", "delete", "replace"],
+            "response_draft": ["insert", "delete", "replace"],
+            "diary": ["insert", "delete", "replace"]
+          },
+          "attention": {
+            "conversation_history": ["set_boundary"],
+            "user_input": ["set_boundary"],
+            "structured_knowledge": ["set_boundary"],
+            "situation_awareness": ["set_boundary"],
+            "tool_results": ["set_boundary"],
+            "advisor_input": ["set_boundary"],
+            "task_state": ["set_boundary"],
+            "scratch": ["set_boundary"],
+            "response_draft": ["set_boundary"],
+            "diary": ["set_boundary"]
+          }
+        },
+        "core-gamma": {
+          "content": {
+            "scratch": ["insert", "delete", "replace"],
+            "response_draft": ["insert", "delete", "replace"],
+            "diary": ["insert", "delete", "replace"]
+          },
+          "attention": {
+            "conversation_history": ["set_boundary"],
+            "user_input": ["set_boundary"],
+            "structured_knowledge": ["set_boundary"],
+            "situation_awareness": ["set_boundary"],
+            "tool_results": ["set_boundary"],
+            "advisor_input": ["set_boundary"],
+            "task_state": ["set_boundary"],
+            "scratch": ["set_boundary"],
+            "response_draft": ["set_boundary"],
+            "diary": ["set_boundary"]
+          }
+        }
+      }
+    }
+  },
+  "invariants": [
+    "Content authority and attention-mask authority are evaluated independently.",
+    "Conversation history, user input, tool results, and advisor input are immutable to cores under every profile.",
+    "A mask update changes only a named core's derived attention view and never changes canonical source text.",
+    "The current v1 adapter rejects every write outside scratch and response_draft.",
+    "Every unlisted core, region, operation, and future interval operation is denied.",
+    "A mask update emitted after a phase affects a later phase or tick and cannot retroactively reduce the current phase coverage obligation.",
+    "Only a validated consolidation delta may mutate canonical content.",
+    "The R0 64D identity and conversation profile requires every phase to cover all ten active regions before decoding a three-region scratch, response_draft, and diary delta."
+  ]
+}

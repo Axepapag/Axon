@@ -1,0 +1,274 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axon.local/schemas/complete_field_example.schema.json",
+  "title": "Axon complete-field council phase example v0.2",
+  "description": "Review-only contract. ChatGPT / GPT-5 / 2026-08-18.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_type", "schema_version", "builder_version", "stamp", "example_id",
+    "family", "sub_family", "split", "seed", "lineage_id", "counterfactual_group",
+    "counterfactual_variant", "tick", "difficulty", "snapshot", "attention_view",
+    "authority", "sibling_delta_set", "coverage_manifest", "phase_result", "expected",
+    "evidence_spans", "soul_transition", "provenance", "alphabet", "builder_validation"
+  ],
+  "properties": {
+    "record_type": {"const": "complete_field_example"},
+    "schema_version": {"const": "0.2.0-review"},
+    "builder_version": {"const": "axon-complete-field-builder-v0.2"},
+    "stamp": {"const": "ChatGPT / GPT-5 / 2026-08-18"},
+    "example_id": {"type": "string", "minLength": 1},
+    "family": {"type": "string", "pattern": "^[A-M]$"},
+    "sub_family": {"type": "string", "minLength": 1},
+    "split": {"enum": ["train", "dev", "test", "frozen_eval", "starter"]},
+    "seed": {"type": "integer", "minimum": 0},
+    "lineage_id": {"type": "string", "minLength": 1},
+    "counterfactual_group": {"type": "string", "minLength": 1},
+    "counterfactual_variant": {"enum": ["correct", "missing_page", "duplicated_page", "reordered_page", "hash_corrupted"]},
+    "tick": {"$ref": "#/$defs/tick"},
+    "difficulty": {"$ref": "#/$defs/difficulty"},
+    "snapshot": {"$ref": "#/$defs/snapshot"},
+    "attention_view": {"$ref": "#/$defs/attention_view"},
+    "authority": {"$ref": "#/$defs/authority"},
+    "sibling_delta_set": {"$ref": "#/$defs/sibling_set"},
+    "coverage_manifest": {"$ref": "#/$defs/coverage_manifest"},
+    "phase_result": {"$ref": "#/$defs/phase_result"},
+    "expected": {"$ref": "#/$defs/expected"},
+    "evidence_spans": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/evidence_span"}},
+    "soul_transition": {"$ref": "#/$defs/soul_transition"},
+    "provenance": {"$ref": "#/$defs/provenance"},
+    "alphabet": {"$ref": "#/$defs/alphabet"},
+    "builder_validation": {"$ref": "#/$defs/builder_validation"}
+  },
+  "$defs": {
+    "hex": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "region": {"enum": ["conversation_history", "user_input", "structured_knowledge", "situation_awareness", "tool_results", "advisor_input", "task_state", "scratch", "response_draft", "diary"]},
+    "digest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["algorithm", "digest"],
+      "properties": {"algorithm": {"const": "sha256"}, "digest": {"$ref": "#/$defs/hex"}}
+    },
+    "tick": {
+      "type": "object", "additionalProperties": false,
+      "required": ["tick_seq", "phase", "phase_seq", "acting_core_id", "consolidator_core_id", "online_core_ids", "expected_sibling_core_ids"],
+      "properties": {
+        "tick_seq": {"type": "integer", "minimum": 0},
+        "phase": {"enum": ["proposal", "refinement", "consolidation"]},
+        "phase_seq": {"enum": [0, 1, 2]},
+        "acting_core_id": {"type": "string", "minLength": 1},
+        "consolidator_core_id": {"type": "string", "minLength": 1},
+        "online_core_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "expected_sibling_core_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "difficulty": {
+      "type": "object", "additionalProperties": false,
+      "required": ["base_field_page_count", "sibling_page_count", "page_size", "active_character_count", "evidence_position", "reasoning_steps"],
+      "properties": {
+        "base_field_page_count": {"enum": [1, 2, 4, 8]},
+        "sibling_page_count": {"type": "integer", "minimum": 0},
+        "page_size": {"type": "integer", "minimum": 16},
+        "active_character_count": {"type": "integer", "minimum": 1},
+        "evidence_position": {"enum": ["first", "early", "middle", "late", "last"]},
+        "reasoning_steps": {"type": "integer", "minimum": 0}
+      }
+    },
+    "span": {
+      "type": "object", "additionalProperties": false,
+      "required": ["span_id", "text", "kind", "source", "provenance", "confidence", "container_refs", "edge_refs"],
+      "properties": {
+        "span_id": {"type": "string", "minLength": 1}, "text": {"type": "string", "minLength": 1},
+        "kind": {"type": "string", "minLength": 1}, "source": {"type": "string"}, "provenance": {"type": "string"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "container_refs": {"type": "array", "items": {"type": "string"}},
+        "edge_refs": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "region_state": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "visibility", "write_policy", "spans"],
+      "properties": {
+        "name": {"$ref": "#/$defs/region"}, "visibility": {"enum": ["attended", "masked"]},
+        "write_policy": {"enum": ["sealed", "core_writable"]},
+        "spans": {"type": "array", "items": {"$ref": "#/$defs/span"}}
+      }
+    },
+    "snapshot": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema", "tick_id", "parent_field_id", "source_manifest_ids", "regions", "field_id"],
+      "properties": {
+        "schema": {"const": "shared-field-v1"}, "tick_id": {"type": "integer", "minimum": 0},
+        "parent_field_id": {"type": ["string", "null"]},
+        "source_manifest_ids": {"type": "array", "items": {"type": "string"}},
+        "regions": {"type": "array", "minItems": 10, "maxItems": 10, "items": {"$ref": "#/$defs/region_state"}},
+        "field_id": {"$ref": "#/$defs/hex"}
+      }
+    },
+    "interval": {
+      "type": "array", "prefixItems": [{"type": "integer", "minimum": 0}, {"type": "integer", "minimum": 0}], "items": false, "minItems": 2, "maxItems": 2
+    },
+    "mask_region": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source_text_digest", "mode", "mask_offset", "unit", "retain", "active_intervals", "future_intervals", "can_set_boundary", "can_set_intervals"],
+      "properties": {
+        "source_text_digest": {"$ref": "#/$defs/digest"}, "mode": {"enum": ["manual", "tail", "threshold"]},
+        "mask_offset": {"type": "integer", "minimum": 0}, "unit": {"enum": ["chars", "lines", "paragraphs", "turns"]},
+        "retain": {"type": "integer", "minimum": 0}, "active_intervals": {"type": "array", "items": {"$ref": "#/$defs/interval"}},
+        "future_intervals": {"type": "null"}, "can_set_boundary": {"type": "boolean"}, "can_set_intervals": {"const": false}
+      }
+    },
+    "attention_view": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema", "core_id", "profile_id", "mask_scope", "regions"],
+      "properties": {
+        "schema": {"const": "core-region-attention-view-v0.2"}, "core_id": {"type": "string", "minLength": 1},
+        "profile_id": {"enum": ["core-v1-scratch-response-only", "core-v2-governed-full-field", "core-r0-64d-identity-conversation"]},
+        "mask_scope": {"enum": ["canonical_shared_boundary", "core_private_attention_view"]},
+        "regions": {"type": "object", "minProperties": 10, "maxProperties": 10, "additionalProperties": {"$ref": "#/$defs/mask_region"}}
+      }
+    },
+    "policy_assertion": {
+      "type": "object", "additionalProperties": false,
+      "required": ["action_class", "region", "operation", "expected_authorized", "reason"],
+      "properties": {
+        "action_class": {"enum": ["content", "attention"]}, "region": {"$ref": "#/$defs/region"},
+        "operation": {"enum": ["insert", "delete", "replace", "set_boundary", "set_intervals"]},
+        "expected_authorized": {"type": "boolean"}, "reason": {"type": "string", "minLength": 1}
+      }
+    },
+    "authority": {
+      "type": "object", "additionalProperties": false,
+      "required": ["profile_id", "core_id", "default_decision", "policy_assertions"],
+      "properties": {
+        "profile_id": {"enum": ["core-v1-scratch-response-only", "core-v2-governed-full-field", "core-r0-64d-identity-conversation"]},
+        "core_id": {"type": "string", "minLength": 1}, "default_decision": {"const": "deny"},
+        "policy_assertions": {"type": "array", "minItems": 4, "items": {"$ref": "#/$defs/policy_assertion"}}
+      }
+    },
+    "payload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["encoding", "schema", "exact_text", "delta_id", "digest"],
+      "properties": {
+        "encoding": {"const": "canonical-json-utf8"}, "schema": {"const": "shared-field-delta-v1"},
+        "exact_text": {"type": "string", "minLength": 1}, "delta_id": {"$ref": "#/$defs/hex"}, "digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "envelope": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema", "tick_seq", "source_phase", "phase_seq", "core_id", "roster_index", "checkpoint", "soul_before", "soul_after", "base_field_id", "base_tick_id", "payload", "provenance", "envelope_id"],
+      "properties": {
+        "schema": {"const": "council-delta-envelope-v0.2"}, "tick_seq": {"type": "integer", "minimum": 0},
+        "source_phase": {"enum": ["proposal", "refinement", "consolidation"]}, "phase_seq": {"enum": [0, 1, 2]},
+        "core_id": {"type": "string", "minLength": 1}, "roster_index": {"type": "integer", "minimum": 0},
+        "checkpoint": {"$ref": "#/$defs/digest"}, "soul_before": {"$ref": "#/$defs/digest"}, "soul_after": {"$ref": "#/$defs/digest"},
+        "base_field_id": {"$ref": "#/$defs/hex"}, "base_tick_id": {"type": "integer", "minimum": 0},
+        "payload": {"$ref": "#/$defs/payload"}, "provenance": {"type": "string", "minLength": 1}, "envelope_id": {"$ref": "#/$defs/hex"}
+      }
+    },
+    "sibling_set": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema", "tick_seq", "source_phase", "expected_core_ids", "envelopes", "set_id"],
+      "properties": {
+        "schema": {"const": "council-sibling-delta-set-v0.2"}, "tick_seq": {"type": "integer", "minimum": 0},
+        "source_phase": {"type": ["string", "null"], "enum": [null, "proposal", "refinement"]},
+        "expected_core_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "envelopes": {"type": "array", "items": {"$ref": "#/$defs/envelope"}}, "set_id": {"$ref": "#/$defs/hex"}
+      }
+    },
+    "page_segment": {
+      "type": "object", "additionalProperties": false,
+      "required": ["region", "region_start", "region_end", "stream_start", "stream_end", "exact_text"],
+      "properties": {
+        "region": {"$ref": "#/$defs/region"}, "region_start": {"type": "integer", "minimum": 0}, "region_end": {"type": "integer", "minimum": 0},
+        "stream_start": {"type": "integer", "minimum": 0}, "stream_end": {"type": "integer", "minimum": 0}, "exact_text": {"type": "string"}
+      }
+    },
+    "page": {
+      "type": "object", "additionalProperties": false,
+      "required": ["namespace", "stream_id", "page_index", "stream_start", "stream_end", "exact_text", "digest", "segments"],
+      "properties": {
+        "namespace": {"enum": ["base_field", "sibling_delta_set"]}, "stream_id": {"type": "string", "minLength": 1},
+        "page_index": {"type": "integer", "minimum": 0}, "stream_start": {"type": "integer", "minimum": 0}, "stream_end": {"type": "integer", "minimum": 0},
+        "exact_text": {"type": "string"}, "digest": {"$ref": "#/$defs/digest"}, "segments": {"type": "array", "items": {"$ref": "#/$defs/page_segment"}}
+      }
+    },
+    "coverage_namespace": {
+      "type": "object", "additionalProperties": false,
+      "required": ["required", "stream_id", "source_digest", "expected_characters", "expected_page_indices", "pages"],
+      "properties": {
+        "required": {"type": "boolean"}, "stream_id": {"type": "string", "minLength": 1}, "source_digest": {"$ref": "#/$defs/digest"},
+        "expected_characters": {"type": "integer", "minimum": 0}, "expected_page_indices": {"type": "array", "uniqueItems": true, "items": {"type": "integer", "minimum": 0}},
+        "pages": {"type": "array", "items": {"$ref": "#/$defs/page"}}
+      }
+    },
+    "coverage_manifest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema", "base_field", "sibling_delta_set", "zero_gaps", "zero_duplicates", "finalization_allowed", "observed_failure_code"],
+      "properties": {
+        "schema": {"const": "logical-pass-coverage-v0.2"}, "base_field": {"$ref": "#/$defs/coverage_namespace"},
+        "sibling_delta_set": {"$ref": "#/$defs/coverage_namespace"}, "zero_gaps": {"type": "boolean"}, "zero_duplicates": {"type": "boolean"},
+        "finalization_allowed": {"type": "boolean"}, "observed_failure_code": {"type": ["string", "null"]}
+      }
+    },
+    "chunk": {
+      "type": "object", "additionalProperties": false,
+      "required": ["transaction_id", "expected_chunk_count", "chunk_index", "byte_length", "digest", "exact_text"],
+      "properties": {
+        "transaction_id": {"type": "string", "minLength": 1}, "expected_chunk_count": {"type": "integer", "minimum": 1},
+        "chunk_index": {"type": "integer", "minimum": 0}, "byte_length": {"type": "integer", "minimum": 0}, "digest": {"$ref": "#/$defs/digest"}, "exact_text": {"type": "string"}
+      }
+    },
+    "delta_transport": {
+      "type": "object", "additionalProperties": false,
+      "required": ["transaction_id", "assembled_digest", "chunks"],
+      "properties": {"transaction_id": {"type": "string", "minLength": 1}, "assembled_digest": {"$ref": "#/$defs/digest"}, "chunks": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/chunk"}}}
+    },
+    "attention_update": {
+      "type": "object", "additionalProperties": false,
+      "required": ["region", "operation", "old_offset", "new_offset", "effective", "scope", "source_text_digest"],
+      "properties": {
+        "region": {"$ref": "#/$defs/region"}, "operation": {"const": "set_boundary"}, "old_offset": {"type": "integer", "minimum": 0}, "new_offset": {"type": "integer", "minimum": 0},
+        "effective": {"const": "next_tick"}, "scope": {"const": "core_private_attention_view"}, "source_text_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "phase_result": {
+      "type": "object", "additionalProperties": false,
+      "required": ["outcome", "delta_envelope", "delta_transport", "attention_update", "commit_semantics"],
+      "properties": {
+        "outcome": {"enum": ["delta", "no_change", "failure"]}, "delta_envelope": {"oneOf": [{"$ref": "#/$defs/envelope"}, {"type": "null"}]},
+        "delta_transport": {"oneOf": [{"$ref": "#/$defs/delta_transport"}, {"type": "null"}]}, "attention_update": {"oneOf": [{"$ref": "#/$defs/attention_update"}, {"type": "null"}]},
+        "commit_semantics": {"enum": ["non_mutating_proposal", "non_mutating_refinement", "atomic_consolidation_commit", "none"]}
+      }
+    },
+    "expected": {
+      "type": "object", "additionalProperties": false,
+      "required": ["mode", "failure_code", "finalization_allowed"],
+      "properties": {"mode": {"enum": ["success", "failure", "no_change"]}, "failure_code": {"type": ["string", "null"]}, "finalization_allowed": {"type": "boolean"}}
+    },
+    "evidence_span": {
+      "type": "object", "additionalProperties": false,
+      "required": ["pointer_id", "region", "start", "end", "exact_text", "provenance_id", "use"],
+      "properties": {"pointer_id": {"type": "string"}, "region": {"$ref": "#/$defs/region"}, "start": {"type": "integer", "minimum": 0}, "end": {"type": "integer", "minimum": 0}, "exact_text": {"type": "string"}, "provenance_id": {"type": "string"}, "use": {"enum": ["answer", "calculation", "rule", "conflict", "quotation", "verification", "identity"]}}
+    },
+    "soul_transition": {
+      "type": "object", "additionalProperties": false,
+      "required": ["soul_id", "before", "after", "inhale_count", "exhale_count", "phase_bound", "authoritative_exact_memory"],
+      "properties": {"soul_id": {"type": "string"}, "before": {"$ref": "#/$defs/digest"}, "after": {"$ref": "#/$defs/digest"}, "inhale_count": {"const": 1}, "exhale_count": {"const": 1}, "phase_bound": {"type": "boolean"}, "authoritative_exact_memory": {"const": false}}
+    },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source_type", "source_ids", "license", "privacy", "autobiographical"],
+      "properties": {"source_type": {"enum": ["synthetic", "public", "private"]}, "source_ids": {"type": "array", "items": {"type": "string"}}, "license": {"type": "string"}, "privacy": {"enum": ["public_synthetic", "public_licensed", "private_local_only"]}, "autobiographical": {"type": "boolean"}}
+    },
+    "alphabet": {
+      "type": "object", "additionalProperties": false,
+      "required": ["alphabet_id", "algorithm", "digest", "supported", "unsupported_codepoints", "action"],
+      "properties": {"alphabet_id": {"const": "axon-char-alphabet-v8"}, "algorithm": {"const": "sha256"}, "digest": {"$ref": "#/$defs/hex"}, "supported": {"type": "boolean"}, "unsupported_codepoints": {"type": "array", "items": {"type": "string"}}, "action": {"enum": ["accept", "quarantine"]}}
+    },
+    "builder_validation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["checks_run", "coverage_oracle_expected", "coverage_oracle_observed", "external_validation"],
+      "properties": {"checks_run": {"type": "array", "items": {"type": "string"}}, "coverage_oracle_expected": {"type": ["string", "null"]}, "coverage_oracle_observed": {"type": ["string", "null"]}, "external_validation": {"type": "null"}}
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axon.local/schemas/curriculum_manifest.schema.json",
+  "title": "Axon generated curriculum manifest v0.2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "builder_version", "stamp", "seed", "group_count", "record_count", "required_variants", "page_strata", "evidence_position_counts", "phase_counts", "profile_counts", "split_files", "builder_validation", "external_validation"],
+  "properties": {
+    "schema": {"const": "axon-complete-field-curriculum-manifest-v0.2"},
+    "builder_version": {"const": "axon-complete-field-builder-v0.2"},
+    "stamp": {"const": "ChatGPT / GPT-5 / 2026-08-18"},
+    "seed": {"type": "integer", "minimum": 0},
+    "group_count": {"type": "integer", "minimum": 1},
+    "record_count": {"type": "integer", "minimum": 5},
+    "required_variants": {"const": ["correct", "missing_page", "duplicated_page", "reordered_page", "hash_corrupted"]},
+    "page_strata": {
+      "type": "object", "additionalProperties": false, "required": ["1", "2", "4", "8"],
+      "properties": {"1": {"type": "integer", "minimum": 1}, "2": {"type": "integer", "minimum": 1}, "4": {"type": "integer", "minimum": 1}, "8": {"type": "integer", "minimum": 1}}
+    },
+    "evidence_position_counts": {
+      "type": "object", "additionalProperties": false, "required": ["first", "early", "middle", "late", "last"],
+      "properties": {"first": {"type": "integer", "minimum": 1}, "early": {"type": "integer", "minimum": 1}, "middle": {"type": "integer", "minimum": 1}, "late": {"type": "integer", "minimum": 1}, "last": {"type": "integer", "minimum": 1}}
+    },
+    "phase_counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "profile_counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "split_files": {
+      "type": "object", "additionalProperties": false, "required": ["train", "dev", "test"],
+      "properties": {"train": {"$ref": "#/$defs/file"}, "dev": {"$ref": "#/$defs/file"}, "test": {"$ref": "#/$defs/file"}}
+    },
+    "builder_validation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["output_root_was_empty", "complete_variant_groups", "coverage_oracle_matches", "alphabet_audit", "schema_validation", "deterministic_replay"],
+      "properties": {
+        "output_root_was_empty": {"const": true}, "complete_variant_groups": {"const": true}, "coverage_oracle_matches": {"const": true},
+        "alphabet_audit": {"const": true}, "schema_validation": {"type": "null"}, "deterministic_replay": {"type": "null"}
+      }
+    },
+    "external_validation": {"type": "null"}
+  },
+  "$defs": {
+    "file": {
+      "type": "object", "additionalProperties": false, "required": ["path", "algorithm", "digest", "records"],
+      "properties": {"path": {"type": "string"}, "algorithm": {"const": "sha256"}, "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "records": {"type": "integer", "minimum": 0}}
+    }
+  }
+}

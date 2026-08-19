@@ -33,6 +33,7 @@ runtime/council/souls/
 !/roundtable/ENGINEERS_LEDGER.md
 !/roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl
 !/roundtable/ENGINEERS_LEDGER_PROTOCOL.md
+!/roundtable/CHATGPT_CODEX_COLLABORATION.md
 
 # State/ holds canonical state only; README documents the ruling
 !State/README.md

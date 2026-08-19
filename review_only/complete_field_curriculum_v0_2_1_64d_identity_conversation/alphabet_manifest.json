@@ -1,0 +1,21 @@
+{
+  "schema": "axon-alphabet-manifest-v1",
+  "alphabet_id": "axon-char-alphabet-v8",
+  "algorithm": "sha256",
+  "serialization": "canonical compact UTF-8 JSON array; ensure_ascii=false; sort_keys=true; separators comma-colon; allow_nan=false",
+  "digest": "0c435dcaf9acebf398174f3516164d577b689e283f78b9c6332ad2dfb8ce5b64",
+  "raw_joined_digest": "b923e19bb027385a0448add83a0a2f471a08290aaca6111c6574db89fb3ee59a",
+  "length": 95,
+  "source_commit": "5f32dc1b6301393fc29e6fe24285f292032a06d5",
+  "source_symbol": "substrate.substrate.default_alphabet",
+  "v7_reference_bank_identity": "runtime source-bound; verifier must compare repository export before promotion",
+  "ordered_characters": [
+    "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
+    "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
+    "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
+    "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+    "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", " ", ".", "\n",
+    "!", "?", "(", "=", "[", ",", "{", "+", "'", ")", "*", "]", ";", "}",
+    "-", "\"", "<", "/", "#", ":", "%", "@", "&", ">", "\\", "|", "_", "^", "$", "~"
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axon.local/schemas/authority_profiles.schema.json",
+  "title": "Axon per-core content and attention authority profiles",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "stamp", "default_decision", "contract_scope", "content_immutable_to_cores", "immutable_ingress_owner", "profiles", "invariants"],
+  "properties": {
+    "schema": {"const": "axon-core-authority-profiles-v0.2"},
+    "stamp": {"type": "string", "minLength": 1},
+    "default_decision": {"const": "deny"},
+    "contract_scope": {"type": "string", "minLength": 1},
+    "content_immutable_to_cores": {
+      "const": ["conversation_history", "user_input", "tool_results", "advisor_input"]
+    },
+    "immutable_ingress_owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["conversation_history", "user_input", "tool_results", "advisor_input"],
+      "properties": {
+        "conversation_history": {"type": "string", "minLength": 1},
+        "user_input": {"type": "string", "minLength": 1},
+        "tool_results": {"type": "string", "minLength": 1},
+        "advisor_input": {"type": "string", "minLength": 1}
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["core-v1-scratch-response-only", "core-v2-governed-full-field", "core-r0-64d-identity-conversation"],
+      "properties": {
+        "core-v1-scratch-response-only": {"$ref": "#/$defs/profile"},
+        "core-v2-governed-full-field": {"$ref": "#/$defs/profile"},
+        "core-r0-64d-identity-conversation": {"$ref": "#/$defs/profile"}
+      }
+    },
+    "invariants": {"type": "array", "minItems": 8, "items": {"type": "string", "minLength": 1}}
+  },
+  "$defs": {
+    "operation_list": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"enum": ["insert", "delete", "replace", "set_boundary", "set_intervals"]}
+    },
+    "region_map": {
+      "type": "object",
+      "propertyNames": {"enum": ["conversation_history", "user_input", "structured_knowledge", "situation_awareness", "tool_results", "advisor_input", "task_state", "scratch", "response_draft", "diary"]},
+      "additionalProperties": {"$ref": "#/$defs/operation_list"}
+    },
+    "core": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["content", "attention"],
+      "properties": {
+        "content": {"$ref": "#/$defs/region_map"},
+        "attention": {"$ref": "#/$defs/region_map"}
+      }
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["description", "mask_scope", "cores"],
+      "properties": {
+        "description": {"type": "string", "minLength": 1},
+        "mask_scope": {"enum": ["canonical_shared_boundary", "core_private_attention_view"]},
+        "future_interval_feature_enabled": {"type": "boolean"},
+        "cores": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {"$ref": "#/$defs/core"}
+        }
+      }
+    }
+  }
+}

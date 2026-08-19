@@ -40,6 +40,35 @@ unreported last-N-character slice satisfies this contract.
 
 All Axon state lives beneath `D:\Axon\State`.
 
+## Amendment: core authority over the shared field
+
+Date: 2026-08-18
+Authority: Jeff, convener
+Status: binding target architecture; staged implementation required
+
+Axon's cores must ultimately be able to maintain Axon's entire canonical
+shared field. The validated consolidator delta may address every canonical
+region, including conversation history, user input, response draft,
+structured knowledge, situation awareness, scratch, tool results, advisor
+input, task state, and diary. The current scratch/response-draft-only
+validator is a temporary bootstrap restriction, not final doctrine.
+
+Field-wide authority remains typed, attributable, base-hash-bound,
+coverage-proven, auditable, and atomically committed. Proposal and refinement
+deltas do not mutate the canonical field independently. External observations
+and operator input retain provenance even when a core later organizes,
+annotates, or corrects the region containing them. Nothing in this ruling
+authorizes silent evidence deletion, provenance loss, partial chunk commits,
+or unvalidated writes.
+
+The future mask model may support multiple ordered, non-overlapping active
+intervals inside a region. This permits, for example, attending a pinned older
+passage and the newest turns while leaving intervening text dormant. Exact
+masked text must remain preserved and immediately restorable. This capability
+is approved as an additive future feature; the initial complete-field reader
+and R0 curriculum may use the simpler single movable boundary and must not be
+delayed on disjoint-interval implementation.
+
 ## Current implementation gap
 
 The live 64D checkpoint has a learned 384-slot positional surface and the

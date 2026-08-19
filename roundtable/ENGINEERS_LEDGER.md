@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-18T13:55:36-05:00
-Current through event: `evt-20260818T185536963057Z-codex-curriculum-package-review`
+Updated: 2026-08-18T20:02:10-05:00
+Current through event: `evt-20260819T010210364018Z-chatgpt-v021-64d-focus`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -15,6 +15,30 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 ## Current verified state
 
+- ChatGPT delivered the isolated review-only package at
+  `review_only/complete_field_curriculum_v0_2_1_64d_identity_conversation/`.
+  Its default `core-r0-64d-identity-conversation` profile gives every phase
+  nonempty active access to all ten canonical regions through complete paged
+  coverage, while successful focused deltas update exactly `scratch`,
+  `response_draft`, and `diary`. Windows verification passed 11/11 unit tests,
+  16 starter records, 20 frozen records, a 100-record smoke, and two
+  byte-identical replays. Package-manifest SHA-256 is
+  `2979d93e88096c60fb9615e469a0e01402f375f8a1075040d5e8f76d88963f67`.
+  No runtime integration, private-memory ingestion, or training occurred.
+
+- Codex answered all thirteen v0.2 contract questions in
+  `roundtable/CHATGPT_CODEX_COLLABORATION.md`. The agreed engineering target is
+  a versioned two-layer contract: `runtime/field` remains semantic authority;
+  the live plain-dict council remains a bootstrap compatibility surface behind
+  an explicit adapter. Corrected v0.2 stays isolated and restrictive until
+  independent re-review.
+- Jeff ruled 2026-08-18 that Axon's cores must ultimately maintain every
+  canonical shared-field region, including diary, situation awareness,
+  structured knowledge, task state, conversation, tool/advisor input,
+  scratch, and response. The semantic target profile is
+  `core-v2-governed-full-field`; the current scratch/response-only validator is
+  a temporary compatibility profile. Jeff also approved disjoint active mask
+  intervals as a future additive feature, but they must not delay R0.
 - The detached council HTTP server is running at 127.0.0.1:8788 with eight
   64D CUDA cores and souls rooted at `State/souls/council`. Codex restarted
   the stopped service on 2026-08-18 and verified the rendered interface.
@@ -104,6 +128,24 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 ## Recent completed work
 
+- ChatGPT appended `msg-20260818-chatgpt-003` to
+  `roundtable/CHATGPT_CODEX_COLLABORATION.md`, delivering the v0.2.1 review
+  path, exact verification evidence, focused invariants, eight questions for
+  Codex, and a bounded next sequence. Temporary transfer, smoke, and evidence
+  artifacts remain isolated outside the repository under
+  `D:\\axon_transfer_staging`.
+
+- ChatGPT independently reconciled Codex's v0.1 curriculum review against
+  Axon's source of truth, full-field resolution, live council contract,
+  `runtime/field` snapshot/delta code, mask implementation, and frozen v8
+  alphabet. B1-B6 are accepted. ChatGPT created the tracked append-oriented
+  `roundtable/CHATGPT_CODEX_COLLABORATION.md` (SHA-256
+  388606a83959adc05385a3193d07bf9b9b3bf0bff480cfda9302bffe45f07b26)
+  with thirteen contract questions and a bounded v0.2 sequence. A new blocking
+  ambiguity is recorded: the resolution describes sparse deltas over any
+  region, while current v1 code permits core writes only to scratch and
+  response_draft. No curriculum integration, training, or live council change
+  occurred.
 - Codex reviewed ChatGPT's returned twelve-artifact curriculum ZIP and wrote
   `docs/roundtable/REVIEW_chatgpt-complete-field-curriculum-2026-08-18.md`.
   The package is conditionally accepted as a strong design draft: all supplied
@@ -172,6 +214,19 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 ## Active risks and blockers
 
+- v0.2.1 remains review-only until Codex performs an independent clean-root
+  schema/semantic review and records ACCEPT or REJECT. PowerShell `Test-Json`
+  is unavailable on this host, so independent Draft 2020-12 instance
+  validation remains specifically pending.
+- The council status endpoint at 127.0.0.1:8788 was unreachable after the
+  server power interruption. ChatGPT did not restart it because live runtime
+  mutation was outside the package-delivery mission.
+
+- The write-authority doctrine blocker is resolved: the future semantic
+  profile is field-wide. Implementation remains deliberately staged because
+  `runtime/field/schema.py` and `delta.py` still enforce the temporary
+  `core-v1-scratch-response-only` profile. Do not broaden the live validator
+  until corrected curricula, independent verification, and R0 gates pass.
 - The returned ChatGPT curriculum inspection package is not production-ready.
   Its council schema cannot prove every complete sibling delta was read, and
   its starter episode incorrectly represents proposal/refinement/consolidation
@@ -207,29 +262,26 @@ and the consolidator crown rotates round-robin across ALL cores (no tyrant).
 
 ## Next recommended actions
 
-1. Produce a corrected curriculum inspection package v0.2 using
-   `docs/roundtable/REVIEW_chatgpt-complete-field-curriculum-2026-08-18.md`;
-   fix blockers B1-B6 before any integration.
-2. Reconcile the corrected schemas, generator plan, and gates against Axon's
-   exact runtime field and typed-delta contracts; reject any fixed logical
-   field cap or silent truncation.
-3. Add a `CompleteFieldReader` API that receives ordered exact-character pages,
-   global region/offset metadata, and a carried reader state; it must emit a
-   coverage manifest and only decode after every active span is visited.
-4. Replace strongest-only 48-character council summaries with immutable full
-   proposal/refinement sets consumed by later complete sweeps.
-5. Train a fresh 64D reader first on variable-length cross-page copy, retrieval,
-   aggregation, contradiction, and typed-delta tasks, then require positional
-   and length-generalization counterfactual gates.
-6. Build one disposable offline LoRA smoke from a frozen Grade-A/B memory
-   batch with exact provenance and no synthetic autobiography, then require
-   retention, identity, provenance, and adapter counterfactual gates.
-7. Add governed curriculum adapters for language/reasoning, arithmetic, code,
-   conversation, science, literature/poetry, and psychology only after the
-   disposable memory-adapter path can promote and roll back safely.
+1. Codex independently reviews
+   `review_only/complete_field_curriculum_v0_2_1_64d_identity_conversation/`
+   from a clean temporary output root, including an independent Draft 2020-12
+   schema implementation, and records explicit ACCEPT or REJECT.
+2. Verify the original B1-B6 corrections plus nonempty active coverage from
+   all ten regions and exact three-operation scratch/response-draft/diary
+   membership for every successful focused delta.
+3. If accepted, implement only the smallest CPU `CompleteFieldReader` adapter
+   and a tiny public-synthetic R0 shard; do not yet modify the live council.
+4. Beat constant, first-page, last-page, tail-only, shuffled-page, and corrupt-
+   coverage baselines with zero structural violations.
+5. After the reader contract passes, build a separately reviewed local-only
+   Grade A/B identity pack and compare fresh versus initialized 64D smokes.
+6. Restart and verify the bootstrap council separately if Jeff wants the live
+   service running again; no service restart was part of this package turn.
 
 ## Fast orientation
 
+- ChatGPT-Codex channel: `roundtable/CHATGPT_CODEX_COLLABORATION.md`
+- Current review package: `review_only/complete_field_curriculum_v0_2_1_64d_identity_conversation/`
 - Council contract: `runtime/council/CONTRACT.md`
 - Runtime description: `docs/AXON_RUNTIME.md`
 - Architecture doctrine: `docs/SOURCE_OF_TRUTH.md`

@@ -46,6 +46,13 @@ paragraphs, containers, or conversational turns. Changing a threshold moves
 the boundary only: masked text is preserved exactly, and moving the boundary
 back immediately restores that material to the shared field.
 
+The initial implementation may use one movable boundary per region. The
+versioned future mask schema may additionally select multiple ordered,
+non-overlapping active intervals, such as a pinned older passage plus the
+newest turns. This is an additive feature, not a prerequisite for the first
+complete-field reader; in every form, masked characters remain exact and
+restorable.
+
 ## Dormant State
 
 Dormant state is structured memory outside the current canonical shared field.
@@ -103,6 +110,14 @@ Per tick:
    the entire shared field.
 8. Runtime validates and atomically commits that delta as the next canonical
    shared field; the consolidator exhales its experience.
+
+The validated consolidator delta may address every canonical shared-field
+region. Axon's cores ultimately maintain Axon's conversation, knowledge,
+situation awareness, task state, scratch, response, diary, and other canonical
+regions. Runtime validation, immutable provenance, base-field identity, and
+atomic replay remain mandatory; field-wide authority is not permission for
+unattributed or partial writes. Any narrower validator in the bootstrap
+runtime is a temporary implementation restriction rather than final doctrine.
 
 Input does not enter the soul first. The shared field is the input interface.
 

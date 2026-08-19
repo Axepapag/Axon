@@ -1,0 +1,127 @@
+{
+  "file_count": 19,
+  "files": [
+    {
+      "algorithm": "sha256",
+      "digest": "3ce7c5458ce7d0abf26315ead4699efea0e8a2251ae7a6e4db679d55e10b160d",
+      "path": "CURRICULUM_ARCHITECTURE.md",
+      "size": 8335
+    },
+    {
+      "algorithm": "sha256",
+      "digest": "f66b634cd56998248e6a055050cca78e69b338e52fbf42700d68c103580d0f34",
+      "path": "DECISION_MATRIX.md",
+      "size": 3530
+    },
+    {
+      "algorithm": "sha256",
+      "digest": "1f61451870a6a4aac422911769cae502c24e1a965d9cae90dea5426869989125",
+      "path": "GENERATOR_SPEC.md",
+      "size": 3327
+    },
+    {
+      "algorithm": "sha256",
+      "digest": "38763eba91db891fe1f9910e7a3af4ee20226eee61b959dc98741cdc4e6f3917",
+      "path": "OPEN_QUESTIONS.md",
+      "size": 2287
+    },
+    {
+      "algorithm": "sha256",
+      "digest": "a8d949293c082997065d3d11989892185b5eb546397a586803c6f3756652dadd",
+      "path": "PRIVATE_MEMORY_INGESTION_SPEC.md",
+      "size": 3402
+    },
+    {
+      "algorithm": "sha256",
+      "digest": "a7486d6caf7e8baa9fa43d76250f3a5c6148a934eb22309311e57c456769b645",
+      "path": "README.md",
+      "size": 3163
+    },
+    {
+      "algorithm": "sha256",
+      "digest": "5a0b05e1edd19ec5650178c713da8adf70412e95256f4d657426f7f679db2798",
+      "path": "REVIEW_CHECKLIST.md",
+      "size": 3106
+    },
+    {
+      "algorithm": "sha256",
+      "digest": "9c5cd7504a269f01e5442ad1ce9cb25382a830f40a9c84c7957efe1da3a3ca33",
+      "path": "TRAINING_SCHEDULE.md",
+      "size": 4531
+    },
+    {
+      "algorithm": "sha256",
+      "digest": "b20c021fd619a2a861551aeef8d139827b519dcee0629e3834f322ebc2c32ebd",
+      "path": "alphabet_manifest.json",
+      "size": 1204
+    },
+    {
+      "algorithm": "sha256",
+      "digest": "983a272c43516940602d4ee3519e01687bc5a19a3a5d4a0deef1c311391ce3e1",
+      "path": "authority_profiles.json",
+      "size": 7797
+    },
+    {
+      "algorithm": "sha256",
+      "digest": "ed122df533476a5302259621fdbfc311214619bda5c0bd01a14ba78fd3df5ac6",
+      "path": "authority_profiles.schema.json",
+      "size": 3093
+    },
+    {
+      "algorithm": "sha256",
+      "digest": "0e00565d7b223851b9d232c576e3cad389189d124c65230cc07234bb15b3f831",
+      "path": "complete_field_example.schema.json",
+      "size": 17930
+    },
+    {
+      "algorithm": "sha256",
+      "digest": "9d7997f9732a47575def3c1290a0ed9f0724d404259c133f530a3f4178ac383a",
+      "path": "curriculum_families.json",
+      "size": 5098
+    },
+    {
+      "algorithm": "sha256",
+      "digest": "89640e87c49ed5ed2d04362c5952226b4b430cc0565a6d00c8bdb7b1e094f34b",
+      "path": "curriculum_manifest.schema.json",
+      "size": 3051
+    },
+    {
+      "algorithm": "sha256",
+      "digest": "3e640ce3549cdcd09e3d7cc9c60c1fb57abf38885f7db5a5bab11b2e64ba2e18",
+      "path": "frozen_evals.jsonl",
+      "size": 644541
+    },
+    {
+      "algorithm": "sha256",
+      "digest": "da8238c39e9b9998bc146f9cc827aed7186f13e5a93c9d18169042f93f576583",
+      "path": "generate_curriculum.py",
+      "size": 39742
+    },
+    {
+      "algorithm": "sha256",
+      "digest": "e1deea0759eb12a85428abd0efdf62233d82bea35c1e2c36d841381c2e36e783",
+      "path": "starter_examples.jsonl",
+      "size": 536796
+    },
+    {
+      "algorithm": "sha256",
+      "digest": "55962939d60ad8eefd366eec876036620c0a5ba2fb7414fc7dd58a39f3ba43b5",
+      "path": "tests/test_generate_curriculum.py",
+      "size": 6844
+    },
+    {
+      "algorithm": "sha256",
+      "digest": "a9e715d7c5aa1cc67fbc470be3b36beec4879011235cdf37ce0d5542cc179fb8",
+      "path": "verify_curriculum.py",
+      "size": 34334
+    }
+  ],
+  "focus_profile": "core-r0-64d-identity-conversation",
+  "package_revision": "0.2.1-64d-identity-conversation",
+  "schema": "axon-inspection-package-manifest-v0.2",
+  "self_hash_rule": "PACKAGE_MANIFEST.json and run-specific verification evidence are excluded",
+  "source_commit": "5f32dc1b6301393fc29e6fe24285f292032a06d5",
+  "stamp": "ChatGPT / GPT-5 / 2026-08-18",
+  "status": "REVIEW_ONLY",
+  "v01_archive_digest": "d5e5f77d4d01ebf5cd098374d1461d19209455bd765e5487575c8db136181852"
+}
