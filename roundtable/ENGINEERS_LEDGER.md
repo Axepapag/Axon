@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
 Updated: 2026-08-20T10:30:44.6055387-05:00
-Current through event: `evt-20260820T164238387222Z-chatgpt-canonical-anatomy-dormant-inspection`
+Current through event: `evt-20260820T164447173835Z-chatgpt-canonical-anatomy-publication`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -209,3 +209,4 @@ termination.
 - Proposed next architecture: one authority-free Field Compiler heartbeat maintains source-field-ID-bound D-model rails with 100% active-field coverage and exact reversible provenance; tick start requires a fresh rail. Deterministic packing/cartography stays algorithmic; learned semantic retrieval/ranking is derived/rebuildable and must dereference exact dormant text/provenance before it becomes attention evidence. Consolidator remains reasoning authority; runtime validator/atomic transaction remains commit boundary.
 - Important unresolved mechanism: literal 16D-cell concatenation into a wider row is lossless storage, but a normal Transformer treats the row as one token. Exact packed lanes therefore need explicit lane/addressability/decompiler semantics; do not assume packing alone gives independent character attention.
 - Detailed Field Compiler mechanics remain a proposal until formally reconciled with `docs/SOURCE_OF_TRUTH.md`; Jeffrey's no-fake-anatomy/no-truncated-core-input instruction is the new explicit convener boundary.
+- Publication: the inspection/ruling ledger update was committed and pushed to private `main` as `99175d7` (`Record canonical anatomy dormant inspection`), touching only the two engineer-ledger files. A follow-up canonical event records that publication because the inspection event had already been appended before the Git step completed.
