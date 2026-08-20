@@ -21,6 +21,13 @@ def render(state: dict) -> str:
             f"response={latest.get('response_teacher_char_accuracy')} "
             f"counterfactual={latest.get('counterfactual_teacher_char_accuracy')}"
         ),
+        (
+            "v6_alignment "
+            f"position={latest.get('aligned_position_accuracy')} "
+            f"copy_gate={latest.get('aligned_gate_accuracy')} "
+            f"cf_position={latest.get('counterfactual_aligned_position_accuracy')} "
+            f"cf_copy_gate={latest.get('counterfactual_aligned_gate_accuracy')}"
+        ),
     ]
     for sample in state.get("latest_samples", []):
         lines.extend(

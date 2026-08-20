@@ -25,8 +25,10 @@ from substrate import ALPHABET_SET, assert_supported_text
 from training.complete_field_64d import REGION_ORDER, canonical_field
 
 
-SCHEMA = "axon-complete-field-r0-example-v2"
-BUILDER_VERSION = "complete-field-r0-heldout-binding-builder-2026-08-19"
+SCHEMA = "axon-complete-field-r0-example-v3"
+ALIGNMENT_SCHEMA = "axon-r0-source-alignment-v1"
+TARGET_ALIGNMENT_SCHEMA = "axon-r0-target-alignment-v1"
+BUILDER_VERSION = "complete-field-r0-v6-aligned-binding-builder-2026-08-19"
 
 
 def canonical_bytes(value: Any) -> bytes:
@@ -56,6 +58,109 @@ def split_for(group: str) -> str:
     return "test"
 
 
+def target_alignment(segments: Iterable[Mapping[str, Any]] = ()) -> dict[str, Any]:
+    normalized: list[dict[str, Any]] = []
+    for segment in segments:
+        required = {
+            "target_start",
+            "target_end",
+            "source_region",
+            "source_start",
+            "source_end",
+            "text_sha256",
+            "authority",
+        }
+        if set(segment) != required:
+            raise ValueError("alignment segment fields are invalid")
+        normalized.append({key: segment[key] for key in sorted(required)})
+    return {
+        "schema": TARGET_ALIGNMENT_SCHEMA,
+        "segments": normalized,
+        "supervise_eos_generate": True,
+    }
+
+
+def exact_copy_segment(
+    *,
+    target_text: str,
+    target_fragment: str,
+    source_region: str,
+    source_text: str,
+    target_occurrence: int = 0,
+    source_occurrence: int = 0,
+    authority: str,
+) -> dict[str, Any]:
+    if not target_fragment:
+        raise ValueError("alignment fragment must be non-empty")
+    if source_region not in REGION_ORDER:
+        raise ValueError(f"unknown alignment source region {source_region}")
+
+    def occurrence_start(text: str, fragment: str, occurrence: int) -> int:
+        if occurrence < 0:
+            raise ValueError("alignment occurrence must be non-negative")
+        cursor = -1
+        start = 0
+        for _ in range(occurrence + 1):
+            cursor = text.find(fragment, start)
+            if cursor < 0:
+                raise ValueError(f"alignment fragment {fragment!r} occurrence {occurrence} not found")
+            start = cursor + 1
+        return cursor
+
+    target_start = occurrence_start(target_text, target_fragment, target_occurrence)
+    source_start = occurrence_start(source_text, target_fragment, source_occurrence)
+    return {
+        "target_start": target_start,
+        "target_end": target_start + len(target_fragment),
+        "source_region": source_region,
+        "source_start": source_start,
+        "source_end": source_start + len(target_fragment),
+        "text_sha256": digest(target_fragment.encode("utf-8")),
+        "authority": authority,
+    }
+
+
+def exact_copy_segment_at(
+    *,
+    target_text: str,
+    target_fragment: str,
+    source_region: str,
+    source_text: str,
+    source_start: int,
+    authority: str,
+    target_occurrence: int = 0,
+) -> dict[str, Any]:
+    if source_start < 0 or source_text[source_start : source_start + len(target_fragment)] != target_fragment:
+        raise ValueError("explicit alignment source_start does not point to the target fragment")
+    target_start = -1
+    cursor = 0
+    for _ in range(target_occurrence + 1):
+        target_start = target_text.find(target_fragment, cursor)
+        if target_start < 0:
+            raise ValueError("alignment target occurrence not found")
+        cursor = target_start + 1
+    return {
+        "target_start": target_start,
+        "target_end": target_start + len(target_fragment),
+        "source_region": source_region,
+        "source_start": source_start,
+        "source_end": source_start + len(target_fragment),
+        "text_sha256": digest(target_fragment.encode("utf-8")),
+        "authority": authority,
+    }
+
+
+def empty_source_alignment(counterfactual_ids: Iterable[str] = ()) -> dict[str, Any]:
+    return {
+        "schema": ALIGNMENT_SCHEMA,
+        "scratch": target_alignment(),
+        "response_draft": target_alignment(),
+        "response_counterfactuals": {
+            str(variant_id): target_alignment() for variant_id in counterfactual_ids
+        },
+    }
+
+
 def make_record(
     *,
     family: str,
@@ -66,6 +171,7 @@ def make_record(
     group: str,
     split: str | None = None,
     response_counterfactuals: Iterable[Mapping[str, str]] = (),
+    alignment: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     exact_field = canonical_field(field)
     assert_supported_text(scratch)
@@ -84,9 +190,28 @@ def make_record(
             raise ValueError("R0 counterfactual exceeds explicit 512-character training bound")
         if variant["scratch"] == scratch:
             raise ValueError("counterfactual scratch must differ from the correct scratch")
-        if variant["response_draft"] == response:
-            raise ValueError("counterfactual response must differ from the correct response")
         exact_counterfactuals.append(variant)
+
+    counterfactual_ids = [item["variant_id"] for item in exact_counterfactuals]
+    exact_alignment = dict(alignment or empty_source_alignment(counterfactual_ids))
+    if exact_alignment.get("schema") != ALIGNMENT_SCHEMA:
+        raise ValueError("unsupported source alignment schema")
+    if set(exact_alignment) != {
+        "schema",
+        "scratch",
+        "response_draft",
+        "response_counterfactuals",
+    }:
+        raise ValueError("source alignment fields are invalid")
+    if set(exact_alignment["response_counterfactuals"]) != set(counterfactual_ids):
+        raise ValueError("counterfactual alignment ids do not match response counterfactuals")
+    for target_name in ("scratch", "response_draft"):
+        if exact_alignment[target_name].get("schema") != TARGET_ALIGNMENT_SCHEMA:
+            raise ValueError(f"invalid target alignment schema for {target_name}")
+    for variant_id, target_spec in exact_alignment["response_counterfactuals"].items():
+        if target_spec.get("schema") != TARGET_ALIGNMENT_SCHEMA:
+            raise ValueError(f"invalid counterfactual target alignment for {variant_id}")
+
     body = {
         "schema": SCHEMA,
         "builder_version": BUILDER_VERSION,
@@ -96,6 +221,7 @@ def make_record(
         "field": exact_field,
         "targets": {"scratch": scratch, "response_draft": response},
         "response_counterfactuals": exact_counterfactuals,
+        "alignment": exact_alignment,
         "write_authority": {
             "scratch": True,
             "response_draft": True,
@@ -105,8 +231,84 @@ def make_record(
         },
         "provenance": dict(provenance),
     }
+    validate_source_alignment(body)
     body["example_id"] = digest(body)
     return body
+
+
+def validate_source_alignment(record: Mapping[str, Any]) -> None:
+    alignment = record["alignment"]
+
+    def validate_target(
+        specification: Mapping[str, Any],
+        target_text: str,
+        source_field: Mapping[str, str],
+    ) -> None:
+        if set(specification) != {"schema", "segments", "supervise_eos_generate"}:
+            raise ValueError("target alignment fields are invalid")
+        if specification.get("schema") != TARGET_ALIGNMENT_SCHEMA:
+            raise ValueError("target alignment schema is invalid")
+        if specification.get("supervise_eos_generate") is not True:
+            raise ValueError("V6 alignment requires EOS generate supervision")
+        segments = specification.get("segments")
+        if not isinstance(segments, list):
+            raise ValueError("target alignment segments must be a list")
+        for segment in segments:
+            required = {
+                "target_start",
+                "target_end",
+                "source_region",
+                "source_start",
+                "source_end",
+                "text_sha256",
+                "authority",
+            }
+            if not isinstance(segment, Mapping) or set(segment) != required:
+                raise ValueError("alignment segment fields are invalid")
+            target_start = int(segment["target_start"])
+            target_end = int(segment["target_end"])
+            source_start = int(segment["source_start"])
+            source_end = int(segment["source_end"])
+            source_region = str(segment["source_region"])
+            if source_region not in REGION_ORDER:
+                raise ValueError(f"unknown alignment source region {source_region}")
+            source_text = source_field[source_region]
+            if (
+                target_start < 0
+                or target_end > len(target_text)
+                or target_end <= target_start
+                or source_start < 0
+                or source_end > len(source_text)
+                or source_end <= source_start
+                or target_end - target_start != source_end - source_start
+            ):
+                raise ValueError("alignment bounds are invalid")
+            target_fragment = target_text[target_start:target_end]
+            source_fragment = source_text[source_start:source_end]
+            if target_fragment != source_fragment:
+                raise ValueError("alignment source and target fragments differ")
+            if digest(target_fragment.encode("utf-8")) != segment["text_sha256"]:
+                raise ValueError("alignment fragment hash mismatch")
+            if not isinstance(segment["authority"], str) or not segment["authority"]:
+                raise ValueError("alignment authority label must be non-empty")
+
+    field = record["field"]
+    scratch = record["targets"]["scratch"]
+    response = record["targets"]["response_draft"]
+    validate_target(alignment["scratch"], scratch, field)
+    committed = dict(field)
+    committed["scratch"] = scratch
+    validate_target(alignment["response_draft"], response, committed)
+
+    counterfactual_alignment = alignment["response_counterfactuals"]
+    for counterfactual in record["response_counterfactuals"]:
+        intervened = dict(field)
+        intervened["scratch"] = counterfactual["scratch"]
+        validate_target(
+            counterfactual_alignment[counterfactual["variant_id"]],
+            counterfactual["response_draft"],
+            intervened,
+        )
 
 
 def random_token(rng: random.Random, length: int = 12) -> str:
@@ -145,14 +347,44 @@ def synthetic_records(count: int, seed: int) -> Iterator[dict[str, Any]]:
                 {
                     "variant_id": "empty_scratch",
                     "scratch": "",
-                    "response_draft": "Scratch is empty; the verified token remains visible in tool_results.",
+                    "response_draft": response,
                 },
                 {
                     "variant_id": "conflicting_scratch",
                     "scratch": "The verified token in tool_results is " + wrong_token + ".",
-                    "response_draft": "Scratch conflicts with the verified token in tool_results.",
+                    "response_draft": response,
                 },
             )
+            evidence_segment_for_scratch = exact_copy_segment(
+                target_text=scratch,
+                target_fragment=token,
+                source_region="tool_results",
+                source_text=field["tool_results"],
+                authority="immutable_evidence",
+            )
+            clean_scratch_segment_for_response = exact_copy_segment(
+                target_text=response,
+                target_fragment=token,
+                source_region="scratch",
+                source_text=scratch,
+                authority="committed_scratch_prior",
+            )
+            immutable_segment_for_response = exact_copy_segment(
+                target_text=response,
+                target_fragment=token,
+                source_region="tool_results",
+                source_text=field["tool_results"],
+                authority="immutable_evidence",
+            )
+            alignment = {
+                "schema": ALIGNMENT_SCHEMA,
+                "scratch": target_alignment([evidence_segment_for_scratch]),
+                "response_draft": target_alignment([clean_scratch_segment_for_response]),
+                "response_counterfactuals": {
+                    "empty_scratch": target_alignment([immutable_segment_for_response]),
+                    "conflicting_scratch": target_alignment([immutable_segment_for_response]),
+                },
+            }
             family = "cross_page_exact_retrieval"
             group = "synthetic-r0-retrieval-" + token
         elif kind == 1:
@@ -167,14 +399,15 @@ def synthetic_records(count: int, seed: int) -> Iterator[dict[str, Any]]:
                 {
                     "variant_id": "empty_scratch",
                     "scratch": "",
-                    "response_draft": "Scratch is empty; the multiplication remains visible in user_input.",
+                    "response_draft": response,
                 },
                 {
                     "variant_id": "conflicting_scratch",
                     "scratch": f"{left} * {right} = {product + 1}.",
-                    "response_draft": "Scratch conflicts with the visible multiplication.",
+                    "response_draft": response,
                 },
             )
+            alignment = empty_source_alignment(("empty_scratch", "conflicting_scratch"))
             family = "scratch_arithmetic"
             # Identical arithmetic questions belong to one lineage so they can
             # never leak across train/dev/test if the random pair repeats.
@@ -194,14 +427,44 @@ def synthetic_records(count: int, seed: int) -> Iterator[dict[str, Any]]:
                 {
                     "variant_id": "empty_scratch",
                     "scratch": "",
-                    "response_draft": "Scratch is empty; the spelling request remains visible in user_input.",
+                    "response_draft": response,
                 },
                 {
                     "variant_id": "conflicting_scratch",
                     "scratch": "Return " + wrong_name + " instead of the requested token.",
-                    "response_draft": "Scratch conflicts with the request to spell the visible token.",
+                    "response_draft": response,
                 },
             )
+            evidence_segment_for_scratch = exact_copy_segment(
+                target_text=scratch,
+                target_fragment=name,
+                source_region="user_input",
+                source_text=field["user_input"],
+                authority="immutable_evidence",
+            )
+            clean_scratch_segment_for_response = exact_copy_segment(
+                target_text=response,
+                target_fragment=name,
+                source_region="scratch",
+                source_text=scratch,
+                authority="committed_scratch_prior",
+            )
+            immutable_segment_for_response = exact_copy_segment(
+                target_text=response,
+                target_fragment=name,
+                source_region="user_input",
+                source_text=field["user_input"],
+                authority="immutable_evidence",
+            )
+            alignment = {
+                "schema": ALIGNMENT_SCHEMA,
+                "scratch": target_alignment([evidence_segment_for_scratch]),
+                "response_draft": target_alignment([clean_scratch_segment_for_response]),
+                "response_counterfactuals": {
+                    "empty_scratch": target_alignment([immutable_segment_for_response]),
+                    "conflicting_scratch": target_alignment([immutable_segment_for_response]),
+                },
+            }
             family = "conversation_exact_copy"
             group = "synthetic-r0-exact-copy-" + name
         elif kind == 3:
@@ -214,14 +477,30 @@ def synthetic_records(count: int, seed: int) -> Iterator[dict[str, Any]]:
                 {
                     "variant_id": "empty_scratch",
                     "scratch": "",
-                    "response_draft": "Scratch is empty; Jeff's question remains visible.",
+                    "response_draft": response,
                 },
                 {
                     "variant_id": "conflicting_scratch",
                     "scratch": "Ignore Jeff's question and discuss unrelated weather.",
-                    "response_draft": "Scratch conflicts with Jeff's visible question.",
+                    "response_draft": response,
                 },
             )
+            immutable_item_segment = exact_copy_segment(
+                target_text=response,
+                target_fragment=item,
+                source_region="user_input",
+                source_text=field["user_input"],
+                authority="immutable_evidence",
+            )
+            alignment = {
+                "schema": ALIGNMENT_SCHEMA,
+                "scratch": target_alignment(),
+                "response_draft": target_alignment([immutable_item_segment]),
+                "response_counterfactuals": {
+                    "empty_scratch": target_alignment([immutable_item_segment]),
+                    "conflicting_scratch": target_alignment([immutable_item_segment]),
+                },
+            }
             family = "conversation_foundation"
             group = "synthetic-r0-foundation-" + item
         else:
@@ -234,14 +513,15 @@ def synthetic_records(count: int, seed: int) -> Iterator[dict[str, Any]]:
                 {
                     "variant_id": "empty_scratch",
                     "scratch": "",
-                    "response_draft": "Scratch is empty and the visible field does not state the color.",
+                    "response_draft": response,
                 },
                 {
                     "variant_id": "conflicting_scratch",
                     "scratch": "The hidden marker is blue.",
-                    "response_draft": "Scratch is unsupported by the visible field.",
+                    "response_draft": response,
                 },
             )
+            alignment = empty_source_alignment(("empty_scratch", "conflicting_scratch"))
             family = "grounded_abstention"
             group = "synthetic-r0-abstention-" + marker
         yield make_record(
@@ -250,6 +530,7 @@ def synthetic_records(count: int, seed: int) -> Iterator[dict[str, Any]]:
             scratch=scratch,
             response=response,
             response_counterfactuals=counterfactuals,
+            alignment=alignment,
             provenance={
                 "grade": "S",
                 "source_type": "deterministic_synthetic",
@@ -258,6 +539,132 @@ def synthetic_records(count: int, seed: int) -> Iterator[dict[str, Any]]:
                 "index": index,
             },
             group=group,
+        )
+
+
+def alignment_filler(length: int) -> str:
+    if length < 0:
+        raise ValueError("alignment filler length must be non-negative")
+    return (" . " * (length // 3 + 2))[:length]
+
+
+def v6_alignment_records(count: int, seed: int, page_size: int = 64) -> Iterator[dict[str, Any]]:
+    """Tiny anti-shortcut shard for exact source-position supervision.
+
+    The behavioral answer alone is insufficient because the same token is also
+    repeated in a wrong region and, for most layouts, at a decoy occurrence in
+    the correct region. The alignment label identifies the PRIMARY occurrence.
+    """
+    if count < 1 or page_size < 16:
+        raise ValueError("positive count and page_size >= 16 are required")
+    rng = random.Random(seed)
+    for index in range(count):
+        token = random_token(rng, length=rng.randint(4, 32))
+        nearby = random_token(rng, length=len(token))
+        while nearby == token:
+            nearby = random_token(rng, length=len(token))
+        layout = ("first", "middle", "page_boundary", "last")[index % 4]
+        field = {name: "" for name in REGION_ORDER}
+        field["conversation_history"] = "Jeff: Use the exact PRIMARY evidence, not a duplicate.\n"
+        field["situation_awareness"] = "V6 position-pointer anti-shortcut evaluation is active."
+        field["advisor_input"] = "Prefer immutable tool_results evidence over scratch conflicts."
+        field["task_state"] = "Locate PRIMARY, commit scratch, reread the field, then answer exactly."
+        field["structured_knowledge"] = (
+            "Wrong-region duplicate: " + token + ". This is not the PRIMARY tool result."
+        )
+        field["user_input"] = "Return exactly the token identified by PRIMARY in tool_results."
+
+        marker = "PRIMARY:"
+        decoy = "DECOY:" + token + " NEAR:" + nearby + " "
+        if layout == "first":
+            tool_results = marker + token + " " + decoy + "NEAR:" + nearby
+            source_start = len(marker)
+        elif layout == "middle":
+            prefix = decoy + alignment_filler(91)
+            tool_results = prefix + marker + token + " " + alignment_filler(37)
+            source_start = len(prefix) + len(marker)
+        elif layout == "page_boundary":
+            desired_start = page_size - 2
+            prefix_budget = desired_start - len(marker)
+            if prefix_budget < 0:
+                raise ValueError("page size is too small for boundary fixture")
+            prefix = alignment_filler(prefix_budget)
+            tool_results = prefix + marker + token + " " + decoy + alignment_filler(23)
+            source_start = len(prefix) + len(marker)
+            if source_start != desired_start:
+                raise RuntimeError("page-boundary fixture did not place the token as requested")
+        else:
+            prefix = decoy + alignment_filler(143)
+            tool_results = prefix + marker + token
+            source_start = len(prefix) + len(marker)
+        field["tool_results"] = tool_results
+
+        scratch = "The PRIMARY token in tool_results is " + token + "."
+        response = token
+        wrong_scratch = "The PRIMARY token in tool_results is " + nearby + "."
+        counterfactuals = (
+            {"variant_id": "empty_scratch", "scratch": "", "response_draft": response},
+            {
+                "variant_id": "conflicting_scratch",
+                "scratch": wrong_scratch,
+                "response_draft": response,
+            },
+        )
+        scratch_segment = exact_copy_segment_at(
+            target_text=scratch,
+            target_fragment=token,
+            source_region="tool_results",
+            source_text=tool_results,
+            source_start=source_start,
+            authority="immutable_evidence",
+        )
+        clean_response_segment = exact_copy_segment(
+            target_text=response,
+            target_fragment=token,
+            source_region="scratch",
+            source_text=scratch,
+            authority="committed_scratch_prior",
+        )
+        evidence_response_segment = exact_copy_segment_at(
+            target_text=response,
+            target_fragment=token,
+            source_region="tool_results",
+            source_text=tool_results,
+            source_start=source_start,
+            authority="immutable_evidence",
+        )
+        alignment = {
+            "schema": ALIGNMENT_SCHEMA,
+            "scratch": target_alignment([scratch_segment]),
+            "response_draft": target_alignment([clean_response_segment]),
+            "response_counterfactuals": {
+                "empty_scratch": target_alignment([evidence_response_segment]),
+                "conflicting_scratch": target_alignment([evidence_response_segment]),
+            },
+        }
+        yield make_record(
+            family="v6_alignment_retrieval",
+            field=field,
+            scratch=scratch,
+            response=response,
+            response_counterfactuals=counterfactuals,
+            alignment=alignment,
+            provenance={
+                "grade": "S",
+                "source_type": "deterministic_v6_alignment_fixture",
+                "autobiographical": False,
+                "seed": seed,
+                "index": index,
+                "layout": layout,
+                "page_size": page_size,
+                "source_region": "tool_results",
+                "source_start": source_start,
+                "source_end": source_start + len(token),
+                "wrong_region_duplicate": True,
+                "same_region_duplicate": True,
+                "nearby_decoy": nearby,
+            },
+            group=f"v6-alignment-{seed}-{index}-{token}",
         )
 
 
@@ -554,6 +961,7 @@ def write_jsonl(path: Path, rows: Iterable[Mapping[str, Any]]) -> tuple[int, str
 def build(args: argparse.Namespace) -> dict[str, Any]:
     records: list[dict[str, Any]] = []
     records.extend(synthetic_records(args.synthetic, args.seed))
+    records.extend(v6_alignment_records(args.v6_alignment, args.seed + 6006, args.alignment_page_size))
     records.extend(exact_conversation_records(args.memory_db, args.exact_pairs))
     records.extend(identity_anchor_records(args.memory_db))
     if args.grounded_episodes and args.grounded_episodes.is_file():
@@ -565,6 +973,26 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         for record in records
         for counterfactual in record["response_counterfactuals"]
     ]
+    aligned_segments = sum(
+        len(record["alignment"][target]["segments"])
+        for record in records
+        for target in ("scratch", "response_draft")
+    ) + sum(
+        len(spec["segments"])
+        for record in records
+        for spec in record["alignment"]["response_counterfactuals"].values()
+    )
+    aligned_copy_characters = sum(
+        segment["target_end"] - segment["target_start"]
+        for record in records
+        for target in ("scratch", "response_draft")
+        for segment in record["alignment"][target]["segments"]
+    ) + sum(
+        segment["target_end"] - segment["target_start"]
+        for record in records
+        for spec in record["alignment"]["response_counterfactuals"].values()
+        for segment in spec["segments"]
+    )
     by_split = {split: [r for r in records if r["split"] == split] for split in ("train", "dev", "test")}
     files: dict[str, Any] = {}
     for split, rows in by_split.items():
@@ -572,8 +1000,11 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         count, sha = write_jsonl(path, rows)
         files[split] = {"path": str(path), "records": count, "sha256": sha}
     manifest = {
-        "schema": "axon-complete-field-r0-manifest-v2",
+        "schema": "axon-complete-field-r0-manifest-v3",
         "builder_version": BUILDER_VERSION,
+        "example_schema": SCHEMA,
+        "alignment_schema": ALIGNMENT_SCHEMA,
+        "target_alignment_schema": TARGET_ALIGNMENT_SCHEMA,
         "local_only": True,
         "cloud_export_allowed": False,
         "diary_target_count": 0,
@@ -584,6 +1015,11 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         "counts_by_family": dict(Counter(record["family"] for record in records)),
         "counts_by_grade": dict(Counter(record["provenance"]["grade"] for record in records)),
         "counterfactual_count": len(counterfactuals),
+        "aligned_segment_count": aligned_segments,
+        "aligned_copy_character_count": aligned_copy_characters,
+        "v6_alignment_fixture_count": sum(
+            record["family"] == "v6_alignment_retrieval" for record in records
+        ),
         "counterfactual_counts_by_family": dict(Counter(family for family, _ in counterfactuals)),
         "counterfactual_counts_by_variant": dict(Counter(variant for _, variant in counterfactuals)),
         "files": files,
@@ -602,8 +1038,10 @@ def parser() -> argparse.ArgumentParser:
         type=Path,
         default=Path(r"datasets\recovered\multitick_curriculum_d00_grounded_v4\scratch_plan_response_v4.jsonl"),
     )
-    p.add_argument("--output-dir", type=Path, default=Path(r"State\private_curriculum\complete_field_r0"))
+    p.add_argument("--output-dir", type=Path, default=Path(r"State\private_curriculum\complete_field_r0_v6"))
     p.add_argument("--synthetic", type=int, default=8000)
+    p.add_argument("--v6-alignment", type=int, default=256)
+    p.add_argument("--alignment-page-size", type=int, default=64)
     p.add_argument("--exact-pairs", type=int, default=6000)
     p.add_argument("--grounded-limit", type=int, default=4000)
     p.add_argument("--seed", type=int, default=64018)

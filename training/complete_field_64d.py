@@ -99,6 +99,7 @@ class AddressableMemory:
     states: torch.Tensor
     char_indices: torch.Tensor
     region_ids: torch.Tensor
+    region_positions: torch.Tensor
 
 
 def _sha(text: str) -> str:
@@ -250,6 +251,12 @@ class CompleteField64D(nn.Module):
         )
         self.decoder_norm = nn.LayerNorm(cfg.d_model)
         self.decoder_output = nn.Linear(cfg.d_model, self.vocab_size + 1)
+        # V6 separates semantic cross-attention from the exact copy pointer.
+        # The pointer is one explicit head over source positions so training can
+        # supervise the exact occurrence rather than rewarding every matching
+        # character in the field.
+        self.position_query = nn.Linear(cfg.d_model, cfg.d_model, bias=False)
+        self.position_key = nn.Linear(cfg.d_model, cfg.d_model, bias=False)
         self.copy_gate = nn.Linear(cfg.d_model * 2, 1)
 
         nn.init.normal_(self.region_embedding.weight, std=0.02)
@@ -303,6 +310,7 @@ class CompleteField64D(nn.Module):
         memory_states: list[torch.Tensor] = []
         memory_char_indices: list[torch.Tensor] = []
         memory_region_ids: list[torch.Tensor] = []
+        memory_region_positions: list[torch.Tensor] = []
         for page in pages:
             tokens = self._page_tensor(page).unsqueeze(0)
             encoded = self.page_encoder(torch.cat((state, tokens), dim=1))
@@ -328,10 +336,21 @@ class CompleteField64D(nn.Module):
                     device=self.device,
                 )
             )
+            if page.text:
+                page_positions = torch.arange(
+                    page.region_start,
+                    page.region_end,
+                    dtype=torch.long,
+                    device=self.device,
+                )
+            else:
+                page_positions = torch.full((1,), -1, dtype=torch.long, device=self.device)
+            memory_region_positions.append(page_positions.unsqueeze(0))
         addressable_memory = AddressableMemory(
             states=self.memory_norm(torch.cat(memory_states, dim=1)),
             char_indices=torch.cat(memory_char_indices, dim=1),
             region_ids=torch.cat(memory_region_ids, dim=1),
+            region_positions=torch.cat(memory_region_positions, dim=1),
         )
         return self.state_norm(state), addressable_memory, manifest
 
@@ -356,24 +375,56 @@ class CompleteField64D(nn.Module):
         self,
         output: torch.Tensor,
         memory: AddressableMemory | None,
-    ) -> torch.Tensor:
-        """Mix generated characters with an exact copy distribution over field text."""
-        if memory is None:
-            return self.decoder_output(self.decoder_norm(output))
+        *,
+        return_alignment: bool = False,
+    ) -> torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]:
+        """Mix generation with a V6 exact-position copy distribution.
 
-        context, attention = self.decoder_memory_attention(
+        Semantic context still comes from ordinary multi-head cross-attention,
+        but copy probabilities come from a separate one-head position pointer.
+        This makes the exact source occurrence observable and directly
+        supervisable instead of crediting every matching character.
+        """
+        if memory is None:
+            logits = self.decoder_output(self.decoder_norm(output))
+            if return_alignment:
+                empty = torch.empty(
+                    output.shape[0], output.shape[1], 0, device=output.device, dtype=output.dtype
+                )
+                return logits, {
+                    "position_logits": empty,
+                    "generate_gate_logits": torch.full(
+                        (output.shape[0], output.shape[1]),
+                        30.0,
+                        device=output.device,
+                        dtype=output.dtype,
+                    ),
+                }
+            return logits
+
+        context, _ = self.decoder_memory_attention(
             output,
             memory.states,
             memory.states,
-            need_weights=True,
-            average_attn_weights=True,
+            need_weights=False,
         )
         fused = self.decoder_norm(output + context)
         generated = F.softmax(self.decoder_output(fused), dim=-1)
 
+        query = self.position_query(fused)
+        key = self.position_key(memory.states)
+        position_logits = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(self.cfg.d_model)
         valid_sources = memory.char_indices.ge(0).unsqueeze(1)
-        copy_attention = attention * valid_sources.to(attention.dtype)
-        copy_mass = copy_attention.sum(dim=-1, keepdim=True)
+        masked_position_logits = position_logits.masked_fill(
+            ~valid_sources,
+            torch.finfo(position_logits.dtype).min,
+        )
+        pointer_attention = F.softmax(masked_position_logits, dim=-1)
+        pointer_attention = pointer_attention * valid_sources.to(pointer_attention.dtype)
+        copy_mass = pointer_attention.sum(dim=-1, keepdim=True)
+        pointer_attention = pointer_attention / copy_mass.clamp_min(
+            torch.finfo(pointer_attention.dtype).tiny
+        )
         safe_indices = memory.char_indices.clamp_min(0).unsqueeze(1).expand(
             -1,
             output.shape[1],
@@ -382,15 +433,23 @@ class CompleteField64D(nn.Module):
         copied = torch.zeros_like(generated).scatter_add(
             dim=-1,
             index=safe_indices,
-            src=copy_attention,
+            src=pointer_attention,
         )
-        copied = copied / copy_mass.clamp_min(torch.finfo(copied.dtype).tiny)
 
-        generate_gate = torch.sigmoid(self.copy_gate(torch.cat((output, context), dim=-1)))
+        generate_gate_logits = self.copy_gate(torch.cat((output, context), dim=-1)).squeeze(-1)
+        generate_gate = torch.sigmoid(generate_gate_logits).unsqueeze(-1)
         has_copy_source = copy_mass.gt(0).to(generate_gate.dtype)
         generate_gate = generate_gate * has_copy_source + (1.0 - has_copy_source)
         probabilities = generate_gate * generated + (1.0 - generate_gate) * copied
-        return probabilities.clamp_min(torch.finfo(probabilities.dtype).tiny).log()
+        log_probabilities = probabilities.clamp_min(
+            torch.finfo(probabilities.dtype).tiny
+        ).log()
+        if return_alignment:
+            return log_probabilities, {
+                "position_logits": masked_position_logits,
+                "generate_gate_logits": generate_gate_logits,
+            }
+        return log_probabilities
 
     def decode_teacher(
         self,
@@ -398,7 +457,11 @@ class CompleteField64D(nn.Module):
         target: str,
         head: int,
         memory: AddressableMemory | None = None,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+        *,
+        return_alignment: bool = False,
+    ) -> tuple[torch.Tensor, torch.Tensor] | tuple[
+        torch.Tensor, torch.Tensor, dict[str, torch.Tensor]
+    ]:
         targets = self._target_indices(target).unsqueeze(0)
         bos = torch.full((1, 1), self.bos_index, dtype=torch.long, device=self.device)
         decoder_input = torch.cat((bos, targets[:, :-1]), dim=1)
@@ -406,7 +469,11 @@ class CompleteField64D(nn.Module):
         head_vec = self.decoder_head_embedding(torch.tensor([head], device=self.device))
         hidden = torch.tanh(self.decoder_init(torch.cat((summary, head_vec), dim=-1))).unsqueeze(0)
         output, _ = self.decoder(self.decoder_embedding(decoder_input), hidden)
-        return self._decoder_logits(output, memory), targets
+        decoded = self._decoder_logits(output, memory, return_alignment=return_alignment)
+        if return_alignment:
+            logits, alignment = decoded
+            return logits, targets, alignment
+        return decoded, targets
 
     def decode_scheduled(
         self,
@@ -415,12 +482,22 @@ class CompleteField64D(nn.Module):
         head: int,
         teacher_forcing_ratio: float,
         memory: AddressableMemory | None = None,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+        *,
+        return_alignment: bool = False,
+    ) -> tuple[torch.Tensor, torch.Tensor] | tuple[
+        torch.Tensor, torch.Tensor, dict[str, torch.Tensor]
+    ]:
         """Train on model-generated prefixes so greedy behavior cannot hide behind teacher forcing."""
         if not 0.0 <= teacher_forcing_ratio <= 1.0:
             raise ValueError("teacher_forcing_ratio must be between zero and one")
         if teacher_forcing_ratio >= 1.0:
-            return self.decode_teacher(reader_state, target, head, memory=memory)
+            return self.decode_teacher(
+                reader_state,
+                target,
+                head,
+                memory=memory,
+                return_alignment=return_alignment,
+            )
         targets = self._target_indices(target).unsqueeze(0)
         summary = reader_state.mean(dim=1)
         head_vec = self.decoder_head_embedding(torch.tensor([head], device=self.device))
@@ -431,9 +508,21 @@ class CompleteField64D(nn.Module):
             < teacher_forcing_ratio
         ).tolist()
         logits: list[torch.Tensor] = []
+        pointer_logits: list[torch.Tensor] = []
+        gate_logits: list[torch.Tensor] = []
         for position in range(targets.shape[1]):
             output, hidden = self.decoder(self.decoder_embedding(token), hidden)
-            step_logits = self._decoder_logits(output[:, -1:], memory)
+            decoded = self._decoder_logits(
+                output[:, -1:],
+                memory,
+                return_alignment=return_alignment,
+            )
+            if return_alignment:
+                step_logits, step_alignment = decoded
+                pointer_logits.append(step_alignment["position_logits"])
+                gate_logits.append(step_alignment["generate_gate_logits"])
+            else:
+                step_logits = decoded
             logits.append(step_logits)
             if position + 1 >= targets.shape[1]:
                 continue
@@ -443,7 +532,145 @@ class CompleteField64D(nn.Module):
                 if use_teacher
                 else step_logits.argmax(dim=-1).detach()
             )
-        return torch.cat(logits, dim=1), targets
+        joined_logits = torch.cat(logits, dim=1)
+        if return_alignment:
+            return joined_logits, targets, {
+                "position_logits": torch.cat(pointer_logits, dim=1),
+                "generate_gate_logits": torch.cat(gate_logits, dim=1),
+            }
+        return joined_logits, targets
+
+    def alignment_supervision(
+        self,
+        *,
+        target_text: str,
+        memory: AddressableMemory,
+        decoder_alignment: Mapping[str, torch.Tensor],
+        specification: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        """Score exact source-position and copy/generate labels for one decoder head."""
+        if specification.get("schema") != "axon-r0-target-alignment-v1":
+            raise ValueError("unsupported R0 target-alignment schema")
+        segments = specification.get("segments", [])
+        if not isinstance(segments, list):
+            raise ValueError("alignment segments must be a list")
+        position_logits = decoder_alignment["position_logits"]
+        gate_logits = decoder_alignment["generate_gate_logits"]
+        if position_logits.ndim != 3 or gate_logits.ndim != 2:
+            raise ValueError("decoder alignment tensors have invalid rank")
+        if position_logits.shape[:2] != gate_logits.shape:
+            raise ValueError("decoder alignment tensor lengths disagree")
+        if gate_logits.shape[1] != len(target_text) + 1:
+            raise ValueError("decoder alignment length does not match target plus EOS")
+
+        zero = gate_logits.sum() * 0.0
+        position_losses: list[torch.Tensor] = []
+        gate_losses: list[torch.Tensor] = []
+        position_correct = 0
+        gate_correct = 0
+        supervised_copy_positions = 0
+
+        for segment in segments:
+            required = {
+                "target_start",
+                "target_end",
+                "source_region",
+                "source_start",
+                "source_end",
+                "text_sha256",
+                "authority",
+            }
+            if not isinstance(segment, Mapping) or set(segment) != required:
+                raise ValueError("alignment segment fields are invalid")
+            target_start = int(segment["target_start"])
+            target_end = int(segment["target_end"])
+            source_start = int(segment["source_start"])
+            source_end = int(segment["source_end"])
+            source_region = str(segment["source_region"])
+            if source_region not in REGION_TO_ID:
+                raise ValueError(f"unknown alignment source region {source_region}")
+            if (
+                target_start < 0
+                or target_end > len(target_text)
+                or target_end <= target_start
+                or source_start < 0
+                or source_end <= source_start
+                or target_end - target_start != source_end - source_start
+            ):
+                raise ValueError("alignment segment bounds are invalid or unequal")
+            target_fragment = target_text[target_start:target_end]
+            if _sha(target_fragment) != segment["text_sha256"]:
+                raise ValueError("alignment target fragment hash mismatch")
+
+            source_chars: list[str] = []
+            source_indices: list[int] = []
+            region_id = REGION_TO_ID[source_region]
+            for offset, source_position in enumerate(range(source_start, source_end)):
+                matches = (
+                    (memory.region_ids[0] == region_id)
+                    & (memory.region_positions[0] == source_position)
+                    & memory.char_indices[0].ge(0)
+                ).nonzero(as_tuple=False).flatten()
+                if matches.numel() != 1:
+                    raise ValueError(
+                        f"alignment source {source_region}[{source_position}] does not resolve uniquely"
+                    )
+                memory_index = int(matches.item())
+                char_index = int(memory.char_indices[0, memory_index].item())
+                source_chars.append(self.characters[char_index])
+                source_indices.append(memory_index)
+
+                target_position = target_start + offset
+                expected_source = torch.tensor(
+                    [memory_index], dtype=torch.long, device=self.device
+                )
+                position_loss = F.cross_entropy(
+                    position_logits[:, target_position, :], expected_source
+                )
+                position_losses.append(position_loss)
+                predicted_source = int(
+                    position_logits[0, target_position].argmax(dim=-1).item()
+                )
+                position_correct += int(predicted_source == memory_index)
+
+                copy_target = torch.zeros((1,), device=self.device, dtype=gate_logits.dtype)
+                copy_gate_loss = F.binary_cross_entropy_with_logits(
+                    gate_logits[:, target_position], copy_target
+                )
+                gate_losses.append(copy_gate_loss)
+                gate_correct += int(float(gate_logits[0, target_position].item()) < 0.0)
+                supervised_copy_positions += 1
+
+            source_fragment = "".join(source_chars)
+            if source_fragment != target_fragment or _sha(source_fragment) != segment["text_sha256"]:
+                raise ValueError("alignment source text does not equal supervised target text")
+
+        eos_supervised = bool(specification.get("supervise_eos_generate", True))
+        if eos_supervised:
+            eos_target = torch.ones((1,), device=self.device, dtype=gate_logits.dtype)
+            eos_position = len(target_text)
+            gate_losses.append(
+                F.binary_cross_entropy_with_logits(gate_logits[:, eos_position], eos_target)
+            )
+            gate_correct += int(float(gate_logits[0, eos_position].item()) >= 0.0)
+
+        position_loss = torch.stack(position_losses).mean() if position_losses else zero
+        gate_loss = torch.stack(gate_losses).mean() if gate_losses else zero
+        gate_count = supervised_copy_positions + int(eos_supervised)
+        return {
+            "position_loss": position_loss,
+            "gate_loss": gate_loss,
+            "copy_positions": supervised_copy_positions,
+            "position_correct": position_correct,
+            "gate_supervised_positions": gate_count,
+            "gate_correct": gate_correct,
+            "position_accuracy": (
+                position_correct / supervised_copy_positions
+                if supervised_copy_positions
+                else 1.0
+            ),
+            "gate_accuracy": gate_correct / gate_count if gate_count else 1.0,
+        }
 
     @torch.no_grad()
     def decode_greedy(
@@ -479,27 +706,60 @@ class CompleteField64D(nn.Module):
         scratch_target: str,
         response_target: str,
         teacher_forcing_ratio: float = 1.0,
+        alignment: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         exact = canonical_field(field)
+        if alignment is not None:
+            if alignment.get("schema") != "axon-r0-source-alignment-v1":
+                raise ValueError("unsupported R0 source-alignment schema")
+            if set(alignment) != {"schema", "scratch", "response_draft"}:
+                raise ValueError("R0 source alignment must define scratch and response_draft")
+
         state1, memory1, coverage1 = self.read_field_with_memory(exact)
-        scratch_logits, scratch_indices = self.decode_scheduled(
+        scratch_decoded = self.decode_scheduled(
             state1,
             scratch_target,
             head=0,
             teacher_forcing_ratio=teacher_forcing_ratio,
             memory=memory1,
+            return_alignment=alignment is not None,
         )
+        scratch_supervision: dict[str, Any] | None = None
+        if alignment is not None:
+            scratch_logits, scratch_indices, scratch_decoder_alignment = scratch_decoded
+            scratch_supervision = self.alignment_supervision(
+                target_text=scratch_target,
+                memory=memory1,
+                decoder_alignment=scratch_decoder_alignment,
+                specification=alignment["scratch"],
+            )
+        else:
+            scratch_logits, scratch_indices = scratch_decoded
+
         second_field = dict(exact)
         second_field["scratch"] = scratch_target
         state2, memory2, coverage2 = self.read_field_with_memory(second_field)
-        response_logits, response_indices = self.decode_scheduled(
+        response_decoded = self.decode_scheduled(
             state2,
             response_target,
             head=1,
             teacher_forcing_ratio=teacher_forcing_ratio,
             memory=memory2,
+            return_alignment=alignment is not None,
         )
-        return {
+        response_supervision: dict[str, Any] | None = None
+        if alignment is not None:
+            response_logits, response_indices, response_decoder_alignment = response_decoded
+            response_supervision = self.alignment_supervision(
+                target_text=response_target,
+                memory=memory2,
+                decoder_alignment=response_decoder_alignment,
+                specification=alignment["response_draft"],
+            )
+        else:
+            response_logits, response_indices = response_decoded
+
+        result: dict[str, Any] = {
             "scratch_logits": scratch_logits,
             "scratch_targets": scratch_indices,
             "response_logits": response_logits,
@@ -508,6 +768,36 @@ class CompleteField64D(nn.Module):
             "coverage_tick2": coverage2,
             "response_state": state2,
         }
+        if scratch_supervision is not None and response_supervision is not None:
+            result["alignment"] = {
+                "scratch": scratch_supervision,
+                "response_draft": response_supervision,
+                "position_loss": (
+                    scratch_supervision["position_loss"]
+                    + response_supervision["position_loss"]
+                ),
+                "gate_loss": (
+                    scratch_supervision["gate_loss"]
+                    + response_supervision["gate_loss"]
+                ),
+                "copy_positions": (
+                    scratch_supervision["copy_positions"]
+                    + response_supervision["copy_positions"]
+                ),
+                "position_correct": (
+                    scratch_supervision["position_correct"]
+                    + response_supervision["position_correct"]
+                ),
+                "gate_supervised_positions": (
+                    scratch_supervision["gate_supervised_positions"]
+                    + response_supervision["gate_supervised_positions"]
+                ),
+                "gate_correct": (
+                    scratch_supervision["gate_correct"]
+                    + response_supervision["gate_correct"]
+                ),
+            }
+        return result
 
     @torch.no_grad()
     def run_transaction(self, field: Mapping[str, str]) -> dict[str, Any]:

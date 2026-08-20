@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from argparse import Namespace
 import json
 
+import pytest
 import torch
 
 from training.build_complete_field_r0_curriculum import (
     synthetic_records,
+    v6_alignment_records,
     validate_exact_field_isolation,
 )
 from training.complete_field_64d import (
@@ -14,6 +17,7 @@ from training.complete_field_64d import (
     REGION_ORDER,
     ReaderConfig,
 )
+from training.train_complete_field_64d import checkpoint_payload, restore
 
 
 def field_fixture() -> dict[str, str]:
@@ -112,7 +116,11 @@ def test_synthetic_families_have_empty_and_conflicting_scratch_interventions() -
         assert counterfactuals[0]["scratch"] == ""
         for counterfactual in counterfactuals:
             assert counterfactual["scratch"] != record["targets"]["scratch"]
-            assert counterfactual["response_draft"] != record["targets"]["response_draft"]
+            # V6 tests evidence authority rather than obedience to scratch: when
+            # immutable evidence resolves the answer, empty/conflicting scratch
+            # must preserve the correct response target.
+            assert counterfactual["response_draft"] == record["targets"]["response_draft"]
+        assert record["alignment"]["schema"] == "axon-r0-source-alignment-v1"
 
 
 def test_synthetic_fields_have_one_target_and_do_not_cross_splits() -> None:
@@ -188,10 +196,16 @@ def test_addressable_memory_retains_every_page_token() -> None:
         for page in pages
         for _ in (page.text or "\0")
     ]
+    expected_region_positions = [
+        position if page.text else -1
+        for page in pages
+        for position in (range(page.region_start, page.region_end) if page.text else (-1,))
+    ]
     assert manifest.complete
     assert memory.states.shape == (1, expected_tokens, config.d_model)
     assert memory.char_indices.squeeze(0).tolist() == expected_char_indices
     assert memory.region_ids.squeeze(0).tolist() == expected_region_ids
+    assert memory.region_positions.squeeze(0).tolist() == expected_region_positions
 
 
 def test_decoder_cross_attention_changes_logits() -> None:
@@ -232,3 +246,102 @@ def test_pointer_distribution_can_copy_exact_source_character() -> None:
     logits = model._decoder_logits(decoder_state, memory)
 
     assert int(logits.argmax(dim=-1).item()) == model.char_to_index["Z"]
+
+
+def test_v6_alignment_shard_covers_decoys_and_page_boundary() -> None:
+    records = list(v6_alignment_records(8, seed=6006, page_size=64))
+    assert {record["provenance"]["layout"] for record in records} == {
+        "first",
+        "middle",
+        "page_boundary",
+        "last",
+    }
+    for record in records:
+        provenance = record["provenance"]
+        token = record["targets"]["response_draft"]
+        assert 4 <= len(token) <= 32
+        assert token in record["field"]["structured_knowledge"]
+        assert provenance["same_region_duplicate"] is True
+        assert record["field"]["tool_results"].count(token) >= 2
+        assert all(
+            counterfactual["response_draft"] == token
+            for counterfactual in record["response_counterfactuals"]
+        )
+        source = record["field"]["tool_results"][
+            provenance["source_start"] : provenance["source_end"]
+        ]
+        assert source == token
+        if provenance["layout"] == "page_boundary":
+            assert provenance["source_start"] == 62
+            assert provenance["source_end"] > 64
+
+
+def test_v6_alignment_supervision_resolves_exact_duplicate_occurrence() -> None:
+    torch.manual_seed(8)
+    record = list(v6_alignment_records(3, seed=6010, page_size=64))[-1]
+    model = CompleteField64D(
+        ReaderConfig(page_size=64, max_output_chars=128, dropout=0.0)
+    ).cpu().eval()
+    out = model.forward_transaction(
+        record["field"],
+        record["targets"]["scratch"],
+        record["targets"]["response_draft"],
+        alignment={
+            "schema": record["alignment"]["schema"],
+            "scratch": record["alignment"]["scratch"],
+            "response_draft": record["alignment"]["response_draft"],
+        },
+    )
+    assert out["alignment"]["copy_positions"] == 2 * len(record["targets"]["response_draft"])
+    assert torch.isfinite(out["alignment"]["position_loss"])
+    assert torch.isfinite(out["alignment"]["gate_loss"])
+
+
+def test_v6_checkpoint_restores_exact_model_and_rejects_dataset_mismatch(tmp_path) -> None:
+    torch.manual_seed(11)
+    config = ReaderConfig(page_size=32, max_output_chars=80, dropout=0.0)
+    model = CompleteField64D(config).cpu()
+    optimizer = torch.optim.AdamW(model.parameters(), lr=2e-4)
+    scaler = torch.amp.GradScaler("cpu", enabled=False)
+    dataset = {"train": "train-sha", "eval": "eval-sha"}
+    payload = checkpoint_payload(
+        model,
+        optimizer,
+        scaler,
+        step=7,
+        config=config,
+        args=Namespace(run_dir=tmp_path, device="cpu"),
+        baseline={"mean_total_loss": 1.0},
+        sampler_state=(1, 2, 3),
+        dataset_sha256=dataset,
+    )
+    assert payload["schema"] == "axon-complete-field-r0-checkpoint-v6"
+    path = tmp_path / "ckpt.pt"
+    torch.save(payload, path)
+
+    restored = CompleteField64D(config).cpu()
+    restored_optimizer = torch.optim.AdamW(restored.parameters(), lr=2e-4)
+    restored_scaler = torch.amp.GradScaler("cpu", enabled=False)
+    step, baseline, sampler_state = restore(
+        path,
+        restored,
+        restored_optimizer,
+        restored_scaler,
+        torch.device("cpu"),
+        dataset,
+    )
+    assert step == 7
+    assert baseline == {"mean_total_loss": 1.0}
+    assert sampler_state == (1, 2, 3)
+    for name, tensor in model.state_dict().items():
+        assert torch.equal(tensor, restored.state_dict()[name]), name
+
+    with pytest.raises(ValueError, match="dataset fingerprint mismatch"):
+        restore(
+            path,
+            restored,
+            restored_optimizer,
+            restored_scaler,
+            torch.device("cpu"),
+            {"train": "different", "eval": "eval-sha"},
+        )

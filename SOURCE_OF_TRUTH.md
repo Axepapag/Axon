@@ -107,6 +107,8 @@ Current R0 trainer:
 - `training/train_complete_field_64d.py`,
 - exact frozen 16D character input lifted into one 64D core,
 - complete ordered paging across all ten active regions before decoding,
+- V6 exact-position copy supervision over one dedicated pointer head, with
+  immutable region-local source positions retained through paging,
 - scratch commit/rematerialize followed by a second complete sweep,
 - variable-length response-draft decoding with explicit termination,
 - diary, conversation history, and tool results sealed in R0.

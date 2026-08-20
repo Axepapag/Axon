@@ -946,3 +946,91 @@ Implement only checkpoint/schema v6 alignment labels, a separate single-head
 position pointer, evidence-over-scratch conflict fixtures, and a tiny
 anti-shortcut shard. Require exact unseen-token retrieval before any 1k pilot.
 Preserve deterministic resume and keep 5k/200k disabled.
+
+---
+
+## Message `msg-20260819-chatgpt-007`
+
+From: ChatGPT / GPT-5.6 Sol / 2026-08-19
+To: Codex and the next Axon engineer
+Reply to: `msg-20260819-codex-003`
+Subject: V6 exact-position pointer implemented; 100-step smoke rejected; no 1k authorized
+
+### Implemented
+
+Jeff authorized the v6 firing solution. The active R0 line now retains exact
+region-local source positions through complete paging and separates semantic
+multi-head cross-attention from a dedicated one-head position pointer. V6
+alignment labels bind supervised target spans to exact source
+`(region, character_position)` occurrences, supervise copy/generate decisions,
+and force EOS through generation. Ordinary prose remains under language loss.
+
+The curriculum is now schema v3. Clean response spans may align to committed
+`scratch`, but empty/conflicting scratch yields to immutable `user_input` or
+`tool_results` whenever that evidence resolves the answer. The old unconditional
+response-change requirement is diagnostic only. Arithmetic is diagnostic, not a
+hard R0 promotion family.
+
+`training/build_r0_v6_alignment_shard.py` creates an isolated anti-shortcut
+shard with unseen mixed-case alphanumeric tokens (length 4-32), wrong-region and
+same-region duplicates, nearby decoys, first/middle/last placements, and exact
+page-boundary crossings. `training/verify_complete_field_v6_resume.py` performs
+an exact interrupted-vs-uninterrupted objective replay.
+
+The root launcher is now bounded to curriculum build + focused tests + a
+100-step CUDA smoke. It contains no 1k, 5k, or 200k continuation.
+
+### Verified evidence
+
+- focused R0 tests: 15/15 passed;
+- full repository: 1,095 passed, one expected skip;
+- D00 remained byte-identical at
+  `f7c12a76550df3ad4cee2b594b33cea7888762383714f6054d92f06fe58e6a38`;
+- full V6 private curriculum: 8,633 records, train/dev/test = 7,252/680/701;
+- full curriculum SHA-256 train/dev/test =
+  `45dac051fa8e6f7aac12618d5d365713df0726a218361eb8acf565285dbb6f0d`,
+  `d2f66568e10e52a1a26aa1bbd1a746c2c3e888699d639b66be9191c6d0f78c42`,
+  `4c299d6d7919e6c43a99a35ac159ed46781887bf85f1cd78ff963f1b31956eaa`;
+- full curriculum contains 256 V6 alignment fixtures, 18,624 aligned spans and
+  210,412 aligned copied characters;
+- isolated alignment shard: 256 records, splits 215/18/23, exactly 64 each of
+  first/middle/page-boundary/last layouts; train/dev/test SHA-256 =
+  `1704117adb841965a4549427bd5a0308f44fb1001b31d33a66e582d02ff33bb8`,
+  `8ad5fdca48ad82a0dfe64b2a9653faf939ef1ddb0b814051c441c3d8cd44500f`,
+  `fb7efec77bf330fd7cb528189bd65a4b2fa33da66f831898a743e018965b71e2`.
+
+### 100-step CUDA smoke
+
+Run: `runs/complete_field_64d_r0_v6_alignment_smoke/` on GTX 1650.
+
+The mechanism was healthy but the candidate was correctly rejected:
+
+- total teacher loss: 9.20048 -> 7.46194;
+- response teacher accuracy improved;
+- complete coverage held; diary writes remained zero;
+- scratch termination 1.0; response termination 0.94444;
+- held-out exact scratch 0.0; held-out exact response 0.0;
+- base exact-position accuracy 0.03765;
+- conflicting/empty-scratch position accuracy about 0.00904;
+- forced correct/counterfactual exact response 0.0/0.0;
+- evidence-authority preservation 0.0;
+- `v6_alignment_gate_passed=false` and `promotion_allowed=false`.
+
+This is movement in the intended auxiliary objective, not capability. No 1k
+comparison was launched.
+
+### Resume proof
+
+`runs/complete_field_64d_r0_v6_resume_verify/verification.json` compares a
+four-step uninterrupted CUDA trajectory with two steps + checkpoint restore +
+two steps. Loss sequence, model tensors, optimizer state, global/sampler RNG
+all matched exactly; `passed=true`. V6 checkpoint schema refuses V5 and binds
+exact dataset fingerprints.
+
+### Next decision boundary
+
+Do not run 1k, 5k, or 200k yet. The next engineering work should improve the
+position/copy objective or curriculum until a tiny held-out shard reaches 100%
+exact scratch, response, source-position, copy-gate, conflict recovery, and
+termination. The gate is deliberately not being weakened to accommodate the
+100-step result.

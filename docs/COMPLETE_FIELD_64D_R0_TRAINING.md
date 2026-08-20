@@ -20,13 +20,15 @@ page defaults to 256 characters. Four temporary reader-state tokens pass from
 page to page through one shallow Transformer encoder layer. Empty regions still
 receive a region marker. Every encoded page token is retained as addressable
 read-only memory together with its immutable source character and region identity.
-Each autoregressive decoder step cross-attends that memory, then a learned gate
-mixes generated-character probability with a pointer distribution scattered onto
-the exact source-character alphabet. Empty-region markers remain context but
-cannot be copied. The four state tokens carry a compact recurrent summary; they
-are not required to memorize exact names, spans, or tool output. The decoder is locked until a
-coverage manifest proves all active characters and all ten region identities
-were visited without gaps or duplicates.
+Each autoregressive decoder step cross-attends that memory for semantic context.
+V6 then uses a separate single-head position pointer over exact source tokens,
+plus a learned copy/generate gate. Supervised copy spans bind target characters
+to one exact `(region, character_position)` occurrence before probability is
+scattered onto the source-character alphabet. Empty-region markers remain
+context but cannot be copied. The four state tokens carry a compact recurrent
+summary; they are not required to memorize exact names, spans, or tool output.
+The decoder is locked until a coverage manifest proves all active characters
+and all ten region identities were visited without gaps or duplicates.
 
 Page size bounds one physical operation, not logical context. Runtime and decoder
 attention cost grow with field length. Exact field text remains external,
@@ -57,9 +59,12 @@ and checkpoint.
 - Grade D grounded procedure episodes teach scratch behavior only and are
   explicitly prohibited from becoming sole autobiographical evidence.
 - Grade S deterministic examples teach page mechanics, retrieval, arithmetic,
-  conversation foundations, and abstention. Every synthetic family contains
-  matched empty-scratch and conflicting-scratch interventions with explicitly
-  different verified response targets.
+  conversation foundations, and abstention. V6 counterfactuals test evidence
+  authority rather than scratch obedience: when immutable `user_input` or
+  `tool_results` resolves the answer, empty or conflicting scratch preserves
+  that verified answer. A separate anti-shortcut shard uses unseen mixed-case
+  alphanumeric tokens, same-region and wrong-region duplicates, nearby decoys,
+  first/middle/last placement, and exact page-boundary crossings.
 
 Private output remains under `State/private_curriculum` and is not committed.
 The D00 SQLite source opens with URI `mode=ro` and `PRAGMA query_only=ON`.
@@ -72,26 +77,30 @@ characters/pages, gradient norm, rate, family, and example ID.
 `samples.jsonl` and `live.json` show the user input, gold and predicted scratch,
 gold and predicted response, termination, coverage, and typed delta.
 
-Checkpoints are atomic, keep a rolling three, and update `pointer.json` plus
+Checkpoints are atomic, keep a rolling three active checkpoints, archive older
+checkpoints without deleting them, and update `pointer.json` plus
 `checkpoint_done.json`. Interruption writes a recovery checkpoint. Checkpoint
-schema v5 binds every resume to the exact SHA-256 fingerprints of both training
-and evaluation datasets and records a deterministic, single-transfer scheduled
-prefix mask. Pooled-memory v2, per-character-sync v3, and continuous-only
-addressable v4 checkpoints are intentionally incompatible with the active
-pointer-generator reader.
+schema v6 binds every resume to the exact SHA-256 fingerprints of both training
+and evaluation datasets and records Python, NumPy, Torch, CUDA, scaler, optimizer,
+and sampler state. V5 and earlier checkpoints are intentionally incompatible
+with the V6 exact-position pointer.
 
 ## Promotion sequence
 
-1. contract and CPU tests;
-2. bounded GPU smoke with baseline and actual samples;
-3. a 5,000-step behavioral promotion stage with frozen eval, matched scratch
-   interventions, forced correct/counterfactual decodes, and actual free-running
-   scratch/response samples;
-4. only if loss, output, coverage, termination, diversity, matched causal-use,
-   and free-running exact-match gates for copy, conversation, cross-page
-   retrieval, abstention, and arithmetic all pass, automatically resume the
-   same checkpoint lineage toward 200,000 steps. The root training launcher
-   enforces this boundary and independently rereads the gate artifact before
-   continuation.
+1. contract, compilation, focused CPU tests, and the full repository suite;
+2. build a versioned V6 private curriculum plus an isolated anti-shortcut
+   alignment shard; never resume V5 against the new fingerprints;
+3. run a tiny bounded CUDA alignment smoke and require complete ten-region
+   coverage, finite optimization, actual free-running samples, and exact
+   interrupted/resumed CUDA trajectory;
+4. before any 1,000-step comparison, require **100%** held-out V6 alignment
+   behavior: exact scratch, exact response, exact labeled source position,
+   correct copy/generate gate, termination, and exact answer recovery under
+   empty/conflicting scratch where immutable evidence resolves the answer;
+5. only after those gates pass may a separately authorized bounded 1,000-step
+   V6-vs-V5 comparison run. Arithmetic remains diagnostic in R0 rather than a
+   hard identity/conversation promotion gate.
 
-Step count alone is never a success metric.
+The root launcher contains no 5,000-step or 200,000-step continuation while V6
+is below the exact held-out binding gate. Step count alone is never a success
+metric.
