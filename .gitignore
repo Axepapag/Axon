@@ -3,7 +3,8 @@ __pycache__/
 .venv/
 *.egg-info/
 build/
-State/
+State/*
+!State/README.md
 datasets/
 checkpoints/
 runs/
@@ -15,35 +16,22 @@ adapters/*.pt
 *.zip
 *.log
 *.part
+
 # Credential-bearing files — never promoted
 ssh.py
 ssh_helper.py
 .env
 *.key
 *.pem
-# Council runtime local config — may carry advisor API keys (LOCAL ONLY)
-runtime/council/council_config.json
-runtime/council/council_config.test.json
-/council_config.json
-runtime/council/souls/
+
 # Session-start material remains local, except for the repository-wide
-# engineering ledgers.  Those ledgers must travel with every checkout.
+# engineering ledgers. Those ledgers must travel with every checkout.
 !/roundtable/
 /roundtable/*
 !/roundtable/ENGINEERS_LEDGER.md
 !/roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl
 !/roundtable/ENGINEERS_LEDGER_PROTOCOL.md
-!/roundtable/CHATGPT_CODEX_COLLABORATION.md
 
-# State/ holds canonical state only; README documents the ruling
-!State/README.md
+# Operational state is local. Existing tracked table fixtures remain tracked,
+# but new machine-local runtime/acceptance artifacts are not promoted by default.
 ops/
-!ops/
-ops/*
-!ops/*.json
-!ops/acceptance/
-ops/acceptance/*
-!ops/acceptance/*.json
-!ops/kimi_packets/
-ops/kimi_packets/*
-!ops/kimi_packets/*.md

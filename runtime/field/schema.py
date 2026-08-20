@@ -2,7 +2,7 @@
 
 The canonical field is a logical, auditable document.  It is deliberately not
 limited to the current 384-position model window; that limit belongs to the
-compiled :class:`~runtime.field.view.FieldView`.
+compiled D64 rail.
 """
 from __future__ import annotations
 

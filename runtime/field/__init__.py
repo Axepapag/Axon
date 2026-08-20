@@ -1,4 +1,9 @@
-"""Canonical shared-field schema, exact D64 compiler, legacy views, and deltas."""
+"""Canonical Axon shared-field contracts and deterministic D64 compiler.
+
+Day Zero active surface only. Historical 384-slot views, schedule cursors,
+schema-v2 experiments, and related compatibility code live under
+``archive/day_zero_legacy_2026-08-20`` and are not imported here.
+"""
 
 from .compiler_d64 import (
     D64_COMPILER_SCHEMA,
@@ -50,19 +55,6 @@ from .schema import (
     canonical_json_bytes,
     canonical_sha256,
 )
-from .schedule import (
-    CyclingFieldViewProvider,
-    FieldViewCursor,
-    PAGED_CONTEXT_REGIONS,
-    READ_PAGING_PROTOCOL,
-    PagedFieldView,
-    ReadCycleCoverage,
-    ReadPageCoverage,
-    audit_read_cycle_coverage,
-    collect_read_cycle,
-    compile_next_read_page,
-    read_page_coverage,
-)
 from .state_branch import (
     BRANCH_EVENT_SCHEMA,
     BRANCH_HEAD_SCHEMA,
@@ -72,24 +64,6 @@ from .state_branch import (
     BranchIntegrityError,
     CanonicalStateBranch,
     CanonicalStateBranchError,
-)
-from .view import (
-    CONTEXT_END,
-    CONTEXT_CANDIDATE_REGIONS,
-    CONTEXT_REGIONS,
-    CONTEXT_START,
-    N_SLOTS,
-    PROPOSAL_END,
-    PROPOSAL_START,
-    USER_END,
-    USER_START,
-    FieldView,
-    SlotKind,
-    SlotRef,
-    ViewOmission,
-    compile_field_view,
-    proposal_payload_capacity,
-    proposal_tail_offset,
 )
 
 __all__ = [
@@ -130,33 +104,6 @@ __all__ = [
     "BranchAuthorityError",
     "BranchHead",
     "CanonicalStateBranch",
-    "N_SLOTS",
-    "CONTEXT_START",
-    "CONTEXT_END",
-    "USER_START",
-    "USER_END",
-    "PROPOSAL_START",
-    "PROPOSAL_END",
-    "proposal_payload_capacity",
-    "proposal_tail_offset",
-    "CONTEXT_REGIONS",
-    "CONTEXT_CANDIDATE_REGIONS",
-    "SlotKind",
-    "SlotRef",
-    "ViewOmission",
-    "FieldView",
-    "compile_field_view",
-    "PAGED_CONTEXT_REGIONS",
-    "READ_PAGING_PROTOCOL",
-    "FieldViewCursor",
-    "ReadPageCoverage",
-    "PagedFieldView",
-    "ReadCycleCoverage",
-    "read_page_coverage",
-    "compile_next_read_page",
-    "collect_read_cycle",
-    "audit_read_cycle_coverage",
-    "CyclingFieldViewProvider",
     "DeltaValidationError",
     "StaleDeltaError",
     "SealedRegionWriteError",

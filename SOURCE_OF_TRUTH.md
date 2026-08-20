@@ -1,6 +1,6 @@
 # Axon Source Of Truth
 
-Last updated: 2026-07-18
+Last updated: 2026-08-20
 
 ## Core Doctrine
 
@@ -34,13 +34,36 @@ Each region contains ordered character cells plus metadata spans. Words, sentenc
 
 No active exact-text path may collapse a paragraph into one opaque vector and then ask a small core to recover exact text from that vector.
 
+Every core pass attends the entire currently unmasked shared field. A physical
+model window may be used as one page in a complete ordered sweep, but it is not
+an attention limit and may not silently omit unmasked field characters. Every
+logical pass must produce an auditable coverage record proving that each exact
+shared-field character was visited.
+
+Each persisted region may contain an unmasked shared-field portion and a masked
+dormant portion. Per-region policies may retain exact characters, lines,
+paragraphs, containers, or conversational turns. Changing a threshold moves
+the boundary only: masked text is preserved exactly, and moving the boundary
+back immediately restores that material to the shared field.
+
+The initial implementation may use one movable boundary per region. The
+versioned future mask schema may additionally select multiple ordered,
+non-overlapping active intervals, such as a pinned older passage plus the
+newest turns. This is an additive feature, not a prerequisite for the first
+complete-field reader; in every form, masked characters remain exact and
+restorable.
+
 ## Dormant State
 
-Dormant state is masked structured memory. It stores containers, edges, facts, procedures, episodes, diary entries, source chunks, and provenance.
+Dormant state is structured memory outside the current canonical shared field.
+It stores containers, edges, facts, procedures, episodes, diary entries,
+source chunks, and provenance.
 
 Dormant memory is not attended directly. Search and surfacing copy relevant readable material into active regions.
 
-Masking is not truncation. Region histories may grow dormant while active masks expose only the current working window.
+Masking is not truncation. It is an explicit, auditable shared-to-dormant
+membership transition governed independently per region. A model window may
+never move this boundary implicitly.
 
 ## Semantic Edges
 
@@ -76,11 +99,25 @@ Per tick:
 
 1. Runtime materializes the active field.
 2. Each core inhales its private soul.
-3. Each core attends the active field.
+3. Each core attends every exact character of the active field through a
+   complete, coverage-proven pass.
 4. Each core emits a proposed delta.
-5. Cores may refine against gathered deltas.
-6. A consolidator selects or merges the committed delta.
-7. Each core exhales experience into hot soul rows.
+5. Each core exhales experience into its soul.
+6. Each core inhales its updated soul again, attends the full active field plus
+   every complete first-pass core delta, emits a refined delta, and exhales.
+7. The rotating consolidator inhales its updated soul, attends the full active
+   field plus every complete refined delta, and emits one typed delta against
+   the entire shared field.
+8. Runtime validates and atomically commits that delta as the next canonical
+   shared field; the consolidator exhales its experience.
+
+The validated consolidator delta may address every canonical shared-field
+region. Axon's cores ultimately maintain Axon's conversation, knowledge,
+situation awareness, task state, scratch, response, diary, and other canonical
+regions. Runtime validation, immutable provenance, base-field identity, and
+atomic replay remain mandatory; field-wide authority is not permission for
+unattributed or partial writes. Any narrower validator in the bootstrap
+runtime is a temporary implementation restriction rather than final doctrine.
 
 Input does not enter the soul first. The shared field is the input interface.
 
@@ -102,44 +139,93 @@ Training must match runtime:
 - loss is applied to the delta/response target,
 - core exhales after action.
 
-Current R0 trainer:
+Full-field training must reproduce the same complete ordered sweep, all-delta
+refinement, consolidator pass, soul boundaries, and typed canonical commit used
+at runtime. A short physical page may not be trained or reported as though it
+were the complete field.
 
-- `training/train_complete_field_64d.py`,
-- exact frozen 16D character input lifted into one 64D core,
-- complete ordered paging across all ten active regions before decoding,
-- V6 exact-position copy supervision over one dedicated pointer head, with
-  immutable region-local source positions retained through paging,
-- scratch commit/rematerialize followed by a second complete sweep,
-- variable-length response-draft decoding with explicit termination,
-- diary, conversation history, and tool results sealed in R0.
+Current Day Zero D64 trainer:
 
-Additive full-field path:
+- `training/train_complete_field_64d.py` is canonical-only; there is no active detached-record or legacy-anatomy switch,
+- curriculum records are source material only and are materialized as `SharedFieldSnapshot` before core access,
+- every neural read enters through the deterministic D64 compiler and its complete/fresh coverage proof,
+- the current D64 reader deterministically unpacks exact 16D lanes before its per-character neural lift,
+- scratch changes are ordinary typed deltas followed by canonical rematerialization and a second complete read,
+- response-draft learning remains observable and exact-position/copy-gate evaluation remains available,
+- training workspaces live beneath `State/training`; branch-backed episode journaling and canonical split/resume proof remain required before a new training campaign is authorized.
 
-- `runtime/field/`: immutable ten-region canonical snapshots, exact typed
-  spans/provenance, checkpoint-compatible masked 384-character views, and
-  validated/replayable deltas,
-- `runtime/multi_tick_refiner.py`: commit/rematerialize/refine rollouts with
-  explicit teacher-forced versus free-running modes,
-- `training/build_multitick_curriculum.py`: source-lineage episodes from
-  read-only recovered material,
-- `training/soul_load_bearing.py`: per-core correct/zero/swapped/shuffled
-  causal evaluation,
-- `training/differentiable_soul_writer.py`: unpromoted 168-row
-  write-delay-recall pilot that may write hot rows only.
+Pre-Day-Zero 384-slot readers, ExactV4 runtime/trainer paths, multi-tick prototypes, soul pilots, detached curriculum builders, and their dedicated tests are historical evidence only under `archive/day_zero_legacy_2026-08-20/`. They are not active fallback interfaces.
 
-The 384-character view and three learned type IDs are physical
-checkpoint-compatibility roles, not the complete logical field. They do not
-limit canonical field length or logical-region count.
+## Deterministic D64 Field Compiler
 
-The differentiable writer is not yet production soul doctrine. It remains
-pilot-only until real 64D and 128D write-delay-recall suites independently pass
-the round-table causal, regression, optimizer, and state-integrity gates.
+The shared exact D64 compiler is implemented in `runtime/field/compiler_d64.py`
+and is the canonical D64 core-input boundary for both runtime-facing and
+training-facing adapters.
 
-## Current Checkpoint Reality
+Binding invariants:
 
-Existing small charfield checkpoints are bootstraps, not finished reasoners. They have learned useful copy and partial-repair behavior, but blank generation is still early.
+- the compiler consumes one immutable `SharedFieldSnapshot` and binds every
+  rail to that snapshot's exact `field_id` and `tick_id`;
+- every attended canonical character is represented by its literal frozen 16D
+  substrate cell; unsupported attended characters fail closed rather than
+  being omitted;
+- one D64 physical row contains at most four exact 16D cells; rows never cross
+  logical-region boundaries and unused lanes are explicit padding;
+- every valid lane retains exact region position, global active-field position,
+  source span, span position, source, provenance, row, and lane identity;
+- all ten logical regions are visited on every compile, including empty or
+  explicitly masked regions; masked text remains canonical state but is not an
+  attended rail character;
+- compilation is accepted only after complete coverage and exact 16D roundtrip
+  verification; a rail from an older `field_id` is stale and must not be used;
+- a D64 row is lossless storage, not four magically independent Transformer
+  tokens. Current V6 consumers deterministically unpack exact lanes before the
+  existing per-character neural lift;
+- compiler output is derived and rebuildable. It has no reasoning vote and no
+  commit authority. Cores/consolidation propose ordinary typed `FieldDelta`
+  objects and canonical validation/transaction code decides whether they may
+  become the next field.
 
-They are acceptable as starting weights only if their config is charfield-compatible.
+The deterministic compiler may mark exact structural spans such as words,
+sentences, and paragraphs. Learned English semantics, semantic compression,
+semantic rewrite/decompilation, and salience ranking remain separate future
+work and are not made canonical by this section.
+
+## Canonical state root
+
+All living or durable Axon state resides beneath `D:\Axon\State`,
+including canonical field state, dormant memory, private souls, active adapter
+pointers and promoted adapters, cursors, and offline-learning control records.
+Runtime and training do not own separate competing state roots.
+
+Training may create isolated copy-on-write branches, run workspaces, and curriculum material beneath `State\training`,
+but core-facing state must use the same `SharedFieldSnapshot`, dormant-memory,
+exact D64 compiler rail, typed-delta, validation, and commit contracts as
+runtime. Curriculum JSON may remain reproducible source material, but it is
+materialized as canonical state before a D64 core reads it. A smoke or
+curriculum may be small in content or compute; it may not substitute a
+truncated/fake core-facing anatomy that production later discards.
+
+Candidate checkpoints and reproducible run logs belong beneath
+`State/training/runs/` while non-authoritative. Promotion moves or copies an
+accepted state-bearing artifact into its governed canonical State location with
+explicit provenance.
+
+## Day Zero active surface
+
+The active implementation surface is intentionally narrow:
+
+- `runtime/field/schema.py` ? canonical ten-region exact field schema,
+- `runtime/field/delta.py` ? typed canonical deltas and validation/apply/replay,
+- `runtime/field/compiler_d64.py` ? exact deterministic D64 compiler,
+- `runtime/field/state_branch.py` ? canonical branch persistence,
+- `runtime/axon_runtime/d64_adapter.py` ? runtime-facing D64 adapter,
+- `training/canonical_d64.py`, `training/complete_field_64d.py`, and `training/train_complete_field_64d.py` ? canonical D64 training path,
+- `curator/` recovered-corpus schema/materialization/building utilities ? offline exact dormant-memory tooling,
+
+The former council, old core/soul implementation, ExactV4/identity-v2 runtime stack, 384-slot views/schedules, legacy trainers/curricula, launchers, policies, and dedicated tests are archived beneath `archive/day_zero_legacy_2026-08-20/`. Local historical runs, datasets, checkpoint bundles, and generated distributions are preserved beneath `State/archive/day_zero_legacy_20260820/local_artifacts/`. They may be inspected for provenance or mechanism recovery but may not be imported, launched, resumed, or presented as current Axon without a new explicit convener decision.
+
+There is one Source of Truth text. `docs/SOURCE_OF_TRUTH.md` is the master path and root `SOURCE_OF_TRUTH.md` is a byte-for-byte compatibility mirror. Any doctrine update must update both in the same change; repository tests enforce equality. `docs/WORKING_CONTRACT.md` and root `WORKING_CONTRACT.md` follow the same exact-mirror rule.
 
 ## Deleted Architecture
 

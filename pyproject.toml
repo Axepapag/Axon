@@ -26,7 +26,7 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["cores*", "curator*", "runtime*", "substrate*", "training*"]
+include = ["curator*", "runtime*", "substrate*", "training*"]
 exclude = ["tests*", "runs*", "datasets*", "checkpoints*", "State*", "dist*", "ops*", "roundtable*", "kaggle*"]
 
 [tool.pytest.ini_options]

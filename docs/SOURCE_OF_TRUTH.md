@@ -1,6 +1,6 @@
 # Axon Source Of Truth
 
-Last updated: 2026-08-18
+Last updated: 2026-08-20
 
 ## Core Doctrine
 
@@ -144,41 +144,17 @@ refinement, consolidator pass, soul boundaries, and typed canonical commit used
 at runtime. A short physical page may not be trained or reported as though it
 were the complete field.
 
-Current R0 trainer:
+Current Day Zero D64 trainer:
 
-- `training/train_complete_field_64d.py`,
-- exact frozen 16D character input lifted into one 64D core,
-- complete ordered paging across all ten active regions before decoding,
-- decoder cross-attention over every encoded page token plus a V6 dedicated
-  single-head exact-position pointer and copy/generate gate; supervised spans bind
-  copied target characters to one auditable source `(region, character_position)`
-  occurrence before character probability is scattered, while the four carried
-  state tokens remain a compact recurrent summary rather than an exact-text bottleneck,
-- a scratch delta followed by commit/rematerialize and a second complete sweep,
-- variable-length response-draft decoding with an explicit end token,
-- diary, conversation history, and tool results sealed in R0,
-- coverage, behavioral samples, scratch ablations, and rolling recovery checkpoints.
+- `training/train_complete_field_64d.py` is canonical-only; there is no active detached-record or legacy-anatomy switch,
+- curriculum records are source material only and are materialized as `SharedFieldSnapshot` before core access,
+- every neural read enters through the deterministic D64 compiler and its complete/fresh coverage proof,
+- the current D64 reader deterministically unpacks exact 16D lanes before its per-character neural lift,
+- scratch changes are ordinary typed deltas followed by canonical rematerialization and a second complete read,
+- response-draft learning remains observable and exact-position/copy-gate evaluation remains available,
+- training workspaces live beneath `State/training`; branch-backed episode journaling and canonical split/resume proof remain required before a new training campaign is authorized.
 
-Additive full-field path:
-
-- `runtime/field/`: immutable ten-region canonical snapshots, exact typed
-  spans/provenance, checkpoint-compatible masked 384-character views, and
-  validated/replayable deltas,
-- `runtime/multi_tick_refiner.py`: commit/rematerialize/refine rollouts with
-  explicit teacher-forced versus free-running modes,
-- `training/build_multitick_curriculum.py`: source-lineage episodes from
-  read-only recovered material,
-- `training/soul_load_bearing.py`: per-core correct/zero/swapped/shuffled
-  causal evaluation,
-- `training/differentiable_soul_writer.py`: unpromoted 168-row
-  write-delay-recall pilot that may write hot rows only.
-
-The 384-character view and three learned type IDs are physical
-checkpoint-compatibility roles, not the complete logical field. They do not
-limit canonical field length or logical-region count. Existing checkpoints
-that consume only one such view are bootstrap checkpoints and do not satisfy
-the required full-field council protocol until a trained complete-sweep reader
-has been added and passed coverage and behavioral gates.
+Pre-Day-Zero 384-slot readers, ExactV4 runtime/trainer paths, multi-tick prototypes, soul pilots, detached curriculum builders, and their dedicated tests are historical evidence only under `archive/day_zero_legacy_2026-08-20/`. They are not active fallback interfaces.
 
 ## Deterministic D64 Field Compiler
 
@@ -230,19 +206,26 @@ materialized as canonical state before a D64 core reads it. A smoke or
 curriculum may be small in content or compute; it may not substitute a
 truncated/fake core-facing anatomy that production later discards.
 
-Candidate checkpoints and reproducible run logs may remain under `runs/` while
-non-authoritative. Promotion copies the active state-bearing artifact into
-`State/` with provenance.
+Candidate checkpoints and reproducible run logs belong beneath
+`State/training/runs/` while non-authoritative. Promotion moves or copies an
+accepted state-bearing artifact into its governed canonical State location with
+explicit provenance.
 
-The differentiable writer is not yet production soul doctrine. It remains
-pilot-only until real 64D and 128D write-delay-recall suites independently pass
-the round-table causal, regression, optimizer, and state-integrity gates.
+## Day Zero active surface
 
-## Current Checkpoint Reality
+The active implementation surface is intentionally narrow:
 
-Existing small charfield checkpoints are bootstraps, not finished reasoners. They have learned useful copy and partial-repair behavior, but blank generation is still early.
+- `runtime/field/schema.py` ? canonical ten-region exact field schema,
+- `runtime/field/delta.py` ? typed canonical deltas and validation/apply/replay,
+- `runtime/field/compiler_d64.py` ? exact deterministic D64 compiler,
+- `runtime/field/state_branch.py` ? canonical branch persistence,
+- `runtime/axon_runtime/d64_adapter.py` ? runtime-facing D64 adapter,
+- `training/canonical_d64.py`, `training/complete_field_64d.py`, and `training/train_complete_field_64d.py` ? canonical D64 training path,
+- `curator/` recovered-corpus schema/materialization/building utilities ? offline exact dormant-memory tooling,
 
-They are acceptable as starting weights only if their config is charfield-compatible.
+The former council, old core/soul implementation, ExactV4/identity-v2 runtime stack, 384-slot views/schedules, legacy trainers/curricula, launchers, policies, and dedicated tests are archived beneath `archive/day_zero_legacy_2026-08-20/`. Local historical runs, datasets, checkpoint bundles, and generated distributions are preserved beneath `State/archive/day_zero_legacy_20260820/local_artifacts/`. They may be inspected for provenance or mechanism recovery but may not be imported, launched, resumed, or presented as current Axon without a new explicit convener decision.
+
+There is one Source of Truth text. `docs/SOURCE_OF_TRUTH.md` is the master path and root `SOURCE_OF_TRUTH.md` is a byte-for-byte compatibility mirror. Any doctrine update must update both in the same change; repository tests enforce equality. `docs/WORKING_CONTRACT.md` and root `WORKING_CONTRACT.md` follow the same exact-mirror rule.
 
 ## Deleted Architecture
 

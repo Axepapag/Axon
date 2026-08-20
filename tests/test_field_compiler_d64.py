@@ -156,7 +156,7 @@ def test_runtime_and_training_materialize_the_same_rail() -> None:
     assert np.array_equal(runtime_compiled.rows, example.compiled.rows)
 
 
-def test_v6_reader_consumes_compiled_rail_without_changing_legacy_geometry() -> None:
+def test_d64_reader_consumes_only_the_canonical_compiled_rail() -> None:
     field = {
         "conversation_history": "history",
         "user_input": "question",
@@ -169,14 +169,15 @@ def test_v6_reader_consumes_compiled_rail_without_changing_legacy_geometry() -> 
     )
     model.eval()
     with torch.no_grad():
-        legacy_state, legacy_memory, legacy_coverage = model.read_field_with_memory(field)
-        canonical_state, canonical_memory, canonical_coverage, compiled = (
-            model.read_snapshot_with_memory(snapshot)
-        )
+        state, memory, coverage, compiled = model.read_snapshot_with_memory(snapshot)
     assert compiled.coverage.complete
-    assert legacy_coverage.complete and canonical_coverage.complete
-    assert torch.allclose(legacy_state, canonical_state, atol=1e-6, rtol=1e-6)
-    assert torch.equal(legacy_memory.char_indices, canonical_memory.char_indices)
-    assert torch.equal(legacy_memory.region_ids, canonical_memory.region_ids)
-    assert torch.equal(legacy_memory.region_positions, canonical_memory.region_positions)
-    assert torch.allclose(legacy_memory.states, canonical_memory.states, atol=1e-6, rtol=1e-6)
+    assert compiled.source_field_id == snapshot.field_id
+    assert coverage.complete
+    assert state.shape[-1] == 64
+    assert memory.states.shape[-1] == 64
+    valid_positions = memory.region_positions[memory.region_positions >= 0]
+    assert int(valid_positions.numel()) == compiled.coverage.compiled_active_characters
+    assert compiled.active_texts() == {
+        region.value: snapshot.region(region).text
+        for region in CANONICAL_REGION_ORDER
+    }

@@ -28,10 +28,10 @@ from runtime.field import D64_COMPILER_SCHEMA, D64FieldCompiler, LogicalRegion, 
 from training.canonical_d64 import snapshot_from_r0_record
 from training.complete_field_64d import (
     CompleteField64D,
-    CompleteFieldPager,
     REGION_ORDER,
     ReaderConfig,
     canonical_field,
+    coverage_manifest_from_compiled,
     sequence_cross_entropy,
     teacher_char_accuracy,
 )
@@ -125,13 +125,8 @@ def load_jsonl(path: Path, split: str | None = None) -> list[dict[str, Any]]:
     return records
 
 
-_ACTIVE_ANATOMY = "canonical"
+CANONICAL_ANATOMY = "canonical"
 _D64_COMPILER = D64FieldCompiler()
-
-
-def _set_anatomy(*, legacy_record_direct: bool) -> None:
-    global _ACTIVE_ANATOMY
-    _ACTIVE_ANATOMY = "legacy-record-direct" if legacy_record_direct else "canonical"
 
 
 def _alignment_for_record(record: Mapping[str, Any]) -> dict[str, Any]:
@@ -148,14 +143,6 @@ def _forward_record(
     *,
     teacher_forcing_ratio: float = 1.0,
 ) -> dict[str, Any]:
-    if _ACTIVE_ANATOMY == "legacy-record-direct":
-        return model.forward_transaction(
-            record["field"],
-            record["targets"]["scratch"],
-            record["targets"]["response_draft"],
-            teacher_forcing_ratio=teacher_forcing_ratio,
-            alignment=_alignment_for_record(record),
-        )
     snapshot = snapshot_from_r0_record(record)
     return model.forward_canonical_transaction(
         snapshot,
@@ -168,8 +155,6 @@ def _forward_record(
 
 
 def _run_record(model: CompleteField64D, record: Mapping[str, Any]) -> dict[str, Any]:
-    if _ACTIVE_ANATOMY == "legacy-record-direct":
-        return model.run_transaction(record["field"])
     return model.run_canonical_transaction(
         snapshot_from_r0_record(record), compiler=_D64_COMPILER
     )
@@ -201,10 +186,6 @@ def _read_record_with_scratch(
     record: Mapping[str, Any],
     scratch: str,
 ):
-    if _ACTIVE_ANATOMY == "legacy-record-direct":
-        field = dict(record["field"])
-        field["scratch"] = scratch
-        return model.read_field_with_memory(field)
     snapshot = _snapshot_with_scratch(record, scratch)
     state, memory, coverage, _ = model.read_snapshot_with_memory(
         snapshot, compiler=_D64_COMPILER
@@ -246,16 +227,16 @@ def substrate_gate() -> None:
 def coverage_gate(records: Iterable[Mapping[str, Any]], page_sizes: tuple[int, ...] = (64, 128, 256)) -> None:
     for record in list(records)[:16]:
         expected = sum(len(record["field"][name]) for name in REGION_ORDER)
+        snapshot = snapshot_from_r0_record(record)
+        compiled = _D64_COMPILER.compile(snapshot)
         hashes = set()
         for page_size in page_sizes:
-            _, manifest = CompleteFieldPager(page_size).paginate(record["field"])
+            manifest = coverage_manifest_from_compiled(compiled, page_size)
             if not manifest.complete or manifest.expected_characters != expected:
                 raise RuntimeError(f"coverage gate failed for {record['example_id']} at page_size={page_size}")
             hashes.add(manifest.field_sha256)
-        if len(hashes) != 1:
-            raise RuntimeError("logical field identity changed across physical page sizes")
-        snapshot = snapshot_from_r0_record(record)
-        compiled = _D64_COMPILER.compile(snapshot)
+        if hashes != {snapshot.field_id}:
+            raise RuntimeError("canonical field identity changed across physical page sizes")
         if (
             not compiled.coverage.complete
             or compiled.coverage.expected_active_characters != expected
@@ -616,8 +597,8 @@ def checkpoint_payload(
         "baseline": dict(baseline),
         "dataset_sha256": dict(dataset_sha256),
         "anatomy": {
-            "mode": _ACTIVE_ANATOMY,
-            "compiler_schema": D64_COMPILER_SCHEMA if _ACTIVE_ANATOMY == "canonical" else None,
+            "mode": CANONICAL_ANATOMY,
+            "compiler_schema": D64_COMPILER_SCHEMA,
         },
         "rng": {
             "python": random.getstate(),
@@ -732,7 +713,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Train the observable complete-field 64D R0 core")
     parser.add_argument("--train", type=Path, required=True)
     parser.add_argument("--eval", type=Path, required=True)
-    parser.add_argument("--run-dir", type=Path, required=True)
+    parser.add_argument(
+        "--run-dir",
+        type=Path,
+        required=True,
+        help="run/checkpoint directory; must resolve beneath D:/Axon/State/training/runs",
+    )
     parser.add_argument("--steps", type=int, default=200000)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--page-size", type=int, default=256)
@@ -759,43 +745,31 @@ def main() -> int:
     parser.add_argument("--resume-if-available", action="store_true")
     parser.add_argument("--amp", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument(
-        "--canonical-d64",
-        action="store_true",
-        help=(
-            "explicitly assert the canonical D64 anatomy; this is already the "
-            "default unless --legacy-record-direct is supplied"
-        ),
-    )
-    parser.add_argument(
         "--state-root",
         type=Path,
         default=Path(r"D:\\Axon\\State"),
         help="canonical Axon State root; canonical training workspace is created beneath State/training/runs",
     )
-    parser.add_argument(
-        "--legacy-record-direct",
-        action="store_true",
-        help=(
-            "explicitly run the preserved detached-JSON V6 mechanism trainer; "
-            "not permitted for canonical Axon training"
-        ),
-    )
     args = parser.parse_args()
 
-    if args.canonical_d64 and args.legacy_record_direct:
+    expected_state_root = Path(r"D:\Axon\State").resolve(strict=False)
+    actual_state_root = args.state_root.resolve(strict=False)
+    if actual_state_root != expected_state_root:
         raise RuntimeError(
-            "--canonical-d64 and --legacy-record-direct are mutually exclusive"
+            f"canonical D64 training must use the real Axon State root "
+            f"{expected_state_root}; got {actual_state_root}"
         )
-    canonical_mode = not args.legacy_record_direct
-    _set_anatomy(legacy_record_direct=args.legacy_record_direct)
-    if canonical_mode:
-        expected_state_root = Path(r"D:\Axon\State").resolve(strict=False)
-        actual_state_root = args.state_root.resolve(strict=False)
-        if actual_state_root != expected_state_root:
-            raise RuntimeError(
-                f"canonical D64 training must use the real Axon State root "
-                f"{expected_state_root}; got {actual_state_root}"
-            )
+    training_runs_root = (expected_state_root / "training" / "runs").resolve(strict=False)
+    actual_run_dir = args.run_dir.resolve(strict=False)
+    try:
+        relative_run = actual_run_dir.relative_to(training_runs_root)
+    except ValueError as exc:
+        raise RuntimeError(
+            f"canonical D64 run-dir must be beneath {training_runs_root}; got {actual_run_dir}"
+        ) from exc
+    if not relative_run.parts:
+        raise RuntimeError("canonical D64 run-dir must name a run below State/training/runs")
+    args.run_dir = actual_run_dir
 
     if (
         args.steps < 1
@@ -830,29 +804,22 @@ def main() -> int:
     }
     coverage_gate(train_records)
     coverage_gate(eval_records)
-    state_workspace: Path | None = None
-    if canonical_mode:
-        workspace_name = args.run_dir.name.strip()
-        if not workspace_name or workspace_name in {".", ".."}:
-            raise ValueError("run-dir must have a safe final component for canonical State workspace")
-        state_workspace = (
-            args.state_root.resolve(strict=False) / "training" / "runs" / workspace_name
-        )
-        state_workspace.mkdir(parents=True, exist_ok=True)
-        atomic_json(
-            state_workspace / "anatomy.json",
-            {
-                "schema": "axon-canonical-d64-training-workspace-v1",
-                "compiler_schema": D64_COMPILER_SCHEMA,
-                "state_root": str(args.state_root.resolve(strict=False)),
-                "workspace": str(state_workspace),
-                "run_dir": str(args.run_dir.resolve(strict=False)),
-                "dataset_sha256": dataset_sha256,
-                "core_input_authority": "SharedFieldSnapshot",
-                "delta_authority": "shared-field-delta-v1",
-                "curriculum_role": "source-material-only",
-            },
-        )
+    state_workspace = args.run_dir
+    state_workspace.mkdir(parents=True, exist_ok=True)
+    atomic_json(
+        state_workspace / "anatomy.json",
+        {
+            "schema": "axon-canonical-d64-training-workspace-v1",
+            "compiler_schema": D64_COMPILER_SCHEMA,
+            "state_root": str(args.state_root.resolve(strict=False)),
+            "workspace": str(state_workspace),
+            "run_dir": str(args.run_dir),
+            "dataset_sha256": dataset_sha256,
+            "core_input_authority": "SharedFieldSnapshot",
+            "delta_authority": "shared-field-delta-v1",
+            "curriculum_role": "source-material-only",
+        },
+    )
     causal_train_records = [record for record in train_records if record["response_counterfactuals"]]
     causal_eval_records = [record for record in eval_records if record["response_counterfactuals"]]
     if not causal_train_records or not causal_eval_records:
@@ -885,10 +852,10 @@ def main() -> int:
             "causal_eval_records": len(causal_eval_records),
             "dataset_sha256": dataset_sha256,
             "anatomy": {
-                "mode": _ACTIVE_ANATOMY,
-                "compiler_schema": D64_COMPILER_SCHEMA if canonical_mode else None,
-                "state_workspace": None if state_workspace is None else str(state_workspace),
-                "core_input_authority": "SharedFieldSnapshot" if canonical_mode else "detached-record",
+                "mode": CANONICAL_ANATOMY,
+                "compiler_schema": D64_COMPILER_SCHEMA,
+                "state_workspace": str(state_workspace),
+                "core_input_authority": "SharedFieldSnapshot",
             },
         },
     )
@@ -908,7 +875,7 @@ def main() -> int:
                 scaler,
                 device,
                 dataset_sha256,
-                expected_anatomy=_ACTIVE_ANATOMY,
+                expected_anatomy=CANONICAL_ANATOMY,
             )
             print(f"resumed {checkpoint} at step {step}", flush=True)
         else:

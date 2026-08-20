@@ -44,7 +44,6 @@ REGION_ORDER: tuple[str, ...] = (
     "diary",
 )
 REGION_TO_ID = {name: index for index, name in enumerate(REGION_ORDER)}
-WRITABLE_REGIONS = frozenset({"scratch", "response_draft"})
 
 
 @dataclass(frozen=True)
@@ -71,18 +70,6 @@ class ReaderConfig:
             raise ValueError("R0 output must not reproduce the obsolete 64-character cap")
 
 
-@dataclass(frozen=True)
-class FieldPage:
-    region: str
-    region_id: int
-    region_page_index: int
-    logical_page_index: int
-    region_start: int
-    region_end: int
-    global_start: int
-    global_end: int
-    text: str
-    sha256: str
 
 
 @dataclass(frozen=True)
@@ -117,6 +104,66 @@ def _sha(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def coverage_manifest_from_compiled(
+    compiled: CompiledD64Field,
+    page_size: int,
+) -> CoverageManifest:
+    """Derive the trainer's observable coverage record from the canonical D64 rail."""
+    if page_size < 1:
+        raise ValueError("page_size must be positive")
+    if not isinstance(compiled, CompiledD64Field):
+        raise TypeError("compiled must be CompiledD64Field")
+    if not compiled.coverage.complete:
+        raise RuntimeError("incomplete canonical D64 rail cannot produce coverage")
+
+    pages = list(compiled.iter_character_pages(page_size))
+    active = compiled.active_texts()
+    expected_regions = tuple(region.value for region in CANONICAL_REGION_ORDER)
+    visited_regions = tuple(dict.fromkeys(page.region.value for page in pages))
+    observed = 0
+    zero_gaps = True
+    zero_duplicates = True
+    cursor_by_region = {region: 0 for region in expected_regions}
+    for page in pages:
+        region = page.region.value
+        cursor = cursor_by_region[region]
+        if page.region_start > cursor:
+            zero_gaps = False
+        if page.region_start < cursor:
+            zero_duplicates = False
+        if page.region_end < page.region_start:
+            zero_gaps = False
+        if page.text != active[region][page.region_start:page.region_end]:
+            zero_gaps = False
+        cursor_by_region[region] = max(cursor, page.region_end)
+        observed += len(page.text)
+    for region in expected_regions:
+        if cursor_by_region[region] != len(active[region]):
+            zero_gaps = False
+
+    expected = compiled.coverage.expected_active_characters
+    complete = (
+        compiled.coverage.complete
+        and zero_gaps
+        and zero_duplicates
+        and observed == expected
+        and visited_regions == expected_regions
+    )
+    return CoverageManifest(
+        page_size=page_size,
+        expected_characters=expected,
+        observed_characters=observed,
+        expected_regions=expected_regions,
+        visited_regions=visited_regions,
+        page_count=len(pages),
+        zero_gaps=zero_gaps,
+        zero_duplicates=zero_duplicates,
+        complete=complete,
+        field_sha256=compiled.source_field_id,
+        page_sha256=tuple(_sha(page.text) for page in pages),
+    )
+
+
 def canonical_field(field: Mapping[str, str]) -> dict[str, str]:
     unknown = sorted(set(field) - set(REGION_ORDER))
     if unknown:
@@ -131,82 +178,6 @@ def canonical_field(field: Mapping[str, str]) -> dict[str, str]:
     return result
 
 
-class CompleteFieldPager:
-    """Create auditable, region-preserving pages without silent truncation."""
-
-    def __init__(self, page_size: int):
-        if page_size < 1:
-            raise ValueError("page_size must be positive")
-        self.page_size = int(page_size)
-
-    def paginate(self, field: Mapping[str, str]) -> tuple[list[FieldPage], CoverageManifest]:
-        exact = canonical_field(field)
-        pages: list[FieldPage] = []
-        global_offset = 0
-        logical_page = 0
-        intervals: dict[str, list[tuple[int, int]]] = {name: [] for name in REGION_ORDER}
-        for region in REGION_ORDER:
-            text = exact[region]
-            # Empty regions still receive a zero-character marker page so the
-            # learned reader attends the region identity on every sweep.
-            starts = range(0, len(text), self.page_size) if text else (0,)
-            for region_page, start in enumerate(starts):
-                chunk = text[start : start + self.page_size]
-                end = start + len(chunk)
-                pages.append(
-                    FieldPage(
-                        region=region,
-                        region_id=REGION_TO_ID[region],
-                        region_page_index=region_page,
-                        logical_page_index=logical_page,
-                        region_start=start,
-                        region_end=end,
-                        global_start=global_offset + start,
-                        global_end=global_offset + end,
-                        text=chunk,
-                        sha256=_sha(chunk),
-                    )
-                )
-                logical_page += 1
-                if chunk:
-                    intervals[region].append((start, end))
-            global_offset += len(text)
-
-        gaps = False
-        duplicates = False
-        observed = 0
-        for region in REGION_ORDER:
-            cursor = 0
-            for start, end in intervals[region]:
-                if start > cursor:
-                    gaps = True
-                if start < cursor:
-                    duplicates = True
-                cursor = max(cursor, end)
-                observed += max(0, end - start)
-            if cursor != len(exact[region]):
-                gaps = True
-        expected = sum(len(exact[name]) for name in REGION_ORDER)
-        field_payload = "".join(f"{name}:{len(exact[name])}:{exact[name]}" for name in REGION_ORDER)
-        manifest = CoverageManifest(
-            page_size=self.page_size,
-            expected_characters=expected,
-            observed_characters=observed,
-            expected_regions=REGION_ORDER,
-            visited_regions=tuple(dict.fromkeys(page.region for page in pages)),
-            page_count=len(pages),
-            zero_gaps=not gaps,
-            zero_duplicates=not duplicates,
-            complete=(
-                not gaps
-                and not duplicates
-                and observed == expected
-                and tuple(dict.fromkeys(page.region for page in pages)) == REGION_ORDER
-            ),
-            field_sha256=_sha(field_payload),
-            page_sha256=tuple(page.sha256 for page in pages),
-        )
-        return pages, manifest
 
 
 def frozen_orthogonal_lift(d_model: int = 64, seed: int = 7) -> torch.Tensor:
@@ -280,34 +251,6 @@ class CompleteField64D(nn.Module):
     def device(self) -> torch.device:
         return next(self.parameters()).device
 
-    def _page_tensor(self, page: FieldPage) -> torch.Tensor:
-        if page.text:
-            indices = torch.tensor(
-                [self.char_to_index[char] for char in page.text],
-                dtype=torch.long,
-                device=self.device,
-            )
-            chars = self.bank16.index_select(0, indices) @ self.char_lift
-        else:
-            chars = self.empty_region_marker.unsqueeze(0)
-        length = chars.shape[0]
-        local = torch.arange(length, device=self.device)
-        region = self.region_embedding(
-            torch.full((length,), page.region_id, dtype=torch.long, device=self.device)
-        )
-        page_pos = self.page_position(
-            torch.full(
-                (length,),
-                page.logical_page_index % self.cfg.max_pages,
-                dtype=torch.long,
-                device=self.device,
-            )
-        )
-        denom = max(1.0, float(page.global_end + 1))
-        start = math.log1p(page.global_start) / math.log1p(denom)
-        end = math.log1p(page.global_end) / math.log1p(denom)
-        global_features = torch.tensor([start, end], device=self.device).expand(length, 2)
-        return chars + region + self.local_position(local) + page_pos + self.global_position(global_features)
 
     def _compiled_page_tensor(self, page: D64CharacterPage) -> torch.Tensor:
         """Lift exact 16D cells unpacked from the canonical D64 rail.
@@ -365,18 +308,7 @@ class CompleteField64D(nn.Module):
         if not compiled.coverage.complete:
             raise RuntimeError("incomplete canonical D64 rail cannot be read")
         pages = list(compiled.iter_character_pages(self.cfg.page_size))
-        active = compiled.active_texts()
-        audit_pages, manifest = CompleteFieldPager(self.cfg.page_size).paginate(active)
-        if len(audit_pages) != len(pages):
-            raise RuntimeError("compiled D64 page count disagrees with coverage audit")
-        for expected, actual in zip(audit_pages, pages):
-            if (
-                expected.region != actual.region.value
-                or expected.region_start != actual.region_start
-                or expected.region_end != actual.region_end
-                or expected.text != actual.text
-            ):
-                raise RuntimeError("compiled D64 page identity disagrees with coverage audit")
+        manifest = coverage_manifest_from_compiled(compiled, self.cfg.page_size)
         if not manifest.complete:
             raise RuntimeError("coverage manifest is incomplete; decoder finalization denied")
 
@@ -441,65 +373,7 @@ class CompleteField64D(nn.Module):
         state, memory, manifest = self.read_compiled_with_memory(compiled)
         return state, memory, manifest, compiled
 
-    def read_field_with_memory(
-        self,
-        field: Mapping[str, str],
-    ) -> tuple[torch.Tensor, AddressableMemory, CoverageManifest]:
-        """Sweep every page and retain encoded tokens plus exact source identities."""
-        pages, manifest = CompleteFieldPager(self.cfg.page_size).paginate(field)
-        if not manifest.complete:
-            raise RuntimeError("coverage manifest is incomplete; decoder finalization denied")
-        state = self.initial_state.unsqueeze(0)
-        memory_states: list[torch.Tensor] = []
-        memory_char_indices: list[torch.Tensor] = []
-        memory_region_ids: list[torch.Tensor] = []
-        memory_region_positions: list[torch.Tensor] = []
-        for page in pages:
-            tokens = self._page_tensor(page).unsqueeze(0)
-            encoded = self.page_encoder(torch.cat((state, tokens), dim=1))
-            state = encoded[:, : self.cfg.state_tokens]
-            page_memory = encoded[:, self.cfg.state_tokens :]
-            memory_states.append(page_memory)
-            if page.text:
-                page_chars = torch.tensor(
-                    [self.char_to_index[char] for char in page.text],
-                    dtype=torch.long,
-                    device=self.device,
-                )
-            else:
-                # Empty-region markers remain addressable context but are never
-                # eligible copy sources.
-                page_chars = torch.full((1,), -1, dtype=torch.long, device=self.device)
-            memory_char_indices.append(page_chars.unsqueeze(0))
-            memory_region_ids.append(
-                torch.full(
-                    (1, page_memory.shape[1]),
-                    page.region_id,
-                    dtype=torch.long,
-                    device=self.device,
-                )
-            )
-            if page.text:
-                page_positions = torch.arange(
-                    page.region_start,
-                    page.region_end,
-                    dtype=torch.long,
-                    device=self.device,
-                )
-            else:
-                page_positions = torch.full((1,), -1, dtype=torch.long, device=self.device)
-            memory_region_positions.append(page_positions.unsqueeze(0))
-        addressable_memory = AddressableMemory(
-            states=self.memory_norm(torch.cat(memory_states, dim=1)),
-            char_indices=torch.cat(memory_char_indices, dim=1),
-            region_ids=torch.cat(memory_region_ids, dim=1),
-            region_positions=torch.cat(memory_region_positions, dim=1),
-        )
-        return self.state_norm(state), addressable_memory, manifest
 
-    def read_field(self, field: Mapping[str, str]) -> tuple[torch.Tensor, CoverageManifest]:
-        state, _, manifest = self.read_field_with_memory(field)
-        return state, manifest
 
     def _target_indices(self, text: str) -> torch.Tensor:
         assert_supported_text(text)
@@ -1061,146 +935,8 @@ class CompleteField64D(nn.Module):
             "compiled_tick2": compiled2,
         }
 
-    def forward_transaction(
-        self,
-        field: Mapping[str, str],
-        scratch_target: str,
-        response_target: str,
-        teacher_forcing_ratio: float = 1.0,
-        alignment: Mapping[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        exact = canonical_field(field)
-        if alignment is not None:
-            if alignment.get("schema") != "axon-r0-source-alignment-v1":
-                raise ValueError("unsupported R0 source-alignment schema")
-            if set(alignment) != {"schema", "scratch", "response_draft"}:
-                raise ValueError("R0 source alignment must define scratch and response_draft")
 
-        state1, memory1, coverage1 = self.read_field_with_memory(exact)
-        scratch_decoded = self.decode_scheduled(
-            state1,
-            scratch_target,
-            head=0,
-            teacher_forcing_ratio=teacher_forcing_ratio,
-            memory=memory1,
-            return_alignment=alignment is not None,
-        )
-        scratch_supervision: dict[str, Any] | None = None
-        if alignment is not None:
-            scratch_logits, scratch_indices, scratch_decoder_alignment = scratch_decoded
-            scratch_supervision = self.alignment_supervision(
-                target_text=scratch_target,
-                memory=memory1,
-                decoder_alignment=scratch_decoder_alignment,
-                specification=alignment["scratch"],
-            )
-        else:
-            scratch_logits, scratch_indices = scratch_decoded
 
-        second_field = dict(exact)
-        second_field["scratch"] = scratch_target
-        state2, memory2, coverage2 = self.read_field_with_memory(second_field)
-        response_decoded = self.decode_scheduled(
-            state2,
-            response_target,
-            head=1,
-            teacher_forcing_ratio=teacher_forcing_ratio,
-            memory=memory2,
-            return_alignment=alignment is not None,
-        )
-        response_supervision: dict[str, Any] | None = None
-        if alignment is not None:
-            response_logits, response_indices, response_decoder_alignment = response_decoded
-            response_supervision = self.alignment_supervision(
-                target_text=response_target,
-                memory=memory2,
-                decoder_alignment=response_decoder_alignment,
-                specification=alignment["response_draft"],
-            )
-        else:
-            response_logits, response_indices = response_decoded
-
-        result: dict[str, Any] = {
-            "scratch_logits": scratch_logits,
-            "scratch_targets": scratch_indices,
-            "response_logits": response_logits,
-            "response_targets": response_indices,
-            "coverage_tick1": coverage1,
-            "coverage_tick2": coverage2,
-            "response_state": state2,
-        }
-        if scratch_supervision is not None and response_supervision is not None:
-            result["alignment"] = {
-                "scratch": scratch_supervision,
-                "response_draft": response_supervision,
-                "position_loss": (
-                    scratch_supervision["position_loss"]
-                    + response_supervision["position_loss"]
-                ),
-                "gate_loss": (
-                    scratch_supervision["gate_loss"]
-                    + response_supervision["gate_loss"]
-                ),
-                "copy_positions": (
-                    scratch_supervision["copy_positions"]
-                    + response_supervision["copy_positions"]
-                ),
-                "position_correct": (
-                    scratch_supervision["position_correct"]
-                    + response_supervision["position_correct"]
-                ),
-                "gate_supervised_positions": (
-                    scratch_supervision["gate_supervised_positions"]
-                    + response_supervision["gate_supervised_positions"]
-                ),
-                "gate_correct": (
-                    scratch_supervision["gate_correct"]
-                    + response_supervision["gate_correct"]
-                ),
-            }
-        return result
-
-    @torch.no_grad()
-    def run_transaction(self, field: Mapping[str, str]) -> dict[str, Any]:
-        exact = canonical_field(field)
-        state1, memory1, coverage1 = self.read_field_with_memory(exact)
-        scratch, scratch_terminated = self.decode_greedy(
-            state1,
-            head=0,
-            memory=memory1,
-        )
-        second_field = dict(exact)
-        second_field["scratch"] = scratch
-        state2, memory2, coverage2 = self.read_field_with_memory(second_field)
-        response, response_terminated = self.decode_greedy(
-            state2,
-            head=1,
-            memory=memory2,
-        )
-        if not coverage1.complete or not coverage2.complete:
-            raise RuntimeError("complete coverage required before field delta")
-        return {
-            "scratch": scratch,
-            "response_draft": response,
-            "scratch_terminated": scratch_terminated,
-            "response_terminated": response_terminated,
-            "coverage_tick1": coverage1.to_dict(),
-            "coverage_tick2": coverage2.to_dict(),
-            "typed_delta": self.typed_delta(exact, scratch, response),
-        }
-
-    @staticmethod
-    def typed_delta(base_field: Mapping[str, str], scratch: str, response: str) -> dict[str, Any]:
-        # There is intentionally no diary operation in R0.
-        operations = []
-        for region, text in (("scratch", scratch), ("response_draft", response)):
-            if region not in WRITABLE_REGIONS:
-                raise RuntimeError(f"R0 attempted sealed write to {region}")
-            old = base_field.get(region, "")
-            operations.append(
-                {"op": "replace", "region": region, "start": 0, "end": len(old), "text": text}
-            )
-        return {"schema": "axon-r0-scratch-response-delta-v1", "operations": operations}
 
 
 def sequence_cross_entropy(
@@ -1226,11 +962,9 @@ def teacher_char_accuracy(logits: torch.Tensor, targets: torch.Tensor) -> float:
 
 __all__ = [
     "REGION_ORDER",
-    "WRITABLE_REGIONS",
     "ReaderConfig",
-    "FieldPage",
     "CoverageManifest",
-    "CompleteFieldPager",
+    "coverage_manifest_from_compiled",
     "CompleteField64D",
     "canonical_field",
     "frozen_orthogonal_lift",

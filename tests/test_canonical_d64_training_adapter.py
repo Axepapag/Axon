@@ -8,7 +8,6 @@ from training.train_complete_field_64d import (
     _forward_record,
     _read_record_with_scratch,
     _run_record,
-    _set_anatomy,
 )
 
 
@@ -48,7 +47,6 @@ def _record() -> dict:
 
 
 def test_training_forward_uses_real_snapshots_and_field_deltas() -> None:
-    _set_anatomy(legacy_record_direct=False)
     model = CompleteField64D(
         ReaderConfig(page_size=8, max_output_chars=128, dropout=0.0)
     )
@@ -68,7 +66,6 @@ def test_training_forward_uses_real_snapshots_and_field_deltas() -> None:
 
 
 def test_training_scratch_intervention_is_a_canonical_snapshot() -> None:
-    _set_anatomy(legacy_record_direct=False)
     model = CompleteField64D(
         ReaderConfig(page_size=8, max_output_chars=128, dropout=0.0)
     )
@@ -82,7 +79,6 @@ def test_training_scratch_intervention_is_a_canonical_snapshot() -> None:
 
 
 def test_canonical_greedy_path_survives_empty_noop_outputs() -> None:
-    _set_anatomy(legacy_record_direct=False)
     model = CompleteField64D(
         ReaderConfig(page_size=8, max_output_chars=65, dropout=0.0)
     )
