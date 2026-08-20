@@ -18,6 +18,17 @@ from torch import nn
 import torch.nn.functional as F
 
 from substrate import assert_supported_text, get_letter_bank
+from runtime.field import (
+    CANONICAL_REGION_ORDER,
+    CompiledD64Field,
+    D64CharacterPage,
+    D64FieldCompiler,
+    FieldDelta,
+    LogicalRegion,
+    SharedFieldSnapshot,
+    apply_compiled_delta,
+    replacement_delta,
+)
 
 
 REGION_ORDER: tuple[str, ...] = (
@@ -297,6 +308,138 @@ class CompleteField64D(nn.Module):
         end = math.log1p(page.global_end) / math.log1p(denom)
         global_features = torch.tensor([start, end], device=self.device).expand(length, 2)
         return chars + region + self.local_position(local) + page_pos + self.global_position(global_features)
+
+    def _compiled_page_tensor(self, page: D64CharacterPage) -> torch.Tensor:
+        """Lift exact 16D cells unpacked from the canonical D64 rail.
+
+        The rail stores the raw frozen substrate cells.  V6 historically used
+        unit-normalized bank cells before its frozen orthogonal lift, so this
+        adapter normalizes the exact rail lanes deterministically before the
+        existing lift.  The compiler remains the character authority while
+        current V6 weights see the same input scale they were trained on.
+        """
+        if page.text:
+            raw = torch.from_numpy(np.array(page.cells16, copy=True)).to(
+                device=self.device, dtype=self.bank16.dtype
+            )
+            norms = raw.norm(dim=-1, keepdim=True).clamp_min(
+                torch.finfo(raw.dtype).tiny
+            )
+            chars = (raw / norms) @ self.char_lift
+        else:
+            chars = self.empty_region_marker.unsqueeze(0)
+        length = chars.shape[0]
+        local = torch.arange(length, device=self.device)
+        region = self.region_embedding(
+            torch.full((length,), page.region_id, dtype=torch.long, device=self.device)
+        )
+        page_pos = self.page_position(
+            torch.full(
+                (length,),
+                page.logical_page_index % self.cfg.max_pages,
+                dtype=torch.long,
+                device=self.device,
+            )
+        )
+        denom = max(1.0, float(page.global_end + 1))
+        start = math.log1p(page.global_start) / math.log1p(denom)
+        end = math.log1p(page.global_end) / math.log1p(denom)
+        global_features = torch.tensor(
+            [start, end], device=self.device
+        ).expand(length, 2)
+        return (
+            chars
+            + region
+            + self.local_position(local)
+            + page_pos
+            + self.global_position(global_features)
+        )
+
+    def read_compiled_with_memory(
+        self,
+        compiled: CompiledD64Field,
+    ) -> tuple[torch.Tensor, AddressableMemory, CoverageManifest]:
+        """Read every exact character from a complete canonical D64 rail."""
+        if not isinstance(compiled, CompiledD64Field):
+            raise TypeError("compiled must be CompiledD64Field")
+        if not compiled.coverage.complete:
+            raise RuntimeError("incomplete canonical D64 rail cannot be read")
+        pages = list(compiled.iter_character_pages(self.cfg.page_size))
+        active = compiled.active_texts()
+        audit_pages, manifest = CompleteFieldPager(self.cfg.page_size).paginate(active)
+        if len(audit_pages) != len(pages):
+            raise RuntimeError("compiled D64 page count disagrees with coverage audit")
+        for expected, actual in zip(audit_pages, pages):
+            if (
+                expected.region != actual.region.value
+                or expected.region_start != actual.region_start
+                or expected.region_end != actual.region_end
+                or expected.text != actual.text
+            ):
+                raise RuntimeError("compiled D64 page identity disagrees with coverage audit")
+        if not manifest.complete:
+            raise RuntimeError("coverage manifest is incomplete; decoder finalization denied")
+
+        state = self.initial_state.unsqueeze(0)
+        memory_states: list[torch.Tensor] = []
+        memory_char_indices: list[torch.Tensor] = []
+        memory_region_ids: list[torch.Tensor] = []
+        memory_region_positions: list[torch.Tensor] = []
+        for page in pages:
+            tokens = self._compiled_page_tensor(page).unsqueeze(0)
+            encoded = self.page_encoder(torch.cat((state, tokens), dim=1))
+            state = encoded[:, : self.cfg.state_tokens]
+            page_memory = encoded[:, self.cfg.state_tokens :]
+            memory_states.append(page_memory)
+            if page.text:
+                page_chars = torch.tensor(
+                    [self.char_to_index[address.character] for address in page.addresses],
+                    dtype=torch.long,
+                    device=self.device,
+                )
+                page_positions = torch.tensor(
+                    [address.region_position for address in page.addresses],
+                    dtype=torch.long,
+                    device=self.device,
+                )
+            else:
+                page_chars = torch.full(
+                    (1,), -1, dtype=torch.long, device=self.device
+                )
+                page_positions = torch.full(
+                    (1,), -1, dtype=torch.long, device=self.device
+                )
+            memory_char_indices.append(page_chars.unsqueeze(0))
+            memory_region_ids.append(
+                torch.full(
+                    (1, page_memory.shape[1]),
+                    page.region_id,
+                    dtype=torch.long,
+                    device=self.device,
+                )
+            )
+            memory_region_positions.append(page_positions.unsqueeze(0))
+
+        addressable_memory = AddressableMemory(
+            states=self.memory_norm(torch.cat(memory_states, dim=1)),
+            char_indices=torch.cat(memory_char_indices, dim=1),
+            region_ids=torch.cat(memory_region_ids, dim=1),
+            region_positions=torch.cat(memory_region_positions, dim=1),
+        )
+        return self.state_norm(state), addressable_memory, manifest
+
+    def read_snapshot_with_memory(
+        self,
+        snapshot: SharedFieldSnapshot,
+        *,
+        compiler: D64FieldCompiler | None = None,
+    ) -> tuple[torch.Tensor, AddressableMemory, CoverageManifest, CompiledD64Field]:
+        """Canonical runtime/training entry point for one complete D64 read."""
+        active_compiler = D64FieldCompiler() if compiler is None else compiler
+        compiled = active_compiler.compile(snapshot)
+        compiled.verify_roundtrip(snapshot)
+        state, memory, manifest = self.read_compiled_with_memory(compiled)
+        return state, memory, manifest, compiled
 
     def read_field_with_memory(
         self,
@@ -699,6 +842,224 @@ class CompleteField64D(nn.Module):
             if len(chars) >= limit:
                 break
         return "".join(chars), False
+
+    def forward_canonical_transaction(
+        self,
+        snapshot: SharedFieldSnapshot,
+        scratch_target: str,
+        response_target: str,
+        teacher_forcing_ratio: float = 1.0,
+        alignment: Mapping[str, Any] | None = None,
+        *,
+        compiler: D64FieldCompiler | None = None,
+        author_core_id: str = "teacher",
+    ) -> dict[str, Any]:
+        """Train through canonical snapshot -> compiler -> typed delta anatomy."""
+        if not isinstance(snapshot, SharedFieldSnapshot):
+            raise TypeError("snapshot must be SharedFieldSnapshot")
+        active_compiler = D64FieldCompiler() if compiler is None else compiler
+        if alignment is not None:
+            if alignment.get("schema") != "axon-r0-source-alignment-v1":
+                raise ValueError("unsupported R0 source-alignment schema")
+            if set(alignment) != {"schema", "scratch", "response_draft"}:
+                raise ValueError(
+                    "canonical R0 source alignment must define scratch and response_draft"
+                )
+
+        compiled1 = active_compiler.compile(snapshot)
+        state1, memory1, coverage1 = self.read_compiled_with_memory(compiled1)
+        scratch_decoded = self.decode_scheduled(
+            state1,
+            scratch_target,
+            head=0,
+            teacher_forcing_ratio=teacher_forcing_ratio,
+            memory=memory1,
+            return_alignment=alignment is not None,
+        )
+        scratch_supervision: dict[str, Any] | None = None
+        if alignment is not None:
+            scratch_logits, scratch_indices, scratch_decoder_alignment = scratch_decoded
+            scratch_supervision = self.alignment_supervision(
+                target_text=scratch_target,
+                memory=memory1,
+                decoder_alignment=scratch_decoder_alignment,
+                specification=alignment["scratch"],
+            )
+        else:
+            scratch_logits, scratch_indices = scratch_decoded
+
+        if snapshot.region(LogicalRegion.SCRATCH).text == scratch_target:
+            scratch_delta = None
+            second_snapshot = snapshot
+        else:
+            scratch_delta = replacement_delta(
+                snapshot,
+                compiled1,
+                region=LogicalRegion.SCRATCH,
+                text=scratch_target,
+                author_core_id=author_core_id,
+                pass_id="scratch",
+                provenance="canonical_d64_training_teacher_scratch",
+            )
+            second_snapshot = apply_compiled_delta(snapshot, compiled1, scratch_delta)
+        compiled2 = active_compiler.compile(second_snapshot)
+        state2, memory2, coverage2 = self.read_compiled_with_memory(compiled2)
+        response_decoded = self.decode_scheduled(
+            state2,
+            response_target,
+            head=1,
+            teacher_forcing_ratio=teacher_forcing_ratio,
+            memory=memory2,
+            return_alignment=alignment is not None,
+        )
+        response_supervision: dict[str, Any] | None = None
+        if alignment is not None:
+            response_logits, response_indices, response_decoder_alignment = response_decoded
+            response_supervision = self.alignment_supervision(
+                target_text=response_target,
+                memory=memory2,
+                decoder_alignment=response_decoder_alignment,
+                specification=alignment["response_draft"],
+            )
+        else:
+            response_logits, response_indices = response_decoded
+
+        if second_snapshot.region(LogicalRegion.RESPONSE_DRAFT).text == response_target:
+            response_delta = None
+            final_snapshot = second_snapshot
+        else:
+            response_delta = replacement_delta(
+                second_snapshot,
+                compiled2,
+                region=LogicalRegion.RESPONSE_DRAFT,
+                text=response_target,
+                author_core_id=author_core_id,
+                pass_id="response_draft",
+                provenance="canonical_d64_training_teacher_response",
+            )
+            final_snapshot = apply_compiled_delta(
+                second_snapshot, compiled2, response_delta
+            )
+
+        result: dict[str, Any] = {
+            "scratch_logits": scratch_logits,
+            "scratch_targets": scratch_indices,
+            "response_logits": response_logits,
+            "response_targets": response_indices,
+            "coverage_tick1": coverage1,
+            "coverage_tick2": coverage2,
+            "response_state": state2,
+            "base_snapshot": snapshot,
+            "scratch_snapshot": second_snapshot,
+            "final_snapshot": final_snapshot,
+            "compiled_tick1": compiled1,
+            "compiled_tick2": compiled2,
+            "scratch_delta": scratch_delta,
+            "response_delta": response_delta,
+        }
+        if scratch_supervision is not None and response_supervision is not None:
+            result["alignment"] = {
+                "scratch": scratch_supervision,
+                "response_draft": response_supervision,
+                "position_loss": (
+                    scratch_supervision["position_loss"]
+                    + response_supervision["position_loss"]
+                ),
+                "gate_loss": (
+                    scratch_supervision["gate_loss"]
+                    + response_supervision["gate_loss"]
+                ),
+                "copy_positions": (
+                    scratch_supervision["copy_positions"]
+                    + response_supervision["copy_positions"]
+                ),
+                "position_correct": (
+                    scratch_supervision["position_correct"]
+                    + response_supervision["position_correct"]
+                ),
+                "gate_supervised_positions": (
+                    scratch_supervision["gate_supervised_positions"]
+                    + response_supervision["gate_supervised_positions"]
+                ),
+                "gate_correct": (
+                    scratch_supervision["gate_correct"]
+                    + response_supervision["gate_correct"]
+                ),
+            }
+        return result
+
+    @torch.no_grad()
+    def run_canonical_transaction(
+        self,
+        snapshot: SharedFieldSnapshot,
+        *,
+        compiler: D64FieldCompiler | None = None,
+        author_core_id: str = "core64d-r0",
+    ) -> dict[str, Any]:
+        """Greedy canonical inference path using the same compiler/delta anatomy."""
+        if not isinstance(snapshot, SharedFieldSnapshot):
+            raise TypeError("snapshot must be SharedFieldSnapshot")
+        active_compiler = D64FieldCompiler() if compiler is None else compiler
+        compiled1 = active_compiler.compile(snapshot)
+        state1, memory1, coverage1 = self.read_compiled_with_memory(compiled1)
+        scratch, scratch_terminated = self.decode_greedy(
+            state1, head=0, memory=memory1
+        )
+        if snapshot.region(LogicalRegion.SCRATCH).text == scratch:
+            scratch_delta = None
+            second_snapshot = snapshot
+        else:
+            scratch_delta = replacement_delta(
+                snapshot,
+                compiled1,
+                region=LogicalRegion.SCRATCH,
+                text=scratch,
+                author_core_id=author_core_id,
+                pass_id="scratch",
+                provenance="canonical_d64_runtime_scratch",
+            )
+            second_snapshot = apply_compiled_delta(snapshot, compiled1, scratch_delta)
+        compiled2 = active_compiler.compile(second_snapshot)
+        state2, memory2, coverage2 = self.read_compiled_with_memory(compiled2)
+        response, response_terminated = self.decode_greedy(
+            state2, head=1, memory=memory2
+        )
+        if second_snapshot.region(LogicalRegion.RESPONSE_DRAFT).text == response:
+            response_delta = None
+            final_snapshot = second_snapshot
+        else:
+            response_delta = replacement_delta(
+                second_snapshot,
+                compiled2,
+                region=LogicalRegion.RESPONSE_DRAFT,
+                text=response,
+                author_core_id=author_core_id,
+                pass_id="response_draft",
+                provenance="canonical_d64_runtime_response",
+            )
+            final_snapshot = apply_compiled_delta(
+                second_snapshot, compiled2, response_delta
+            )
+        return {
+            "scratch": scratch,
+            "response_draft": response,
+            "scratch_terminated": scratch_terminated,
+            "response_terminated": response_terminated,
+            "coverage_tick1": coverage1.to_dict(),
+            "coverage_tick2": coverage2.to_dict(),
+            "typed_delta": {
+                "schema": "axon-canonical-d64-transaction-v1",
+                "scratch": None if scratch_delta is None else {**scratch_delta.to_canonical_dict(), "delta_id": scratch_delta.delta_id},
+                "response_draft": None if response_delta is None else {**response_delta.to_canonical_dict(), "delta_id": response_delta.delta_id},
+            },
+            "scratch_delta": scratch_delta,
+            "response_delta": response_delta,
+            "base_snapshot": snapshot,
+            "scratch_snapshot": second_snapshot,
+            "final_snapshot": final_snapshot,
+            "compiled_tick1": compiled1,
+            "compiled_tick2": compiled2,
+        }
 
     def forward_transaction(
         self,

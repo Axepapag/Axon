@@ -1,5 +1,6 @@
 """Journal-backed foundations for Axon's multi-core runtime."""
 
+from .d64_adapter import CanonicalD64RuntimeAdapter
 from .contracts import (
     ACTIVE_ROLES,
     RUNTIME_SCHEMA_VERSION,
@@ -86,6 +87,7 @@ from .exact_driver import (
 from .ingress import IngressEvent, IngressQueue
 
 __all__ = [
+    "CanonicalD64RuntimeAdapter",
     "ACTIVE_ROLES",
     "RUNTIME_SCHEMA_VERSION",
     "RuntimeContractError",

@@ -180,6 +180,41 @@ that consume only one such view are bootstrap checkpoints and do not satisfy
 the required full-field council protocol until a trained complete-sweep reader
 has been added and passed coverage and behavioral gates.
 
+## Deterministic D64 Field Compiler
+
+The shared exact D64 compiler is implemented in `runtime/field/compiler_d64.py`
+and is the canonical D64 core-input boundary for both runtime-facing and
+training-facing adapters.
+
+Binding invariants:
+
+- the compiler consumes one immutable `SharedFieldSnapshot` and binds every
+  rail to that snapshot's exact `field_id` and `tick_id`;
+- every attended canonical character is represented by its literal frozen 16D
+  substrate cell; unsupported attended characters fail closed rather than
+  being omitted;
+- one D64 physical row contains at most four exact 16D cells; rows never cross
+  logical-region boundaries and unused lanes are explicit padding;
+- every valid lane retains exact region position, global active-field position,
+  source span, span position, source, provenance, row, and lane identity;
+- all ten logical regions are visited on every compile, including empty or
+  explicitly masked regions; masked text remains canonical state but is not an
+  attended rail character;
+- compilation is accepted only after complete coverage and exact 16D roundtrip
+  verification; a rail from an older `field_id` is stale and must not be used;
+- a D64 row is lossless storage, not four magically independent Transformer
+  tokens. Current V6 consumers deterministically unpack exact lanes before the
+  existing per-character neural lift;
+- compiler output is derived and rebuildable. It has no reasoning vote and no
+  commit authority. Cores/consolidation propose ordinary typed `FieldDelta`
+  objects and canonical validation/transaction code decides whether they may
+  become the next field.
+
+The deterministic compiler may mark exact structural spans such as words,
+sentences, and paragraphs. Learned English semantics, semantic compression,
+semantic rewrite/decompilation, and salience ranking remain separate future
+work and are not made canonical by this section.
+
 ## Canonical state root
 
 All living or durable Axon state resides beneath `D:\Axon\State`,
@@ -187,10 +222,12 @@ including canonical field state, dormant memory, private souls, active adapter
 pointers and promoted adapters, cursors, and offline-learning control records.
 Runtime and training do not own separate competing state roots.
 
-Training may create isolated copy-on-write branches beneath `State\training`,
-but those branches must use the same canonical field, dormant-memory,
-compiler/read, typed-delta, validation, and commit contracts as runtime. A smoke
-or curriculum may be small in content or compute; it may not substitute a
+Training may create isolated copy-on-write branches, run workspaces, and curriculum material beneath `State\training`,
+but core-facing state must use the same `SharedFieldSnapshot`, dormant-memory,
+exact D64 compiler rail, typed-delta, validation, and commit contracts as
+runtime. Curriculum JSON may remain reproducible source material, but it is
+materialized as canonical state before a D64 core reads it. A smoke or
+curriculum may be small in content or compute; it may not substitute a
 truncated/fake core-facing anatomy that production later discards.
 
 Candidate checkpoints and reproducible run logs may remain under `runs/` while

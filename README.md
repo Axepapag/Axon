@@ -35,9 +35,11 @@ python -m pytest -q -p no:cacheprovider tests/test_complete_field_64d.py
 python -m pytest -q -p no:cacheprovider tests/test_axon_runtime_bootstrap.py
 ```
 
-## Current D64 Reconciliation Path
+## Current D64 Canonical Path
 
-No training launcher is currently authorized to update a model. `training/complete_field_64d.py` remains the V6 mechanism baseline because it proves complete ten-region coverage before decoding, but `training/train_complete_field_64d.py` is now explicitly legacy/direct-record unless invoked with `--legacy-record-direct`. The next active implementation is a D64 adapter that feeds the same canonical `SharedFieldSnapshot`/Field Compiler interface to both runtime and training branches under `State/training`.
+The deterministic shared D64 adapter is implemented. `runtime/field/compiler_d64.py` compiles one immutable `SharedFieldSnapshot` into reversible region-aligned D64 rows containing four exact 16D lanes plus exact lane provenance. `runtime/axon_runtime/d64_adapter.py` exposes the same compiler contract to runtime, while `training/canonical_d64.py` and `training/complete_field_64d.py` feed the V6 reader from that rail and use real typed `FieldDelta` transactions for scratch/response commits and interventions.
+
+`training/train_complete_field_64d.py` now defaults to the shared canonical D64 anatomy and a workspace under the real `State/training` tree; `--canonical-d64` may be supplied as an explicit assertion, while `--legacy-record-direct` is preserved only for mechanism archaeology. `TRAIN_COMPLETE_FIELD_64D_R0.bat` remains a non-training guard, so this implementation does not silently start another GPU run. The next architecture work is canonical dormant retrieval plus the production D64 neural runtime driver.
 
 The older fixed-window conversational trainer remains preserved under `archive/legacy_fixed_window_trainer_2026-08-18/`; the ExactV4 runtime foundation is likewise regression/recovery evidence, not the active organism. See `docs/CANONICAL_STATE_RECONCILIATION.md`.
 

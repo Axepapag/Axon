@@ -24,6 +24,8 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from substrate import assert_supported_text, default_alphabet, roundtrip_check
+from runtime.field import D64_COMPILER_SCHEMA, D64FieldCompiler, LogicalRegion, SharedFieldSnapshot, apply_compiled_delta, replacement_delta
+from training.canonical_d64 import snapshot_from_r0_record
 from training.complete_field_64d import (
     CompleteField64D,
     CompleteFieldPager,
@@ -123,6 +125,93 @@ def load_jsonl(path: Path, split: str | None = None) -> list[dict[str, Any]]:
     return records
 
 
+_ACTIVE_ANATOMY = "canonical"
+_D64_COMPILER = D64FieldCompiler()
+
+
+def _set_anatomy(*, legacy_record_direct: bool) -> None:
+    global _ACTIVE_ANATOMY
+    _ACTIVE_ANATOMY = "legacy-record-direct" if legacy_record_direct else "canonical"
+
+
+def _alignment_for_record(record: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "schema": record["alignment"]["schema"],
+        "scratch": record["alignment"]["scratch"],
+        "response_draft": record["alignment"]["response_draft"],
+    }
+
+
+def _forward_record(
+    model: CompleteField64D,
+    record: Mapping[str, Any],
+    *,
+    teacher_forcing_ratio: float = 1.0,
+) -> dict[str, Any]:
+    if _ACTIVE_ANATOMY == "legacy-record-direct":
+        return model.forward_transaction(
+            record["field"],
+            record["targets"]["scratch"],
+            record["targets"]["response_draft"],
+            teacher_forcing_ratio=teacher_forcing_ratio,
+            alignment=_alignment_for_record(record),
+        )
+    snapshot = snapshot_from_r0_record(record)
+    return model.forward_canonical_transaction(
+        snapshot,
+        record["targets"]["scratch"],
+        record["targets"]["response_draft"],
+        teacher_forcing_ratio=teacher_forcing_ratio,
+        alignment=_alignment_for_record(record),
+        compiler=_D64_COMPILER,
+    )
+
+
+def _run_record(model: CompleteField64D, record: Mapping[str, Any]) -> dict[str, Any]:
+    if _ACTIVE_ANATOMY == "legacy-record-direct":
+        return model.run_transaction(record["field"])
+    return model.run_canonical_transaction(
+        snapshot_from_r0_record(record), compiler=_D64_COMPILER
+    )
+
+
+def _snapshot_with_scratch(
+    record: Mapping[str, Any],
+    scratch: str,
+) -> SharedFieldSnapshot:
+    snapshot = snapshot_from_r0_record(record)
+    current = snapshot.region(LogicalRegion.SCRATCH).text
+    if current == scratch:
+        return snapshot
+    compiled = _D64_COMPILER.compile(snapshot)
+    delta = replacement_delta(
+        snapshot,
+        compiled,
+        region=LogicalRegion.SCRATCH,
+        text=scratch,
+        author_core_id="training-intervention",
+        pass_id="scratch-intervention",
+        provenance="canonical_d64_training_intervention",
+    )
+    return apply_compiled_delta(snapshot, compiled, delta)
+
+
+def _read_record_with_scratch(
+    model: CompleteField64D,
+    record: Mapping[str, Any],
+    scratch: str,
+):
+    if _ACTIVE_ANATOMY == "legacy-record-direct":
+        field = dict(record["field"])
+        field["scratch"] = scratch
+        return model.read_field_with_memory(field)
+    snapshot = _snapshot_with_scratch(record, scratch)
+    state, memory, coverage, _ = model.read_snapshot_with_memory(
+        snapshot, compiler=_D64_COMPILER
+    )
+    return state, memory, coverage
+
+
 def stratified_records(records: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
     """Deterministic round-robin selection so one sorted family cannot dominate eval."""
     by_family: dict[str, list[dict[str, Any]]] = {}
@@ -165,6 +254,16 @@ def coverage_gate(records: Iterable[Mapping[str, Any]], page_sizes: tuple[int, .
             hashes.add(manifest.field_sha256)
         if len(hashes) != 1:
             raise RuntimeError("logical field identity changed across physical page sizes")
+        snapshot = snapshot_from_r0_record(record)
+        compiled = _D64_COMPILER.compile(snapshot)
+        if (
+            not compiled.coverage.complete
+            or compiled.coverage.expected_active_characters != expected
+            or compiled.coverage.compiled_active_characters != expected
+        ):
+            raise RuntimeError(
+                f"canonical D64 compiler coverage failed for {record['example_id']}"
+            )
 
 
 def corruption(text: str) -> str:
@@ -200,16 +299,7 @@ def evaluate_teacher(
     counterfactual_aligned_gate_correct = 0
     samples = stratified_records(records, max(1, max_examples))
     for index, record in enumerate(samples):
-        out = model.forward_transaction(
-            record["field"],
-            record["targets"]["scratch"],
-            record["targets"]["response_draft"],
-            alignment={
-                "schema": record["alignment"]["schema"],
-                "scratch": record["alignment"]["scratch"],
-                "response_draft": record["alignment"]["response_draft"],
-            },
-        )
+        out = _forward_record(model, record)
         supervision = out["alignment"]
         aligned_copy_positions += int(supervision["copy_positions"])
         aligned_position_correct += int(supervision["position_correct"])
@@ -223,9 +313,7 @@ def evaluate_teacher(
         response_acc.append(teacher_char_accuracy(out["response_logits"], out["response_targets"]))
         if index < causal_examples:
             for variant, collector in (("", empty_deltas), (corruption(record["targets"]["scratch"]), corrupt_deltas)):
-                ablated = dict(record["field"])
-                ablated["scratch"] = variant
-                state, memory, _ = model.read_field_with_memory(ablated)
+                state, memory, _ = _read_record_with_scratch(model, record, variant)
                 logits, targets = model.decode_teacher(
                     state,
                     record["targets"]["response_draft"],
@@ -236,9 +324,9 @@ def evaluate_teacher(
         for counterfactual in record["response_counterfactuals"]:
             if len(counterfactual_losses) >= causal_examples:
                 break
-            intervened = dict(record["field"])
-            intervened["scratch"] = counterfactual["scratch"]
-            state, memory, _ = model.read_field_with_memory(intervened)
+            state, memory, _ = _read_record_with_scratch(
+                model, record, counterfactual["scratch"]
+            )
             logits, targets, decoder_alignment = model.decode_teacher(
                 state,
                 counterfactual["response_draft"],
@@ -314,7 +402,7 @@ def observable_samples(model: CompleteField64D, records: list[dict[str, Any]], c
     model.eval()
     output: list[dict[str, Any]] = []
     for record in stratified_records(records, count):
-        transaction = model.run_transaction(record["field"])
+        transaction = _run_record(model, record)
         output.append(
             {
                 "example_id": record["example_id"],
@@ -346,19 +434,17 @@ def forced_counterfactual_samples(
     causal_records = [record for record in records if record["response_counterfactuals"]]
     output: list[dict[str, Any]] = []
     for record in stratified_records(causal_records, len(causal_records)):
-        correct_field = dict(record["field"])
-        correct_field["scratch"] = record["targets"]["scratch"]
-        correct_state, correct_memory, _ = model.read_field_with_memory(correct_field)
+        correct_state, correct_memory, _ = _read_record_with_scratch(
+            model, record, record["targets"]["scratch"]
+        )
         correct_response, correct_terminated = model.decode_greedy(
             correct_state,
             head=1,
             memory=correct_memory,
         )
         for counterfactual in record["response_counterfactuals"]:
-            intervened = dict(record["field"])
-            intervened["scratch"] = counterfactual["scratch"]
-            counterfactual_state, counterfactual_memory, _ = model.read_field_with_memory(
-                intervened
+            counterfactual_state, counterfactual_memory, _ = _read_record_with_scratch(
+                model, record, counterfactual["scratch"]
             )
             counterfactual_response, counterfactual_terminated = model.decode_greedy(
                 counterfactual_state,
@@ -427,7 +513,7 @@ def evaluate_v6_alignment_behavior(
     cf_count = 0
 
     for record in rows:
-        transaction = model.run_transaction(record["field"])
+        transaction = _run_record(model, record)
         scratch_exact += int(transaction["scratch"] == record["targets"]["scratch"])
         response_exact += int(
             transaction["response_draft"] == record["targets"]["response_draft"]
@@ -435,25 +521,16 @@ def evaluate_v6_alignment_behavior(
         scratch_terminated += int(transaction["scratch_terminated"])
         response_terminated += int(transaction["response_terminated"])
 
-        teacher = model.forward_transaction(
-            record["field"],
-            record["targets"]["scratch"],
-            record["targets"]["response_draft"],
-            alignment={
-                "schema": record["alignment"]["schema"],
-                "scratch": record["alignment"]["scratch"],
-                "response_draft": record["alignment"]["response_draft"],
-            },
-        )
+        teacher = _forward_record(model, record)
         base_position_correct += int(teacher["alignment"]["position_correct"])
         base_copy_positions += int(teacher["alignment"]["copy_positions"])
         base_gate_correct += int(teacher["alignment"]["gate_correct"])
         base_gate_positions += int(teacher["alignment"]["gate_supervised_positions"])
 
         for counterfactual in record["response_counterfactuals"]:
-            intervened = dict(record["field"])
-            intervened["scratch"] = counterfactual["scratch"]
-            state, memory, _ = model.read_field_with_memory(intervened)
+            state, memory, _ = _read_record_with_scratch(
+                model, record, counterfactual["scratch"]
+            )
             response, terminated = model.decode_greedy(state, head=1, memory=memory)
             cf_response_exact += int(response == counterfactual["response_draft"])
             cf_terminated += int(terminated)
@@ -538,6 +615,10 @@ def checkpoint_payload(
         "trainer_args": {key: str(value) if isinstance(value, Path) else value for key, value in vars(args).items()},
         "baseline": dict(baseline),
         "dataset_sha256": dict(dataset_sha256),
+        "anatomy": {
+            "mode": _ACTIVE_ANATOMY,
+            "compiler_schema": D64_COMPILER_SCHEMA if _ACTIVE_ANATOMY == "canonical" else None,
+        },
         "rng": {
             "python": random.getstate(),
             "numpy": np.random.get_state(),
@@ -607,12 +688,26 @@ def restore(
     scaler: torch.amp.GradScaler,
     device: torch.device,
     expected_dataset_sha256: Mapping[str, str],
+    expected_anatomy: str | None = None,
 ) -> tuple[int, dict[str, Any], object | None]:
     payload = torch.load(path, map_location=device, weights_only=False)
     if payload.get("schema") != "axon-complete-field-r0-checkpoint-v6":
         raise ValueError(f"unsupported checkpoint schema in {path}")
     if payload.get("dataset_sha256") != dict(expected_dataset_sha256):
         raise ValueError(f"dataset fingerprint mismatch in {path}; refusing unsafe resume")
+    if expected_anatomy is not None:
+        anatomy = payload.get("anatomy")
+        if not isinstance(anatomy, Mapping) or anatomy.get("mode") != expected_anatomy:
+            raise ValueError(
+                f"checkpoint anatomy mismatch in {path}; refusing unsafe resume"
+            )
+        expected_compiler = (
+            D64_COMPILER_SCHEMA if expected_anatomy == "canonical" else None
+        )
+        if anatomy.get("compiler_schema") != expected_compiler:
+            raise ValueError(
+                f"checkpoint compiler schema mismatch in {path}; refusing unsafe resume"
+            )
     model.load_state_dict(payload["model_state"])
     optimizer.load_state_dict(payload["optimizer_state"])
     scaler.load_state_dict(payload.get("scaler_state", {}))
@@ -664,6 +759,20 @@ def main() -> int:
     parser.add_argument("--resume-if-available", action="store_true")
     parser.add_argument("--amp", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument(
+        "--canonical-d64",
+        action="store_true",
+        help=(
+            "explicitly assert the canonical D64 anatomy; this is already the "
+            "default unless --legacy-record-direct is supplied"
+        ),
+    )
+    parser.add_argument(
+        "--state-root",
+        type=Path,
+        default=Path(r"D:\\Axon\\State"),
+        help="canonical Axon State root; canonical training workspace is created beneath State/training/runs",
+    )
+    parser.add_argument(
         "--legacy-record-direct",
         action="store_true",
         help=(
@@ -673,12 +782,20 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    if not args.legacy_record_direct:
+    if args.canonical_d64 and args.legacy_record_direct:
         raise RuntimeError(
-            "direct JSON-record training is disabled by the canonical-anatomy "
-            "boundary. Build/use a State/training branch through the D64 "
-            "canonical field/compiler interface before training."
+            "--canonical-d64 and --legacy-record-direct are mutually exclusive"
         )
+    canonical_mode = not args.legacy_record_direct
+    _set_anatomy(legacy_record_direct=args.legacy_record_direct)
+    if canonical_mode:
+        expected_state_root = Path(r"D:\Axon\State").resolve(strict=False)
+        actual_state_root = args.state_root.resolve(strict=False)
+        if actual_state_root != expected_state_root:
+            raise RuntimeError(
+                f"canonical D64 training must use the real Axon State root "
+                f"{expected_state_root}; got {actual_state_root}"
+            )
 
     if (
         args.steps < 1
@@ -713,6 +830,29 @@ def main() -> int:
     }
     coverage_gate(train_records)
     coverage_gate(eval_records)
+    state_workspace: Path | None = None
+    if canonical_mode:
+        workspace_name = args.run_dir.name.strip()
+        if not workspace_name or workspace_name in {".", ".."}:
+            raise ValueError("run-dir must have a safe final component for canonical State workspace")
+        state_workspace = (
+            args.state_root.resolve(strict=False) / "training" / "runs" / workspace_name
+        )
+        state_workspace.mkdir(parents=True, exist_ok=True)
+        atomic_json(
+            state_workspace / "anatomy.json",
+            {
+                "schema": "axon-canonical-d64-training-workspace-v1",
+                "compiler_schema": D64_COMPILER_SCHEMA,
+                "state_root": str(args.state_root.resolve(strict=False)),
+                "workspace": str(state_workspace),
+                "run_dir": str(args.run_dir.resolve(strict=False)),
+                "dataset_sha256": dataset_sha256,
+                "core_input_authority": "SharedFieldSnapshot",
+                "delta_authority": "shared-field-delta-v1",
+                "curriculum_role": "source-material-only",
+            },
+        )
     causal_train_records = [record for record in train_records if record["response_counterfactuals"]]
     causal_eval_records = [record for record in eval_records if record["response_counterfactuals"]]
     if not causal_train_records or not causal_eval_records:
@@ -744,6 +884,12 @@ def main() -> int:
             "causal_train_records": len(causal_train_records),
             "causal_eval_records": len(causal_eval_records),
             "dataset_sha256": dataset_sha256,
+            "anatomy": {
+                "mode": _ACTIVE_ANATOMY,
+                "compiler_schema": D64_COMPILER_SCHEMA if canonical_mode else None,
+                "state_workspace": None if state_workspace is None else str(state_workspace),
+                "core_input_authority": "SharedFieldSnapshot" if canonical_mode else "detached-record",
+            },
         },
     )
 
@@ -762,6 +908,7 @@ def main() -> int:
                 scaler,
                 device,
                 dataset_sha256,
+                expected_anatomy=_ACTIVE_ANATOMY,
             )
             print(f"resumed {checkpoint} at step {step}", flush=True)
         else:
@@ -787,16 +934,10 @@ def main() -> int:
             record = train_records[rng.randrange(len(train_records))]
             autocast = torch.autocast(device_type=device.type, dtype=torch.float16, enabled=use_amp)
             with autocast:
-                out = model.forward_transaction(
-                    record["field"],
-                    record["targets"]["scratch"],
-                    record["targets"]["response_draft"],
+                out = _forward_record(
+                    model,
+                    record,
                     teacher_forcing_ratio=args.teacher_forcing_ratio,
-                    alignment={
-                        "schema": record["alignment"]["schema"],
-                        "scratch": record["alignment"]["scratch"],
-                        "response_draft": record["alignment"]["response_draft"],
-                    },
                 )
                 scratch_loss = sequence_cross_entropy(out["scratch_logits"], out["scratch_targets"])
                 response_loss = sequence_cross_entropy(out["response_logits"], out["response_targets"])
@@ -818,9 +959,9 @@ def main() -> int:
                     causal_record = causal_train_records[rng.randrange(len(causal_train_records))]
                     counterfactuals = causal_record["response_counterfactuals"]
                     counterfactual = counterfactuals[rng.randrange(len(counterfactuals))]
-                    intervened = dict(causal_record["field"])
-                    intervened["scratch"] = counterfactual["scratch"]
-                    causal_state, causal_memory, _ = model.read_field_with_memory(intervened)
+                    causal_state, causal_memory, _ = _read_record_with_scratch(
+                        model, causal_record, counterfactual["scratch"]
+                    )
                     causal_logits, causal_targets, causal_decoder_alignment = model.decode_scheduled(
                         causal_state,
                         counterfactual["response_draft"],
