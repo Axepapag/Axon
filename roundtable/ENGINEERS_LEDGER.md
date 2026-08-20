@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
 Updated: 2026-08-20T10:30:44.6055387-05:00
-Current through event: `evt-20260820T1530446055387Z-chatgpt-fresh-session-reentry`
+Current through event: `evt-20260820T164238387222Z-chatgpt-canonical-anatomy-dormant-inspection`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -196,3 +196,16 @@ termination.
 - Pre-turn Git was clean; local `HEAD` and `origin/main` both resolved to `72d6d58` (`Record ChatGPT fresh-session handoff`). That commit changed only the two engineer-ledger files.
 - ChatGPT's personal state was refreshed to record `72d6d58` separately from the earlier non-binding Field Compiler proposal commit `6c8a3c9`.
 - No architecture, runtime, model, State, curriculum, checkpoint, service, or training process changed. The Field Compiler remains non-binding, and the V6 exact held-out no-scale gate remains in force.
+
+
+## Canonical anatomy ruling and dormant inspection — 2026-08-20
+
+- Jeffrey explicitly ruled that future training/runtime core paths must use Axon's real canonical anatomy. A smoke may be small in content/compute, but it may not use a disposable truncated/substitute field interface that will later be replaced.
+- `State/dormant` is a real ~1.02 GiB recovered memory body: 7 files / 1,094,882,987 bytes, 427,001 containers and 351,978 readable semantic edges. Its manifest records no vectors; exact/readable text, normalized text, kind, confidence, provenance and readable relations are present.
+- The newer runtime dormant store is disconnected: every substantive table in `State/axon_runtime/dormant.sqlite3` was verified empty. Runtime retrieval currently scores lexical word overlap over that empty triple table, so it cannot surface the recovered corpus.
+- The newer runtime bootstrap explicitly installs `ActiveFieldProjector`; the default and CPU-smoke global budget is 4,096 characters. It preserves the full source snapshot but gives cores a bounded derivative, which conflicts with Jeffrey's new no-substitute-core-input boundary if retained as the core-facing path.
+- V6 `CompleteField64D` already does complete coverage-proven paging across the active field and refuses silent omission. Its scaling bottleneck is retained per-character encoded memory/decoder attention, not logical truncation.
+- Legacy `runtime/tick_loop.py` also clips fixed char-slot inputs and uses a capped 50k KG cache; do not carry that anatomy forward as the production path.
+- Proposed next architecture: one authority-free Field Compiler heartbeat maintains source-field-ID-bound D-model rails with 100% active-field coverage and exact reversible provenance; tick start requires a fresh rail. Deterministic packing/cartography stays algorithmic; learned semantic retrieval/ranking is derived/rebuildable and must dereference exact dormant text/provenance before it becomes attention evidence. Consolidator remains reasoning authority; runtime validator/atomic transaction remains commit boundary.
+- Important unresolved mechanism: literal 16D-cell concatenation into a wider row is lossless storage, but a normal Transformer treats the row as one token. Exact packed lanes therefore need explicit lane/addressability/decompiler semantics; do not assume packing alone gives independent character attention.
+- Detailed Field Compiler mechanics remain a proposal until formally reconciled with `docs/SOURCE_OF_TRUTH.md`; Jeffrey's no-fake-anatomy/no-truncated-core-input instruction is the new explicit convener boundary.
