@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-08-19T20:37:10-05:00
-Current through event: `evt-20260820T013710556400Z-chatgpt-r0-v6-publish`
+Updated: 2026-08-20T09:50:41-05:00
+Current through event: `evt-20260820T145041604922Z-chatgpt-field-compiler-design`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -173,3 +173,11 @@ termination.
 - Collaboration: `roundtable/CHATGPT_CODEX_COLLABORATION.md`
 - Architecture doctrine: `docs/SOURCE_OF_TRUTH.md`
 - Full tests: `python -m pytest -q`
+
+## Proposed field-compiler architecture under discussion
+
+- Non-binding design proposal: keep the exact 16D character field canonical while a heartbeat Field Compiler builds reversible word/phrase/sentence/paragraph tiles with exact source spans and hashes for heterogeneous core widths.
+- Higher-D semantic views may be dense and lossy as reasoning aids, but every tile must retain exact source access; arbitrary dense core output is not canonical text.
+- Core writes should return typed span/tile edits or exact-character generation/copy; the compiler validates and expands them back into exact 16D canonical deltas before sibling visibility or commit.
+- Dormant retrieval may use lexical, structural, graph, and learned semantic-vector indexes internally, but retrieved exact text plus provenance must be surfaced into the active field before it becomes reasoning evidence.
+- This proposal does not change the current V6 R0 gate or authorize additional training.
