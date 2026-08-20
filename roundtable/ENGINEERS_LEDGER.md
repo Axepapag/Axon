@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-20T13:45:35.5134954-05:00
-Current through event: `evt-20260820T184535513495Z-chatgpt-canonical-state-reconciliation`
+Updated: 2026-08-20T15:00:03.1666939-05:00
+Current through event: `evt-20260820T200003166693Z-chatgpt-canonical-d64-compiler`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -9,145 +9,144 @@ Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
 Build Axon D2 as one stateful organism around exact canonical character state, heterogeneous internal cores, private per-core souls, auditable dormant memory and validated atomic deltas.
 
-The immediate engineering target is **not more model training**. It is one permanent D64 canonical branch/compiler adapter shared by runtime and training. Further learning effort should use that permanent anatomy rather than detached JSON fields, one-page ExactV4 views, or bounded substitute projections.
+The deterministic **D64 canonical Field Compiler/state adapter is now implemented and published**. The immediate next work is not undirected model training: connect the real dormant memory body through exact-evidence retrieval, then wire a production D64 neural runtime driver to this canonical compiler.
 
 ## Binding architecture and convener boundaries
 
-- `docs/SOURCE_OF_TRUTH.md` is current architecture authority.
+- `docs/SOURCE_OF_TRUTH.md` is architecture authority.
 - Exact visible text remains grounded in the frozen 16D character substrate.
-- Every logical core pass must have complete access to currently active canonical content; physical paging is compute geometry, not permission to silently omit context.
-- Cores propose/refine typed deltas; the consolidating core remains reasoning authority; runtime validation/atomic transaction remains commit authority.
-- Dormant memory remains exact and auditable; derived retrieval indexes may route attention but must dereference exact source text/provenance before evidence enters reasoning.
-- **One living/durable State root:** `D:\Axon\State`. Runtime and training do not own competing State roots.
-- Training may use isolated/copy-on-write branches beneath `State\training`, but those branches must use the same canonical field, dormant-memory, compiler/read, typed-delta, validation and commit interfaces as runtime.
-- Jeffrey's 2026-08-20 rule is binding: a smoke can be small in content/compute; its core-facing anatomy cannot be fake, truncated or disposable.
+- Every logical core pass must cover all currently attended canonical characters; physical paging/packing is compute geometry, never permission to silently omit context.
+- One living/durable State root: `D:\Axon\State`. Training isolation belongs beneath `State\training`; runtime and trainer do not own competing State universes.
+- A smoke may be small in content/compute; its core-facing anatomy cannot be fake, truncated or disposable.
+- Cores/consolidation reason and propose typed deltas; the Field Compiler has no reasoning vote or commit authority. Canonical validation/transaction code remains the commit boundary.
+- Dormant memory remains exact/auditable. Derived retrieval indexes may locate evidence but must dereference exact source text/provenance before it becomes reasoning evidence.
 
-## Canonical State reconciliation — completed 2026-08-20
+## Canonical D64 compiler — implemented 2026-08-20
 
 Published code/docs commit:
 
-- `278b996` — `Reconcile canonical Axon state anatomy`
+- `3e8838d` — `Implement canonical D64 field compiler adapter`
 
-Physical State now reflects the one-State rule:
+At turn start the worktree already contained an uncommitted, unledgered compiler implementation. ChatGPT treated it as orphaned work rather than discarding it, audited it, completed the policy integration, tested it, and published it.
 
-- `State\dormant` remains the canonical recovered dormant-memory body and was not rewritten;
-- former `State\axon_runtime` moved intact to `State\archive\pre_canonical_reconciliation_20260820\axon_runtime`;
-- former `State\private_curriculum` moved intact to `State\archive\pre_canonical_reconciliation_20260820\private_curriculum`;
-- before that move, 36 curriculum files / 39,030,916 bytes were copied to `State\training\curriculum` and verified with zero differences;
-- preserved ExactV4 regression state now points only to `State\training\regression\exact_v4_runtime_smoke`;
-- identity-v2 sample declarations point only to `State\training\regression\identity_v2*`, and the parser rejects any in-repository identity-v2 root outside `State\training\regression`;
-- `State\README.md` documents the one-State anatomy and archive boundary.
+Core implementation:
 
-## Runtime/training fail-closed boundary
+- `runtime/field/compiler_d64.py`
+  - consumes one immutable `SharedFieldSnapshot`;
+  - binds each rail to exact source `field_id` and `tick_id`;
+  - packs up to four literal frozen 16D character cells into each 64D physical row;
+  - never crosses logical-region boundaries inside a row;
+  - represents unused lanes as explicit padding;
+  - retains exact row/lane, region position, global active-field position, span ID/position, source and provenance for every valid lane;
+  - visits all ten logical regions;
+  - fails closed on unsupported attended characters;
+  - accepts output only after complete coverage and exact 16D vector/text roundtrip verification;
+  - rejects stale rails after canonical field/tick changes;
+  - produces deterministic word/sentence/paragraph cartography as structural metadata only.
+- `runtime/field/state_branch.py`
+  - persists the same `SharedFieldSnapshot` and `FieldDelta` objects used by the core architecture;
+  - provides authorized runtime branches under `State\active\branches` and training branches under `State\training\branches`;
+  - stores immutable snapshots/deltas, append-only journal events and an atomic HEAD pointer;
+  - detects stale commits and serialized-state tampering.
+- `runtime/axon_runtime/d64_adapter.py`
+  - exposes the canonical compiler/delta/branch contract to runtime orchestration without granting the adapter reasoning authority.
+- `training/canonical_d64.py`
+  - materializes curriculum source records as real canonical `SharedFieldSnapshot` objects before a core reads them;
+  - uses the same `D64FieldCompiler` as runtime;
+  - exposes canonical training branches and exact teacher deltas.
+- `training/complete_field_64d.py`
+  - can consume compiled D64 rails directly;
+  - deterministically unpacks exact 16D lanes before the existing V6 per-character neural lift, preserving checkpoint input geometry;
+  - performs scratch teacher/runtime update through typed `FieldDelta`, rematerializes the canonical snapshot, recompiles, rereads, then produces the response-draft transaction;
+  - counterfactual scratch interventions also pass through canonical snapshots/deltas instead of mutating detached dictionaries.
 
-The repository now prevents accidental continuation on known-temporary interfaces:
+Important physical interpretation: one packed D64 row is lossless storage for four exact 16D cells. Current V6 deliberately unpacks those lanes before neural attention; the implementation does **not** pretend one Transformer token gives four independently addressable character tokens.
 
-- `runtime.axon_runtime.bootstrap.materialize_runtime()` fails closed on the preserved ExactV4 production path by default because that driver can propose after one 384x16 physical page rather than a complete logical-field sweep;
-- injected-dependency tests and explicitly legacy tooling may still exercise ExactV4 as regression/recovery evidence;
-- `training/train_complete_field_64d.py` requires `--legacy-record-direct` for detached JSON V6 mechanism work;
-- `training/verify_complete_field_v6_resume.py` uses the same explicit legacy boundary;
-- `training/build_complete_field_r0_curriculum.py` requires `--legacy-d00-source` for detached D00 rebuilding;
-- `TRAIN_COMPLETE_FIELD_64D_R0.bat` is a guard launcher and cannot start training.
+## Trainer execution policy
 
-V6 `training/complete_field_64d.py` remains useful mechanism evidence because it covers all ten active regions before decoding, but no longer represents an authorized standalone training anatomy.
+`training/train_complete_field_64d.py` now defaults to canonical D64 anatomy.
 
-## Dormant-memory body
+- With no anatomy flag, it requires the real `D:\Axon\State` root and uses `SharedFieldSnapshot -> D64FieldCompiler -> typed FieldDelta` core-facing anatomy.
+- `--canonical-d64` remains an optional explicit assertion of the default.
+- `--legacy-record-direct` is the only way to use the preserved detached-record V6 mechanism path.
+- Canonical trainer workspaces live beneath `State\training\runs`.
+- Checkpoints record anatomy mode/compiler schema and refuse incompatible resume.
+- `TRAIN_COMPLETE_FIELD_64D_R0.bat` remains a no-training guard; this compiler implementation did not automatically launch GPU work.
 
-`State\dormant` is the real recovered memory organ:
+The preserved ExactV4 production runtime remains fail-closed because its neural driver can propose after one 384x16 physical view. The next runtime task is a D64 neural driver built on this compiler, not reactivation of ExactV4.
 
-- 7 files;
-- 1,094,882,987 bytes (~1.02 GiB);
-- 427,001 containers;
-- 351,978 readable semantic edges;
-- exact/readable text, normalized text, kinds, confidence, provenance, readable relations and layout/supporting metadata;
-- `no_vectors=true` in the recovered corpus manifest.
+## Canonical State body
 
-The earlier runtime dormant SQLite store was empty and is now archived with the former runtime tree. Do not recreate it as a second memory authority.
+One-State reconciliation remains in force:
 
-## D64 / V6 evidence retained
+- `State\dormant` is the real recovered dormant-memory organ and was not rewritten;
+- former `State\axon_runtime` and `State\private_curriculum` remain archived beneath `State\archive\pre_canonical_reconciliation_20260820`;
+- verified curriculum source copy lives under `State\training\curriculum`;
+- regression-only runtime/identity roots live beneath `State\training\regression`;
+- root `codex-turn-state.md` is a deprecation shim; July content is archived rather than active continuity.
 
-V6 still contributes important mechanisms:
+`State\dormant` remains approximately 1.02 GiB: 427,001 recovered containers and 351,978 readable semantic edges, with no vector index in its manifest. Connecting this exact body to the canonical field is the next major organ integration.
 
-- exact frozen 16D input;
-- complete ordered ten-region paging with coverage proof;
-- first complete read -> scratch -> commit/rematerialize;
-- second complete read -> response draft;
-- dedicated exact source-position pointer plus copy/generate supervision;
-- deterministic checkpoint resume;
-- frozen anti-shortcut evaluation fixtures.
+## Learned semantic Field Compiler status
 
-The prior 100-step GTX 1650 V6 smoke reduced teacher loss but achieved 0% held-out exact scratch/response and was correctly rejected. Do not infer arbitrary binding capability or add undirected training steps.
+The deterministic compiler is implemented. The proposed learned English-semantic tissue is **not** implemented by this commit.
 
-## Field Compiler design status
+Still future work:
 
-The authority boundary is clear, but detailed compiler mechanics remain partly **non-binding design**.
+- learned understanding/ranking of words, sentences, paragraphs, entities and semantic relevance;
+- semantic compression views for different D-model widths;
+- learned semantic rewrite/decompilation;
+- dormant semantic-vector ranking.
 
-Current direction:
-
-- a Field Compiler may have an independent heartbeat that reads/indexes/compiles/verifies canonical state;
-- D-model-specific rails must be bound to an exact source `field_id` and cannot silently omit active canonical content;
-- compiler has no reasoning vote and no commit authority;
-- deterministic exact region/span structure, hashes, provenance and reversible 16D mapping should stay exact;
-- learned tissue may understand/rank English words, sentences, paragraphs, entities, importance and semantic relevance as derived/rebuildable representations;
-- exact canonical/dormant text remains authority and semantic reconstruction errors must be detectable.
-
-Jeffrey proposed that a learned compiler eventually translate between semantic core-facing language and exact character state. That remains a promising design discussion, not yet promoted into implemented doctrine.
-
-Literal concatenation of exact 16D cells into wider rows remains lossless storage, but a standard Transformer sees each wider row as one token. Lane/addressability/decompiler semantics remain an open mechanism question.
-
-## Stale-continuity cleanup
-
-Root `codex-turn-state.md` was a July drift hazard still referenced by older Kimi/Codex packets. Its original text is preserved at `archive/codex-turn-state-2026-07-27.md`; the root path is now a deprecation shim pointing engineers to current Source of Truth and the engineer ledger.
-
-Historical frozen acceptance files, security-path tests and old packet documents may still name retired State roots as historical/rejection evidence. They are not live operator authority.
+These future representations must remain derived/rebuildable. Exact canonical text, dormant records and provenance remain authority; semantic reconstruction error must remain detectable.
 
 ## Verification
 
-Final verification after the reconciliation and identity-v2 tightening:
+Final evidence for `3e8838d`:
 
-- full repository pytest: exit code 0, one expected skip;
-- focused identity-v2/config projection suite: passed;
-- earlier focused runtime + D64 reconciliation slice: 22/22 passed;
-- fail-closed batch launcher: exit 3 and no training;
-- direct V6 trainer without legacy flag: aborts before data load/training;
-- D00 curriculum builder without legacy flag: aborts before building;
-- touched Python modules: compile cleanly;
-- Git diff checks: clean;
-- known echo-round fixture churn produced by pytest was restored to tracked bytes;
-- no model training, checkpoint promotion, council/service start or dormant-corpus rewrite occurred during this reconciliation.
+- initial new compiler/branch/training adapter slice: 18/18 passed;
+- final focused compiler + canonical branch + canonical training + V6 suite: 33/33 passed;
+- final full repository pytest on the final code: exit code 0, one expected skip;
+- touched Python modules compiled with `py_compile`;
+- `git diff --check` and staged diff check passed;
+- no-flag trainer invocation with an invalid `D:\not-axon-state` root failed before data load with the canonical-State-root error, proving canonical D64 is the default rather than a fallback;
+- deterministic echo-round fixture churn produced by full pytest was restored to tracked bytes;
+- no model training, checkpoint promotion, service start or dormant-corpus mutation occurred.
 
 ## Current Git / collaboration state
 
 - Working branch: `agent/fortify-axon`, publishing to private `origin/main`.
-- Code/docs reconciliation publication: `278b996`.
-- The present canonical ledger event records the reconciliation and bridge-permission work; its ledger-only publication follows this summary update.
+- Previous one-State reconciliation publication: `278b996`.
+- Previous reconciliation ledger publication: `a5455d1`.
+- D64 compiler implementation: `3e8838d` pushed to private `origin/main`.
+- This rolling summary/canonical event will be published as a separate ledger-only commit.
 - Connector Git may require per-command `-c safe.directory=D:/Axon`; do not add a global exception.
 
-## MCP bridge permission state
+## MCP bridge / continuity
 
-Local bridge: `D:\cloudflare-tunnel\chatgpt-mcp-bridge`, port 7777.
+The local ChatGPT MCP bridge supports `normal|strict|yolo`; live mode was changed to YOLO during the prior reconciliation. Recheck after any bridge restart. YOLO removes bridge click-through approval friction but does not waive Axon contracts or evidence/ledger discipline.
 
-During this turn ChatGPT inspected the bridge, verified `normal|strict|yolo` support and changed the live process from `normal` to `yolo` using its safety-mode control. `START-BRIDGE-YOLO.bat` sets `MCP_BRIDGE_MODE=yolo` for a YOLO restart. Ordinary bridge startup may return to normal gating; recheck mode after restart.
-
-YOLO removes bridge approval click-throughs. It does not waive this repository's contracts, evidence preservation or ledger requirements.
+`D:\ChatGPT_State` is ChatGPT's carried external continuity and must be refreshed on every substantive turn. Live repository/ledger evidence remains operational authority over personal continuity.
 
 ## Next recommended actions
 
-1. Implement one D64 canonical branch/compiler adapter consuming a real `SharedFieldSnapshot` bound to one exact `field_id`.
-2. Define hard freshness/complete-coverage invariants before a D64 proposal can finalize.
-3. Connect rebuildable lexical/graph retrieval over `State\dormant` and surface exact provenance-bearing evidence into canonical active state.
-4. Give training copy-on-write branches under `State\training` and make trainer/runtime share typed-delta validation and atomic commit paths.
-5. Formalize exact D64 rail/address/decompiler schema before training learned semantic compiler tissue.
-6. Keep the detailed learned Field Compiler proposal non-binding until deliberately promoted.
-7. Maintain both the Axon ledger and `D:\ChatGPT_State` on every substantive turn.
+1. Build a rebuildable local lexical/graph retrieval index over `State\dormant` that returns exact container/span/provenance evidence and surfaces that evidence into canonical `structured_knowledge` before reasoning.
+2. Wire a production D64 neural runtime driver to `D64FieldCompiler` with a hard freshness/coverage barrier before proposal finalization.
+3. Add a canonical-adapter checkpoint/resume proof before any resumed training campaign.
+4. Exercise a bounded canonical D64 mechanism smoke only after the runtime/training adapter path is fully observed; do not resume the old detached training lineage by default.
+5. Then design/train learned English semantic compiler tissue over deterministic word/sentence/paragraph cartography without replacing exact character state.
+6. Continue updating both the canonical engineer ledger and `D:\ChatGPT_State` every substantive turn.
 
 ## Fast orientation
 
 - Architecture authority: `docs/SOURCE_OF_TRUTH.md`
 - Reconciliation record: `docs/CANONICAL_STATE_RECONCILIATION.md`
-- D64 mechanism baseline: `training/complete_field_64d.py`
-- Preserved direct trainer: `training/train_complete_field_64d.py` (`--legacy-record-direct` only)
-- Canonical State map: `State/README.md`
+- D64 compiler: `runtime/field/compiler_d64.py`
+- Canonical State branch: `runtime/field/state_branch.py`
+- Runtime D64 adapter: `runtime/axon_runtime/d64_adapter.py`
+- Training adapter: `training/canonical_d64.py`
+- V6 reader/model: `training/complete_field_64d.py`
+- Trainer: `training/train_complete_field_64d.py`
 - Dormant authority: `State/dormant/`
 - Full tests: `python -m pytest -q -p no:cacheprovider`
 - Ledger protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
