@@ -26,7 +26,7 @@ from runtime.field.schema_v2 import (
 
 IDENTITY_V2_CONTRACT_SCHEMA = "axon-runtime-identity-v2-contract-v1"
 EXPECTED_BASE_V1_CONFIG_ID = (
-    "f28d3eadd79cf5b2331ec0373d3fb0ba6bd8f6733cb04b884bd00e1afd2e5036"
+    "17ce7dab76f466565e3c35214c27072aaa225945832ff803ff9575464ed27979"
 )
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _LITERAL_SECRET_KEY_PARTS = (
@@ -165,16 +165,20 @@ def _reject_literal_secret_fields(value: Any, path: str = "config") -> None:
 
 
 def _validate_state_root(path: Path) -> None:
-    """Ensure the v2 state root is isolated from the protected v1 root."""
+    """Keep identity-v2 declarations from becoming a competing Axon State root."""
 
     try:
-        v1_root = Path(r"D:\Axon\State\axon_runtime").resolve(strict=False)
+        retired_v1_root = Path(r"D:\Axon\State\axon_runtime").resolve(strict=False)
+        axon_repo_root = Path(r"D:\Axon").resolve(strict=False)
+        regression_root = Path(r"D:\Axon\State\training\regression").resolve(strict=False)
     except OSError as exc:
         raise IdentityV2ConfigError(
-            f"could not resolve protected v1 runtime root: {exc}"
+            f"could not resolve canonical Axon state boundaries: {exc}"
         ) from exc
 
-    normalized_v1 = os.path.normcase(str(v1_root))
+    normalized_v1 = os.path.normcase(str(retired_v1_root))
+    normalized_repo = os.path.normcase(str(axon_repo_root))
+    normalized_regression = os.path.normcase(str(regression_root))
     normalized_candidate = os.path.normcase(str(path))
 
     if normalized_candidate == normalized_v1:
@@ -183,11 +187,11 @@ def _validate_state_root(path: Path) -> None:
         )
 
     try:
-        common = os.path.commonpath((normalized_v1, normalized_candidate))
+        v1_common = os.path.commonpath((normalized_v1, normalized_candidate))
     except ValueError:
-        common = None
+        v1_common = None
 
-    if common is not None and os.path.normcase(common) == normalized_v1:
+    if v1_common is not None and os.path.normcase(v1_common) == normalized_v1:
         raise IdentityV2ConfigError(
             "state_root must not be underneath the protected v1 runtime root"
         )
@@ -196,6 +200,30 @@ def _validate_state_root(path: Path) -> None:
         raise IdentityV2ConfigError(
             "state_root final path component must contain 'identity_v2'"
         )
+
+    # Pure parser tests may use temporary roots outside the Axon repository.
+    # Any declaration inside D:\Axon, however, must remain an explicitly
+    # non-authoritative regression branch beneath the one canonical State tree.
+    try:
+        repo_common = os.path.commonpath((normalized_repo, normalized_candidate))
+    except ValueError:
+        repo_common = None
+    if repo_common is not None and os.path.normcase(repo_common) == normalized_repo:
+        try:
+            regression_common = os.path.commonpath(
+                (normalized_regression, normalized_candidate)
+            )
+        except ValueError:
+            regression_common = None
+        if (
+            regression_common is None
+            or os.path.normcase(regression_common) != normalized_regression
+            or normalized_candidate == normalized_regression
+        ):
+            raise IdentityV2ConfigError(
+                "Axon identity-v2 state_root must be under "
+                "D:\\Axon\\State\\training\\regression"
+            )
 
 
 def _freeze(value: Any) -> Any:

@@ -1,14 +1,22 @@
 # Axon continuously ticking runtime
 
-This document describes the runtime implemented in `runtime/axon_runtime` and
-the four-core CPU configuration in `ops/axon_runtime.cpu-smoke.json`.
+> **Preserved ExactV4 foundation — not the active Axon runtime.** As of
+> 2026-08-20, production materialization fails closed because this implementation
+> can let a core propose after one 384x16 physical view rather than after a
+> complete logical-field sweep. The checked-in CPU descriptor remains frozen
+> regression evidence. See `docs/CANONICAL_STATE_RECONCILIATION.md` for the D64
+> canonical-runtime boundary.
 
-The runtime is a durable, continuously ticking transaction engine around the
-existing exact-v4 64D and 128D checkpoints. It is not evidence that those
-checkpoints can hold a useful conversation. The first goal is narrower:
-establish correct field ownership, role rotation, private core state,
-never-delete history, bounded attention, and crash-safe continuation before
-asking weak checkpoints to behave like a finished Axon.
+This document describes the preserved runtime implemented in
+`runtime/axon_runtime` and the four-core CPU regression configuration in
+`ops/axon_runtime.cpu-smoke.json`.
+
+The foundation is a durable transaction engine around the existing exact-v4
+64D and 128D checkpoints. It is not evidence that those checkpoints can hold a
+useful conversation, and it is no longer an authorized production anatomy.
+Its journal, role rotation, private-state, validation, and crash-recovery work
+remain useful implementation evidence while the D64 complete-field compiler
+path is wired.
 
 ## Current boundary
 
@@ -350,14 +358,13 @@ python -m runtime.axon_runtime enqueue --kind user_input --text "Hello, Axon."
 # Complete one bounded proposer rotation.
 python -m runtime.axon_runtime run --max-ticks 4
 
-# Start continuous ticking in the foreground.
+# Historical operator examples only; `run` now fails closed on this legacy anatomy.
 python -m runtime.axon_runtime run
-
-# From another terminal, request an intentional stop.
 python -m runtime.axon_runtime stop
-
-# A durable stop marker must be cleared deliberately before a later restart.
 python -m runtime.axon_runtime run --clear-stop --max-ticks 4
+
+# Use focused tests/explicit legacy tooling for regression evidence until the
+# canonical D64 runtime driver replaces ExactV4 materialization.
 ```
 
 `status` reports the current head, next role assignment, pending ingress, and
@@ -376,11 +383,14 @@ The default operator descriptor is:
 D:\Axon\ops\axon_runtime.cpu-smoke.json
 ```
 
-Its persistent state root is:
+The preserved CPU regression descriptor now writes only inside an isolated,
+non-authoritative training branch:
 
 ```text
-D:\Axon\State\axon_runtime
+D:\Axon\State\training\regression\exact_v4_runtime_smoke
 ```
+
+It must not recreate a top-level `State\axon_runtime` tree.
 
 A bounded four-tick run is the first meaningful structural CPU smoke because
 it completes one proposer rotation across the four-core ring. It should verify

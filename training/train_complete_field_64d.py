@@ -663,7 +663,22 @@ def main() -> int:
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--resume-if-available", action="store_true")
     parser.add_argument("--amp", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument(
+        "--legacy-record-direct",
+        action="store_true",
+        help=(
+            "explicitly run the preserved detached-JSON V6 mechanism trainer; "
+            "not permitted for canonical Axon training"
+        ),
+    )
     args = parser.parse_args()
+
+    if not args.legacy_record_direct:
+        raise RuntimeError(
+            "direct JSON-record training is disabled by the canonical-anatomy "
+            "boundary. Build/use a State/training branch through the D64 "
+            "canonical field/compiler interface before training."
+        )
 
     if (
         args.steps < 1

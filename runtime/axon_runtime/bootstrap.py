@@ -413,13 +413,30 @@ def materialize_runtime(
     *,
     device: str = "cpu",
     dependencies: BootstrapDependencies | None = None,
+    allow_legacy_exact_v4: bool = False,
 ) -> MaterializedRuntime:
-    """Explicitly load, verify, restore, and assemble one runtime process."""
+    """Explicitly load the preserved ExactV4 runtime foundation.
+
+    The ExactV4 driver is retained for regression tests and recovery evidence,
+    but it is not the active Axon runtime: one core action consumes one 384x16
+    view and may propose before a complete logical field sweep.  Production
+    materialization therefore fails closed until the D64 canonical-field
+    compiler/runtime driver replaces this legacy path.  Focused tests may pass
+    injected dependencies, and explicit historical tooling may opt in with
+    ``allow_legacy_exact_v4=True``.
+    """
 
     if not isinstance(config, RuntimeBootstrapConfig):
         raise TypeError("config must be RuntimeBootstrapConfig")
     if not isinstance(device, str) or not device:
         raise ValueError("device must be a non-empty string")
+    if dependencies is None and not allow_legacy_exact_v4:
+        raise UnsupportedRuntimeConfigError(
+            "the preserved ExactV4 runtime is not canonical Axon anatomy: it can "
+            "propose from one 384x16 view before complete-field coverage. The live "
+            "runtime is intentionally disabled until the D64 canonical-field "
+            "compiler/driver is wired."
+        )
     if config.idle.max_quanta_per_tick != 1:
         raise UnsupportedRuntimeConfigError(
             "bootstrap currently supports exactly one idle quantum per tick"

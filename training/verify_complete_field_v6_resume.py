@@ -104,7 +104,17 @@ def main() -> int:
     parser.add_argument("--max-output-chars", type=int, default=128)
     parser.add_argument("--lr", type=float, default=2e-4)
     parser.add_argument("--teacher-forcing-ratio", type=float, default=0.75)
+    parser.add_argument(
+        "--legacy-record-direct",
+        action="store_true",
+        help="explicitly verify the preserved detached-record V6 trainer only",
+    )
     args = parser.parse_args()
+    if not args.legacy_record_direct:
+        raise RuntimeError(
+            "detached-record optimizer verification is disabled for canonical Axon "
+            "training; use only as an explicitly opted-in legacy mechanism check"
+        )
     if not 0 < args.split_step < args.total_steps:
         raise ValueError("split step must be inside total steps")
 

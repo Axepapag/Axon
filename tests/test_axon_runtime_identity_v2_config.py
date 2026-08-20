@@ -42,11 +42,11 @@ CHARTER_HASH = (
 )
 
 CONTRACT_ID = (
-    "5460121dc988f40f2462e0aae19f598ae086c7987332ed91da8529f2c8f65146"
+    "aaab37e4c7795508773875c11663fb120ab424eabc33cde1137e584ccbaba485"
 )
 
 R2_CONTRACT_ID = (
-    "1a82b83cd2b0dd623c5577bf856a9980a4a65e5e5df80fd6f6b424c9a9656f7e"
+    "a252fdfd55fdcd3e4144b3c00d9b505c76b38c002efa03bb52dec01ccbefcd86"
 )
 
 
@@ -61,7 +61,7 @@ class TestV2ContractParsing:
         assert isinstance(contract, IdentityV2Contract)
         assert contract.base_v1_config_id == EXPECTED_BASE_V1_CONFIG_ID
         assert contract.field_schema == "shared-field-v2"
-        assert str(contract.state_root) == r"D:\Axon\State\axon_runtime_identity_v2"
+        assert str(contract.state_root) == r"D:\Axon\State\training\regression\identity_v2"
         assert contract.sealed is True
         assert contract.physical_role == "context"
         assert contract.envelope_char_budget == 128
@@ -126,7 +126,7 @@ class TestV2ContractR2:
         assert r2.physical_role == "context"
         assert r2.v1_auto_migration is False
         assert r2.migration_authority == "human_authorized"
-        assert str(r2.state_root) == r"D:\Axon\State\axon_runtime_identity_v2_r2"
+        assert str(r2.state_root) == r"D:\Axon\State\training\regression\identity_v2_r2"
         assert r2.state_root != r1.state_root
         assert not r1.state_root.exists()
         assert not r2.state_root.exists()
@@ -266,7 +266,7 @@ class TestV2ContractDirectConstruction:
     def test_direct_construction_with_valid_fields_succeeds(self) -> None:
         contract = IdentityV2Contract(
             base_v1_config_id=EXPECTED_BASE_V1_CONFIG_ID,
-            state_root=Path(r"D:\Axon\State\axon_runtime_identity_v2"),
+            state_root=Path(r"D:\Axon\State\training\regression\identity_v2"),
             field_schema="shared-field-v2",
             charter=IdentityCharterV2(text=CHARTER_TEXT),
             sealed=True,
@@ -281,7 +281,7 @@ class TestV2ContractDirectConstruction:
         with pytest.raises(IdentityV2ConfigError, match="current v1 smoke config"):
             IdentityV2Contract(
                 base_v1_config_id="0" * 64,
-                state_root=Path(r"D:\Axon\State\axon_runtime_identity_v2"),
+                state_root=Path(r"D:\Axon\State\training\regression\identity_v2"),
                 field_schema="shared-field-v2",
                 charter=IdentityCharterV2(text=CHARTER_TEXT),
                 sealed=True,
@@ -309,7 +309,7 @@ class TestV2ContractDirectConstruction:
         with pytest.raises(IdentityV2ConfigError, match="sealed must be true"):
             IdentityV2Contract(
                 base_v1_config_id=EXPECTED_BASE_V1_CONFIG_ID,
-                state_root=Path(r"D:\Axon\State\axon_runtime_identity_v2"),
+                state_root=Path(r"D:\Axon\State\training\regression\identity_v2"),
                 field_schema="shared-field-v2",
                 charter=IdentityCharterV2(text=CHARTER_TEXT),
                 sealed=False,
@@ -323,7 +323,7 @@ class TestV2ContractDirectConstruction:
         with pytest.raises(IdentityV2ConfigError, match="v1_auto_migration must be false"):
             IdentityV2Contract(
                 base_v1_config_id=EXPECTED_BASE_V1_CONFIG_ID,
-                state_root=Path(r"D:\Axon\State\axon_runtime_identity_v2"),
+                state_root=Path(r"D:\Axon\State\training\regression\identity_v2"),
                 field_schema="shared-field-v2",
                 charter=IdentityCharterV2(text=CHARTER_TEXT),
                 sealed=True,
@@ -355,7 +355,7 @@ class TestV2ContractDirectConstruction:
         ):
             IdentityV2Contract(
                 base_v1_config_id=EXPECTED_BASE_V1_CONFIG_ID,
-                state_root=Path(r"D:\Axon\State\axon_runtime_identity_v2"),
+                state_root=Path(r"D:\Axon\State\training\regression\identity_v2"),
                 field_schema="shared-field-v2",
                 charter=FakeCharter(),  # type: ignore[arg-type]
                 sealed=True,
@@ -452,7 +452,7 @@ class TestV2ContractForgedCharter:
         ):
             IdentityV2Contract(
                 base_v1_config_id=EXPECTED_BASE_V1_CONFIG_ID,
-                state_root=Path(r"D:\Axon\State\axon_runtime_identity_v2"),
+                state_root=Path(r"D:\Axon\State\training\regression\identity_v2"),
                 field_schema="shared-field-v2",
                 charter=forged,
                 sealed=True,
@@ -580,7 +580,7 @@ class TestV2ContractWindowsStateRoot:
 
     def test_normal_sample_root_still_parses(self) -> None:
         contract = load_identity_v2_contract(CONTRACT_PATH)
-        assert str(contract.state_root) == r"D:\Axon\State\axon_runtime_identity_v2"
+        assert str(contract.state_root) == r"D:\Axon\State\training\regression\identity_v2"
 
 
 class TestV2ContractRootTypeStrictness:
@@ -654,7 +654,7 @@ class TestV2ContractSealedAuthority:
         ):
             EvilContract(
                 base_v1_config_id=EXPECTED_BASE_V1_CONFIG_ID,
-                state_root=Path(r"D:\Axon\State\axon_runtime_identity_v2"),
+                state_root=Path(r"D:\Axon\State\training\regression\identity_v2"),
                 field_schema="shared-field-v2",
                 charter=IdentityCharterV2(text=CHARTER_TEXT),
                 sealed=True,
@@ -709,7 +709,7 @@ class TestV2ContractSealedAuthority:
         object.__setattr__(
             forged,
             "state_root",
-            Path(r"D:\Axon\State\axon_runtime_identity_v2"),
+            Path(r"D:\Axon\State\training\regression\identity_v2"),
         )
 
         with pytest.raises(
@@ -872,7 +872,7 @@ class TestV2ContractR6PrimitiveStrictness:
         ):
             IdentityV2Contract(
                 base_v1_config_id=EXPECTED_BASE_V1_CONFIG_ID,
-                state_root=Path(r"D:\Axon\State\axon_runtime_identity_v2"),
+                state_root=Path(r"D:\Axon\State\training\regression\identity_v2"),
                 field_schema="shared-field-v2",
                 charter=IdentityCharterV2(text=CHARTER_TEXT),
                 sealed=True,
@@ -902,7 +902,7 @@ class TestV2ContractR7ExactDirectConstruction:
         ):
             IdentityV2Contract(
                 base_v1_config_id=LyingSha("0" * 64),  # type: ignore[arg-type]
-                state_root=Path(r"D:\Axon\State\axon_runtime_identity_v2"),
+                state_root=Path(r"D:\Axon\State\training\regression\identity_v2"),
                 field_schema="shared-field-v2",
                 charter=IdentityCharterV2(text=CHARTER_TEXT),
                 sealed=True,
@@ -926,7 +926,7 @@ class TestV2ContractR7ExactDirectConstruction:
         ):
             IdentityV2Contract(
                 base_v1_config_id=EXPECTED_BASE_V1_CONFIG_ID,
-                state_root=Path(r"D:\Axon\State\axon_runtime_identity_v2"),
+                state_root=Path(r"D:\Axon\State\training\regression\identity_v2"),
                 field_schema=LyingStr("forged-field-schema"),  # type: ignore[arg-type]
                 charter=IdentityCharterV2(text=CHARTER_TEXT),
                 sealed=True,
@@ -950,7 +950,7 @@ class TestV2ContractR7ExactDirectConstruction:
         ):
             IdentityV2Contract(
                 base_v1_config_id=EXPECTED_BASE_V1_CONFIG_ID,
-                state_root=Path(r"D:\Axon\State\axon_runtime_identity_v2"),
+                state_root=Path(r"D:\Axon\State\training\regression\identity_v2"),
                 field_schema="shared-field-v2",
                 charter=IdentityCharterV2(text=CHARTER_TEXT),
                 sealed=True,
@@ -974,7 +974,7 @@ class TestV2ContractR7ExactDirectConstruction:
         ):
             IdentityV2Contract(
                 base_v1_config_id=EXPECTED_BASE_V1_CONFIG_ID,
-                state_root=Path(r"D:\Axon\State\axon_runtime_identity_v2"),
+                state_root=Path(r"D:\Axon\State\training\regression\identity_v2"),
                 field_schema="shared-field-v2",
                 charter=IdentityCharterV2(text=CHARTER_TEXT),
                 sealed=True,

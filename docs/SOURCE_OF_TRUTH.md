@@ -182,12 +182,20 @@ has been added and passed coverage and behavioral gates.
 
 ## Canonical state root
 
-All living or durable Axon runtime state resides beneath `D:\Axon\State`,
+All living or durable Axon state resides beneath `D:\Axon\State`,
 including canonical field state, dormant memory, private souls, active adapter
 pointers and promoted adapters, cursors, and offline-learning control records.
-Candidate training artifacts and reproducible run logs may remain under
-`runs/`; promotion copies the active state-bearing artifact into `State/` with
-provenance.
+Runtime and training do not own separate competing state roots.
+
+Training may create isolated copy-on-write branches beneath `State\training`,
+but those branches must use the same canonical field, dormant-memory,
+compiler/read, typed-delta, validation, and commit contracts as runtime. A smoke
+or curriculum may be small in content or compute; it may not substitute a
+truncated/fake core-facing anatomy that production later discards.
+
+Candidate checkpoints and reproducible run logs may remain under `runs/` while
+non-authoritative. Promotion copies the active state-bearing artifact into
+`State/` with provenance.
 
 The differentiable writer is not yet production soul doctrine. It remains
 pilot-only until real 64D and 128D write-delay-recall suites independently pass

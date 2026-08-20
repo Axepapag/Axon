@@ -16,6 +16,7 @@ from runtime.axon_runtime.bootstrap import (
     RuntimeIdentityMismatchError,
     RuntimeModelPinError,
     RuntimeRunnerLock,
+    UnsupportedRuntimeConfigError,
     materialize_runtime,
 )
 from runtime.axon_runtime.checkpoint import (
@@ -260,6 +261,18 @@ def _foundation(tmp_path: Path):
 
     dependencies = BootstrapDependencies(model_loader=load)
     return checkpoints, mapping, config, dependencies, calls
+
+
+def test_production_materialization_fails_closed_on_legacy_exact_v4(
+    tmp_path: Path,
+) -> None:
+    _, _, config, _, _ = _foundation(tmp_path)
+    with pytest.raises(
+        UnsupportedRuntimeConfigError,
+        match="not canonical Axon anatomy",
+    ):
+        materialize_runtime(config)
+    assert not config.paths.state_root.exists()
 
 
 def test_materialize_new_tick_close_and_recover_without_real_checkpoints(

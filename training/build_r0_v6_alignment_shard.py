@@ -77,7 +77,7 @@ def main() -> int:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path(r"State\private_curriculum\complete_field_r0_v6_alignment"),
+        default=Path(r"State\training\curriculum\complete_field_r0_v6_alignment"),
     )
     parser.add_argument("--count", type=int, default=256)
     parser.add_argument("--seed", type=int, default=70024)

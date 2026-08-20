@@ -100,12 +100,12 @@
     ]
   },
   "paths": {
-    "state_root": "D:\\Axon\\State\\axon_runtime",
-    "runtime_db": "D:\\Axon\\State\\axon_runtime\\runtime.sqlite3",
-    "soul_store": "D:\\Axon\\State\\axon_runtime\\souls",
-    "private_state_store": "D:\\Axon\\State\\axon_runtime\\private_states",
-    "dormant_db": "D:\\Axon\\State\\axon_runtime\\dormant.sqlite3",
-    "stop_file": "D:\\Axon\\State\\axon_runtime\\STOP"
+    "state_root": "D:\\Axon\\State\\training\\regression\\exact_v4_runtime_smoke",
+    "runtime_db": "D:\\Axon\\State\\training\\regression\\exact_v4_runtime_smoke\\runtime.sqlite3",
+    "soul_store": "D:\\Axon\\State\\training\\regression\\exact_v4_runtime_smoke\\souls",
+    "private_state_store": "D:\\Axon\\State\\training\\regression\\exact_v4_runtime_smoke\\private_states",
+    "dormant_db": "D:\\Axon\\State\\training\\regression\\exact_v4_runtime_smoke\\dormant.sqlite3",
+    "stop_file": "D:\\Axon\\State\\training\\regression\\exact_v4_runtime_smoke\\STOP"
   },
   "projection": {
     "global_char_budget": 4096,

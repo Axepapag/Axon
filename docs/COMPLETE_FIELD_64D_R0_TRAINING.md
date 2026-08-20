@@ -1,6 +1,6 @@
 # Complete-Field 64D R0 Training Contract
 
-Status: active implementation contract, authorized by Jeff on 2026-08-18.
+Status: preserved V6 mechanism contract; direct-record training is blocked as an active Axon path by Jeff's 2026-08-20 canonical-anatomy ruling. The complete-sweep reader remains the D64 mechanism baseline while training is moved behind the canonical State/compiler interface.
 
 ## R0 outcome
 
@@ -66,8 +66,7 @@ and checkpoint.
   alphanumeric tokens, same-region and wrong-region duplicates, nearby decoys,
   first/middle/last placement, and exact page-boundary crossings.
 
-Private output remains under `State/private_curriculum` and is not committed.
-The D00 SQLite source opens with URI `mode=ro` and `PRAGMA query_only=ON`.
+Preserved private curriculum output belongs under `State/training/curriculum` and is not committed. Direct D00 rebuilding is legacy-only and requires an explicit CLI opt-in; canonical D64 training will consume copy-on-write State branches through the shared field/compiler interface instead of treating detached JSON as runtime truth.
 
 ## Observability and recovery
 

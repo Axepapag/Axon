@@ -1038,18 +1038,32 @@ def parser() -> argparse.ArgumentParser:
         type=Path,
         default=Path(r"datasets\recovered\multitick_curriculum_d00_grounded_v4\scratch_plan_response_v4.jsonl"),
     )
-    p.add_argument("--output-dir", type=Path, default=Path(r"State\private_curriculum\complete_field_r0_v6"))
+    p.add_argument("--output-dir", type=Path, default=Path(r"State\training\curriculum\complete_field_r0_v6"))
     p.add_argument("--synthetic", type=int, default=8000)
     p.add_argument("--v6-alignment", type=int, default=256)
     p.add_argument("--alignment-page-size", type=int, default=64)
     p.add_argument("--exact-pairs", type=int, default=6000)
     p.add_argument("--grounded-limit", type=int, default=4000)
     p.add_argument("--seed", type=int, default=64018)
+    p.add_argument(
+        "--legacy-d00-source",
+        action="store_true",
+        help=(
+            "explicitly rebuild the preserved detached-record curriculum from D00; "
+            "not the canonical training path"
+        ),
+    )
     return p
 
 
 def main() -> int:
     args = parser().parse_args()
+    if not args.legacy_d00_source:
+        raise RuntimeError(
+            "detached D00 curriculum rebuilding is disabled by the canonical-anatomy "
+            "boundary. Canonical D64 training must source a State/training branch "
+            "through the shared field/compiler interface."
+        )
     manifest = build(args)
     print(json.dumps(manifest, indent=2, ensure_ascii=False))
     return 0

@@ -1,8 +1,8 @@
 {
   "schema": "axon-runtime-identity-v2-contract-v1",
-  "base_v1_config_id": "f28d3eadd79cf5b2331ec0373d3fb0ba6bd8f6733cb04b884bd00e1afd2e5036",
+  "base_v1_config_id": "17ce7dab76f466565e3c35214c27072aaa225945832ff803ff9575464ed27979",
   "field_schema": "shared-field-v2",
-  "state_root": "D:\\Axon\\State\\axon_runtime_identity_v2_r2",
+  "state_root": "D:\\Axon\\State\\training\\regression\\identity_v2_r2",
   "identity": {
     "charter_schema": "axon-identity-charter-v1",
     "charter_version": "1",

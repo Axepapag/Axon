@@ -32,18 +32,18 @@ D:\Axon\
 python -m pytest -q -p no:cacheprovider
 python substrate/substrate.py
 python -m pytest -q -p no:cacheprovider tests/test_complete_field_64d.py
-python runtime/tick_loop.py --dry-run --list-checkpoints
+python -m pytest -q -p no:cacheprovider tests/test_axon_runtime_bootstrap.py
 ```
 
-## Current Training Path
+## Current D64 Reconciliation Path
 
-`training/train_complete_field_64d.py` is the active R0 trainer. It trains one shallow 64D core to sweep every active character in all ten regions, retain encoded page tokens and their immutable character identities as addressable decoder memory, mix generation with exact pointer-copying, write scratch, reread the complete committed field, and write a variable-length response draft. Coverage manifests block decoding on gaps. Diary, conversation history, and tool results remain sealed. See `docs/COMPLETE_FIELD_64D_R0_TRAINING.md`.
+No training launcher is currently authorized to update a model. `training/complete_field_64d.py` remains the V6 mechanism baseline because it proves complete ten-region coverage before decoding, but `training/train_complete_field_64d.py` is now explicitly legacy/direct-record unless invoked with `--legacy-record-direct`. The next active implementation is a D64 adapter that feeds the same canonical `SharedFieldSnapshot`/Field Compiler interface to both runtime and training branches under `State/training`.
 
-The prior direct fixed-window conversational trainer is preserved under `archive/legacy_fixed_window_trainer_2026-08-18/` and is not an active launch path.
+The older fixed-window conversational trainer remains preserved under `archive/legacy_fixed_window_trainer_2026-08-18/`; the ExactV4 runtime foundation is likewise regression/recovery evidence, not the active organism. See `docs/CANONICAL_STATE_RECONCILIATION.md`.
 
 ## Recovered Dormant Corpus
 
-`curator/recovered_corpus_builder.py` converts recovered `D:\00` sources into dormant container records and spelled-out edge records. Generated artifacts live under `datasets/recovered/` and are ignored by Git.
+`curator/recovered_corpus_builder.py` produced the recovered dormant body now persisted under `State/dormant/`. That exact corpus is the canonical dormant-memory authority; historical `D:\00` sources remain read-only provenance, not the runtime memory interface.
 
 ## Canon
 
