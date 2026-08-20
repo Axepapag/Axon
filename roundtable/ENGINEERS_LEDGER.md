@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-08-19T20:33:31-05:00
-Current through event: `evt-20260820T013331973172Z-chatgpt-r0-v6-alignment`
+Updated: 2026-08-19T20:37:10-05:00
+Current through event: `evt-20260820T013710556400Z-chatgpt-r0-v6-publish`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
