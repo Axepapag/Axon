@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-08-20T09:56:00-05:00
-Current through event: `evt-20260820T145600000000Z-chatgpt-personal-state-handoff`
+Updated: 2026-08-20T10:30:44.6055387-05:00
+Current through event: `evt-20260820T1530446055387Z-chatgpt-fresh-session-reentry`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -188,3 +188,11 @@ termination.
 - `D:\ChatGPT_State` was refreshed at 2026-08-20 09:56 Central so a fresh ChatGPT session resumes from the current V6 state and the non-binding Field Compiler/reversible multiresolution field proposal rather than the obsolete June `axon7` bootstrap.
 - No Axon runtime, model, State, curriculum, checkpoint, service, or training process changed during that personal-state maintenance.
 - Fresh ChatGPT sessions should still re-read live Axon authority and the canonical ledger before project action; personal continuity does not override repository evidence.
+
+
+## Fresh-session continuity recovery — 2026-08-20 10:30 Central
+
+- A fresh ChatGPT session successfully re-entered through `D:\ChatGPT_State\START_HERE.md`, then re-read live Axon authority and the canonical ledger before acting.
+- Pre-turn Git was clean; local `HEAD` and `origin/main` both resolved to `72d6d58` (`Record ChatGPT fresh-session handoff`). That commit changed only the two engineer-ledger files.
+- ChatGPT's personal state was refreshed to record `72d6d58` separately from the earlier non-binding Field Compiler proposal commit `6c8a3c9`.
+- No architecture, runtime, model, State, curriculum, checkpoint, service, or training process changed. The Field Compiler remains non-binding, and the V6 exact held-out no-scale gate remains in force.
