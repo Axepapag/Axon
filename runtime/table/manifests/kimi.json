@@ -11,7 +11,7 @@
   "session": {
     "parse_regex": "To resume this session: kimi (?:-r|--session) (session_[a-z0-9-]+)"
   },
-  "capabilities": ["coding", "architecture_review", "subagents", "k3"],
+  "capabilities": ["coding", "architecture_review", "subagents", "swarm", "k3"],
   "identity_stamp": "Kimi / K3 default / Kimi Code CLI 0.36.1 / 2026-08-20",
   "enabled": true,
   "notes": "Project agents live under .agents/agents. K3 is the default swarm lead; ChatGPT verifies diffs/tests and owns commit/push/ledger publication."

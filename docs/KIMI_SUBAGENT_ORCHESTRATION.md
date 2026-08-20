@@ -16,6 +16,19 @@ ChatGPT is the supervising project engineer and publication authority for this w
 
 Do not copy OAuth/token material into Axon. The supervisor relies on the user's existing Kimi Code login/configuration.
 
+## Model routing policy
+
+The supervising Kimi session may use K3 while routine sub-agents use the documented secondary-model pool. The local Kimi config now sets ordinary `kimi-code/kimi-for-coding` (K2.7 Coding) as the default worker model, with K3 and Highspeed available as explicit alternatives. The supervisor enables Kimi's experimental secondary-model feature for its child process.
+
+Usage policy:
+
+- K2.7 Coding is the default workhorse for routine exploration, review, recurring triage, and bounded implementation.
+- K3 is preferred for difficult architecture, deep debugging, high-stakes review, and final synthesis.
+- K2.7 Highspeed remains available but is opt-in rather than the recurring default.
+- If a worker's persisted Kimi wire says it actually bound a different model, report the observed model rather than the intended policy.
+
+The first 7-lens AgentSwarm on 2026-08-20 exposed why this explicit pool matters: the attempted environment-only secondary-model routing did not take effect, all started workers bound to K3, and Kimi exhausted the billing-cycle quota after four of seven lenses completed. That run is preserved under `State/kimi_orchestrator/jobs/20260820t2102z-full-repo-swarm/`.
+
 ## Project-scoped agents
 
 Kimi automatically discovers project agents below `.agents/agents/`.
@@ -71,7 +84,7 @@ Recommended recurring cycle:
 
 1. Re-read `D:\ChatGPT_State` and live Axon authority/ledger.
 2. Verify no other mission owns the machine and the Git worktree is clean.
-3. Run one K3 `triage` job through `scripts\run_kimi_roundtable.py`; the triage lead delegates independent read-only views before returning one merged packet.
+3. Run one supervised `triage` job through `scripts\run_kimi_roundtable.py`; ordinary K2.7 Coding is the default sub-agent workhorse while the lead may remain K3 for synthesis.
 4. ChatGPT reviews Kimi's durable result and selects one bounded next packet.
 5. No code is changed automatically by the recurring triage.
 6. When Jeffrey or ChatGPT explicitly authorizes the packet, run `plan` / `implement` / `review` as one supervised mission.

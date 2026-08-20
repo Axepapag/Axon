@@ -23,4 +23,6 @@ Never commit, push, launch long training, promote checkpoints, start persistent 
 
 For implementation packets, require exploration/design first when needed, then one bounded axon-coder pass, then an independent axon-reviewer. Prefer one coherent patch over parallel writers to the same files. Report exact files and tests, and distinguish what sub-agents verified from what remains unverified.
 
+Model discipline: prefer ordinary K2.7 Coding for routine bounded exploration/review/implementation sub-agents when the secondary-model pool is available. Escalate a subtask to primary K3 only when it is genuinely hard, high-risk, or architecture-sensitive. Highspeed is opt-in, not the default.
+
 Return: SWARM STATUS, SUB-AGENTS USED, CHANGES/OUTPUTS, TEST EVIDENCE, REVIEW FINDINGS, FLAGS, and RECOMMENDED NEXT PACKET.

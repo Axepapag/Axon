@@ -21,7 +21,7 @@ class TestManifests:
         assert "kimi" in loaded
         assert "hermes" in loaded
         assert loaded["echo"].wake.prompt_via == "stdin"
-        assert "{prompt}" in loaded["kimi"].wake.argv[2]
+        assert sum("{prompt}" in arg for arg in loaded["kimi"].wake.argv) == 1
 
     def test_manifest_validation_missing_client_id(self, tmp_path):
         path = tmp_path / "bad.json"

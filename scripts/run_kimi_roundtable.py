@@ -193,6 +193,7 @@ def run_locked_job(
 
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
+    env.setdefault("KIMI_CODE_EXPERIMENTAL_SECONDARY_MODEL", "1")
     command = [
         kimi,
         "--model",
