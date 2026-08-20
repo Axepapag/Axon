@@ -1,153 +1,157 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-20T15:00:03.1666939-05:00
-Current through event: `evt-20260820T200003166693Z-chatgpt-canonical-d64-compiler`
+Updated: 2026-08-20T17:03:00-05:00
+Current through event: `evt-20260820T2118351215506Z-chatgpt-first-kimi-swarm`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
 ## Current mission
 
-Build Axon D2 as one stateful organism around exact canonical character state, heterogeneous internal cores, private per-core souls, auditable dormant memory and validated atomic deltas.
+Build Axon D2 as one stateful organism around one exact canonical State body, heterogeneous private reasoning cores, auditable dormant memory, deterministic D-model field compilation, and validated atomic deltas.
 
-The deterministic **D64 canonical Field Compiler/state adapter is now implemented and published**. The immediate next work is not undirected model training: connect the real dormant memory body through exact-evidence retrieval, then wire a production D64 neural runtime driver to this canonical compiler.
+The deterministic D64 compiler/runtime-training adapter is implemented. The first real Kimi AgentSwarm repository sweep is complete and published. The immediate engineering problem is now **integration and hygiene, not invention**: eliminate or archive parallel legacy bodies, keep one obvious Source of Truth, connect the real dormant body to the canonical D64 field, and then build the production D64 driver.
 
 ## Binding architecture and convener boundaries
 
 - `docs/SOURCE_OF_TRUTH.md` is architecture authority.
-- Exact visible text remains grounded in the frozen 16D character substrate.
-- Every logical core pass must cover all currently attended canonical characters; physical paging/packing is compute geometry, never permission to silently omit context.
+- Exact visible text is grounded in the frozen 16D character substrate.
+- Every logical core pass covers all currently attended canonical characters; packing/paging is compute geometry, not permission to silently omit context.
 - One living/durable State root: `D:\Axon\State`. Training isolation belongs beneath `State\training`; runtime and trainer do not own competing State universes.
 - A smoke may be small in content/compute; its core-facing anatomy cannot be fake, truncated or disposable.
-- Cores/consolidation reason and propose typed deltas; the Field Compiler has no reasoning vote or commit authority. Canonical validation/transaction code remains the commit boundary.
-- Dormant memory remains exact/auditable. Derived retrieval indexes may locate evidence but must dereference exact source text/provenance before it becomes reasoning evidence.
+- The deterministic Field Compiler reads/indexes/compiles/verifies only. It has no reasoning vote or commit authority.
+- Cores/consolidator reason and propose typed deltas. Canonical validation/transaction remains commit authority.
+- Dormant memory remains exact/auditable. Derived indexes may locate evidence but must dereference exact source text/provenance before it becomes reasoning evidence.
+- Learned semantic compiler tissue remains future work; exact canonical/dormant text remains authority.
 
-## Canonical D64 compiler — implemented 2026-08-20
+## Canonical D64 compiler — published
 
-Published code/docs commit:
+Code/docs publication:
 
 - `3e8838d` — `Implement canonical D64 field compiler adapter`
+- `cb7907b` — `Record canonical D64 compiler implementation`
 
-At turn start the worktree already contained an uncommitted, unledgered compiler implementation. ChatGPT treated it as orphaned work rather than discarding it, audited it, completed the policy integration, tested it, and published it.
+Implemented canonical D64 path:
 
-Core implementation:
+- `runtime/field/compiler_d64.py`: immutable `SharedFieldSnapshot` -> exact source-bound D64 rail, four frozen 16D cells per physical row, explicit padding, exact row/lane/provenance addresses, all-ten-region visitation, complete-coverage proof, exact 16D/text roundtrip, stale-rail rejection, deterministic structural cartography.
+- `runtime/field/state_branch.py`: canonical immutable snapshots/deltas with append-only journal and atomic HEAD for authorized runtime/training branches.
+- `runtime/axon_runtime/d64_adapter.py`: runtime-facing authority-free compiler/delta adapter.
+- `training/canonical_d64.py`: training-side canonical snapshot/compiler adapter.
+- `training/complete_field_64d.py`: V6 can consume the canonical D64 rail, deterministically unpack exact lanes to the existing per-character neural lift, apply scratch through typed delta/rematerialization, then reread for response.
+- `training/train_complete_field_64d.py`: canonical D64 is the default training anatomy; `--legacy-record-direct` is explicit archaeology only.
 
-- `runtime/field/compiler_d64.py`
-  - consumes one immutable `SharedFieldSnapshot`;
-  - binds each rail to exact source `field_id` and `tick_id`;
-  - packs up to four literal frozen 16D character cells into each 64D physical row;
-  - never crosses logical-region boundaries inside a row;
-  - represents unused lanes as explicit padding;
-  - retains exact row/lane, region position, global active-field position, span ID/position, source and provenance for every valid lane;
-  - visits all ten logical regions;
-  - fails closed on unsupported attended characters;
-  - accepts output only after complete coverage and exact 16D vector/text roundtrip verification;
-  - rejects stale rails after canonical field/tick changes;
-  - produces deterministic word/sentence/paragraph cartography as structural metadata only.
-- `runtime/field/state_branch.py`
-  - persists the same `SharedFieldSnapshot` and `FieldDelta` objects used by the core architecture;
-  - provides authorized runtime branches under `State\active\branches` and training branches under `State\training\branches`;
-  - stores immutable snapshots/deltas, append-only journal events and an atomic HEAD pointer;
-  - detects stale commits and serialized-state tampering.
-- `runtime/axon_runtime/d64_adapter.py`
-  - exposes the canonical compiler/delta/branch contract to runtime orchestration without granting the adapter reasoning authority.
-- `training/canonical_d64.py`
-  - materializes curriculum source records as real canonical `SharedFieldSnapshot` objects before a core reads them;
-  - uses the same `D64FieldCompiler` as runtime;
-  - exposes canonical training branches and exact teacher deltas.
-- `training/complete_field_64d.py`
-  - can consume compiled D64 rails directly;
-  - deterministically unpacks exact 16D lanes before the existing V6 per-character neural lift, preserving checkpoint input geometry;
-  - performs scratch teacher/runtime update through typed `FieldDelta`, rematerializes the canonical snapshot, recompiles, rereads, then produces the response-draft transaction;
-  - counterfactual scratch interventions also pass through canonical snapshots/deltas instead of mutating detached dictionaries.
+Current V6 deliberately unpacks D64 lanes before neural attention; one packed 64D row is not falsely treated as four independent Transformer tokens.
 
-Important physical interpretation: one packed D64 row is lossless storage for four exact 16D cells. Current V6 deliberately unpacks those lanes before neural attention; the implementation does **not** pretend one Transformer token gives four independently addressable character tokens.
+## One-State physical body
 
-## Trainer execution policy
+- `State\dormant` remains the real recovered dormant-memory organ and was not rewritten.
+- former `State\axon_runtime` and `State\private_curriculum` are archived beneath `State\archive\pre_canonical_reconciliation_20260820`.
+- verified curriculum source copy lives under `State\training\curriculum`.
+- regression-only roots live beneath `State\training\regression`.
+- `State\dormant` is approximately 1.02 GiB with 427,001 containers and 351,978 readable semantic edges; its manifest records no vector authority.
 
-`training/train_complete_field_64d.py` now defaults to canonical D64 anatomy.
+Do not create another canonical dormant database merely to reuse an old retrieval API. A derived index is a rebuildable sense organ, not a second memory body.
 
-- With no anatomy flag, it requires the real `D:\Axon\State` root and uses `SharedFieldSnapshot -> D64FieldCompiler -> typed FieldDelta` core-facing anatomy.
-- `--canonical-d64` remains an optional explicit assertion of the default.
-- `--legacy-record-direct` is the only way to use the preserved detached-record V6 mechanism path.
-- Canonical trainer workspaces live beneath `State\training\runs`.
-- Checkpoints record anatomy mode/compiler schema and refuse incompatible resume.
-- `TRAIN_COMPLETE_FIELD_64D_R0.bat` remains a no-training guard; this compiler implementation did not automatically launch GPU work.
+## Kimi sub-agent orchestration — published and proven
 
-The preserved ExactV4 production runtime remains fail-closed because its neural driver can propose after one 384x16 physical view. The next runtime task is a D64 neural driver built on this compiler, not reactivation of ExactV4.
+Publications:
 
-## Canonical State body
+- `7d11781` — `Add supervised Kimi sub-agent orchestration`
+- `9ca7e43` — `Consolidate first Kimi repository swarm`
 
-One-State reconciliation remains in force:
+Project-scoped Kimi agents live under `.agents/agents/`. `scripts/run_kimi_roundtable.py` supervises bounded jobs with dirty-tree/concurrency guards and durable evidence under `State/kimi_orchestrator/jobs/<job-id>/`. ChatGPT remains publication/ledger authority; Kimi agents do not commit/push or edit ChatGPT carried state.
 
-- `State\dormant` is the real recovered dormant-memory organ and was not rewritten;
-- former `State\axon_runtime` and `State\private_curriculum` remain archived beneath `State\archive\pre_canonical_reconciliation_20260820`;
-- verified curriculum source copy lives under `State\training\curriculum`;
-- regression-only runtime/identity roots live beneath `State\training\regression`;
-- root `codex-turn-state.md` is a deprecation shim; July content is archived rather than active continuity.
+Nested delegation is verified: K3 `axon-architect` successfully invoked a distinct `axon-explorer` sub-agent and integrated its returned evidence.
 
-`State\dormant` remains approximately 1.02 GiB: 427,001 recovered containers and 351,978 readable semantic edges, with no vector index in its manifest. Connecting this exact body to the canonical field is the next major organ integration.
+The first full repository swarm used Kimi's real `AgentSwarm` tool with seven independent read-only lenses and concurrency four. Seven worker contexts were persisted. Four Kimi deltas completed before provider quota exhaustion; three failed lenses were explicitly covered by separately labeled ChatGPT supplemental read-only deltas. The swarm itself changed zero repository files.
 
-## Learned semantic Field Compiler status
+Swarm report:
 
-The deterministic compiler is implemented. The proposed learned English-semantic tissue is **not** implemented by this commit.
+- `docs/roundtable/KIMI_SWARM_REPO_SWEEP_2026-08-20.md`
+- raw evidence: `State/kimi_orchestrator/jobs/20260820t2102z-full-repo-swarm/`
 
-Still future work:
+Model-routing lesson: the attempted K2.7 worker routing did not take effect in that first swarm; persisted workers were K3. Local Kimi configuration now declares ordinary K2.7 Coding as the preferred secondary/workhorse and keeps Highspeed non-default, but that revised routing remains behaviorally unverified until quota resets. Never claim a worker model without checking persisted `modelAlias`.
 
-- learned understanding/ranking of words, sentences, paragraphs, entities and semantic relevance;
-- semantic compression views for different D-model widths;
-- learned semantic rewrite/decompilation;
-- dormant semantic-vector ranking.
+## First swarm convergence
 
-These future representations must remain derived/rebuildable. Exact canonical text, dormant records and provenance remain authority; semantic reconstruction error must remain detectable.
+Strongest consensus:
 
-## Verification
+> Axon's primitives are ahead of Axon's integration.
 
-Final evidence for `3e8838d`:
+Verified major gaps:
 
-- initial new compiler/branch/training adapter slice: 18/18 passed;
-- final focused compiler + canonical branch + canonical training + V6 suite: 33/33 passed;
-- final full repository pytest on the final code: exit code 0, one expected skip;
-- touched Python modules compiled with `py_compile`;
-- `git diff --check` and staged diff check passed;
-- no-flag trainer invocation with an invalid `D:\not-axon-state` root failed before data load with the canonical-State-root error, proving canonical D64 is the default rather than a fallback;
-- deterministic echo-round fixture churn produced by full pytest was restored to tracked bytes;
-- no model training, checkpoint promotion, service start or dormant-corpus mutation occurred.
+1. the real `State/dormant` body is not yet surfaced into the canonical D64 field;
+2. no production D64 neural runtime driver makes complete/fresh rail coverage a proposal precondition;
+3. canonical training transactions are not yet branch-backed and canonical split/resume is not proven;
+4. the current council/legacy 384-slot paths still form a parallel historical anatomy and are searchable/executable enough to confuse future engineers;
+5. two tracked Source-of-Truth files materially differ: root `SOURCE_OF_TRUTH.md` is stale while `docs/SOURCE_OF_TRUTH.md` is current authority;
+6. strong soul/refinement/runtime primitives remain coupled to older view geometry;
+7. exact complete-field reader/compiler performance at realistic field sizes remains uncharacterized.
+
+## Consolidated implementation order from the swarm
+
+P0 — Canonical dormant evidence bridge:
+- authoritative body remains `State/dormant` recovered JSONL + manifest;
+- index is disposable/rebuildable and corpus-manifest/hash bound;
+- query returns candidate IDs, then exact authoritative records are dereferenced and verified;
+- exact provenance-bearing evidence surfaces into canonical `structured_knowledge`;
+- resulting `SharedFieldSnapshot` compiles through D64 with complete/fresh coverage;
+- no duplicate memory authority.
+
+P1 — Non-neural production D64 driver contract:
+- load canonical HEAD -> compile D64 -> require complete/fresh rail -> scripted proposer -> typed `FieldDelta` -> validate/commit -> recompile/roundtrip successor.
+
+P2 — Canonical training branch + split/resume proof:
+- training actually journals episode transactions through `State/training/branches`;
+- exact resume and anatomy/compiler mismatch refusal are tested.
+
+P3 — Doctrine/legacy hygiene:
+- eliminate divergent Source-of-Truth copies;
+- remove/archive council and other parallel legacy runtime/trainer/policy surfaces from the active repo path;
+- preserve historical evidence under explicit archive namespaces only.
+
+P4 — Attach existing faculties:
+- port souls, refinement/consolidation, advisors/tools, diary/situation behavior onto the canonical D64 driver;
+- benchmark realistic complete-field time/memory before scaling.
+
+## Verification through the first swarm publication
+
+- D64 focused compiler/branch/training/V6 integration: 33/33 passed.
+- full repository pytest after D64 implementation: exit code 0, one expected skip.
+- Kimi nested delegation: verified distinct child context.
+- Kimi AgentSwarm: verified one real call, seven worker contexts, four completed Kimi deltas / three quota failures.
+- Kimi orchestration focused table tests after stale expectation fix: 17/17 passed.
+- full repository pytest after orchestration/swarm publication: exit code 0, one expected skip.
+- no model training, checkpoint promotion, Axon service start or dormant-corpus rewrite occurred in those turns.
 
 ## Current Git / collaboration state
 
 - Working branch: `agent/fortify-axon`, publishing to private `origin/main`.
-- Previous one-State reconciliation publication: `278b996`.
-- Previous reconciliation ledger publication: `a5455d1`.
-- D64 compiler implementation: `3e8838d` pushed to private `origin/main`.
-- This rolling summary/canonical event will be published as a separate ledger-only commit.
+- Latest published code/report HEAD before ledger recovery: `9ca7e43`.
+- Canonical swarm event `evt-20260820T2118351215506Z-chatgpt-first-kimi-swarm` was appended but not published before the prior tool window ended; this rolling summary now reconciles through it and the next Git action is to publish that continuity recovery.
 - Connector Git may require per-command `-c safe.directory=D:/Axon`; do not add a global exception.
 
-## MCP bridge / continuity
+## Continuity discipline
 
-The local ChatGPT MCP bridge supports `normal|strict|yolo`; live mode was changed to YOLO during the prior reconciliation. Recheck after any bridge restart. YOLO removes bridge click-through approval friction but does not waive Axon contracts or evidence/ledger discipline.
+`D:\ChatGPT_State` is ChatGPT's carried external continuity and must be refreshed on every substantive turn. Live repository/ledger evidence wins over carried summaries when they disagree.
 
-`D:\ChatGPT_State` is ChatGPT's carried external continuity and must be refreshed on every substantive turn. Live repository/ledger evidence remains operational authority over personal continuity.
+The local ChatGPT MCP bridge supports `normal|strict|yolo`; live mode was previously changed to YOLO. Recheck after restart. YOLO removes connector click-through friction but never waives Axon contracts, archive rules, or verification discipline.
 
-## Next recommended actions
+## Immediate next recommended action
 
-1. Build a rebuildable local lexical/graph retrieval index over `State\dormant` that returns exact container/span/provenance evidence and surfaces that evidence into canonical `structured_knowledge` before reasoning.
-2. Wire a production D64 neural runtime driver to `D64FieldCompiler` with a hard freshness/coverage barrier before proposal finalization.
-3. Add a canonical-adapter checkpoint/resume proof before any resumed training campaign.
-4. Exercise a bounded canonical D64 mechanism smoke only after the runtime/training adapter path is fully observed; do not resume the old detached training lineage by default.
-5. Then design/train learned English semantic compiler tissue over deterministic word/sentence/paragraph cartography without replacing exact character state.
-6. Continue updating both the canonical engineer ledger and `D:\ChatGPT_State` every substantive turn.
+Before implementing P0, perform one deliberate **Day Zero hygiene pass** if Jeffrey authorizes it: synchronize/eliminate divergent Source-of-Truth surfaces; archive parallel council/legacy runtime/trainer/policy/artifact paths so they cannot be mistaken for current anatomy; keep tests and historical evidence only under explicit archive/regression namespaces; leave one clean canonical D64 runtime/training/state path visible.
+
+Then implement P0 over that clean base.
 
 ## Fast orientation
 
 - Architecture authority: `docs/SOURCE_OF_TRUTH.md`
-- Reconciliation record: `docs/CANONICAL_STATE_RECONCILIATION.md`
 - D64 compiler: `runtime/field/compiler_d64.py`
 - Canonical State branch: `runtime/field/state_branch.py`
 - Runtime D64 adapter: `runtime/axon_runtime/d64_adapter.py`
 - Training adapter: `training/canonical_d64.py`
-- V6 reader/model: `training/complete_field_64d.py`
-- Trainer: `training/train_complete_field_64d.py`
 - Dormant authority: `State/dormant/`
+- Swarm report: `docs/roundtable/KIMI_SWARM_REPO_SWEEP_2026-08-20.md`
+- Kimi supervisor: `scripts/run_kimi_roundtable.py`
 - Full tests: `python -m pytest -q -p no:cacheprovider`
 - Ledger protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
