@@ -50,7 +50,13 @@ The active trainer has no detached-record/legacy-anatomy switch. Curriculum JSON
 - `curator/recovered_corpus_builder.py`
 - `curator/semantic_layout_machine.py`
 
-These are offline exact-corpus utilities. The next runtime memory work is a rebuildable retrieval/index bridge that dereferences exact `State/dormant` records into canonical active state; it must not create a second memory authority.
+These are offline exact-corpus utilities.
+
+### Canonical dormant evidence bridge
+
+- `runtime/dormant/evidence_bridge.py`
+
+The bridge builds only disposable lookup metadata beneath `State/dormant/.derived/`: manifest/hash binding, byte offsets/lengths, hashes, compact SHA256 lexical postings, filters, and graph neighbor row references. Exact container/edge text, source strings, and provenance remain authoritative only in the existing JSONL corpus. Candidate stable IDs are dereferenced and verified from those exact bytes before evidence is surfaced into canonical `structured_knowledge` and compiled through D64. `scripts/build_dormant_evidence_index.py` is the canonical rebuild/verify operator entry point and refuses State/index roots outside the one canonical State tree.
 
 ## Engineering infrastructure kept active
 

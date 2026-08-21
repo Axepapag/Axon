@@ -211,6 +211,36 @@ Candidate checkpoints and reproducible run logs belong beneath
 accepted state-bearing artifact into its governed canonical State location with
 explicit provenance.
 
+## Dormant Evidence Bridge
+
+The canonical read-only retrieval/surfacing organ is implemented in
+`runtime/dormant/evidence_bridge.py`. It treats the recovered JSONL files under
+`State/dormant` as the only dormant-memory authority.
+
+Its lexical/graph index is a disposable sense, not a memory body. The derived
+SQLite file may contain only lookup metadata needed for retrieval: stable IDs,
+byte offsets/lengths, hashes, lexical postings, metadata filters, and graph
+neighbor references. Lexical postings should use derived term hashes and local
+integer row references rather than repeating source text or stable IDs per
+posting. It must not copy authoritative container text, semantic-edge text,
+source strings, or provenance strings into index record tables.
+
+Every index build is bound to SHA256 identities for the authoritative dormant
+files plus the recovered source hashes recorded by `corpus_manifest.json`.
+Candidate retrieval returns IDs. Before evidence can enter the shared field,
+the bridge seeks back into the authoritative JSONL, rereads the exact bytes,
+and verifies raw-record hash, record identity, exact text hash, source hash,
+and provenance hash. A changed corpus makes the derived index stale and it
+fails closed until rebuilt.
+
+Selected exact container text is surfaced as provenance-bearing `FieldSpan`
+material in canonical `structured_knowledge`; source container IDs and verified
+semantic-edge IDs remain attached as references. Generated separators are
+explicit runtime spans rather than alterations to dormant text. The resulting
+`SharedFieldSnapshot` must compile through the deterministic D64 compiler with
+complete coverage and exact roundtrip before it is accepted as core-facing
+state. Retrieval/indexing has no reasoning vote and no commit authority.
+
 ## Day Zero active surface
 
 The active implementation surface is intentionally narrow:
@@ -220,6 +250,7 @@ The active implementation surface is intentionally narrow:
 - `runtime/field/compiler_d64.py` ? exact deterministic D64 compiler,
 - `runtime/field/state_branch.py` ? canonical branch persistence,
 - `runtime/axon_runtime/d64_adapter.py` ? runtime-facing D64 adapter,
+- `runtime/dormant/evidence_bridge.py` ? read-only manifest/hash-bound dormant retrieval, exact dereference, and structured-knowledge surfacing,
 - `training/canonical_d64.py`, `training/complete_field_64d.py`, and `training/train_complete_field_64d.py` ? canonical D64 training path,
 - `curator/` recovered-corpus schema/materialization/building utilities ? offline exact dormant-memory tooling,
 

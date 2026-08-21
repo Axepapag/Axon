@@ -21,7 +21,7 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         for path in (ROOT / "runtime").iterdir()
         if path.is_dir() and path.name != "__pycache__"
     }
-    assert runtime_dirs == {"axon_runtime", "field"}
+    assert runtime_dirs == {"axon_runtime", "field", "dormant"}
 
     field_files = {path.name for path in (ROOT / "runtime" / "field").glob("*.py")}
     assert field_files == {
@@ -36,6 +36,9 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         path.name for path in (ROOT / "runtime" / "axon_runtime").glob("*.py")
     }
     assert runtime_files == {"__init__.py", "d64_adapter.py"}
+
+    dormant_files = {path.name for path in (ROOT / "runtime" / "dormant").glob("*.py")}
+    assert dormant_files == {"__init__.py", "evidence_bridge.py"}
 
     training_files = {path.name for path in (ROOT / "training").glob("*.py")}
     assert training_files == {
@@ -95,6 +98,7 @@ def test_active_d64_code_cannot_import_archived_anatomy() -> None:
     roots = (
         ROOT / "runtime" / "field",
         ROOT / "runtime" / "axon_runtime",
+        ROOT / "runtime" / "dormant",
         ROOT / "training",
     )
     for source_root in roots:
