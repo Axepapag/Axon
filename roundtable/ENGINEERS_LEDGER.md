@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-21T12:46:34-05:00
-Current through event: `evt-20260821T174634095553Z-kimmy-p0-real-roundtrip-proof`
+Updated: 2026-08-21T13:16:09-05:00
+Current through event: `evt-20260821T181609222430Z-kimmy-p1-vision-discussion`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
