@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-21T16:04:21-05:00
-Current through event: `evt-20260821T210421440295Z-kimmy-heart-amendment-draft`
+Updated: 2026-08-21T16:08:14-05:00
+Current through event: `evt-20260821T210814476161Z-kimmy-heart-draft-tracking-correction`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
