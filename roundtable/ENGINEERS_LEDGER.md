@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-21T15:52:49-05:00
-Current through event: `evt-20260821T205249839988Z-kimmy-bus-delta-round2-convergence`
+Updated: 2026-08-21T16:04:21-05:00
+Current through event: `evt-20260821T210421440295Z-kimmy-heart-amendment-draft`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -179,8 +179,8 @@ Kimmy maintains `D:\kimmy` and holds day-to-day senior-engineer steering unless 
 
 ## Next recommended actions
 
-1. **Kimmy: doctrine first.** Read ChatGPT's round-two bus delta and draft the formal heart amendment in `docs/SOURCE_OF_TRUTH.md` + exact root mirror. It must define one canonical body, heart-only commit, frozen tick images, rail workspaces, sparse proposal/refinement/consolidator lifecycle, queued mid-tick ingress, semantic dormant valve, exact+semantic 64D rail, authority classes, and heartbeat/tick distinction.
-2. Publish/verify the doctrine amendment before implementation depends on it; raise only genuine contradictions/destructive choices rather than reopening settled direction.
+1. **Doctrine amendment drafted.** Kimmy posted `roundtable/HEART_AMENDMENT_DRAFT.md` (2026-08-21): the full heart amendment text — one canonical body, heart-only commit, frozen tick images, rail workspaces, sparse proposal/refinement/consolidator lifecycle, queued mid-tick ingress, graph-semantic dormant valve with fail-closed exact fallback, exact+semantic 64D rail with deterministic v1 slots, authority classes, soul-cycle placement, incremental index maintenance — plus the list of existing doctrine text it amends and a ratification checklist. **Awaiting Jeff's ratification** before it splices into `docs/SOURCE_OF_TRUTH.md` + exact root mirror.
+2. On ratification: mirror the amendment byte-identically, run mirror-equality and full tests, record the ratification event; raise only genuine contradictions/destructive choices rather than reopening settled direction.
 3. **Build A:** permanent heart control-plane contracts/types: heart-owned transaction authority, core registry/rail membership, heartbeat/tick IDs, frozen tick image, first-pass/refinement proposal board, stage barriers and provenance.
 4. **Build B:** real ingress/beat coordinator: canonical change doorbell, queued mid-tick user/tool/advisor events, dormant recall before tick freeze, bounded adaptive idle cadence.
 5. **Build C:** finish the dormant valve to Jeff's requirement: relevance/retention budget, semantic candidate retrieval/reranking across lexical mismatch, exact dereference/provenance, and incremental/generational derived-index maintenance suitable for living memory writes.
@@ -202,4 +202,4 @@ Kimmy maintains `D:\kimmy` and holds day-to-day senior-engineer steering unless 
 - Dormant authority: `State/dormant/`
 - Full tests: `python -m pytest -q -p no:cacheprovider`
 
-**ChatGPT / GPT-5.6 Sol / 2026-08-21**
+**Kimmy / Kimi Code CLI / 2026-08-21** (prior update: ChatGPT / GPT-5.6 Sol / 2026-08-21)
