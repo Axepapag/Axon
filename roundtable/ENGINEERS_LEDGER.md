@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-20T18:10:00-05:00
-Current through event: `evt-20260820T231000000000Z-chatgpt-timeout-recovery`
+Updated: 2026-08-21T12:21:33-05:00
+Current through event: `evt-20260821T172133985061Z-kimmy-p0-publication`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -10,6 +10,12 @@ Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 Axon is now at a clean **Day Zero** implementation boundary. Parallel historical execution anatomies have been removed from the active import/launch/test surface and preserved as archive evidence.
 
 The next implementation packet is **P0: canonical dormant evidence retrieval/surfacing over the existing `State/dormant` body**. Do not restore an archived runtime/trainer first and do not create a second dormant-memory authority.
+
+**P0 status (2026-08-21, PUBLISHED):** Jeff confirmed on 2026-08-21 that the P0 work was ChatGPT's and fully authorized. ChatGPT's carried state (`D:\ChatGPT_State`) ends at the 18:10 CDT timeout-recovery publication; the entire bridge was implemented 18:48–20:15 CDT on 2026-08-20, and his usage ran out immediately before the real-corpus index build, commit, ledger event, and state refresh. Kimmy verified and published it:
+
+- implementation commit: `2dddc87` — `Implement canonical dormant evidence bridge (P0)` — `runtime/dormant/evidence_bridge.py` (1152 lines), `scripts/build_dormant_evidence_index.py`, `tests/test_dormant_evidence_bridge.py`, hygiene test update, README/DAY_ZERO updates, and the "Dormant Evidence Bridge" doctrine section in both Source of Truth mirrors; pushed to private `origin/main`.
+
+Verified 2026-08-21 (Kimmy): full active suite exit 0, **173 tests passed** (166 Day Zero + 7 bridge); doctrine mirrors byte-identical (SoT `717d2d9a…`, Working Contract `dc946600…`). The real-corpus derived index exists and works: build over the 1.02 GiB corpus took ~10.2 min, indexed 427,001 containers / 351,978 edges into a 4,415,164,416-byte disposable SQLite sense at `State/dormant/.derived/evidence_v1/index.sqlite3` (binding `b1a752f1…`, index `139f4a62…`); `--verify-only` passes; open with full binding re-verification takes 4.35 s; live queries return scored candidates in ~0.3 s with hash-verified exact dereference and readable semantic edges.
 
 ## Binding authority and invariants
 
@@ -43,6 +49,7 @@ The preceding interrupted Kimi-swarm continuity was first completed and publishe
 - `runtime/field/compiler_d64.py`
 - `runtime/field/state_branch.py`
 - `runtime/axon_runtime/d64_adapter.py`
+- `runtime/dormant/evidence_bridge.py` (P0, published `2dddc87`) + operator entry `scripts/build_dormant_evidence_index.py`
 
 No production neural D64 runtime driver exists yet. That absence is explicit.
 
@@ -162,7 +169,7 @@ The first repository swarm report is now historical evidence inside the Day Zero
 
 ## Next actions
 
-1. **P0 canonical dormant evidence bridge**: build derived manifest/hash-bound lexical + graph indexes over existing `State/dormant`, retrieve candidate IDs, dereference/verify exact authoritative records, surface provenance-bearing evidence into `structured_knowledge`, then prove D64 exact roundtrip.
+1. **P0 published**: `2dddc87` carries the dormant evidence bridge; the real-corpus derived index is built and verified. Remaining P0 proof: surface into `structured_knowledge` + D64 exact roundtrip against the **real** built index (currently proven on synthetic fixtures), and refresh `D:\ChatGPT_State` carried state.
 2. **P1 non-neural production D64 driver**: canonical HEAD -> compile -> hard fresh/complete barrier -> scripted proposer -> typed delta -> validate/atomic commit -> successor -> recompile.
 3. **P2 branch-backed training + exact resume**: make training episode transactions use canonical State branches and prove split/resume/anatomy mismatch refusal before substantive training.
 4. Only after the permanent spine exists, port useful soul, multi-core refinement/consolidation, advisor/tool, diary, and situation mechanisms from historical evidence without restoring archived modules wholesale.
@@ -178,6 +185,8 @@ The first repository swarm report is now historical evidence inside the Day Zero
 - D64 compiler: `runtime/field/compiler_d64.py`
 - Canonical branch: `runtime/field/state_branch.py`
 - Runtime adapter: `runtime/axon_runtime/d64_adapter.py`
+- Dormant evidence bridge: `runtime/dormant/evidence_bridge.py`
+- Index operator: `scripts/build_dormant_evidence_index.py`
 - Canonical training adapter: `training/canonical_d64.py`
 - D64 model: `training/complete_field_64d.py`
 - Trainer: `training/train_complete_field_64d.py`
@@ -186,4 +195,4 @@ The first repository swarm report is now historical evidence inside the Day Zero
 - Local historical archive: `State/archive/day_zero_legacy_20260820/`
 - Full active tests: `python -m pytest -q -p no:cacheprovider`
 
-**ChatGPT / GPT-5.6 Sol / 2026-08-20**
+**Kimmy / Kimi Code CLI / 2026-08-21** (prior update: ChatGPT / GPT-5.6 Sol / 2026-08-20)
