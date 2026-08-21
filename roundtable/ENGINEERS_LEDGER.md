@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-21T17:27:55-05:00
-Current through event: `evt-20260821T222755580056Z-kimmy-heart-amendment-ratified`
+Updated: 2026-08-21T17:53:39-05:00
+Current through event: `evt-20260821T225339086746Z-kimmy-build-a-heart-control-plane`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -41,6 +41,7 @@ Active canonical field/runtime:
 - `runtime/field/state_branch.py`
 - `runtime/axon_runtime/d64_adapter.py`
 - `runtime/dormant/evidence_bridge.py`
+- `runtime/heart/` (authority, registry, tick, board, transaction — Build A, `63b8106`)
 
 Active canonical D64 training:
 
@@ -182,8 +183,8 @@ Kimmy maintains `D:\kimmy` and holds day-to-day senior-engineer steering unless 
 
 1. ~~Revise and land heart doctrine~~ **DONE 2026-08-21 (`b0fcb85`)**: wording corrections applied, Jeff's primitive-but-real/runtime-first rulings incorporated, amendment spliced into both SoT mirrors (SHA256 `D35A0FA9…`).
 2. ~~Mirror equality, doctrine/hygiene tests, full suite, doctrine event~~ **DONE**: full suite exit 0 with zero failures (mirror equality enforced); event `evt-20260821T222755580056Z-kimmy-heart-amendment-ratified`.
-3. **Build A only:** permanent heart control-plane contracts/types: heart-owned transaction authority, core registry/rail membership, heartbeat/tick IDs, frozen tick image, first-pass/refinement proposal board, stage barriers and provenance. Prove these contracts with real state and tests before advancing.
-4. **Build B later:** real ingress/beat coordinator: canonical change doorbell, queued mid-tick user/tool/advisor events, dormant recall before tick freeze, bounded adaptive idle cadence.
+3. ~~**Build A only:** permanent heart control-plane contracts/types~~ **DONE 2026-08-21 (`63b8106`)**: `runtime/heart/` — authority-class matrix, core registry, monotonic heartbeat/tick identity, frozen tick image, noncanonical proposal board with barriers/accounting, heart transaction boundary committing through the existing canonical delta machinery. Focused 20 passed; full suite 187 passed, exit 0. Advisory flag: delta.py's bootstrap region seal (scratch/response_draft) still gates actual commits; widening is a deliberate table decision when an organ needs the write.
+4. **Build B (next):** real ingress/beat coordinator: canonical change doorbell, queued mid-tick user/tool/advisor events, dormant recall before tick freeze, bounded adaptive idle cadence.
 5. **Build C later:** mature the dormant valve from its first real graph-semantic/relevance mechanism toward stronger recall quality, retention budgets and incremental/generational derived-index maintenance. Poor initial precision/recall is acceptable; fake semantics are not.
 6. **Build D later:** dual-surface 64D rail: exact source-mapped scaffold plus derived semantic word/phrase/sentence/concept/edge slots, all bound to the frozen canonical base and proposal workspace.
 7. **Build E later:** attach real 64D cores/souls to the permanent tick path: sparse initial proposals -> all-proposal visibility -> soul exhale/inhale -> sparse refinement -> rotating consolidator proposal -> heart validation/atomic commit -> successor field -> next heartbeat.
