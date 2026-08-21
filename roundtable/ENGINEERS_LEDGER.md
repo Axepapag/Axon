@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-21T17:53:39-05:00
-Current through event: `evt-20260821T225339086746Z-kimmy-build-a-heart-control-plane`
+Updated: 2026-08-21T18:05:42-05:00
+Current through event: `evt-20260821T230542808192Z-chatgpt-build-a-supervision`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -11,7 +11,7 @@ Axon remains at the clean Day Zero boundary, now with **P0 dormant evidence retr
 
 Current engineering focus is **not** the old scripted/non-neural P1 skeleton. Jeff's newer directive supersedes it: build one real organ at a time, no scripted/fake organs, with the **64D Field Compiler Organ / heart** next. Heartbeat is its own cadence and is distinct from a cognitive tick.
 
-Jeff has ruled the heart authority/tick questions and the project is now cleared to move from convergence into doctrine landing and Build A. Settled direction: exactly one canonical shared field; only the heart validates/materializes/commits canonical mutations; ordinary cores and the rotating consolidator emit sparse proposed edits; a cognitive tick freezes one canonical base field_id; per-d_model rails expose derived immutable field representation plus a noncanonical proposal/refinement workspace; mid-tick external/tool/advisor arrivals queue for the next heartbeat; semantic dormant relevance is part of the first 64D heart; and the 64D rail preserves exact grounding while adding semantic word/phrase/sentence/concept/edge slots. Kimmy declared convergence and drafted `roundtable/HEART_AMENDMENT_DRAFT.md`. ChatGPT's supervision pass found the draft on track and gave two authority-wording corrections before doctrine lands: other organs may originate/submit proposed mutations, but only the heart changes canonical reality; ingress therefore submits heart-governed mutations rather than writing regions itself. Jeff also ruled **primitive but real is acceptable; fake is not**: a working but noisy graph-semantic valve may ship and improve later if it is real permanent anatomy, observable/testable, and its limitations stay explicit. Runtime anatomy comes before substantive core training; cores are neural/intelligence organs that must learn to operate inside the organism rather than substitute for the organism.
+Heart doctrine is now ratified (`b0fcb85`) and Kimmy published Build A (`63b8106`), but ChatGPT's independent supervision found **Build A is not complete yet**. The architecture is sound and the full suite passes 187 tests, but adversarial probes reproduced three transaction-boundary violations: an ordinary core proposal can commit directly between ticks; a consolidator can commit against a different base while another tick is open if optional `tick=` is omitted; and a successful consolidator commit does not atomically consume the open tick, allowing two divergent successor commits from one frozen tick. `FrozenTickImage.from_compiled()` also accepts a real `CompiledD64Field` mislabeled as d_model 128, violating the 64D-first/no-fake-wider-rails boundary. Build A.1 hardening is therefore the immediate blocker before Build B. Jeff's primitive-but-real/runtime-first rulings remain binding: semantic quality may be weak and improve later, but authority/frozen-tick anatomy must be real and fail closed before circulation advances.
 
 ## Binding authority and invariants
 
@@ -183,12 +183,14 @@ Kimmy maintains `D:\kimmy` and holds day-to-day senior-engineer steering unless 
 
 1. ~~Revise and land heart doctrine~~ **DONE 2026-08-21 (`b0fcb85`)**: wording corrections applied, Jeff's primitive-but-real/runtime-first rulings incorporated, amendment spliced into both SoT mirrors (SHA256 `D35A0FA9…`).
 2. ~~Mirror equality, doctrine/hygiene tests, full suite, doctrine event~~ **DONE**: full suite exit 0 with zero failures (mirror equality enforced); event `evt-20260821T222755580056Z-kimmy-heart-amendment-ratified`.
-3. ~~**Build A only:** permanent heart control-plane contracts/types~~ **DONE 2026-08-21 (`63b8106`)**: `runtime/heart/` — authority-class matrix, core registry, monotonic heartbeat/tick identity, frozen tick image, noncanonical proposal board with barriers/accounting, heart transaction boundary committing through the existing canonical delta machinery. Focused 20 passed; full suite 187 passed, exit 0. Advisory flag: delta.py's bootstrap region seal (scratch/response_draft) still gates actual commits; widening is a deliberate table decision when an organ needs the write.
-4. **Build B (next):** real ingress/beat coordinator: canonical change doorbell, queued mid-tick user/tool/advisor events, dormant recall before tick freeze, bounded adaptive idle cadence.
-5. **Build C later:** mature the dormant valve from its first real graph-semantic/relevance mechanism toward stronger recall quality, retention budgets and incremental/generational derived-index maintenance. Poor initial precision/recall is acceptable; fake semantics are not.
-6. **Build D later:** dual-surface 64D rail: exact source-mapped scaffold plus derived semantic word/phrase/sentence/concept/edge slots, all bound to the frozen canonical base and proposal workspace.
-7. **Build E later:** attach real 64D cores/souls to the permanent tick path: sparse initial proposals -> all-proposal visibility -> soul exhale/inhale -> sparse refinement -> rotating consolidator proposal -> heart validation/atomic commit -> successor field -> next heartbeat.
-8. **Training follows organism anatomy.** Only after the 64D runtime/tick path is real and proven should substantive core training begin; train the cores to operate as Axon organs inside that path. Wider rails and additional faculties follow incrementally.
+3. **Build A.1 — BLOCKER before B:** harden `HeartTransactionBoundary` so CORE proposals are never commit-capable; CONSOLIDATOR may commit only one matching in-flight tick/frozen base and successful commit atomically consumes/closes that tick; ingress/dormant commits remain between-tick only. Add regression tests for direct-core commit rejection, omitted/mismatched tick rejection, and duplicate-final-commit rejection.
+4. **Build A.1 rail guardrail:** reject any `CompiledD64Field` labeled as a non-64 d_model until a genuine wider rail implementation exists. No fake 128/256/512/1024 labels.
+5. **Build A.1 doctrine truth cleanup:** add `runtime/heart/` to the Source-of-Truth active implementation surface; state incremental dormant indexing as a required future/live-memory capability rather than already implemented; allow future learned semantic improvement to strengthen the 64D heart itself instead of binding trained semantics exclusively to wider rails.
+6. **Build B after A.1 is green:** real ingress/beat coordinator: heart-owned user/tool/advisor queue -> governed between-tick ingress commit -> change detection -> primitive existing P0 dormant recall/materialization -> canonical stabilization -> exact D64 compile/freeze -> tick image. Weak-but-real graph semantics are acceptable; do not wait for semantic perfection.
+7. **Build C later:** mature dormant recall quality, retention budgets, semantic senses and incremental/generational index maintenance after real Build B circulation works.
+8. **Build D later:** dual-surface 64D rail semantic slots bound to exact source spans; no wider rail until 64D is proven.
+9. **Build E later:** attach real 64D cores/souls to the permanent tick path: sparse initial proposals -> all-proposal visibility -> soul exhale/inhale -> sparse refinement -> rotating consolidator proposal -> one heart commit -> successor field -> next heartbeat.
+10. **Training follows organism anatomy.** Only after the 64D runtime/tick path is real and proven should substantive core training begin; train the cores to operate as Axon organs inside that path.
 
 ## Fast orientation
 
@@ -204,4 +206,4 @@ Kimmy maintains `D:\kimmy` and holds day-to-day senior-engineer steering unless 
 - Dormant authority: `State/dormant/`
 - Full tests: `python -m pytest -q -p no:cacheprovider`
 
-**Kimmy / Kimi Code CLI / 2026-08-21** (prior update: ChatGPT / GPT-5.6 Sol / 2026-08-21)
+**ChatGPT / GPT-5.6 Sol / 2026-08-21** (prior update: Kimmy / Kimi Code CLI / 2026-08-21)
