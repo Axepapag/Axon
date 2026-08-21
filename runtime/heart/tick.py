@@ -1,0 +1,246 @@
+"""Heartbeat cadence, tick identity, and the frozen per-tick image.
+
+The heartbeat is the heart's own cadence, distinct from a cognitive tick.
+Identities issued here are strictly monotonic and every tick is bound to
+exactly one frozen canonical base ``field_id``.  A ``FrozenTickImage`` is a
+derived, immutable projection of that base: it carries rail references, never
+second canonical state.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any, Iterable, Mapping
+
+from runtime.field import (
+    CompiledD64Field,
+    SharedFieldSnapshot,
+    canonical_sha256,
+)
+
+from .errors import HeartbeatError, StaleRailBindingError
+
+TICK_IDENTITY_SCHEMA = "axon-heart-tick-identity-v1"
+TICK_IMAGE_SCHEMA = "axon-heart-frozen-tick-image-v1"
+
+
+@dataclass(frozen=True, slots=True)
+class TickIdentity:
+    """One tick bound to exactly one frozen canonical base field."""
+
+    tick_sequence: int
+    heartbeat_id: int
+    base_field_id: str
+    base_tick_id: int
+
+    def __post_init__(self) -> None:
+        for name in ("tick_sequence", "heartbeat_id", "base_tick_id"):
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise TypeError(f"TickIdentity.{name} must be an integer")
+        if self.tick_sequence < 1:
+            raise ValueError("TickIdentity.tick_sequence must be >= 1")
+        if self.heartbeat_id < 1:
+            raise ValueError("TickIdentity.heartbeat_id must be >= 1")
+        if self.base_tick_id < 0:
+            raise ValueError("TickIdentity.base_tick_id must be non-negative")
+        if not isinstance(self.base_field_id, str) or not self.base_field_id:
+            raise ValueError("TickIdentity.base_field_id must be non-empty")
+
+    def to_canonical_dict(self) -> dict[str, Any]:
+        return {
+            "schema": TICK_IDENTITY_SCHEMA,
+            "tick_sequence": self.tick_sequence,
+            "heartbeat_id": self.heartbeat_id,
+            "base_field_id": self.base_field_id,
+            "base_tick_id": self.base_tick_id,
+        }
+
+    @property
+    def tick_uid(self) -> str:
+        return canonical_sha256(self.to_canonical_dict())
+
+
+class HeartbeatClock:
+    """Issues strictly monotonic heartbeat ids and tick identities."""
+
+    def __init__(self) -> None:
+        self._heartbeat_id = 0
+        self._tick_sequence = 0
+
+    @property
+    def heartbeat_id(self) -> int:
+        return self._heartbeat_id
+
+    @property
+    def tick_sequence(self) -> int:
+        return self._tick_sequence
+
+    def beat(self) -> int:
+        """Advance the heartbeat cadence and return the new heartbeat id."""
+
+        self._heartbeat_id += 1
+        return self._heartbeat_id
+
+    def open_tick(self, base: SharedFieldSnapshot) -> TickIdentity:
+        """Freeze ``base`` as the canonical base of the next tick."""
+
+        if not isinstance(base, SharedFieldSnapshot):
+            raise TypeError("HeartbeatClock.open_tick requires SharedFieldSnapshot")
+        self._heartbeat_id += 1
+        self._tick_sequence += 1
+        return TickIdentity(
+            tick_sequence=self._tick_sequence,
+            heartbeat_id=self._heartbeat_id,
+            base_field_id=base.field_id,
+            base_tick_id=base.tick_id,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class RailBinding:
+    """A reference to one compiled rail bound to the frozen base field."""
+
+    d_model: int
+    rail_id: str
+    source_field_id: str
+    source_tick_id: int
+
+    def __post_init__(self) -> None:
+        if isinstance(self.d_model, bool) or not isinstance(self.d_model, int):
+            raise TypeError("RailBinding.d_model must be an integer")
+        if self.d_model <= 0:
+            raise ValueError("RailBinding.d_model must be positive")
+        if isinstance(self.source_tick_id, bool) or not isinstance(
+            self.source_tick_id, int
+        ):
+            raise TypeError("RailBinding.source_tick_id must be an integer")
+        if self.source_tick_id < 0:
+            raise ValueError("RailBinding.source_tick_id must be non-negative")
+        if not isinstance(self.rail_id, str) or not self.rail_id:
+            raise ValueError("RailBinding.rail_id must be non-empty")
+        if not isinstance(self.source_field_id, str) or not self.source_field_id:
+            raise ValueError("RailBinding.source_field_id must be non-empty")
+
+    def to_canonical_dict(self) -> dict[str, Any]:
+        return {
+            "d_model": self.d_model,
+            "rail_id": self.rail_id,
+            "source_field_id": self.source_field_id,
+            "source_tick_id": self.source_tick_id,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class FrozenTickImage:
+    """Derived, immutable per-tick projection bound to one frozen base.
+
+    The image carries rail *references* only.  It is never canonical state
+    and holds no commit authority.
+    """
+
+    identity: TickIdentity
+    rails: tuple[RailBinding, ...]
+    image_id: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.identity, TickIdentity):
+            raise TypeError("FrozenTickImage.identity must be a TickIdentity")
+        rails = tuple(self.rails)
+        if not rails:
+            raise HeartbeatError("FrozenTickImage requires at least one rail")
+        if not all(isinstance(rail, RailBinding) for rail in rails):
+            raise TypeError("FrozenTickImage.rails must contain RailBinding values")
+        d_models = [rail.d_model for rail in rails]
+        if len(d_models) != len(set(d_models)):
+            raise HeartbeatError("FrozenTickImage rails must have unique d_model values")
+        rails = tuple(sorted(rails, key=lambda rail: rail.d_model))
+        for rail in rails:
+            if (
+                rail.source_field_id != self.identity.base_field_id
+                or rail.source_tick_id != self.identity.base_tick_id
+            ):
+                raise StaleRailBindingError(
+                    f"rail d_model={rail.d_model} is not bound to the frozen "
+                    f"base field {self.identity.base_field_id!r}"
+                )
+        object.__setattr__(self, "rails", rails)
+        object.__setattr__(
+            self,
+            "image_id",
+            canonical_sha256(self.to_canonical_dict()),
+        )
+
+    def to_canonical_dict(self) -> dict[str, Any]:
+        return {
+            "schema": TICK_IMAGE_SCHEMA,
+            "identity": self.identity.to_canonical_dict(),
+            "rails": [rail.to_canonical_dict() for rail in self.rails],
+        }
+
+    @property
+    def base_field_id(self) -> str:
+        return self.identity.base_field_id
+
+    def rail_for(self, d_model: int) -> RailBinding | None:
+        for rail in self.rails:
+            if rail.d_model == d_model:
+                return rail
+        return None
+
+    def require_rail(self, d_model: int) -> RailBinding:
+        rail = self.rail_for(d_model)
+        if rail is None:
+            raise HeartbeatError(
+                f"tick image has no rail binding for d_model {d_model}"
+            )
+        return rail
+
+    @classmethod
+    def from_compiled(
+        cls,
+        identity: TickIdentity,
+        rails: Mapping[int, CompiledD64Field] | Iterable[tuple[int, CompiledD64Field]],
+    ) -> "FrozenTickImage":
+        """Bind compiled D64 rail references to one frozen tick identity."""
+
+        if not isinstance(identity, TickIdentity):
+            raise TypeError("FrozenTickImage.from_compiled requires a TickIdentity")
+        items = (
+            tuple(rails.items())
+            if isinstance(rails, Mapping)
+            else tuple(rails)
+        )
+        bindings: list[RailBinding] = []
+        for d_model, compiled in items:
+            if not isinstance(compiled, CompiledD64Field):
+                raise TypeError(
+                    "FrozenTickImage rails must be CompiledD64Field values"
+                )
+            if (
+                compiled.source_field_id != identity.base_field_id
+                or compiled.source_tick_id != identity.base_tick_id
+            ):
+                raise StaleRailBindingError(
+                    f"compiled rail d_model={d_model} is stale for tick "
+                    f"{identity.tick_sequence}: not bound to base field "
+                    f"{identity.base_field_id!r}"
+                )
+            bindings.append(
+                RailBinding(
+                    d_model=d_model,
+                    rail_id=compiled.rail_id,
+                    source_field_id=compiled.source_field_id,
+                    source_tick_id=compiled.source_tick_id,
+                )
+            )
+        return cls(identity=identity, rails=tuple(bindings))
+
+
+__all__ = [
+    "TICK_IDENTITY_SCHEMA",
+    "TICK_IMAGE_SCHEMA",
+    "TickIdentity",
+    "HeartbeatClock",
+    "RailBinding",
+    "FrozenTickImage",
+]
