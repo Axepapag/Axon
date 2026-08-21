@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-21T13:16:09-05:00
-Current through event: `evt-20260821T181609222430Z-kimmy-p1-vision-discussion`
+Updated: 2026-08-21T13:58:59-05:00
+Current through event: `evt-20260821T185859370403Z-kimmy-heart-doctrine-and-bus`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -167,14 +167,24 @@ Supervised Kimi orchestration remains available. Current intended usage policy:
 
 The first repository swarm report is now historical evidence inside the Day Zero archive.
 
+## Standing directives from Jeff (2026-08-21)
+
+- `D:\Axon\roundtable` is the engineering team communication bus; `roundtable/ENGINE_TEAM_BUS.md` is live. Kimmy holds senior-engineer steering (monitor/collaborate/steer all agents).
+- Kimmy maintains her own state at `d:\kimmy`; ChatGPT_State is no longer refreshed by others — Jeff lets ChatGPT catch up himself.
+- **Never** introduce scripted/fake organs into Axon. One organ at a time; if an organ does not work, the project does not move forward.
+- Heartbeat != tick: the Field Compiler Organ is the heart on its own cadence (pump of information in/out, roundtrip); a tick is a full deliberation round ending in a consolidator decision.
+- The heart's duties: detect shared-field change; recall semantically related dormant evidence; decompose exact characters into words/sentences/paragraphs/concepts; attach semantic edges; maintain one rail per d_model core size — **64D first**, dialed in, then 128/256/512/1024 trained in sequence.
+- Jeff is contemplating specialized cores (region/domain focus, partial deltas) — a doctrine amendment to be formalized only after the 64D heart works.
+
 ## Next actions
 
-1. **P0 complete**: `2dddc87` carries the dormant evidence bridge; `7a3d4a1` adds `scripts/verify_dormant_evidence_real_index.py`, which proves query -> exact dereference -> `structured_knowledge` -> D64 exact roundtrip against the **real** built index (3/3 queries, all checks green, 2026-08-21). P0 is done.
-2. **P1 non-neural production D64 driver**: canonical HEAD -> compile -> hard fresh/complete barrier -> scripted proposer -> typed delta -> validate/atomic commit -> successor -> recompile.
-3. **P2 branch-backed training + exact resume**: make training episode transactions use canonical State branches and prove split/resume/anatomy mismatch refusal before substantive training.
-4. Only after the permanent spine exists, port useful soul, multi-core refinement/consolidation, advisor/tool, diary, and situation mechanisms from historical evidence without restoring archived modules wholesale.
-5. Benchmark realistic complete-field time/memory before model scale or learned semantic-compiler training.
-6. Refresh both engineer ledger and `D:\ChatGPT_State` on every substantive turn.
+1. **P0 complete**: `2dddc87` carries the dormant evidence bridge; `7a3d4a1` adds `scripts/verify_dormant_evidence_real_index.py`, which proves query -> exact dereference -> `structured_knowledge` -> D64 exact roundtrip against the **real** built index (3/3 queries, all checks green, 2026-08-21).
+2. **The heart (Field Compiler Organ), 64D first**: own-cadence beat loop; intake of real external input on the next beat; change detection via field freshness; evidence-bridge recall seeded by the change; deterministic structural decomposition (words/sentences/paragraphs) plus semantic edges; fresh 64D rail per beat; delta collection and proposal visibility; consolidator decision ends the tick. No scripted/fake organs. Pending Jeff's rulings on the open design points from the 2026-08-21 discussion.
+3. **Then 128/256/512/1024 rails**, each trained and dialed in sequence, only after the 64D heart works.
+4. **P2 branch-backed training + exact resume**: canonical State branches and split/resume/anatomy-mismatch refusal before substantive training.
+5. Only after the permanent spine exists, port useful soul, multi-core refinement/consolidation, advisor/tool, diary, and situation mechanisms from historical evidence without restoring archived modules wholesale.
+6. Benchmark realistic complete-field time/memory before model scale or learned semantic-compiler training.
+7. Refresh the engineer ledger every substantive turn; Kimmy maintains her own state at `d:\kimmy`.
 
 ## Fast orientation
 
