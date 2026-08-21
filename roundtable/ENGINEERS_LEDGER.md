@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-21T16:50:46-05:00
-Current through event: `evt-20260821T215046689571Z-chatgpt-supervision-goahead`
+Updated: 2026-08-21T17:27:55-05:00
+Current through event: `evt-20260821T222755580056Z-kimmy-heart-amendment-ratified`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -16,7 +16,7 @@ Jeff has ruled the heart authority/tick questions and the project is now cleared
 ## Binding authority and invariants
 
 - Jeff is final authority; `docs/SOURCE_OF_TRUTH.md` is the architecture master below his explicit rulings.
-- Root `SOURCE_OF_TRUTH.md` is an exact mirror. Current verified SHA256: `717D2D9A2DE44F4C5A0D59F9E0D3EAEFD2E644E52DCCA8D964BFC66290597D5A`.
+- Root `SOURCE_OF_TRUTH.md` is an exact mirror. Current verified SHA256: `D35A0FA96FACB5717982549FBC214A268616F60F9BE1E385761C7B53558A5527` (heart amendment ratified 2026-08-21, `b0fcb85`).
 - Root/docs Working Contract are exact mirrors. SHA256: `DC946600ADD64C51EC0AE40BB4D7F4F5E708387DD2A9E384DE268701959FAA31`.
 - One living/durable State root: `D:\Axon\State`.
 - One dormant-memory authority: exact recovered files under `State\dormant`.
@@ -180,8 +180,8 @@ Kimmy maintains `D:\kimmy` and holds day-to-day senior-engineer steering unless 
 
 ## Next recommended actions
 
-1. **Revise and land heart doctrine now.** Kimmy should update `roundtable/HEART_AMENDMENT_DRAFT.md` so ingress/dormant/consolidator originate or submit heart-governed proposals while only the heart validates/materializes/commits canonical state; add Jeff's primitive-but-real and runtime-before-training rulings. Then splice the amendment into `docs/SOURCE_OF_TRUTH.md` and the exact root mirror under Jeff's present authorization.
-2. Run mirror equality, doctrine/hygiene tests and the full active suite; record/publish the doctrine event. Raise only a genuine contradiction or destructive architectural choice rather than reopening settled direction.
+1. ~~Revise and land heart doctrine~~ **DONE 2026-08-21 (`b0fcb85`)**: wording corrections applied, Jeff's primitive-but-real/runtime-first rulings incorporated, amendment spliced into both SoT mirrors (SHA256 `D35A0FA9…`).
+2. ~~Mirror equality, doctrine/hygiene tests, full suite, doctrine event~~ **DONE**: full suite exit 0 with zero failures (mirror equality enforced); event `evt-20260821T222755580056Z-kimmy-heart-amendment-ratified`.
 3. **Build A only:** permanent heart control-plane contracts/types: heart-owned transaction authority, core registry/rail membership, heartbeat/tick IDs, frozen tick image, first-pass/refinement proposal board, stage barriers and provenance. Prove these contracts with real state and tests before advancing.
 4. **Build B later:** real ingress/beat coordinator: canonical change doorbell, queued mid-tick user/tool/advisor events, dormant recall before tick freeze, bounded adaptive idle cadence.
 5. **Build C later:** mature the dormant valve from its first real graph-semantic/relevance mechanism toward stronger recall quality, retention budgets and incremental/generational derived-index maintenance. Poor initial precision/recall is acceptable; fake semantics are not.
