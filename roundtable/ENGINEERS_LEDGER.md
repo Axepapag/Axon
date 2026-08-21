@@ -1,208 +1,199 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-21T13:58:59-05:00
-Current through event: `evt-20260821T185859370403Z-kimmy-heart-doctrine-and-bus`
+Updated: 2026-08-21T14:31:12.2086537-05:00
+Current through event: `evt-20260821T193112208654Z-chatgpt-cross-session-drift-audit`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
 ## Current mission state
 
-Axon is now at a clean **Day Zero** implementation boundary. Parallel historical execution anatomies have been removed from the active import/launch/test surface and preserved as archive evidence.
+Axon remains at the clean Day Zero boundary, now with **P0 dormant evidence retrieval/surfacing complete and proven against the real recovered corpus**.
 
-The next implementation packet is **P0: canonical dormant evidence retrieval/surfacing over the existing `State/dormant` body**. Do not restore an archived runtime/trainer first and do not create a second dormant-memory authority.
+Current engineering focus is **not** the old scripted/non-neural P1 skeleton. Jeff's newer directive supersedes it: build one real organ at a time, no scripted/fake organs, with the **64D Field Compiler Organ / heart** next. Heartbeat is its own cadence and is distinct from a cognitive tick.
 
-**P0 status (2026-08-21, PUBLISHED):** Jeff confirmed on 2026-08-21 that the P0 work was ChatGPT's and fully authorized. ChatGPT's carried state (`D:\ChatGPT_State`) ends at the 18:10 CDT timeout-recovery publication; the entire bridge was implemented 18:48–20:15 CDT on 2026-08-20, and his usage ran out immediately before the real-corpus index build, commit, ledger event, and state refresh. Kimmy verified and published it:
-
-- implementation commit: `2dddc87` — `Implement canonical dormant evidence bridge (P0)` — `runtime/dormant/evidence_bridge.py` (1152 lines), `scripts/build_dormant_evidence_index.py`, `tests/test_dormant_evidence_bridge.py`, hygiene test update, README/DAY_ZERO updates, and the "Dormant Evidence Bridge" doctrine section in both Source of Truth mirrors; pushed to private `origin/main`.
-
-Verified 2026-08-21 (Kimmy): full active suite exit 0, **173 tests passed** (166 Day Zero + 7 bridge); doctrine mirrors byte-identical (SoT `717d2d9a…`, Working Contract `dc946600…`). The real-corpus derived index exists and works: build over the 1.02 GiB corpus took ~10.2 min, indexed 427,001 containers / 351,978 edges into a 4,415,164,416-byte disposable SQLite sense at `State/dormant/.derived/evidence_v1/index.sqlite3` (binding `b1a752f1…`, index `139f4a62…`); `--verify-only` passes; open with full binding re-verification takes 4.35 s; live queries return scored candidates in ~0.3 s with hash-verified exact dereference and readable semantic edges.
+Before heart implementation chooses unresolved behavior, the newer heart directive needs explicit reconciliation with `docs/SOURCE_OF_TRUTH.md` on semantic scope and several runtime mechanics.
 
 ## Binding authority and invariants
 
-- Architecture master: `docs/SOURCE_OF_TRUTH.md`.
-- Root `SOURCE_OF_TRUTH.md` is an exact compatibility mirror; tests enforce equality.
-- Root/docs Working Contract files are also exact byte mirrors.
+- Jeff is final authority; `docs/SOURCE_OF_TRUTH.md` is the architecture master below his explicit rulings.
+- Root `SOURCE_OF_TRUTH.md` is an exact mirror. Current verified SHA256: `717D2D9A2DE44F4C5A0D59F9E0D3EAEFD2E644E52DCCA8D964BFC66290597D5A`.
+- Root/docs Working Contract are exact mirrors. SHA256: `DC946600ADD64C51EC0AE40BB4D7F4F5E708387DD2A9E384DE268701959FAA31`.
 - One living/durable State root: `D:\Axon\State`.
 - One dormant-memory authority: exact recovered files under `State\dormant`.
+- The derived SQLite evidence index is a disposable lookup sense, not a second memory body.
 - Exact visible text remains grounded in the frozen 16D character substrate.
-- The deterministic D64 compiler is authority-free: compile/cartography/coverage/freshness/provenance only.
-- Cores/consolidation may reason/propose; typed delta validation and canonical transaction remain the commit boundary.
-- A smoke may be small in content/compute; its core-facing anatomy may not be fake or truncated.
-- Archived code/state is evidence only and is never an implicit fallback.
+- D64 compiler output is derived/authority-free; reasoning/consolidation proposes and typed validation/transaction owns commit.
+- Archived Day Zero code/state is evidence only, never implicit fallback.
+- A smoke may be small; its anatomy may not be fake.
 
-## Day Zero publication
+## Day Zero / active surface
 
-Cleanup implementation commit:
+Cleanup implementation: `7db5e37` (`Establish clean Day Zero repository`).
 
-- `7db5e37` — `Establish clean Day Zero repository` — pushed to private `origin/main`.
+Tracked historical implementation: `archive/day_zero_legacy_2026-08-20/`.
+Local historical artifacts: `State/archive/day_zero_legacy_20260820/`.
 
-The preceding interrupted Kimi-swarm continuity was first completed and published as:
-
-- `9116ca7` — `Publish first Kimi swarm continuity`.
-
-## Active Day Zero implementation surface
-
-### Canonical field/runtime
+Active canonical field/runtime:
 
 - `runtime/field/schema.py`
 - `runtime/field/delta.py`
 - `runtime/field/compiler_d64.py`
 - `runtime/field/state_branch.py`
 - `runtime/axon_runtime/d64_adapter.py`
-- `runtime/dormant/evidence_bridge.py` (P0, published `2dddc87`) + operator entry `scripts/build_dormant_evidence_index.py`
+- `runtime/dormant/evidence_bridge.py`
 
-No production neural D64 runtime driver exists yet. That absence is explicit.
-
-### Canonical D64 training
+Active canonical D64 training:
 
 - `training/canonical_d64.py`
 - `training/complete_field_64d.py`
 - `training/train_complete_field_64d.py`
 
-The trainer is canonical-only:
+Offline exact dormant construction/audit utilities remain in `curator/`.
 
-- no `--legacy-record-direct`;
-- no `--canonical-d64` compatibility flag;
-- no active detached `forward_transaction` / `run_transaction` path;
-- no active `CompleteFieldPager` coverage authority;
-- core reads enter through a canonical compiled D64 rail;
-- State root must resolve exactly to `D:\Axon\State`;
-- run/checkpoint directory must resolve beneath `State\training\runs`.
-
-Day Zero begins with no pre-authorized live curriculum/run lineage.
-
-### Dormant construction/audit utilities kept active
-
-- `curator/container_schema.py`
-- `curator/dormant_materializer.py`
-- `curator/recovered_corpus_builder.py`
-- `curator/semantic_layout_machine.py`
-
-These are offline exact-corpus utilities, not a second cognitive runtime.
-
-### Engineering orchestration kept active
+Engineering coordination/workforce:
 
 - `.agents/agents/`
 - `scripts/run_kimi_roundtable.py`
 - `scripts/run_supervised_kimi_packet.py`
+- `roundtable/ENGINE_TEAM_BUS.md`
 
-Kimi remains supervised workforce, never Axon publication/ledger/commit authority.
+No production neural D64 reasoning driver exists yet.
 
-## Historical archive boundary
+## P0 dormant evidence bridge — COMPLETE
 
-Tracked historical implementation is consolidated at:
+Implementation publication:
 
-`archive/day_zero_legacy_2026-08-20/`
+- `2dddc87` — `Implement canonical dormant evidence bridge (P0)`.
+- `d9fa520` — P0 ledger publication.
 
-It includes the former council body, old cores/souls, ExactV4/bootstrap/identity-v2/v3 runtime stacks, projections, 384-slot field/view/schedule paths, runtime bus/table, tick/refiner/proposer paths, legacy trainers/curricula/soul pilots, old launchers/scripts, ops/Kaggle/review packages, superseded docs/packets, and their dedicated tests/fixtures.
+Real-corpus proof publication:
 
-Local/ignored historical artifacts are preserved at:
+- `7a3d4a1` — `Add real-corpus dormant evidence roundtrip proof`.
+- `661b43f` — proof ledger publication.
 
-`State/archive/day_zero_legacy_20260820/`
+Real derived index:
 
-Measured preserved history includes:
+- `State/dormant/.derived/evidence_v1/index.sqlite3`
+- 4,415,164,416 bytes
+- 427,001 containers
+- 351,978 edges
+- index ID `139f4a6268e7c500378426e804a11e2d8ec847c52d4b00b464dab168c9d2c330`.
 
-- runs: 514 files / 23,391,642,821 bytes;
-- datasets: 113 / 5,615,635,115 bytes;
-- generated distributions: 2,261 / 105,718,043,852 bytes;
-- checkpoints: 2 / 203,050,854 bytes;
-- training curricula: 36 / 39,030,916 bytes;
-- Kaggle staging: 4 / 632,524,729 bytes.
+The index stores lookup metadata/hashes/row references and hashed lexical postings; exact authoritative text/provenance is dereferenced from JSONL and reverified before surfacing.
 
-Ignored machine-local sensitive/config helpers were moved without promoting their contents to Git.
+### ChatGPT drift-audit re-verification — 2026-08-21
 
-## Canonical State body
+`python scripts\verify_dormant_evidence_real_index.py`:
 
-`State/active` and `State/souls` are currently empty/reserved for future canonical D64-attached state.
+- exit 0;
+- `all_ok=true`;
+- 3/3 live queries passed exact verified dereference -> provenance-bearing `structured_knowledge` -> complete D64 compile -> exact roundtrip;
+- observed chain times approximately 0.416 s, 1.362 s, 0.508 s.
 
-`State/training` is the canonical future branch/run area; no old curriculum/run lineage remains live by default.
+`python -m pytest -q -p no:cacheprovider`:
 
-`State/dormant` remains the recovered authority with six live files totaling **1,094,878,576 bytes**:
+- exit 0;
+- **173 tests passed by progress count**;
+- only existing PyTorch nested-tensor/norm-first warnings.
 
-- `containers.jsonl`
-- `semantic_edges.jsonl`
-- `kg_cache_50k.jsonl`
-- `layout_groups.jsonl`
-- `symbol_registry.jsonl`
-- `corpus_manifest.json`
+P0 integration caveat: `DormantEvidenceBridge.surface()` currently returns an in-memory successor `SharedFieldSnapshot` and replaces `structured_knowledge` by default. It does not persist/commit. The living heart/runtime needs an explicit governed transition plus retention/replacement/masking policy rather than treating this proof helper as commit authority.
 
-The former 4,411-byte council-tail sidecar was archived with council State. No second canonical dormant DB/store was created.
+## Cross-session drift audit — 2026-08-21
 
-## Doctrine mirror verification
+Audit start:
 
-Root/docs Source of Truth SHA256:
+- `HEAD == origin/main == 5f30b100ff66eb50445795d4876e766d717ae780`;
+- tracked worktree clean.
 
-`582CC0BE258B9F744389BB4AF19D9C22D4DCCE6E508F9FDEC345F4B196048114`
+Overall classification: **positive and controlled drift**.
 
-Root/docs Working Contract SHA256:
+What went right:
 
-`DC946600ADD64C51EC0AE40BB4D7F4F5E708387DD2A9E384DE268701959FAA31`
+- P0 moved from planned/fixture-only to implemented, real-index built, and end-to-end real-corpus proven.
+- Day Zero stayed intact; no council, ExactV4, identity-v2/v3, 384-slot, old core/soul, runtime bus/table, tick-loop, or legacy trainer path returned to active code.
+- `State/active` and `State/souls` remain empty/reserved; `State/training` has no live run/curriculum files beyond README/empty directory.
+- No Axon runtime/training process was running during audit.
+- Jeff's heartbeat-vs-tick and one-organ-at-a-time framing improves architecture clarity.
+- The scripted proposer plan was superseded **before** implementation.
 
-Each pair is byte-identical.
+Drift/hygiene issues found:
 
-## Verification
+1. `roundtable/ENGINE_TEAM_BUS.md` was ignored/untracked even though commit `5f30b10` described establishing it. ChatGPT fixed this and posted the audit/open questions in `72d8da6` (`Make engineering team bus durable`).
+2. ChatGPT's carried state still pointed at the obsolete scripted/non-neural P1 skeleton. `D:\ChatGPT_State` was refreshed to the current heart-first boundary.
+3. The previous rolling summary had stale P0-next wording and the pre-P0 Source-of-Truth hash; this summary corrects them.
+4. Jeff's heart directives are recorded in canonical history and outrank older doctrine, but unresolved details are not yet reconciled into Source of Truth.
+5. ChatGPT's old machine profile still presented the pre-Day-Zero council endpoint as current; corrected externally. Council is archive history, not current runtime.
 
-Final Day Zero evidence:
+## Current heart direction from Jeff
 
-- kept active Python modules compile with `py_compile`;
-- focused hygiene + D64 compiler + canonical branch + training suite: **24 passed**;
-- full active pytest: **exit code 0, 166 tests passed by progress count**;
-- only existing PyTorch nested-tensor/norm-first warnings appeared;
-- trainer rejected a noncanonical State root before data load;
-- trainer rejected an external run directory before data load;
-- staged `git diff --check` passed;
-- source/contract mirror hashes matched;
-- no model training, checkpoint promotion, Axon cognitive service start, or dormant corpus duplication occurred.
+Recorded standing direction:
 
-Non-blocking local caveat: ignored `.pytest_cache` remains at repository root because Windows returned EPERM when move/delete was attempted. It is not tracked or architectural.
+- no scripted/fake organs;
+- one organ at a time; do not advance while the current organ is broken;
+- Field Compiler Organ = **heart**, running on its own heartbeat cadence;
+- heartbeat != tick;
+- tick = full deliberation round ending in consolidator decision/validated canonical commit;
+- heart detects field change, recalls related dormant evidence, decomposes exact text structurally, organizes concepts/semantic edges, and presents core-native rails;
+- **64D heart first**, then 128/256/512/1024 sequentially after each is working/dialed;
+- specialized/partial-field cores are only a contemplated future doctrine amendment.
 
-## Kimi workforce state
+The former scripted proposer P1 plan is superseded and must not be revived as a shortcut.
 
-Supervised Kimi orchestration remains available. Current intended usage policy:
+## Open heart questions — do not silently answer in code
 
-- ordinary K2.7 Coding for routine read-only/workhorse triage;
-- K3 for difficult architecture/synthesis;
-- Highspeed opt-in rather than default;
-- verify persisted worker binding before claiming a specific model actually ran.
+These are posted in `roundtable/ENGINE_TEAM_BUS.md`:
 
-The first repository swarm report is now historical evidence inside the Day Zero archive.
+1. **Semantic boundary:** current Source of Truth places learned English semantics in future work; Jeff's heart directive says heart-v1 forms concepts/semantic edges and recalls semantically related memory. Is heart-v1 deterministic structural cartography + exact lexical/graph retrieval only, or does trainable semantic interpretation begin now?
+2. External user/tool/advisor intake queue semantics.
+3. Heartbeat cadence and freshness/cache invalidation.
+4. Proposal/refinement journal placement between heartbeats/ticks.
+5. Production `structured_knowledge` retention/replacement/masking semantics during evidence refresh.
 
-## Standing directives from Jeff (2026-08-21)
+No Source-of-Truth change was made in the drift audit; these require Jeff/table reconciliation first.
 
-- `D:\Axon\roundtable` is the engineering team communication bus; `roundtable/ENGINE_TEAM_BUS.md` is live. Kimmy holds senior-engineer steering (monitor/collaborate/steer all agents).
-- Kimmy maintains her own state at `d:\kimmy`; ChatGPT_State is no longer refreshed by others — Jeff lets ChatGPT catch up himself.
-- **Never** introduce scripted/fake organs into Axon. One organ at a time; if an organ does not work, the project does not move forward.
-- Heartbeat != tick: the Field Compiler Organ is the heart on its own cadence (pump of information in/out, roundtrip); a tick is a full deliberation round ending in a consolidator decision.
-- The heart's duties: detect shared-field change; recall semantically related dormant evidence; decompose exact characters into words/sentences/paragraphs/concepts; attach semantic edges; maintain one rail per d_model core size — **64D first**, dialed in, then 128/256/512/1024 trained in sequence.
-- Jeff is contemplating specialized cores (region/domain focus, partial deltas) — a doctrine amendment to be formalized only after the 64D heart works.
+## Current State / machine observations
 
-## Next actions
+Reverified 2026-08-21:
 
-1. **P0 complete**: `2dddc87` carries the dormant evidence bridge; `7a3d4a1` adds `scripts/verify_dormant_evidence_real_index.py`, which proves query -> exact dereference -> `structured_knowledge` -> D64 exact roundtrip against the **real** built index (3/3 queries, all checks green, 2026-08-21).
-2. **The heart (Field Compiler Organ), 64D first**: own-cadence beat loop; intake of real external input on the next beat; change detection via field freshness; evidence-bridge recall seeded by the change; deterministic structural decomposition (words/sentences/paragraphs) plus semantic edges; fresh 64D rail per beat; delta collection and proposal visibility; consolidator decision ends the tick. No scripted/fake organs. Pending Jeff's rulings on the open design points from the 2026-08-21 discussion.
-3. **Then 128/256/512/1024 rails**, each trained and dialed in sequence, only after the 64D heart works.
-4. **P2 branch-backed training + exact resume**: canonical State branches and split/resume/anatomy-mismatch refusal before substantive training.
-5. Only after the permanent spine exists, port useful soul, multi-core refinement/consolidation, advisor/tool, diary, and situation mechanisms from historical evidence without restoring archived modules wholesale.
-6. Benchmark realistic complete-field time/memory before model scale or learned semantic-compiler training.
-7. Refresh the engineer ledger every substantive turn; Kimmy maintains her own state at `d:\kimmy`.
+- `State/active`: empty.
+- `State/souls`: empty.
+- `State/training`: README + empty curriculum directory; no live run/curriculum files.
+- no Axon runtime/training process.
+- GTX 1650 4 GiB: 0% utilization, ~1307 MiB used, 32 C when checked.
+- D: free bytes ~145,027,747,840.
+- Python 3.12.10.
+- Git 2.55.0.windows.4.
+- local MCP bridge safety mode: yolo (permission mode only; Axon contract still binding).
+
+## Kimi / team coordination
+
+`roundtable/ENGINE_TEAM_BUS.md` is coordination only; canonical ledger remains historical authority. It is now tracked/durable as of `72d8da6`.
+
+Kimmy maintains `D:\kimmy` and holds day-to-day senior-engineer steering unless Jeff directs otherwise. ChatGPT owns its own `D:\ChatGPT_State` continuity when ChatGPT is active; Jeff explicitly requested that refresh in this audit turn.
+
+## Next recommended actions
+
+1. Jeff/team rule the five open 64D heart questions above.
+2. Reconcile the resulting heart contract into `docs/SOURCE_OF_TRUTH.md` and root exact mirror before unresolved behavior is implemented.
+3. Build the first **real 64D heart** in permanent anatomy using real field/input/dormant evidence; no fake/scripted proposer.
+4. Prove heart change detection, governed evidence surfacing, exact cartography, freshness, rail generation and roundtrip before moving on.
+5. Then attach the real 64D reasoning/tick path: proposals -> all-delta visibility -> refinement -> rotating consolidator -> typed validation/atomic commit -> successor field -> new heartbeat.
+6. Make training branch-backed and prove split/resume/anatomy mismatch before substantive training.
+7. Only after the 64D spine works, port souls/advisors/tools/diary/situation faculties and expand rails sequentially.
+8. Benchmark realistic field/index/compiler/reader latency and memory before larger scale.
 
 ## Fast orientation
 
-- Day Zero map: `docs/DAY_ZERO.md`
+- Team bus: `roundtable/ENGINE_TEAM_BUS.md`
 - Architecture authority: `docs/SOURCE_OF_TRUTH.md`
-- Canonical field: `runtime/field/schema.py`
-- Typed delta: `runtime/field/delta.py`
+- Day Zero map: `docs/DAY_ZERO.md`
 - D64 compiler: `runtime/field/compiler_d64.py`
 - Canonical branch: `runtime/field/state_branch.py`
 - Runtime adapter: `runtime/axon_runtime/d64_adapter.py`
 - Dormant evidence bridge: `runtime/dormant/evidence_bridge.py`
-- Index operator: `scripts/build_dormant_evidence_index.py`
-- Canonical training adapter: `training/canonical_d64.py`
-- D64 model: `training/complete_field_64d.py`
+- Real proof: `scripts/verify_dormant_evidence_real_index.py`
 - Trainer: `training/train_complete_field_64d.py`
 - Dormant authority: `State/dormant/`
-- Tracked legacy archive: `archive/day_zero_legacy_2026-08-20/`
-- Local historical archive: `State/archive/day_zero_legacy_20260820/`
-- Full active tests: `python -m pytest -q -p no:cacheprovider`
+- Full tests: `python -m pytest -q -p no:cacheprovider`
 
-**Kimmy / Kimi Code CLI / 2026-08-21** (prior update: ChatGPT / GPT-5.6 Sol / 2026-08-20)
+**ChatGPT / GPT-5.6 Sol / 2026-08-21**
