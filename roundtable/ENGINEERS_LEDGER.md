@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-21T12:33:04-05:00
-Current through event: `evt-20260821T173304124555Z-kimmy-p0-push-and-carried-state`
+Updated: 2026-08-21T12:46:34-05:00
+Current through event: `evt-20260821T174634095553Z-kimmy-p0-real-roundtrip-proof`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -169,7 +169,7 @@ The first repository swarm report is now historical evidence inside the Day Zero
 
 ## Next actions
 
-1. **P0 published**: `2dddc87` carries the dormant evidence bridge; the real-corpus derived index is built and verified. Remaining P0 proof: surface into `structured_knowledge` + D64 exact roundtrip against the **real** built index (currently proven on synthetic fixtures), and refresh `D:\ChatGPT_State` carried state.
+1. **P0 complete**: `2dddc87` carries the dormant evidence bridge; `7a3d4a1` adds `scripts/verify_dormant_evidence_real_index.py`, which proves query -> exact dereference -> `structured_knowledge` -> D64 exact roundtrip against the **real** built index (3/3 queries, all checks green, 2026-08-21). P0 is done.
 2. **P1 non-neural production D64 driver**: canonical HEAD -> compile -> hard fresh/complete barrier -> scripted proposer -> typed delta -> validate/atomic commit -> successor -> recompile.
 3. **P2 branch-backed training + exact resume**: make training episode transactions use canonical State branches and prove split/resume/anatomy mismatch refusal before substantive training.
 4. Only after the permanent spine exists, port useful soul, multi-core refinement/consolidation, advisor/tool, diary, and situation mechanisms from historical evidence without restoring archived modules wholesale.
