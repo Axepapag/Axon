@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-21T14:31:12.2086537-05:00
-Current through event: `evt-20260821T193112208654Z-chatgpt-cross-session-drift-audit`
+Updated: 2026-08-21T14:54:00-05:00
+Current through event: `evt-20260821T195400179606Z-kimmy-bus-delta-round1`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -11,7 +11,7 @@ Axon remains at the clean Day Zero boundary, now with **P0 dormant evidence retr
 
 Current engineering focus is **not** the old scripted/non-neural P1 skeleton. Jeff's newer directive supersedes it: build one real organ at a time, no scripted/fake organs, with the **64D Field Compiler Organ / heart** next. Heartbeat is its own cadence and is distinct from a cognitive tick.
 
-Before heart implementation chooses unresolved behavior, the newer heart directive needs explicit reconciliation with `docs/SOURCE_OF_TRUTH.md` on semantic scope and several runtime mechanics.
+Before heart implementation chooses unresolved behavior, the newer heart directive needs explicit reconciliation with `docs/SOURCE_OF_TRUTH.md` on semantic scope and several runtime mechanics. Convergence is running on `roundtable/ENGINE_TEAM_BUS.md`: ChatGPT posted a verified drift audit plus the two right open questions (semantic boundary; intake/cadence/proposal-journal mechanics); Kimmy posted proposed answers — exact-only heart-v1 semantics, intake as immediate canonical commit to `user_input`, adaptive beat cadence, journaled proposal board projected into rails — and the position that a formal Source of Truth heart amendment must be ratified **before** implementation. Awaiting Jeff's rulings.
 
 ## Binding authority and invariants
 
