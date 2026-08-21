@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-21T14:54:00-05:00
-Current through event: `evt-20260821T195400179606Z-kimmy-bus-delta-round1`
+Updated: 2026-08-21T15:04:42-05:00
+Current through event: `evt-20260821T200442765692Z-chatgpt-heart-dormant-design-review`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -11,7 +11,7 @@ Axon remains at the clean Day Zero boundary, now with **P0 dormant evidence retr
 
 Current engineering focus is **not** the old scripted/non-neural P1 skeleton. Jeff's newer directive supersedes it: build one real organ at a time, no scripted/fake organs, with the **64D Field Compiler Organ / heart** next. Heartbeat is its own cadence and is distinct from a cognitive tick.
 
-Before heart implementation chooses unresolved behavior, the newer heart directive needs explicit reconciliation with `docs/SOURCE_OF_TRUTH.md` on semantic scope and several runtime mechanics. Convergence is running on `roundtable/ENGINE_TEAM_BUS.md`: ChatGPT posted a verified drift audit plus the two right open questions (semantic boundary; intake/cadence/proposal-journal mechanics); Kimmy posted proposed answers — exact-only heart-v1 semantics, intake as immediate canonical commit to `user_input`, adaptive beat cadence, journaled proposal board projected into rails — and the position that a formal Source of Truth heart amendment must be ratified **before** implementation. Awaiting Jeff's rulings.
+Before heart implementation chooses unresolved behavior, the newer heart directive needs explicit reconciliation with `docs/SOURCE_OF_TRUTH.md` on semantic scope and runtime mechanics. Convergence is running on `roundtable/ENGINE_TEAM_BUS.md`: Kimmy proposes exact-only heart-v1 semantics, immediate typed ingress commit to `user_input`, adaptive beat cadence, a journaled proposal board projected into rails, and a formal Source-of-Truth heart amendment before code. ChatGPT's 15:04 design review agrees on doctrine-before-code, adaptive/event-driven circulation and sparse proposals, but flags one substantive gap: current P0 candidate retrieval is hashed lexical matching plus graph expansion, not genuine semantic search/reranking. If Jeff's requirement is semantic recall across lexical mismatch, the dormant valve still needs derived semantic/relevance tissue before that requirement is satisfied. Formal ChatGPT bus delta is deferred until Jeff rules after discussion.
 
 ## Binding authority and invariants
 
@@ -96,7 +96,7 @@ The index stores lookup metadata/hashes/row references and hashed lexical postin
 - **173 tests passed by progress count**;
 - only existing PyTorch nested-tensor/norm-first warnings.
 
-P0 integration caveat: `DormantEvidenceBridge.surface()` currently returns an in-memory successor `SharedFieldSnapshot` and replaces `structured_knowledge` by default. It does not persist/commit. The living heart/runtime needs an explicit governed transition plus retention/replacement/masking policy rather than treating this proof helper as commit authority.
+P0 integration caveats: `DormantEvidenceBridge.surface()` currently returns an in-memory successor `SharedFieldSnapshot` and replaces `structured_knowledge` by default. It does not persist/commit. The living heart/runtime needs an explicit governed transition plus retention/replacement/masking policy rather than treating this proof helper as commit authority. Candidate retrieval is presently exact hashed lexical matching plus semantic-edge lexical hits and one-hop graph expansion with metadata/confidence filters; this is a strong deterministic retrieval pipe, but not yet a learned semantic search or relevance auditor across lexical mismatch.
 
 ## Cross-session drift audit — 2026-08-21
 
@@ -141,15 +141,17 @@ The former scripted proposer P1 plan is superseded and must not be revived as a 
 
 ## Open heart questions — do not silently answer in code
 
-These are posted in `roundtable/ENGINE_TEAM_BUS.md`:
+Current unresolved heart questions:
 
-1. **Semantic boundary:** current Source of Truth places learned English semantics in future work; Jeff's heart directive says heart-v1 forms concepts/semantic edges and recalls semantically related memory. Is heart-v1 deterministic structural cartography + exact lexical/graph retrieval only, or does trainable semantic interpretation begin now?
-2. External user/tool/advisor intake queue semantics.
-3. Heartbeat cadence and freshness/cache invalidation.
-4. Proposal/refinement journal placement between heartbeats/ticks.
-5. Production `structured_knowledge` retention/replacement/masking semantics during evidence refresh.
+1. **Semantic valve scope:** Jeff now explicitly describes the dormant connector as a heartbeat valve that must quickly semantically search the entire dormant body and surface only highly relevant knowledge/memory. Current P0 is lexical+graph, exact and strong but not genuinely semantic across lexical mismatch. Decide whether learned 64D semantic retrieval/reranking belongs inside the first heart or immediately follows deterministic circulation proof.
+2. **Exact + semantic core rail:** preserve heart-level exact 16D/D64 roundtrip for grounding/audit while adding derived semantic word/sentence/concept/edge slots bound back to exact spans, versus making exact rows the only core-facing representation in v1.
+3. **Ingress authority:** external user/tool/advisor input should become canonical immediately, but current core `FieldDelta` cannot write sealed `user_input`; define a typed runtime/heart-owned mutation path rather than bypassing transaction rules.
+4. **Tick freeze / proposal board:** recommend freezing canonical `field_id` during a tick; initial/refined core proposals are sparse typed patches in a separate deliberation overlay, not canonical state. Decide whether proposal-triggered dormant recall may only enrich that overlay or may restart the heartbeat/tick.
+5. **Heartbeat cadence:** event-driven immediate beat on canonical change, with adaptive idle backoff/coalescing, versus another policy.
+6. **Production `structured_knowledge` policy:** relevance threshold/budget, novelty/diversity, retention/hysteresis, replacement/masking and provenance when the dormant valve refreshes evidence.
+7. **Final delta semantics:** cores and consolidator should emit sparse patches, not duplicate the entire shared field; the consolidator's delta is complete in decision/authority and may address multiple regions while remaining sparse in payload.
 
-No Source-of-Truth change was made in the drift audit; these require Jeff/table reconciliation first.
+No Source-of-Truth change was made in either review; these require Jeff/table convergence first.
 
 ## Current State / machine observations
 
@@ -173,14 +175,14 @@ Kimmy maintains `D:\kimmy` and holds day-to-day senior-engineer steering unless 
 
 ## Next recommended actions
 
-1. Jeff/team rule the five open 64D heart questions above.
-2. Reconcile the resulting heart contract into `docs/SOURCE_OF_TRUTH.md` and root exact mirror before unresolved behavior is implemented.
-3. Build the first **real 64D heart** in permanent anatomy using real field/input/dormant evidence; no fake/scripted proposer.
-4. Prove heart change detection, governed evidence surfacing, exact cartography, freshness, rail generation and roundtrip before moving on.
-5. Then attach the real 64D reasoning/tick path: proposals -> all-delta visibility -> refinement -> rotating consolidator -> typed validation/atomic commit -> successor field -> new heartbeat.
-6. Make training branch-backed and prove split/resume/anatomy mismatch before substantive training.
-7. Only after the 64D spine works, port souls/advisors/tools/diary/situation faculties and expand rails sequentially.
-8. Benchmark realistic field/index/compiler/reader latency and memory before larger scale.
+1. Jeff rules the seven open heart questions above after considering Kimmy's round-1 delta and ChatGPT's dormant/semantic review.
+2. ChatGPT then posts its formal convergence delta to `roundtable/ENGINE_TEAM_BUS.md`; continue Kimmy/ChatGPT rounds until the heart contract converges.
+3. Reconcile the converged heart contract into `docs/SOURCE_OF_TRUTH.md` and root exact mirror before unresolved behavior is implemented.
+4. Finish the dormant valve to the level Jeff actually requires: real change-triggered recall, governed relevance/retention and, if ruled in-scope, genuine derived semantic retrieval/reranking over the real dormant body.
+5. Build the first **real 64D heart** in permanent anatomy using real field/input/dormant evidence; preserve exact grounding while providing the agreed semantic core-facing rail; no fake/scripted proposer.
+6. Prove heart change detection, governed evidence surfacing, cartography/semantic projection, freshness, rail generation and heart-level exact integrity before moving on.
+7. Attach the real 64D reasoning/tick path: sparse initial proposals -> all-proposal visibility -> soul exhale/inhale -> sparse refinement -> rotating consolidator -> one validated sparse authoritative decision delta -> successor field -> next heartbeat.
+8. Then make training branch-backed/resume-proven, port remaining faculties only onto the permanent spine, and expand rails sequentially after 64D is working.
 
 ## Fast orientation
 
