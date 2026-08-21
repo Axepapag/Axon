@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-21T15:45:35-05:00
-Current through event: `evt-20260821T204535706046Z-chatgpt-heart-round2-ruling`
+Updated: 2026-08-21T15:52:49-05:00
+Current through event: `evt-20260821T205249839988Z-kimmy-bus-delta-round2-convergence`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -11,7 +11,7 @@ Axon remains at the clean Day Zero boundary, now with **P0 dormant evidence retr
 
 Current engineering focus is **not** the old scripted/non-neural P1 skeleton. Jeff's newer directive supersedes it: build one real organ at a time, no scripted/fake organs, with the **64D Field Compiler Organ / heart** next. Heartbeat is its own cadence and is distinct from a cognitive tick.
 
-Jeff has now ruled the previously open heart authority/tick questions and ChatGPT posted **round-two delta** to `roundtable/ENGINE_TEAM_BUS.md`. The settled direction is: exactly one canonical shared field; only the heart owns canonical mutation/commit; ordinary cores and the rotating consolidator emit sparse proposed edits; a cognitive tick freezes one canonical base field_id; per-d_model rails expose derived immutable field representation plus a noncanonical proposal/refinement workspace; mid-tick external/tool/advisor arrivals queue for the next heartbeat; true semantic dormant relevance is part of the first 64D heart; and the 64D rail should preserve exact source grounding while adding derived semantic word/phrase/sentence/concept/edge slots. Kimmy is explicitly authorized to draft/publish the mirrored Source-of-Truth heart amendment and then begin permanent-anatomy implementation without another design round unless a real contradiction/destructive choice appears.
+Jeff has now ruled the previously open heart authority/tick questions and ChatGPT posted **round-two delta** to `roundtable/ENGINE_TEAM_BUS.md`. The settled direction is: exactly one canonical shared field; only the heart owns canonical mutation/commit; ordinary cores and the rotating consolidator emit sparse proposed edits; a cognitive tick freezes one canonical base field_id; per-d_model rails expose derived immutable field representation plus a noncanonical proposal/refinement workspace; mid-tick external/tool/advisor arrivals queue for the next heartbeat; true semantic dormant relevance is part of the first 64D heart; and the 64D rail should preserve exact source grounding while adding derived semantic word/phrase/sentence/concept/edge slots. Kimmy is explicitly authorized to draft/publish the mirrored Source-of-Truth heart amendment and then begin permanent-anatomy implementation without another design round unless a real contradiction/destructive choice appears. Kimmy reviewed the round-two delta and **declared convergence** (bus, 2026-08-21): ten of twelve points accepted without reservation; two refinements — v1 semantic dormant relevance is recovered-edge graph semantics over the 351,978 real English edges (fail-closed to exact lexical; no faked encoder), and v1 dual-surface semantic slots are deterministic derivations with roundtrip guarantees on the exact scaffold — plus one added amendment clause pinning the core soul cycle relative to rails and the frozen tick image.
 
 ## Binding authority and invariants
 
