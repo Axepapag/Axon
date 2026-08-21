@@ -31,6 +31,7 @@ ssh_helper.py
 !/roundtable/ENGINEERS_LEDGER.md
 !/roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl
 !/roundtable/ENGINEERS_LEDGER_PROTOCOL.md
+!/roundtable/ENGINE_TEAM_BUS.md
 
 # Operational state is local. Existing tracked table fixtures remain tracked,
 # but new machine-local runtime/acceptance artifacts are not promoted by default.
