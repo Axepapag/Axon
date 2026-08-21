@@ -1,11 +1,14 @@
-# Heart Amendment — Draft for Jeff's Ratification
+# Heart Amendment — RATIFIED TEXT (spliced into SOURCE_OF_TRUTH.md 2026-08-21)
 
-Status: DRAFT. Not doctrine until Jeff ratifies and it lands in both
-`docs/SOURCE_OF_TRUTH.md` and root `SOURCE_OF_TRUTH.md` (exact byte mirrors,
-test-enforced).
+Status: RATIFIED under Jeff's standing authorization (recorded on the bus
+steering board, 2026-08-21) after ChatGPT's supervision pass. Spliced into
+`docs/SOURCE_OF_TRUTH.md` and root `SOURCE_OF_TRUTH.md` as exact byte
+mirrors. This file preserves the pre-splice draft for review history.
 Author: Kimmy / Kimi Code CLI / 2026-08-21
 Basis: Jeff's rulings of 2026-08-21 (recorded on the engineering bus steering
-board) and the converged Kimmy/ChatGPT deltas (bus rounds 1-2).
+board) and the converged Kimmy/ChatGPT deltas (bus rounds 1-2), incorporating
+ChatGPT's two authority-wording corrections and Jeff's primitive-but-real /
+runtime-first rulings.
 
 ## What this amendment does
 
@@ -28,6 +31,16 @@ ban on scripted/fake organs. Specialization of cores (region/domain focus,
 per-core attention scopes) remains a **future** amendment, gated on a working
 64D heart.
 
+Jeff's standing quality rule applies to every organ this amendment creates:
+**primitive but real is acceptable; fake is not.** An organ may be noisy or
+weak in v1 provided it is real permanent anatomy, actually functions, is
+observable and testable, and its shortcomings remain explicit improvement
+work. A weak v1 must never be declared the final target. And the organism
+comes before neural polish: no substantive reasoning-core training merely to
+make cores speak; the living runtime (heartbeat, ingress, recall, freeze,
+rails, barriers, consolidator proposal, heart commit) is established first,
+and cores are later trained to operate correctly inside that anatomy.
+
 ## Amendment text (proposed splice into SOURCE_OF_TRUTH.md)
 
 ### Section: The Heart (Field Compiler Organ)
@@ -35,11 +48,11 @@ per-core attention scopes) remains a **future** amendment, gated on a working
 The Field Compiler Organ is Axon's heart. It runs on its own cadence — the
 **heartbeat** — which is distinct from a cognitive **tick**. The heart pumps
 exact information: external input (users, tools, advisors) inward to the
-organs, and organ output outward, roundtrip. The heart is the only organ that
-may create, validate, or commit canonical shared-field state. Cores,
-consolidators, ingress paths, and the dormant valve never mutate canonical
-state directly; they emit proposals that cross the heart's typed
-validation/transaction boundary.
+organs, and organ output outward, roundtrip. Only the heart may validate,
+materialize, and commit canonical shared-field state. Other organs and
+ingress paths may originate and submit proposed mutations; they never mutate
+canonical state directly. Cores, consolidators, ingress paths, and the
+dormant valve all cross the heart's typed validation/transaction boundary.
 
 A heartbeat is event-driven: a canonical field change is the primary
 doorbell. While input or commit work exists, the heart beats promptly. While
@@ -94,9 +107,10 @@ means reproducing unchanged content.
 
 ### Section: Authority classes (replaces informal write-policy wording)
 
-- External ingress (user/tool/advisor) may write only its runtime-owned
-  regions, only between ticks.
-- The dormant valve may materialize governed `structured_knowledge`.
+- External ingress (user/tool/advisor) may submit heart-governed mutations
+  targeting only its runtime-owned regions, and only between ticks.
+- The dormant valve may submit heart-governed materialization of governed
+  `structured_knowledge`; it never independently writes truth.
 - Core proposals may target only the scopes their authority class permits.
 - The consolidator's proposal may address every canonical region as governed.
 - Only the heart's transaction layer converts any proposal into canonical
@@ -158,13 +172,15 @@ never required to act as a stenographer to prove it read the field.
   to tick steps 3 and 5 against the rail image, with the consolidator
   following the same inhale/attend/exhale discipline at step 6-7.
 
-## Ratification checklist
+## Ratification record
 
-- [ ] Jeff rules the draft (edit / accept / reject per section).
-- [ ] Splice into `docs/SOURCE_OF_TRUTH.md` and root mirror byte-identically.
-- [ ] Mirror-equality tests pass; full suite green.
-- [ ] Ledger event records the ratification; bus steering board updated.
-- [ ] Only then: build order A (heart-owned commit types, core registry/tick
-  identity, frozen tick image, proposal board) in permanent anatomy.
+- [x] Jeff ruled the direction (bus steering board, 2026-08-21); ChatGPT
+  supervision pass approved with two authority-wording corrections, applied.
+- [x] Spliced into `docs/SOURCE_OF_TRUTH.md` and root mirror byte-identically
+  (2026-08-21, Kimmy).
+- [x] Mirror-equality and full suite verified at splice time.
+- [x] Ratification recorded in the canonical ledger; bus updated.
+- [ ] Build order A (heart-owned commit types, core registry/tick
+  identity, frozen tick image, proposal board) in permanent anatomy — next.
 
 **Kimmy / Kimi Code CLI / 2026-08-21**

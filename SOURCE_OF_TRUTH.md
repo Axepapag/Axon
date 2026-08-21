@@ -1,6 +1,6 @@
 # Axon Source Of Truth
 
-Last updated: 2026-08-20
+Last updated: 2026-08-21 (heart amendment ratified)
 
 ## Core Doctrine
 
@@ -91,25 +91,94 @@ Required properties:
 - lifecycle status,
 - metadata needed for retrieval and audit.
 
+## The Heart (Field Compiler Organ)
+
+The Field Compiler Organ is Axon's heart. It runs on its own cadence — the
+heartbeat — which is distinct from a cognitive tick. The heart pumps exact
+information: external input (users, tools, advisors) inward to the organs,
+and organ output outward, roundtrip. Only the heart may validate,
+materialize, and commit canonical shared-field state. Other organs and
+ingress paths may originate and submit proposed mutations; they never mutate
+canonical state directly. Cores, consolidators, ingress paths, and the
+dormant valve all cross the heart's typed validation/transaction boundary.
+
+A heartbeat is event-driven: a canonical field change is the primary
+doorbell. While input or commit work exists, the heart beats promptly. While
+idle, the heart may keep a slow bounded liveness beat. Proposal-board
+activity advances the in-flight tick workspace and does not by itself create
+a new canonical field.
+
+Each beat:
+
+1. Drains queued external arrivals. Between ticks, intake commits immediately
+   as a heart-governed typed delta into its runtime-owned region. Arrivals
+   during an in-flight tick queue for the next beat and never mutate the
+   frozen base.
+2. Detects change via canonical field identity/freshness. No change means no
+   recompilation.
+3. Runs the dormant valve when change warrants recall.
+4. Recompiles the affected rail(s), proving complete coverage and exact
+   roundtrip against the fresh canonical field.
+5. Services the tick workspace: collecting proposals, enforcing barriers, and
+   committing the validated consolidator decision.
+
+Primitive but real organs are acceptable progress; fake organs are not. An
+organ may be noisy or weak in its first form provided it is real permanent
+anatomy, actually functions, is observable and testable, and its shortcomings
+remain explicit improvement work. A weak first form must never be declared
+the final target. The living organism (heartbeat, ingress, recall, freeze,
+rails, barriers, consolidator proposal, heart commit) is established before
+substantive reasoning-core training; cores are later trained to operate
+correctly inside this anatomy.
+
+## Authority Classes
+
+- External ingress (user/tool/advisor) may submit heart-governed mutations
+  targeting only its runtime-owned regions, and only between ticks.
+- The dormant valve may submit heart-governed materialization of governed
+  `structured_knowledge`; it never independently writes truth.
+- Core proposals may target only the scopes their authority class permits.
+- The consolidator's proposal may address every canonical region as governed.
+- Only the heart's transaction layer converts any proposal into canonical
+  state. Validation must detect and reject conflicting or overlapping sparse
+  edits and any proposal not bound to the frozen base.
+
+Bootstrap write restrictions (such as a scratch/response-only validator) are
+implementation restrictions, not doctrine; widening happens only through this
+authority model.
+
 ## Cores
 
-Cores are transformer reasoners with private souls.
+Cores are transformer reasoners with private souls. A tick is one full
+deliberation round against a frozen canonical base:
 
-Per tick:
+1. The heart stabilizes intake and dormant recall, freezes canonical field
+   F_N, and emits for each active d_model rail a derived, immutable tick
+   image R_N. Rails and tick images are projections, never second canonical
+   state.
+2. The heart declares the tick's participant set from the core registry
+   (active / offline-training / disabled, rail membership).
+3. Each participating core inhales its private soul, attends the complete
+   tick image with a coverage proof, emits a sparse proposed delta (only the
+   edits it proposes, each bound to F_N with author/rail/pass provenance),
+   and exhales the experience into its soul.
+4. The first pass closes when every required participant has returned,
+   failed, or timed out under governed policy. The heart then exposes the
+   complete first-pass proposal board in the per-rail workspace.
+5. Each core inhales its updated soul, re-attends the tick image plus the
+   complete proposal board, emits one refined sparse delta, and exhales.
+6. After the refinement barrier, the rotating consolidator attends the tick
+   image plus every refined delta and emits one proposed authoritative delta.
+   The consolidator is the final reasoning authority of the tick; it still
+   only proposes.
+7. The heart validates the consolidator's proposal (typing, authority class,
+   base freshness, provenance) and atomically commits it, producing the
+   successor canonical field; the consolidator exhales its experience. The
+   tick ends at that commit — and only there.
 
-1. Runtime materializes the active field.
-2. Each core inhales its private soul.
-3. Each core attends every exact character of the active field through a
-   complete, coverage-proven pass.
-4. Each core emits a proposed delta.
-5. Each core exhales experience into its soul.
-6. Each core inhales its updated soul again, attends the full active field plus
-   every complete first-pass core delta, emits a refined delta, and exhales.
-7. The rotating consolidator inhales its updated soul, attends the full active
-   field plus every complete refined delta, and emits one typed delta against
-   the entire shared field.
-8. Runtime validates and atomically commits that delta as the next canonical
-   shared field; the consolidator exhales its experience.
+"Against the entire shared field" means authored against the exact frozen
+base with field-wide addressability as permitted by authority class; it never
+means reproducing unchanged content.
 
 The validated consolidator delta may address every canonical shared-field
 region. Axon's cores ultimately maintain Axon's conversation, knowledge,
@@ -191,6 +260,20 @@ sentences, and paragraphs. Learned English semantics, semantic compression,
 semantic rewrite/decompilation, and salience ranking remain separate future
 work and are not made canonical by this section.
 
+Each d_model rail is a dual surface over the frozen tick image. The exact
+scaffold is the lossless, region-preserving, provenance-complete packing of
+exact 16D character cells defined above, and it alone carries the coverage
+and roundtrip guarantees. Alongside it, the heart may derive semantic slots
+for words, phrases, sentences, paragraphs, concepts, and edges; every
+semantic slot carries source-span references back to exact canonical
+characters. Semantic slots are derived and rebuildable; they never become the
+only copy of anything, and they hold no reasoning vote and no commit
+authority. First-form semantic slots are deterministic derivations from exact
+structure; trained semantic richness enters in the 128/256/512/1024 dialing
+sequence, one rail size at a time, each proven before the next begins. A
+reasoning core is never required to reproduce every character to prove
+grounding.
+
 ## Canonical state root
 
 All living or durable Axon state resides beneath `D:\Axon\State`,
@@ -240,6 +323,21 @@ explicit runtime spans rather than alterations to dormant text. The resulting
 `SharedFieldSnapshot` must compile through the deterministic D64 compiler with
 complete coverage and exact roundtrip before it is accepted as core-facing
 state. Retrieval/indexing has no reasoning vote and no commit authority.
+
+The dormant valve is part of the heart. Candidate ranking combines graph/edge
+semantics, lexical support, confidence, type and task relevance, and novelty
+versus the active field, under a governed budget. First-form semantic
+relevance is recovered-edge graph semantics: the readable English semantic
+edges and container graph are walked from changed text to find related
+memories. This is real semantics already owned by the corpus; no trained
+encoder exists and none may be simulated. Learned vector similarity, when
+trained later, is a disposable derived sense only. The semantic path fails
+closed to exact lexical retrieval, and exact bytes are always dereferenced
+from the authoritative JSONL and hash/provenance-verified before surfacing.
+
+The derived index is maintained incrementally: generational append/update
+with binding verification and atomic swap; full rebuild is the fallback,
+never the per-beat cost.
 
 ## Day Zero active surface
 
