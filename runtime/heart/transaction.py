@@ -138,8 +138,10 @@ class HeartTransactionBoundary:
             )
         grant.assert_delta_permitted(delta)
         # Canonical machinery remains the binding gate: typing, region
-        # sealing, bounds, and overlapping/conflicting sparse edits.
-        validate_delta(base, delta)
+        # sealing, bounds, and overlapping/conflicting sparse edits.  The
+        # authority model may permit regions beyond the bootstrap core-writable
+        # set (ingress-owned regions, structured_knowledge for the valve).
+        validate_delta(base, delta, permitted_regions=grant.governed_regions)
 
     def commit(
         self,
@@ -214,7 +216,7 @@ class HeartTransactionBoundary:
                     "commit base does not match the in-flight tick's frozen base"
                 )
         self.validate_proposal(base, delta, grant)
-        successor = apply_delta(base, delta)
+        successor = apply_delta(base, delta, permitted_regions=grant.governed_regions)
         if grant.authority_class is AuthorityClass.CONSOLIDATOR:
             # The tick ends at the heart commit — and only there.  Consuming
             # it here makes any second commit from this tick fail closed.

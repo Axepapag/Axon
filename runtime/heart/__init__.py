@@ -16,6 +16,12 @@ from .authority import (
     AuthorityGrant,
     IngressChannel,
 )
+from .coordinator import (
+    BeatConfig,
+    BeatCoordinator,
+    BeatResult,
+    BeatState,
+)
 from .board import (
     ParticipantRecord,
     ParticipantState,
@@ -48,6 +54,7 @@ from .errors import (
     UnknownParticipantError,
     ValveDuringTickError,
 )
+from .ingress_queue import IngressItem, IngressQueue
 from .registry import CoreDescriptor, CoreRegistry, CoreStatus
 from .tick import (
     TICK_IDENTITY_SCHEMA,
@@ -71,6 +78,12 @@ __all__ = [
     "CONSOLIDATOR_GOVERNED_REGIONS",
     "DEFAULT_CORE_GOVERNED_REGIONS",
     "AuthorityGrant",
+    "BeatConfig",
+    "BeatCoordinator",
+    "BeatResult",
+    "BeatState",
+    "IngressItem",
+    "IngressQueue",
     "CoreStatus",
     "CoreDescriptor",
     "CoreRegistry",

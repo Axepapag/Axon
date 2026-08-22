@@ -8,11 +8,13 @@ import torch
 
 from runtime.axon_runtime.d64_adapter import CanonicalD64RuntimeAdapter
 from runtime.field import (
+    AttendedInterval,
     CANONICAL_REGION_ORDER,
     D64_LANES_PER_ROW,
     D64FieldCompiler,
     FieldSpan,
     LogicalRegion,
+    RegionMaskPolicy,
     RegionState,
     SharedFieldSnapshot,
     StaleCompiledFieldError,
@@ -181,3 +183,65 @@ def test_d64_reader_consumes_only_the_canonical_compiled_rail() -> None:
         region.value: snapshot.region(region).text
         for region in CANONICAL_REGION_ORDER
     }
+
+
+def test_compiler_attends_last_n_spans_exactly() -> None:
+    spans = tuple(
+        FieldSpan(span_id=f"turn-{i}", text=f"{i}\n") for i in range(5)
+    )
+    state = RegionState(
+        name=LogicalRegion.CONVERSATION_HISTORY,
+        spans=spans,
+        mask_policy=RegionMaskPolicy("last_n_spans", 2),
+    )
+    snapshot = SharedFieldSnapshot(tick_id=7, regions=(state,))
+    compiled = D64FieldCompiler().compile(snapshot)
+    assert compiled.coverage.complete
+    assert compiled.coverage.expected_active_characters == 4
+    assert compiled.coverage.compiled_active_characters == 4
+    assert compiled.region_text("conversation_history") == "3\n4\n"
+    assert snapshot.region("conversation_history").text == "0\n1\n2\n3\n4\n"
+
+
+def test_compiler_attends_disjoint_explicit_intervals() -> None:
+    spans = (FieldSpan(span_id="s0", text="abcdefghij"),)
+    state = RegionState(
+        name=LogicalRegion.USER_INPUT,
+        spans=spans,
+        attended_intervals=(
+            AttendedInterval(0, 2),
+            AttendedInterval(5, 7),
+        ),
+    )
+    snapshot = SharedFieldSnapshot(tick_id=3, regions=(state,))
+    compiled = D64FieldCompiler().compile(snapshot)
+    assert compiled.coverage.complete
+    assert compiled.region_text("user_input") == "abfg"
+    addresses = compiled.region_addresses("user_input")
+    assert [a.region_position for a in addresses] == [0, 1, 5, 6]
+    assert [a.span_position for a in addresses] == [0, 1, 5, 6]
+
+
+def test_compiler_all_policy_attends_full_region_text() -> None:
+    state = RegionState.from_text(
+        LogicalRegion.USER_INPUT,
+        "hello",
+        mask_policy=RegionMaskPolicy("all"),
+    )
+    snapshot = SharedFieldSnapshot(tick_id=0, regions=(state,))
+    compiled = D64FieldCompiler().compile(snapshot)
+    assert compiled.coverage.complete
+    assert compiled.region_text("user_input") == "hello"
+
+
+def test_compiler_none_policy_yields_empty_rail_for_region() -> None:
+    state = RegionState.from_text(
+        LogicalRegion.USER_INPUT,
+        "secret",
+        mask_policy=RegionMaskPolicy("none"),
+    )
+    snapshot = SharedFieldSnapshot(tick_id=0, regions=(state,))
+    compiled = D64FieldCompiler().compile(snapshot)
+    assert compiled.coverage.complete
+    assert compiled.region_text("user_input") == ""
+    assert compiled.region_addresses("user_input") == ()

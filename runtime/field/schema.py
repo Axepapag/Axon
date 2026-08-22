@@ -59,6 +59,83 @@ class WritePolicy(str, Enum):
     CORE_WRITABLE = "core_writable"
 
 
+@dataclass(frozen=True, slots=True)
+class AttendedInterval:
+    """One contiguous attended character interval inside a region's full text."""
+
+    start: int
+    end: int
+
+    def __post_init__(self) -> None:
+        if isinstance(self.start, bool) or not isinstance(self.start, int):
+            raise TypeError("AttendedInterval.start must be an integer")
+        if isinstance(self.end, bool) or not isinstance(self.end, int):
+            raise TypeError("AttendedInterval.end must be an integer")
+        if self.start < 0:
+            raise ValueError("AttendedInterval.start must be non-negative")
+        if self.end < self.start:
+            raise ValueError("AttendedInterval.end must be >= start")
+
+    def to_canonical_dict(self) -> dict[str, Any]:
+        return {"start": self.start, "end": self.end}
+
+
+@dataclass(frozen=True, slots=True)
+class RegionMaskPolicy:
+    """A reusable policy that resolves to attended intervals for one region."""
+
+    kind: str
+    limit: int = 0
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.kind, str) or not self.kind:
+            raise ValueError("RegionMaskPolicy.kind must be a non-empty string")
+        if isinstance(self.limit, bool) or not isinstance(self.limit, int):
+            raise TypeError("RegionMaskPolicy.limit must be an integer")
+        if self.limit < 0:
+            raise ValueError("RegionMaskPolicy.limit must be non-negative")
+        if self.kind not in {"all", "none", "last_n_spans"}:
+            raise ValueError(
+                f"unsupported RegionMaskPolicy.kind {self.kind!r}; "
+                f"expected 'all', 'none', or 'last_n_spans'"
+            )
+
+    def to_canonical_dict(self) -> dict[str, Any]:
+        return {"kind": self.kind, "limit": self.limit}
+
+
+def resolve_mask_policy(
+    spans: tuple[FieldSpan, ...],
+    policy: RegionMaskPolicy,
+) -> tuple[AttendedInterval, ...]:
+    """Resolve a mask policy to explicit attended intervals over span text."""
+
+    if not isinstance(policy, RegionMaskPolicy):
+        raise TypeError("resolve_mask_policy requires a RegionMaskPolicy")
+    if policy.kind == "none":
+        return ()
+    text_length = sum(len(span.text) for span in spans)
+    if text_length == 0:
+        return ()
+    if policy.kind == "all":
+        return (AttendedInterval(0, text_length),)
+    if policy.kind == "last_n_spans":
+        limit = policy.limit
+        total = len(spans)
+        if limit <= 0 or total == 0:
+            return ()
+        start_span_index = max(0, total - limit)
+        intervals: list[AttendedInterval] = []
+        offset = 0
+        for index, span in enumerate(spans):
+            span_len = len(span.text)
+            if index >= start_span_index:
+                intervals.append(AttendedInterval(offset, offset + span_len))
+            offset += span_len
+        return tuple(intervals)
+    raise ValueError(f"unsupported RegionMaskPolicy.kind {policy.kind!r}")
+
+
 class PhysicalRole(IntEnum):
     """Checkpoint-compatible learned ``char_type_emb`` row numbers."""
 
@@ -161,12 +238,19 @@ class FieldSpan:
 
 @dataclass(frozen=True, slots=True)
 class RegionState:
-    """Immutable state of one canonical logical region."""
+    """Immutable state of one canonical logical region.
+
+    The region preserves its complete canonical text in ``spans``.  Attention
+    masks select which characters are attended by the D64 rail; masked text
+    remains canonical and restorable, but is not compiled.
+    """
 
     name: LogicalRegion | str
     spans: tuple[FieldSpan, ...] = ()
     visibility: RegionVisibility | str = RegionVisibility.ATTENDED
     write_policy: WritePolicy | str | None = None
+    attended_intervals: tuple[AttendedInterval, ...] | None = None
+    mask_policy: RegionMaskPolicy | None = None
 
     def __post_init__(self) -> None:
         name = _as_logical_region(self.name)
@@ -200,19 +284,128 @@ class RegionState:
             raise ValueError(f"logical region {name.value!r} is always sealed")
         object.__setattr__(self, "write_policy", policy)
 
+        mask_policy = self.mask_policy
+        if mask_policy is not None and not isinstance(mask_policy, RegionMaskPolicy):
+            mask_policy = RegionMaskPolicy(mask_policy)
+        object.__setattr__(self, "mask_policy", mask_policy)
+
+        text_length = sum(len(span.text) for span in spans)
+        intervals = self.attended_intervals
+        if intervals is None:
+            if mask_policy is not None:
+                intervals = resolve_mask_policy(spans, mask_policy)
+            elif visibility is RegionVisibility.ATTENDED:
+                intervals = (
+                    (AttendedInterval(0, text_length),) if text_length > 0 else ()
+                )
+            else:
+                intervals = ()
+        else:
+            intervals = tuple(intervals)
+            self._validate_intervals(intervals, text_length, name)
+        object.__setattr__(self, "attended_intervals", intervals)
+
+    @staticmethod
+    def _validate_intervals(
+        intervals: tuple[AttendedInterval, ...],
+        text_length: int,
+        name: LogicalRegion,
+    ) -> None:
+        previous_end = 0
+        for interval in intervals:
+            if not isinstance(interval, AttendedInterval):
+                raise TypeError(
+                    "RegionState.attended_intervals must contain AttendedInterval values"
+                )
+            if interval.start < 0 or interval.end > text_length:
+                raise ValueError(
+                    f"attended interval [{interval.start}, {interval.end}) exceeds "
+                    f"region {name.value!r} length {text_length}"
+                )
+            if interval.start < previous_end:
+                raise ValueError(
+                    f"attended intervals in region {name.value!r} must be sorted and non-overlapping"
+                )
+            previous_end = interval.end
+
     @property
     def text(self) -> str:
         """The complete canonical string; no view/window truncation applies."""
 
         return "".join(span.text for span in self.spans)
 
+    @property
+    def attended_text(self) -> str:
+        """The attended substring selected by the current intervals."""
+
+        text = self.text
+        return "".join(text[interval.start : interval.end] for interval in self.attended_intervals)
+
+    def attended_offsets(self) -> Iterator[tuple[int, int, FieldSpan, int]]:
+        """Yield (global_offset_in_region, span, span_offset) for attended chars."""
+
+        text_offset = 0
+        interval_index = 0
+        intervals = tuple(self.attended_intervals)
+        for span in self.spans:
+            span_len = len(span.text)
+            span_start = text_offset
+            span_end = text_offset + span_len
+            while interval_index < len(intervals) and intervals[interval_index].end <= span_start:
+                interval_index += 1
+            local_index = interval_index
+            while local_index < len(intervals) and intervals[local_index].start < span_end:
+                interval = intervals[local_index]
+                attend_start = max(interval.start, span_start)
+                attend_end = min(interval.end, span_end)
+                if attend_start < attend_end:
+                    yield (attend_start, attend_end, span, attend_start - span_start)
+                local_index += 1
+            text_offset += span_len
+
+    def with_intervals(
+        self,
+        intervals: tuple[AttendedInterval, ...],
+    ) -> "RegionState":
+        """Return an identical region with new explicit attended intervals."""
+
+        return RegionState(
+            name=self.name,
+            spans=self.spans,
+            visibility=self.visibility,
+            write_policy=self.write_policy,
+            attended_intervals=intervals,
+            mask_policy=None,
+        )
+
+    def with_policy(
+        self,
+        policy: RegionMaskPolicy,
+    ) -> "RegionState":
+        """Return an identical region with a new mask policy (intervals resolved)."""
+
+        return RegionState(
+            name=self.name,
+            spans=self.spans,
+            visibility=self.visibility,
+            write_policy=self.write_policy,
+            attended_intervals=None,
+            mask_policy=policy,
+        )
+
     def to_canonical_dict(self) -> dict[str, Any]:
-        return {
+        value: dict[str, Any] = {
             "name": self.name.value,
             "visibility": self.visibility.value,
             "write_policy": self.write_policy.value,
             "spans": [span.to_canonical_dict() for span in self.spans],
+            "attended_intervals": [
+                interval.to_canonical_dict() for interval in self.attended_intervals
+            ],
         }
+        if self.mask_policy is not None:
+            value["mask_policy"] = self.mask_policy.to_canonical_dict()
+        return value
 
     @property
     def canonical_hash(self) -> str:
@@ -233,6 +426,8 @@ class RegionState:
         edge_refs: tuple[str, ...] = (),
         visibility: RegionVisibility | str = RegionVisibility.ATTENDED,
         write_policy: WritePolicy | str | None = None,
+        attended_intervals: tuple[AttendedInterval, ...] | None = None,
+        mask_policy: RegionMaskPolicy | None = None,
     ) -> "RegionState":
         logical_name = _as_logical_region(name)
         spans: tuple[FieldSpan, ...]
@@ -256,6 +451,8 @@ class RegionState:
             spans=spans,
             visibility=visibility,
             write_policy=write_policy,
+            attended_intervals=attended_intervals,
+            mask_policy=mask_policy,
         )
 
 
@@ -382,6 +579,9 @@ __all__ = [
     "LOGICAL_REGION_IDS",
     "RegionVisibility",
     "WritePolicy",
+    "AttendedInterval",
+    "RegionMaskPolicy",
+    "resolve_mask_policy",
     "PhysicalRole",
     "CORE_WRITABLE_REGIONS",
     "FieldSpan",

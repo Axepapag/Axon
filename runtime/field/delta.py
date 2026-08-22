@@ -261,24 +261,31 @@ def _operations_overlap(
     return max(left_start, right_start) < min(left_end, right_end)
 
 
-def validate_delta(snapshot: SharedFieldSnapshot, delta: FieldDelta) -> None:
+def validate_delta(
+    snapshot: SharedFieldSnapshot,
+    delta: FieldDelta,
+    *,
+    permitted_regions: frozenset[LogicalRegion] | None = None,
+) -> None:
     if delta.base_field_id != snapshot.field_id or delta.base_tick_id != snapshot.tick_id:
         raise StaleDeltaError(
             "delta base does not match the current field id and tick"
         )
 
+    allowed = (
+        CORE_WRITABLE_REGIONS
+        if permitted_regions is None
+        else (CORE_WRITABLE_REGIONS | permitted_regions)
+    )
+
     by_region: dict[LogicalRegion, list[FieldOperation]] = {}
     for operation in delta.operations:
         region_name = operation.region
-        if region_name not in CORE_WRITABLE_REGIONS:
+        if region_name not in allowed:
             raise SealedRegionWriteError(
                 f"logical region {region_name.value!r} is sealed"
             )
         region = snapshot.region(region_name)
-        if region.write_policy is not WritePolicy.CORE_WRITABLE:
-            raise SealedRegionWriteError(
-                f"logical region {region_name.value!r} is sealed in this snapshot"
-            )
         start, end = _bounds(operation)
         if start < 0 or end < start or end > len(region.text):
             raise DeltaValidationError(
@@ -371,17 +378,24 @@ def _apply_region_operations(
         # before their boundary has already been emitted.
         cursor = operation.end
     spans.extend(_slice_spans(region, cursor, len(region.text)))
+    # If the region carries a mask policy, re-resolve it against the new spans.
+    # Otherwise default to full attention.  Incremental interval tracking is a
+    # future refinement; Build B is policy-driven.
     return RegionState(
         name=region.name,
         spans=tuple(spans),
         visibility=region.visibility,
         write_policy=region.write_policy,
+        attended_intervals=None,
+        mask_policy=region.mask_policy,
     )
 
 
 def apply_delta(
     snapshot: SharedFieldSnapshot,
     delta: FieldDelta,
+    *,
+    permitted_regions: frozenset[LogicalRegion] | None = None,
 ) -> SharedFieldSnapshot:
     """Validate and apply ``delta`` as one deterministic transaction."""
 
@@ -389,7 +403,7 @@ def apply_delta(
         raise TypeError("apply_delta requires SharedFieldSnapshot")
     if not isinstance(delta, FieldDelta):
         raise TypeError("apply_delta requires FieldDelta")
-    validate_delta(snapshot, delta)
+    validate_delta(snapshot, delta, permitted_regions=permitted_regions)
 
     indexed_by_region: dict[
         LogicalRegion,

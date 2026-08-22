@@ -1,6 +1,6 @@
 # Axon Source Of Truth
 
-Last updated: 2026-08-21 (heart amendment ratified)
+Last updated: 2026-08-22 (Build B: beat coordinator, ingress queue, and per-region attention masking ratified)
 
 ## Core Doctrine
 
@@ -114,13 +114,24 @@ Each beat:
    as a heart-governed typed delta into its runtime-owned region. Arrivals
    during an in-flight tick queue for the next beat and never mutate the
    frozen base.
-2. Detects change via canonical field identity/freshness. No change means no
+2. Applies per-region attention masks. Masked text remains canonical and
+   restorable; only attended intervals enter the compiled rails. Policies are
+   resolved from explicit attended intervals or reusable mask policies such as
+   `all`, `none`, or `last_n_spans`.
+3. Detects change via canonical field identity/freshness. No change means no
    recompilation.
-3. Runs the dormant valve when change warrants recall.
-4. Recompiles the affected rail(s), proving complete coverage and exact
+4. Runs the dormant valve when change warrants recall.
+5. Recompiles the affected rail(s), proving complete coverage and exact
    roundtrip against the fresh canonical field.
-5. Services the tick workspace: collecting proposals, enforcing barriers, and
+6. Services the tick workspace: collecting proposals, enforcing barriers, and
    committing the validated consolidator decision.
+
+Build B realizes the first living circulation organ: `runtime/heart/ingress_queue.py`
+holds external arrivals, and `runtime/heart/coordinator.py` drains the queue,
+reapplies masks, runs primitive recall, freezes a D64 tick image, and guards
+against commits during an in-flight tick. Build B stops at the frozen tick
+image; proposal/refinement/consolidation barriers attach to that image in later
+builds.
 
 Primitive but real organs are acceptable progress; fake organs are not. An
 organ may be noisy or weak in its first form provided it is real permanent
@@ -244,7 +255,8 @@ Binding invariants:
   source span, span position, source, provenance, row, and lane identity;
 - all ten logical regions are visited on every compile, including empty or
   explicitly masked regions; masked text remains canonical state but is not an
-  attended rail character;
+  attended rail character; attended intervals are sorted, non-overlapping,
+  half-open ranges over the region's full span text and are compiled exactly;
 - compilation is accepted only after complete coverage and exact 16D roundtrip
   verification; a rail from an older `field_id` is stale and must not be used;
 - a D64 row is lossless storage, not four magically independent Transformer
@@ -351,7 +363,7 @@ The active implementation surface is intentionally narrow:
 - `runtime/field/state_branch.py` ? canonical branch persistence,
 - `runtime/axon_runtime/d64_adapter.py` ? runtime-facing D64 adapter,
 - `runtime/dormant/evidence_bridge.py` ? read-only manifest/hash-bound dormant retrieval, exact dereference, and structured-knowledge surfacing,
-- `runtime/heart/` ? heart control plane: authority classes, core registry, tick identities and frozen images, the noncanonical proposal board, and the heart transaction boundary,
+- `runtime/heart/` ? heart control plane: authority classes, core registry, tick identities and frozen images, the noncanonical proposal board, the heart transaction boundary, the ingress queue, and the beat coordinator;
 - `training/canonical_d64.py`, `training/complete_field_64d.py`, and `training/train_complete_field_64d.py` ? canonical D64 training path,
 - `curator/` recovered-corpus schema/materialization/building utilities ? offline exact dormant-memory tooling,
 

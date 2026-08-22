@@ -27,7 +27,6 @@ from .schema import (
     CANONICAL_REGION_ORDER,
     LOGICAL_REGION_IDS,
     LogicalRegion,
-    RegionVisibility,
     SharedFieldSnapshot,
     canonical_json_bytes,
     canonical_sha256,
@@ -256,11 +255,7 @@ class CompiledD64Field:
     def verify_roundtrip(self, snapshot: SharedFieldSnapshot) -> None:
         self.assert_fresh(snapshot)
         for region in CANONICAL_REGION_ORDER:
-            expected = (
-                snapshot.region(region).text
-                if snapshot.region(region).visibility is RegionVisibility.ATTENDED
-                else ""
-            )
+            expected = snapshot.region(region).attended_text
             observed = self.region_text(region)
             if observed != expected:
                 raise IncompleteRailError(
@@ -348,48 +343,65 @@ class D64FieldCompiler:
             state = snapshot.region(region)
             visited_regions.append(region.value)
             region_row_start = len(rows)
-            if state.visibility is not RegionVisibility.ATTENDED:
-                region_row_ranges.append((region.value, region_row_start, region_row_start))
-                continue
 
             text = state.text
-            expected_active += len(text)
+            attended_intervals = tuple(state.attended_intervals)
+            expected_active += sum(
+                interval.end - interval.start for interval in attended_intervals
+            )
             cartography.extend(_cartography_for_region(region, text))
             region_cells: list[np.ndarray] = []
             region_addresses: list[CanonicalCharAddress] = []
             region_position = 0
+            interval_index = 0
+            interval_count = len(attended_intervals)
             for span in state.spans:
                 span_position = 0
                 for character in span.text:
-                    try:
-                        assert_supported_text(character)
-                        cell = np.asarray(char_to_slot(character), dtype=np.float32)
-                    except Exception as exc:
-                        raise UnsupportedActiveCharacterError(
-                            "attended canonical character is not representable by the frozen "
-                            f"16D substrate: region={region.value!r}, span={span.span_id!r}, "
-                            f"region_position={region_position}, span_position={span_position}, "
-                            f"character={character!r}"
-                        ) from exc
-                    if cell.shape != (SUBSTRATE_WIDTH,):
-                        raise FieldCompilerError(
-                            f"substrate returned invalid cell shape {cell.shape!r}"
-                        )
-                    region_cells.append(cell)
-                    region_addresses.append(
-                        CanonicalCharAddress(
-                            region=region,
-                            region_position=region_position,
-                            global_position=global_position,
-                            span_id=span.span_id,
-                            span_position=span_position,
-                            source=span.source,
-                            provenance=span.provenance,
-                            character=character,
-                            row_index=-1,
-                            lane_index=-1,
-                        )
+                    # Advance past any intervals that have already ended so the
+                    # attended check is always evaluated against the current
+                    # interval.  Intervals are half-open [start, end), sorted,
+                    # and non-overlapping.
+                    while (
+                        interval_index < interval_count
+                        and attended_intervals[interval_index].end <= region_position
+                    ):
+                        interval_index += 1
+                    attended = (
+                        interval_index < interval_count
+                        and attended_intervals[interval_index].start <= region_position
+                        < attended_intervals[interval_index].end
                     )
+                    if attended:
+                        try:
+                            assert_supported_text(character)
+                            cell = np.asarray(char_to_slot(character), dtype=np.float32)
+                        except Exception as exc:
+                            raise UnsupportedActiveCharacterError(
+                                "attended canonical character is not representable by the frozen "
+                                f"16D substrate: region={region.value!r}, span={span.span_id!r}, "
+                                f"region_position={region_position}, span_position={span_position}, "
+                                f"character={character!r}"
+                            ) from exc
+                        if cell.shape != (SUBSTRATE_WIDTH,):
+                            raise FieldCompilerError(
+                                f"substrate returned invalid cell shape {cell.shape!r}"
+                            )
+                        region_cells.append(cell)
+                        region_addresses.append(
+                            CanonicalCharAddress(
+                                region=region,
+                                region_position=region_position,
+                                global_position=global_position,
+                                span_id=span.span_id,
+                                span_position=span_position,
+                                source=span.source,
+                                provenance=span.provenance,
+                                character=character,
+                                row_index=-1,
+                                lane_index=-1,
+                            )
+                        )
                     region_position += 1
                     global_position += 1
                     span_position += 1

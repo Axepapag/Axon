@@ -41,9 +41,11 @@ from .delta import (
     validate_delta,
 )
 from .schema import (
+    AttendedInterval,
     CANONICAL_REGION_ORDER,
     CORE_WRITABLE_REGIONS,
     LOGICAL_REGION_IDS,
+    RegionMaskPolicy,
     SCHEMA_VERSION,
     FieldSpan,
     LogicalRegion,
@@ -54,6 +56,7 @@ from .schema import (
     WritePolicy,
     canonical_json_bytes,
     canonical_sha256,
+    resolve_mask_policy,
 )
 from .state_branch import (
     BRANCH_EVENT_SCHEMA,
@@ -73,6 +76,9 @@ __all__ = [
     "LOGICAL_REGION_IDS",
     "RegionVisibility",
     "WritePolicy",
+    "AttendedInterval",
+    "RegionMaskPolicy",
+    "resolve_mask_policy",
     "PhysicalRole",
     "CORE_WRITABLE_REGIONS",
     "FieldSpan",

@@ -21,7 +21,9 @@ from .delta import (
     apply_delta,
 )
 from .schema import (
+    AttendedInterval,
     FieldSpan,
+    RegionMaskPolicy,
     RegionState,
     SharedFieldSnapshot,
     canonical_json_bytes,
@@ -212,12 +214,17 @@ class CanonicalStateBranch:
             )
         return snapshot
 
-    def commit(self, delta: FieldDelta) -> SharedFieldSnapshot:
+    def commit(
+        self,
+        delta: FieldDelta,
+        *,
+        permitted_regions: frozenset[LogicalRegion] | None = None,
+    ) -> SharedFieldSnapshot:
         if not isinstance(delta, FieldDelta):
             raise TypeError("delta must be FieldDelta")
         current_record = self.load_head_record()
         current = self.load_snapshot(current_record.field_id)
-        successor = apply_delta(current, delta)
+        successor = apply_delta(current, delta, permitted_regions=permitted_regions)
         self._persist_delta(delta)
         self._persist_snapshot(successor)
         next_head = BranchHead(
@@ -301,7 +308,8 @@ def _snapshot_from_dict(value: Mapping[str, Any]) -> SharedFieldSnapshot:
     for region_item in item["regions"]:
         if not isinstance(region_item, Mapping):
             raise BranchIntegrityError("serialized region must be an object")
-        if set(region_item) != {"name", "visibility", "write_policy", "spans"}:
+        required_region_fields = {"name", "visibility", "write_policy", "spans"}
+        if not required_region_fields.issubset(set(region_item)):
             raise BranchIntegrityError("serialized region fields are invalid")
         if not isinstance(region_item["spans"], list):
             raise BranchIntegrityError("serialized spans must be a list")
@@ -309,7 +317,7 @@ def _snapshot_from_dict(value: Mapping[str, Any]) -> SharedFieldSnapshot:
         for span_item in region_item["spans"]:
             if not isinstance(span_item, Mapping):
                 raise BranchIntegrityError("serialized span must be an object")
-            if set(span_item) != {
+            required_span_fields = {
                 "span_id",
                 "text",
                 "kind",
@@ -318,7 +326,8 @@ def _snapshot_from_dict(value: Mapping[str, Any]) -> SharedFieldSnapshot:
                 "confidence",
                 "container_refs",
                 "edge_refs",
-            }:
+            }
+            if not required_span_fields.issubset(set(span_item)):
                 raise BranchIntegrityError("serialized span fields are invalid")
             spans.append(
                 FieldSpan(
@@ -332,12 +341,26 @@ def _snapshot_from_dict(value: Mapping[str, Any]) -> SharedFieldSnapshot:
                     edge_refs=tuple(span_item["edge_refs"]),
                 )
             )
+
+        attended_intervals = region_item.get("attended_intervals")
+        if attended_intervals is not None:
+            attended_intervals = tuple(
+                AttendedInterval(interval["start"], interval["end"])
+                for interval in attended_intervals
+            )
+
+        mask_policy = region_item.get("mask_policy")
+        if mask_policy is not None:
+            mask_policy = RegionMaskPolicy(mask_policy["kind"], mask_policy["limit"])
+
         regions.append(
             RegionState(
                 name=region_item["name"],
                 visibility=region_item["visibility"],
                 write_policy=region_item["write_policy"],
                 spans=tuple(spans),
+                attended_intervals=attended_intervals,
+                mask_policy=mask_policy,
             )
         )
     snapshot = SharedFieldSnapshot(

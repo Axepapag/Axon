@@ -627,13 +627,24 @@ def test_ingress_and_valve_governance_at_the_boundary() -> None:
     with pytest.raises(AuthorityViolationError):
         boundary.commit(base, valve_overreach, AuthorityGrant.dormant_valve())
 
-    # The authority matrix admits ingress/valve scopes, but the existing
-    # canonical validator (bootstrap CORE_WRITABLE_REGIONS restriction) still
-    # seals those regions today: the heart fails closed through delta.py.
-    with pytest.raises(SealedRegionWriteError):
-        boundary.commit(base, ingress_delta, AuthorityGrant.ingress(IngressChannel.USER))
-    with pytest.raises(SealedRegionWriteError):
-        boundary.commit(base, valve_delta, AuthorityGrant.dormant_valve())
+    # Build B widens the canonical validator so the authority matrix can admit
+    # ingress-owned regions and the dormant valve's structured_knowledge scope.
+    commit = boundary.commit(base, ingress_delta, AuthorityGrant.ingress(IngressChannel.USER))
+    assert commit.successor.region(LogicalRegion.USER_INPUT).text == "jeff says hihi axon"
+
+    successor = commit.successor
+    valve_delta_against_successor = _delta(
+        successor,
+        "dormant-valve",
+        "recall",
+        (InsertText(region=LogicalRegion.STRUCTURED_KNOWLEDGE, offset=0, text="fact"),),
+    )
+    valve_commit = boundary.commit(
+        successor,
+        valve_delta_against_successor,
+        AuthorityGrant.dormant_valve(),
+    )
+    assert valve_commit.successor.region(LogicalRegion.STRUCTURED_KNOWLEDGE).text == "fact"
 
     # During an in-flight tick, ingress and the dormant valve must queue for
     # the next beat; only the consolidator's decision may cross the boundary.
