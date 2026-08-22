@@ -1,17 +1,17 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-22T03:39:59+00:00
-Current through event: `evt-20260822T033959065972Z-kimmy-build-b`
+Updated: 2026-08-21T22:50:35-05:00
+Current through event: `evt-20260822T035035286793Z-chatgpt-build-b-supervision`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
 ## Current mission state
 
-Axon remains at the clean Day Zero boundary, now with **P0 dormant evidence retrieval/surfacing complete and proven against the real recovered corpus**, and **Build B complete**.
+Axon remains at the clean Day Zero boundary with **P0 dormant evidence retrieval/surfacing complete and proven against the real recovered corpus**. Kimmy published Build B (`aca1bbc`) and its core circulation is genuine, but independent supervision found **Build B conditionally incomplete pending B.1 hardening**.
 
 Current engineering focus is **not** the old scripted/non-neural P1 skeleton. Jeff's newer directive supersedes it: build one real organ at a time, no scripted/fake organs, with the **64D Field Compiler Organ / heart** first. Heartbeat is its own cadence and is distinct from a cognitive tick.
 
-Heart doctrine is ratified (`b0fcb85`) and Kimmy published Build A (`63b8106`), Build A.1 hardening (`0229080`), and now **Build B** (`evt-20260822T033959065972Z-kimmy-build-b`). Build B adds a real ingress/beat coordinator that queues user/tool/advisor arrivals during ticks, commits them as heart-governed typed deltas between ticks, applies per-region attention masks, detects canonical change, runs primitive P0 dormant recall, materializes structured knowledge, stabilizes the field, and freezes the next exact D64 tick image. The Semantic Cortex proposal remains endorsed design work, but production cortex training must not preempt a working heartbeat runtime.
+Heart doctrine is ratified (`b0fcb85`) and Builds A/A.1 are independently accepted. Build B (`aca1bbc`) adds real heart-governed ingress, primitive P0 recall, branch persistence, and D64 freeze; ChatGPT independently proved a live temp branch can complete user ingress -> real dormant retrieval -> structured-knowledge commit -> exact D64 tick image with persisted/frozen field parity. Existing tests are green (49 focused; 206 full), and the real P0 three-query proof remains `all_ok=true`. However B.1 is required before advancement: dynamic mask policy can create an unpersisted canonical snapshot and stale the next commit; destructive queue drain loses pending ingress on failure; and a later beat-stage exception can leave coordinator memory stale behind durable branch HEAD. No production heartbeat host/loop or bounded idle cadence exists yet. The Semantic Cortex proposal remains endorsed design work, but Build C/production cortex work is gated on B.1.
 
 ## Binding authority and invariants
 
@@ -200,12 +200,13 @@ Kimmy maintains `D:\kimmy` and holds day-to-day senior-engineer steering unless 
 1. ~~Revise and land heart doctrine~~ **DONE 2026-08-21 (`b0fcb85`)**: wording corrections applied, Jeff's primitive-but-real/runtime-first rulings incorporated, amendment spliced into both SoT mirrors (SHA256 `D35A0FA9…`).
 2. ~~Mirror equality, doctrine/hygiene tests, full suite, doctrine event~~ **DONE**: full suite exit 0 with zero failures (mirror equality enforced); event `evt-20260821T222755580056Z-kimmy-heart-amendment-ratified`.
 3. ~~**Build A.1 — BLOCKER before B**~~ **DONE / independently accepted 2026-08-21 (`0229080`)**: hardened `HeartTransactionBoundary`; added CORE/CONSOLIDATOR/VALVE fail-closed semantics; added 64D rail guardrail; applied SoT cleanup; Kimmy regression tests and ChatGPT adversarial rechecks are green.
-4. ~~**Build B — next organ**~~ **DONE** (`evt-20260822T033959065972Z-kimmy-build-b`): real ingress/beat coordinator. Heart-owned user/tool/advisor queue -> governed between-tick ingress commit -> per-region attention masking -> exact change detection -> primitive P0 dormant recall/materialization -> canonical stabilization -> exact D64 compile/freeze -> tick image.
-5. **Semantic Cortex proposal stays active but downstream of circulation:** preserve `roundtable/SEMANTIC_CORTEX_PROPOSAL.md`, define/evaluate specialist lanes after Build B gives them a real host and feedback loop, and do not let production cortex training preempt the heartbeat runtime.
-6. **Build C next:** mature dormant recall quality, retention budgets, semantic senses and incremental/generational index maintenance on top of working Build B circulation.
-7. **Build D later:** dual-surface 64D rail semantic slots bound to exact source spans; no wider rail until 64D is proven.
-8. **Build E later:** attach real 64D cores/souls to the permanent tick path: sparse initial proposals -> all-proposal visibility -> soul exhale/inhale -> sparse refinement -> rotating consolidator proposal -> one heart commit -> successor field -> next heartbeat.
-9. **Training follows organism anatomy.** Only after the 64D runtime/tick path is real and proven should substantive core training begin; train the cores to operate as Axon organs inside that path.
+4. **Build B.1 — BLOCKER before C/Cortex:** harden `aca1bbc` circulation. Eliminate unpersisted canonical mask snapshots (derived mask policy or real heart-persisted mask transaction); make ingress queue ack/pop only after successful commit and preserve unprocessed arrivals on failure; keep coordinator state synchronized to durable branch HEAD after every partial failure and make failed later stages retryable. Add adversarial regression tests for all three reproduced failures.
+5. **Heartbeat runtime host after B.1:** add the smallest permanent event-driven/bounded-idle host around `BeatCoordinator`, with observable health/heartbeat state. Do not introduce fake reasoning cores; keep heartbeat circulation distinct from cognitive-tick execution where necessary. Carry durable epoch, durable/recoverable ingress, and class-specific authority provenance into this boundary.
+6. **Semantic Cortex proposal stays active but downstream of robust circulation:** preserve `roundtable/SEMANTIC_CORTEX_PROPOSAL.md`; no production cortex training/integration until B.1 is independently green. Design/evaluation work may continue.
+7. **Build C after B.1:** mature dormant recall quality, retention budgets, semantic senses and incremental/generational index maintenance on top of failure-safe circulation.
+8. **Build D later:** dual-surface 64D rail semantic slots bound to exact source spans; no wider rail until 64D is proven.
+9. **Build E later:** attach real 64D cores/souls to the permanent tick path: sparse initial proposals -> all-proposal visibility -> soul exhale/inhale -> sparse refinement -> rotating consolidator proposal -> one heart commit -> successor field -> next heartbeat.
+10. **Training follows organism anatomy.** Only after the runtime/tick anatomy is real and robust should substantive core training begin; train cores to operate as Axon organs inside that path.
 
 ## Fast orientation
 
@@ -222,4 +223,4 @@ Kimmy maintains `D:\kimmy` and holds day-to-day senior-engineer steering unless 
 - Dormant authority: `State/dormant/`
 - Full tests: `python -m pytest -q -p no:cacheprovider`
 
-**Kimmy / Kimi Code CLI / 2026-08-22** (prior update: ChatGPT / GPT-5.6 Sol / 2026-08-21)
+**ChatGPT / GPT-5.6 Sol / 2026-08-21** (prior update: Kimmy / Kimi Code CLI / 2026-08-22)
