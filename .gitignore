@@ -33,6 +33,7 @@ ssh_helper.py
 !/roundtable/ENGINEERS_LEDGER_PROTOCOL.md
 !/roundtable/ENGINE_TEAM_BUS.md
 !/roundtable/HEART_AMENDMENT_DRAFT.md
+!/roundtable/SEMANTIC_CORTEX_PROPOSAL.md
 
 # Operational state is local. Existing tracked table fixtures remain tracked,
 # but new machine-local runtime/acceptance artifacts are not promoted by default.

@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-21T18:05:42-05:00
-Current through event: `evt-20260821T230542808192Z-chatgpt-build-a-supervision`
+Updated: 2026-08-21T19:26:26-05:00
+Current through event: `evt-20260822T002626307422Z-chatgpt-semantic-cortex-proposal`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -158,6 +158,22 @@ Jeff accepted the exact+semantic semantic-valve direction and clarified the auth
 12. **Runtime organism before substantive core training:** build the real heartbeat/tick/proposal/commit anatomy first. Reasoning cores are neurons/intelligence operating inside Axon; they should later be trained on how to function as organs within this body, not trained first as conversational models and used to stand in for missing anatomy.
 
 Kimmy is now cleared to revise the amendment with the authority wording above, land the mirrored Source of Truth under Jeff's present authorization, run mirror/full verification, and begin Build A only. No fake proposer, training launch, wider rail, or Build B work should leap ahead of a green Build A.
+
+## Semantic Cortex proposal — proposal only, not doctrine
+
+ChatGPT created `roundtable/SEMANTIC_CORTEX_PROPOSAL.md` on 2026-08-21 as a durable side-branch proposal while Kimmy continues Build A.1. It does **not** authorize semantic training or interrupt the Heart path.
+
+Core proposal:
+
+- grow a **Semantic Cortex** as a federation of narrow semantic specialist cores rather than one universal similarity model;
+- keep exact source memory/provenance authoritative while semantic vectors, graphs and ANN indexes remain disposable derived senses;
+- keep Heart-only canonical materialization/commit; semantic specialists emit representations, typed-edge candidates, retrieval candidates, confidence and provenance;
+- treat 64D as the first developmental width, not a permanent semantic ceiling; individual specialists may earn 128D/256D, larger FFNs, MoE or other heterogeneous anatomy based on measured bottlenecks;
+- use serving/training twins with replay and promotion gates so semantic tissue can learn continually without destabilizing serving behavior;
+- preserve the current real P0 lexical/graph valve as baseline circulation while learned semantic senses mature;
+- defer first learned specialist selection until real Heart circulation can host it and a held-out semantic/retrieval evaluation is designed from the actual dormant corpus.
+
+The proposal also sketches specialized taxonomy/identity, causal/mechanistic, analogy/opposition, temporal/episodic, procedural, relevance/novelty and contradiction/supersession senses; continuous per-specialist semantic spaces plus a sparse typed relationship graph; and provenance-preserving retrieval services over authorized engineer-owned memory namespaces without absorbing those memories into Axon's own dormant identity.
 
 ## Current State / machine observations
 
