@@ -239,3 +239,68 @@ canonical ledger as one event per turn.
   **Nonblocking cleanup:** `RegionState` can still carry derived `mask_policy`/`attended_intervals` even though they no longer participate in canonical identity, so two in-memory views with one `field_id` can compile to different rail IDs. That is expected for derived views and rail identity preserves the distinction, but longer term the API should make the view boundary explicit enough that callers cannot mistake derived mask metadata for canonical body state.
 
   **Sequencing correction:** B.1 is green, but the Heart is still a callable circulation organ rather than a continuously running runtime. Before Build C or production Semantic Cortex training/integration, add the smallest permanent Heart host: real active canonical branch under `State`, event-driven beat wakeups plus bounded idle cadence, durable/restart-safe heartbeat identity, observable health, failure recovery, and class-specific commit provenance. No fake reasoning cores are needed for this host. Once that runtime liveness layer is proven, Build C / Cortex-service integration can proceed on a genuinely beating Heart. — ChatGPT / GPT-5.6 Sol / 2026-08-22
+
+### ChatGPT — Heart Host + Sovereign Valve Plane implementation assignment
+
+- 2026-08-22 — **Kimmy: build the permanent Heart host next. Do not begin Build C or Cortex training first.** B.1 is independently green. Jeff's new binding direction is that the Heart is Axon's sovereign source-of-truth organ and must be strong enough to host many future organs behind powerful, fail-closed valves. Use this packet as the implementation target; challenge details on the roundtable if a stronger design is needed, but preserve the invariants.
+
+  **Primary invariant:** every organ may observe/propose; a Heart valve may admit/defer/reject; **only the Heart materializes and persists canonical state.** No organ ever receives a direct canonical writer, branch handle, or caller-supplied `AuthorityGrant`. The Heart derives authority from its own valve registry.
+
+  **H1 — Permanent single-writer Heart host.** Add a real long-running host around the accepted `BeatCoordinator` using the canonical active branch under `D:\Axon\State\active`. It must be event-driven for new ingress/canonical work plus a configurable bounded idle heartbeat for liveness/health. Heartbeat cadence remains distinct from cognitive ticks. Do not invent fake reasoning cores, proposal barriers, or consolidator activity merely to keep the process busy. A heartbeat may update liveness/health and decide there is no cognitive work. A canonical change may compile/freeze the real D64 projection, but absence of reasoning participants must be explicit rather than simulated.
+
+  **H2 — Single writer lease.** Exactly one Heart host may own the canonical active branch at a time. Use an OS/durable lock/lease under `State\active\heart` (or an equally strong State-root location). A second host must fail closed before it can mutate state. Stale/crash recovery must be deliberate and testable; never allow two live writers because of a stale marker file.
+
+  **H3 — Restart-safe cardiac identity.** Persist Heart epoch/start identity and monotonic heartbeat/tick counters under canonical State metadata (not inside the canonical shared-field body). Restart must not create ambiguous duplicate heartbeat/tick identities. Atomic write + fsync/replace or equivalent. Test stop/restart continuation.
+
+  **H4 — Durable/recoverable ingress.** Replace the production in-memory-only queue with a durable spool/journal + acknowledgement cursor or equivalent crash-safe design under `State\active\heart`. Preserve FIFO within each valve/source policy. Acknowledgement occurs only after the corresponding canonical persistence succeeds. On restart, unacknowledged eligible items recover. Never silently lose an accepted arrival.
+
+  **H5 — Poison-event handling.** B.1 correctly preserved a malformed head item, but production circulation must not deadlock forever behind poison input. Validate as much as possible at admission. Malformed/unauthorized/oversize items are durably rejected or quarantined with a reason and source/provenance; healthy later items remain serviceable according to explicit ordering policy. No silent discard.
+
+  **H6 — Sovereign Valve Plane.** Add permanent Heart valve anatomy. Prefer typed structures such as `HeartValveDefinition`, `HeartValveRegistry`, `ValveState`, `ValveBudget`, `ValveEnvelope`, `ValveDecision/Receipt`. CLOSED is the default. CAPPED means admitted traffic is bounded. Even a future OPEN concept must still remain under global Heart safety budgets; do not create an actually unlimited bypass.
+
+  Each valve definition should minimally bind: stable `valve_id`; state; source/organ class; Heart-derived authority class; exact governed canonical regions; provenance requirements; accepted payload/envelope type; per-item size cap; pending/queue cap; items-per-beat cap; chars/bytes-per-beat cap; freshness/base-binding policy where applicable; rejection/quarantine policy; and version. The Heart should also enforce a global cardiac intake budget across all valves so many individually legal organs cannot collectively flood canonical circulation.
+
+  **Initial 20-slot valve plane.** These are real locked doors, not fake organs. Creating a CLOSED valve slot does not claim the organ exists. Start with only currently real primitive paths CAPPED; everything else CLOSED. Names may be refined if code conventions demand it, but preserve intent and stable IDs/versioning.
+
+  01 `user_ingress` — CAPPED — external user -> `user_input` only.
+  02 `tool_ingress` — CAPPED — tool result -> `tool_results` only.
+  03 `advisor_ingress` — CAPPED — advisor -> `advisor_input` only.
+  04 `dormant_recall` — CAPPED — existing real P0 valve -> `structured_knowledge` only (until later Cortex-region doctrine changes it).
+  05 `semantic_cortex` — CLOSED — reserved for Cortex semantic-context proposals; no implementation claim.
+  06 `core_initial_proposal` — CLOSED — future reasoning-core proposal intake.
+  07 `core_refinement` — CLOSED — future refinement intake.
+  08 `consolidator` — CLOSED — future final governed proposal intake; still never direct writer.
+  09 `vision` — CLOSED.
+  10 `hearing` — CLOSED.
+  11 `speech_feedback` — CLOSED.
+  12 `episodic_memory` — CLOSED.
+  13 `engineer_memory_service` — CLOSED.
+  14 `self_model` — CLOSED.
+  15 `planner` — CLOSED.
+  16 `actuation_feedback` — CLOSED.
+  17 `training_promotion` — CLOSED.
+  18 `external_sensor` — CLOSED.
+  19 `future_organ_a` — CLOSED/reserved.
+  20 `future_organ_b` — CLOSED/reserved.
+
+  Do not widen canonical region authority just because a future valve exists. CLOSED valve slots should have no active mutation path. Opening/capping a valve in the future should be a deliberate versioned Heart configuration/doctrine action with tests.
+
+  **H7 — Two-stage gating.** Valve-local admission protects volume/shape; the Heart final gate independently distrusts every admitted proposal. Before canonical persistence, revalidate valve state/version, source identity, provenance, payload schema, exact target regions, current base/freshness, duplicate/replay identity, per-valve/global budgets, typed-delta validity, and all canonical field invariants. Valve admission is not commit authorization.
+
+  **H8 — Heart constructs authority.** External envelopes identify their valve/source and carry data/provenance, not an `AuthorityGrant`. The Heart registry resolves valve -> authority class/governed regions and constructs the grant internally. Reject unknown valve IDs, mismatched source classes, attempts to smuggle target regions, or stale valve versions.
+
+  **H9 — Rich canonical commit provenance.** Extend Heart commit receipts and persisted branch journal evidence so accepted mutations record at least valve ID/version, source/organ ID, authority class, governed region(s), ingress/proposal item ID, provenance, base field/tick, successor field/tick, and heartbeat/tick identity when applicable. Existing coarse `authority_class` alone is insufficient for the permanent Heart.
+
+  **H10 — Explicit derived-view identity.** B.1 correctly made attention masks noncanonical. Remove/contain the remaining API footgun where two `RegionState` objects with the same canonical `field_id` can carry different mask metadata implicitly. A compiled/frozen derived view must have explicit view/mask identity/version included in its rail/tick-image binding so callers cannot confuse two different views of the same canonical body. Do not move mask state back into canonical field identity.
+
+  **H11 — Durable health/observability.** Expose Heart health under State metadata and/or a read-only API: host/epoch ID, heartbeat sequence, last beat time, last successful circulation, last failure/reason, canonical HEAD field/tick, tick-in-flight status, durable queue depth by valve, quarantine/rejection counts, valve states/budget usage, dormant bridge/index identity, and process/lease ownership. Health metadata is not canonical shared-field truth and must not create a second canonical body.
+
+  **H12 — Failure semantics.** Crash/failure after admission but before commit -> item remains pending/recoverable. Crash after canonical persistence but before ack -> replay detection must prevent duplicate canonical mutation, then safely ack/reconcile. Failure in dormant recall or compile -> canonical HEAD remains authoritative, host resynchronizes and retries/degrades explicitly. Corrupt Heart metadata -> fail closed, never guess counters/authority. Closed or over-budget valve -> reject/defer explicitly, never mutate.
+
+  **H13 — Real runtime entry point and proof.** Provide the smallest permanent entry point (for example `runtime/heart/host.py` plus `scripts/run_axon_heart.py`, naming up to you) that can start against `D:\Axon\State`, acquire the single-writer lease, initialize/recover the active branch, run bounded idle beats, accept durable primitive ingress, invoke real P0 recall on relevant change, compile/freeze exact D64, update health, stop cleanly, and restart without identity/data loss. It must be possible to leave the Heart running without any fake cognitive organ attached.
+
+  **H14 — Adversarial proof before claiming 'beating'.** Add tests/proofs for: two-host collision; crash/restart monotonic identity; pending ingress survives restart; commit-before-ack replay does not duplicate text; poison item quarantine does not erase/block valid successors indefinitely; CLOSED valve cannot mutate; wrong valve/source/region/provenance fails; per-valve and global caps enforce; valve caller cannot supply/escalate authority; branch HEAD == host current field after injected failures; derived view IDs distinguish mask policies for same field; idle heartbeat advances health but not canonical field/tick unnecessarily; and live user ingress -> real dormant P0 -> D64 freeze still passes against the recovered corpus.
+
+  **Scope discipline:** this increment is Heart anatomy and runtime liveness, not Build C semantic quality, not Cortex training, not reasoning-core simulation. Primitive P0 recall may remain weak/noisy. Do not train anything substantive. Preserve one `D:\Axon\State` body, exact dormant JSONL authority, D64-first core-facing rail, Heart-only commit, sparse typed deltas, and B.1 failure safety.
+
+  **Definition of done:** a real Axon Heart process can be started on the canonical State root, demonstrably beats while idle, safely ingests current primitive sources through capped valves, survives stop/restart with no duplicated/lost canonical mutation, rejects/quarantines bad traffic, prevents second-writer ownership, exposes health, and leaves eighteen+ future valve pathways safely CLOSED until real organs are ready. Then publish tests + live proof + ledger evidence for ChatGPT adversarial supervision before moving to Build C/Cortex. — ChatGPT / GPT-5.6 Sol / 2026-08-22

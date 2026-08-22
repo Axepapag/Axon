@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-22T00:28:50-05:00
-Current through event: `evt-20260822T052850836507Z-chatgpt-build-b1-acceptance`
+Updated: 2026-08-22T11:37:24-05:00
+Current through event: `evt-20260822T163724095387Z-chatgpt-heart-host-valve-assignment`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -11,7 +11,7 @@ Axon remains at the clean Day Zero boundary with **P0 dormant evidence retrieval
 
 Current engineering focus is **not** the old scripted/non-neural P1 skeleton. Jeff's newer directive supersedes it: build one real organ at a time, no scripted/fake organs, with the **64D Field Compiler Organ / heart** first. Heartbeat is its own cadence and is distinct from a cognitive tick.
 
-Heart doctrine is ratified (`b0fcb85`) and Builds A/A.1 are independently accepted. Build B (`aca1bbc`) adds real heart-governed ingress, primitive P0 recall, branch persistence, and D64 freeze; Build B.1 (`b3ff286`) hardens it so mask policies are derived views, ingress drains transactionally, and coordinator memory cannot diverge from durable branch HEAD. ChatGPT independently re-ran the exact B1-B3 failures and accepted the fixes, then proved a live temp branch can still complete user ingress -> real dormant retrieval -> structured-knowledge commit -> exact D64 tick image with persisted/frozen field parity. Existing tests are green (52 focused; 209 full). No production heartbeat host/loop or bounded idle cadence exists yet. The Semantic Cortex proposal remains endorsed design work, but Build C/production cortex work stays gated on a green runtime host after B.1.
+Heart doctrine is ratified (`b0fcb85`) and Builds A/A.1/B/B.1 are independently green. The current assignment is **Heart Host + Sovereign Valve Plane** (`evt-20260822T163724095387Z-chatgpt-heart-host-valve-assignment`): Kimmy is to make circulation a permanent single-writer runtime with event-driven + bounded-idle heartbeat, restart-safe identity, durable/recoverable ingress, poison-event quarantine, Heart-owned authority construction, rich provenance/health, and a closed-by-default 20-slot valve plane. Only the existing real primitive user/tool/advisor/P0 dormant paths begin CAPPED; future-organ paths remain CLOSED. Build C and production Cortex training stay gated on independent proof that this Heart truly runs, survives restart/failure, and remains the sole canonical writer.
 
 ## Binding authority and invariants
 
@@ -201,7 +201,7 @@ Kimmy maintains `D:\kimmy` and holds day-to-day senior-engineer steering unless 
 2. ~~Mirror equality, doctrine/hygiene tests, full suite, doctrine event~~ **DONE**: full suite exit 0 with zero failures (mirror equality enforced); event `evt-20260821T222755580056Z-kimmy-heart-amendment-ratified`.
 3. ~~**Build A.1 — BLOCKER before B**~~ **DONE / independently accepted 2026-08-21 (`0229080`)**: hardened `HeartTransactionBoundary`; added CORE/CONSOLIDATOR/VALVE fail-closed semantics; added 64D rail guardrail; applied SoT cleanup; Kimmy regression tests and ChatGPT adversarial rechecks are green.
 4. ~~**Build B.1 — BLOCKER before C/Cortex**~~ **DONE / independently accepted** (`b3ff286`, acceptance `evt-20260822T052850836507Z-chatgpt-build-b1-acceptance`): attention masks are derived compile-time views; ingress queue acks only after successful commit and preserves unprocessed arrivals on failure; coordinator state resynchronizes to durable branch HEAD after every commit and after any exception. ChatGPT reran all three original failures plus real dormant circulation; 52 focused and 209 full tests are green.
-5. **Heartbeat runtime host — next:** add the smallest permanent event-driven/bounded-idle host around `BeatCoordinator`, with observable health/heartbeat state. Do not introduce fake reasoning cores; keep heartbeat circulation distinct from cognitive-tick execution where necessary. Carry durable epoch, durable/recoverable ingress, and class-specific authority provenance into this boundary.
+5. **Heart Host + Sovereign Valve Plane — assigned to Kimmy:** implement the latest `ENGINE_TEAM_BUS.md` H1-H14 packet. Permanent single-writer Heart host; event-driven + bounded-idle heartbeat; restart-safe cardiac identity; durable/recoverable ingress and poison quarantine; 20-slot fail-closed Heart valve plane with only current primitive paths CAPPED; Heart-derived authority; two-stage gating; rich commit provenance; explicit derived-view identity; health/recovery; adversarial restart/replay/second-writer/live-P0 proof. No fake reasoning cores and no Build C/Cortex training until independently accepted.
 6. **Semantic Cortex proposal stays active but downstream of a genuinely beating Heart:** preserve `roundtable/SEMANTIC_CORTEX_PROPOSAL.md`; design/evaluation work may continue, but production cortex training/integration waits for the permanent heartbeat host/liveness layer to be independently green.
 7. **Build C after the heartbeat runtime host:** mature dormant recall quality, retention budgets, semantic senses and incremental/generational index maintenance on top of continuously hosted, failure-safe circulation.
 8. **Build D later:** dual-surface 64D rail semantic slots bound to exact source spans; no wider rail until 64D is proven.
