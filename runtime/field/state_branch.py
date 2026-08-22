@@ -219,9 +219,12 @@ class CanonicalStateBranch:
         delta: FieldDelta,
         *,
         permitted_regions: frozenset[LogicalRegion] | None = None,
+        metadata: Mapping[str, Any] | None = None,
     ) -> SharedFieldSnapshot:
         if not isinstance(delta, FieldDelta):
             raise TypeError("delta must be FieldDelta")
+        if metadata is not None and not isinstance(metadata, Mapping):
+            raise TypeError("metadata must be a mapping or None")
         current_record = self.load_head_record()
         current = self.load_snapshot(current_record.field_id)
         successor = apply_delta(current, delta, permitted_regions=permitted_regions)
@@ -234,18 +237,22 @@ class CanonicalStateBranch:
             tick_id=successor.tick_id,
             parent_field_id=successor.parent_field_id,
         )
-        self._append_event(
-            {
-                "event": "commit",
-                "generation": next_head.generation,
-                "base_field_id": current.field_id,
-                "delta_id": delta.delta_id,
-                "field_id": successor.field_id,
-                "tick_id": successor.tick_id,
-                "parent_field_id": successor.parent_field_id,
-            }
-        )
+        # HEAD is canonical authority.  Advance it atomically before writing the
+        # audit event; if the later journal append fails, callers resynchronize
+        # to this durable HEAD rather than mistaking an audit line for reality.
         _atomic_json(self.head_path, next_head.to_dict())
+        event = {
+            "event": "commit",
+            "generation": next_head.generation,
+            "base_field_id": current.field_id,
+            "delta_id": delta.delta_id,
+            "field_id": successor.field_id,
+            "tick_id": successor.tick_id,
+            "parent_field_id": successor.parent_field_id,
+        }
+        if metadata:
+            event["metadata"] = dict(metadata)
+        self._append_event(event)
         return successor
 
     def _persist_snapshot(self, snapshot: SharedFieldSnapshot) -> None:

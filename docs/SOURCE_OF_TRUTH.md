@@ -109,11 +109,33 @@ ingress paths may originate and submit proposed mutations; they never mutate
 canonical state directly. Cores, consolidators, ingress paths, and the
 dormant valve all cross the heart's typed validation/transaction boundary.
 
-A heartbeat is event-driven: a canonical field change is the primary
-doorbell. While input or commit work exists, the heart beats promptly. While
-idle, the heart may keep a slow bounded liveness beat. Proposal-board
-activity advances the in-flight tick workspace and does not by itself create
-a new canonical field.
+A heartbeat is event-driven: durable ingress or other governed work is the
+primary doorbell. While input or commit work exists, the heart beats promptly.
+While idle, the permanent host keeps a slow bounded liveness beat. Idle
+heartbeats advance durable cardiac liveness identity but do not create a new
+canonical field or cognitive tick. Proposal-board activity advances the
+in-flight tick workspace and does not by itself create a new canonical field.
+
+The permanent runtime is `runtime/heart/host.py`. Exactly one host may own the
+active canonical branch at a time: `runtime/heart/lease.py` holds an operating-
+system file lock beneath `State/active/heart`, so a second process fails closed
+before it can mutate canonical state. `runtime/heart/identity.py` persists the
+Heart epoch, process-start sequence, heartbeat sequence, and cognitive-tick
+sequence with atomic replace + fsync. Sequence identities are reserved durably
+before use; a crash may leave a gap but may not cause identity reuse after
+restart.
+
+Every external or organ-facing mutation crosses the sovereign valve plane in
+`runtime/heart/valve.py`. The plane has twenty permanent valve slots. The
+primitive real `user_ingress`, `tool_ingress`, `advisor_ingress`, and
+`dormant_recall` valves begin CAPPED under explicit item/queue/character
+budgets; the sixteen future-organ slots begin CLOSED. CLOSED is fail-closed,
+and even OPEN valves remain subject to global cardiac intake budgets. An
+external envelope carries source identity, payload, type, and provenance only;
+it cannot supply an `AuthorityGrant`. The Heart resolves valve identity to the
+permitted authority class and exact canonical region itself, then revalidates
+valve version, source class, payload type/size, replay identity, budgets, and
+typed-delta invariants at the final gate before commit.
 
 Each beat:
 
@@ -134,13 +156,33 @@ Each beat:
 6. Services the tick workspace: collecting proposals, enforcing barriers, and
    committing the validated consolidator decision.
 
-Build B realizes the first living circulation organ: `runtime/heart/ingress_queue.py`
-holds external arrivals, and `runtime/heart/coordinator.py` drains the queue
-transactionally (acknowledging each item only after its heart-governed commit
-persists), resolves derived masks, runs primitive recall, freezes a D64 tick
-image, and guards against commits during an in-flight tick. Build B stops at the
-frozen tick image; proposal/refinement/consolidation barriers attach to that
-image in later builds.
+Build B established the first real circulation path. The permanent Heart-host
+increment now makes that path restartable and continuously runnable:
+`runtime/heart/durable_ingress.py` provides a durable global FIFO with explicit
+ack cursor, rejection/quarantine evidence, and crash recovery;
+`runtime/heart/coordinator.py` remains the one circulation/transaction engine
+that commits through the existing `HeartTransactionBoundary` and canonical
+branch. Durable ingress is acknowledged only after canonical persistence. If a
+process dies after commit but before ack, the event id embedded in canonical
+span provenance lets the restarted Heart prove the item already became real
+and acknowledge it without duplicating text.
+
+Canonical branch HEAD is the authority during partial failures; the branch
+journal is audit evidence. Heart commit receipts and branch events retain valve
+id/version, source id, item id, authority class, governed regions, provenance,
+base/successor field identity, and tick binding when applicable. Health and
+lease files beneath `State/active/heart` are durable observability/control
+metadata, not a second canonical body.
+
+Attention-mask choices remain derived. Each frozen tick image and rail now also
+carry an explicit derived `view_id` computed from the mask policy set. Two
+masked views of the same canonical `field_id` are therefore distinguishable
+without making masks canonical. A changed field still must pass the exact D64
+coverage/roundtrip proof before the tick image is frozen. With no real reasoning
+cores registered yet, the host explicitly closes the empty developmental tick
+after a successful freeze so circulation can continue; it does not invent a
+participant or proposal. Proposal/refinement/consolidation barriers attach to
+these real frozen images in later builds.
 
 Primitive but real organs are acceptable progress; fake organs are not. An
 organ may be noisy or weak in its first form provided it is real permanent
@@ -374,7 +416,8 @@ The active implementation surface is intentionally narrow:
 - `runtime/field/state_branch.py` ? canonical branch persistence,
 - `runtime/axon_runtime/d64_adapter.py` ? runtime-facing D64 adapter,
 - `runtime/dormant/evidence_bridge.py` ? read-only manifest/hash-bound dormant retrieval, exact dereference, and structured-knowledge surfacing,
-- `runtime/heart/` ? heart control plane: authority classes, core registry, tick identities and frozen images, the noncanonical proposal board, the heart transaction boundary, the ingress queue, and the beat coordinator;
+- `runtime/heart/` ? heart anatomy: authority/core control plane, canonical transaction boundary, beat coordinator, sovereign 20-slot valve plane, OS single-writer lease, restart-safe cardiac identity, durable ingress/replay/quarantine spool, health observability, explicit derived-view identity, and the permanent Heart host;
+- `scripts/run_axon_heart.py` ? production entry point for the permanent Heart host and bounded idle/event-driven cadence;
 - `training/canonical_d64.py`, `training/complete_field_64d.py`, and `training/train_complete_field_64d.py` ? canonical D64 training path,
 - `curator/` recovered-corpus schema/materialization/building utilities ? offline exact dormant-memory tooling,
 

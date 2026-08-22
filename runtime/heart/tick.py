@@ -13,6 +13,8 @@ from typing import Any, Iterable, Mapping
 
 from runtime.field import (
     CompiledD64Field,
+    LogicalRegion,
+    RegionMaskPolicy,
     SharedFieldSnapshot,
     canonical_sha256,
 )
@@ -21,6 +23,35 @@ from .errors import HeartbeatError, RailWidthMismatchError, StaleRailBindingErro
 
 TICK_IDENTITY_SCHEMA = "axon-heart-tick-identity-v1"
 TICK_IMAGE_SCHEMA = "axon-heart-frozen-tick-image-v1"
+DERIVED_VIEW_SCHEMA = "axon-heart-derived-view-v1"
+
+
+def derive_view_id(
+    region_masks: Mapping[LogicalRegion, RegionMaskPolicy] | None = None,
+) -> str:
+    """Return an explicit identity for one noncanonical attention view."""
+
+    masks = region_masks or {}
+    payload = {
+        "schema": DERIVED_VIEW_SCHEMA,
+        "region_masks": [
+            {
+                "region": (region if isinstance(region, LogicalRegion) else LogicalRegion(region)).value,
+                "policy": (
+                    policy
+                    if isinstance(policy, RegionMaskPolicy)
+                    else RegionMaskPolicy(policy["kind"], policy.get("limit", 0))
+                ).to_canonical_dict(),
+            }
+            for region, policy in sorted(
+                masks.items(),
+                key=lambda item: (
+                    item[0].value if isinstance(item[0], LogicalRegion) else str(item[0])
+                ),
+            )
+        ],
+    }
+    return canonical_sha256(payload)
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,6 +135,7 @@ class RailBinding:
     rail_id: str
     source_field_id: str
     source_tick_id: int
+    view_id: str = field(default_factory=derive_view_id)
 
     def __post_init__(self) -> None:
         if isinstance(self.d_model, bool) or not isinstance(self.d_model, int):
@@ -120,6 +152,8 @@ class RailBinding:
             raise ValueError("RailBinding.rail_id must be non-empty")
         if not isinstance(self.source_field_id, str) or not self.source_field_id:
             raise ValueError("RailBinding.source_field_id must be non-empty")
+        if not isinstance(self.view_id, str) or not self.view_id:
+            raise ValueError("RailBinding.view_id must be non-empty")
 
     def to_canonical_dict(self) -> dict[str, Any]:
         return {
@@ -127,6 +161,7 @@ class RailBinding:
             "rail_id": self.rail_id,
             "source_field_id": self.source_field_id,
             "source_tick_id": self.source_tick_id,
+            "view_id": self.view_id,
         }
 
 
@@ -140,6 +175,7 @@ class FrozenTickImage:
 
     identity: TickIdentity
     rails: tuple[RailBinding, ...]
+    view_id: str = field(default_factory=derive_view_id)
     image_id: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -150,6 +186,10 @@ class FrozenTickImage:
             raise HeartbeatError("FrozenTickImage requires at least one rail")
         if not all(isinstance(rail, RailBinding) for rail in rails):
             raise TypeError("FrozenTickImage.rails must contain RailBinding values")
+        if not isinstance(self.view_id, str) or not self.view_id:
+            raise ValueError("FrozenTickImage.view_id must be non-empty")
+        if any(rail.view_id != self.view_id for rail in rails):
+            raise HeartbeatError("FrozenTickImage rail view ids must match the image view id")
         d_models = [rail.d_model for rail in rails]
         if len(d_models) != len(set(d_models)):
             raise HeartbeatError("FrozenTickImage rails must have unique d_model values")
@@ -174,6 +214,7 @@ class FrozenTickImage:
         return {
             "schema": TICK_IMAGE_SCHEMA,
             "identity": self.identity.to_canonical_dict(),
+            "view_id": self.view_id,
             "rails": [rail.to_canonical_dict() for rail in self.rails],
         }
 
@@ -200,11 +241,16 @@ class FrozenTickImage:
         cls,
         identity: TickIdentity,
         rails: Mapping[int, CompiledD64Field] | Iterable[tuple[int, CompiledD64Field]],
+        *,
+        view_id: str | None = None,
     ) -> "FrozenTickImage":
         """Bind compiled D64 rail references to one frozen tick identity."""
 
         if not isinstance(identity, TickIdentity):
             raise TypeError("FrozenTickImage.from_compiled requires a TickIdentity")
+        resolved_view_id = derive_view_id() if view_id is None else view_id
+        if not isinstance(resolved_view_id, str) or not resolved_view_id:
+            raise ValueError("FrozenTickImage.from_compiled view_id must be non-empty")
         items = (
             tuple(rails.items())
             if isinstance(rails, Mapping)
@@ -247,14 +293,17 @@ class FrozenTickImage:
                     rail_id=compiled.rail_id,
                     source_field_id=compiled.source_field_id,
                     source_tick_id=compiled.source_tick_id,
+                    view_id=resolved_view_id,
                 )
             )
-        return cls(identity=identity, rails=tuple(bindings))
+        return cls(identity=identity, rails=tuple(bindings), view_id=resolved_view_id)
 
 
 __all__ = [
     "TICK_IDENTITY_SCHEMA",
     "TICK_IMAGE_SCHEMA",
+    "DERIVED_VIEW_SCHEMA",
+    "derive_view_id",
     "TickIdentity",
     "HeartbeatClock",
     "RailBinding",

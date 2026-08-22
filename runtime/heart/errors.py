@@ -99,6 +99,50 @@ class FinalCommitAlreadyMadeError(HeartTransactionError):
     """A tick's final consolidator commit has already occurred."""
 
 
+class LeaseDeniedError(HeartError):
+    """A second Heart host failed to acquire the single-writer lease."""
+
+
+class UnknownValveError(HeartError):
+    """A referenced Heart valve id is not registered."""
+
+
+class ValveClosedError(HeartError):
+    """A Heart valve is CLOSED and admits no traffic."""
+
+
+class ValveBudgetExceededError(HeartError):
+    """A valve or global cardiac intake budget was exhausted."""
+
+
+class ValveSourceMismatchError(HeartError):
+    """An envelope source does not match the valve's registered source class."""
+
+
+class ValveAuthorityError(HeartError):
+    """The Heart could not derive valid authority from a valve definition."""
+
+
+class ValveAdmissionError(HeartError):
+    """A valve envelope failed local admission validation."""
+
+
+class PoisonEventError(HeartError):
+    """A durable ingress event is malformed, unauthorized, or otherwise poisonous."""
+
+
+class ReplayEventError(HeartError):
+    """A durable ingress event would be replayed or acknowledged out of order."""
+
+
+class HealthCorruptionError(HeartError):
+    """Durable Heart identity/health metadata is corrupt or untrusted."""
+
+
+class HostStateError(HeartError):
+    """The permanent Heart host is in an inconsistent or illegal state."""
+
+
 __all__ = [
     "HeartError",
     "InvalidAuthorityGrantError",
@@ -123,4 +167,15 @@ __all__ = [
     "CoreCommitError",
     "TickBindingError",
     "FinalCommitAlreadyMadeError",
+    "LeaseDeniedError",
+    "UnknownValveError",
+    "ValveClosedError",
+    "ValveBudgetExceededError",
+    "ValveSourceMismatchError",
+    "ValveAuthorityError",
+    "ValveAdmissionError",
+    "PoisonEventError",
+    "ReplayEventError",
+    "HealthCorruptionError",
+    "HostStateError",
 ]

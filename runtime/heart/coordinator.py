@@ -29,6 +29,7 @@ from runtime.field import (
     LogicalRegion,
     RegionMaskPolicy,
     SharedFieldSnapshot,
+    canonical_sha256,
     replacement_delta,
 )
 from runtime.dormant import DormantEvidenceBridge, DormantEvidenceIndex
@@ -37,7 +38,7 @@ from .authority import AuthorityGrant, IngressChannel, INGRESS_OWNED_REGIONS
 from .errors import HeartTransactionError
 from .ingress_queue import IngressItem, IngressQueue
 from .registry import CoreRegistry
-from .tick import FrozenTickImage, HeartbeatClock
+from .tick import FrozenTickImage, HeartbeatClock, TickIdentity, derive_view_id
 from .transaction import HeartCommit, HeartTransactionBoundary
 
 
@@ -132,6 +133,30 @@ class BeatCoordinator:
     def current_field(self) -> SharedFieldSnapshot:
         return self._current_field
 
+    @property
+    def boundary(self) -> HeartTransactionBoundary:
+        """Return the one Heart transaction boundary owned by this coordinator."""
+
+        return self._boundary
+
+    @property
+    def branch(self) -> CanonicalStateBranch:
+        """Return the one canonical branch owned by this coordinator."""
+
+        return self._branch
+
+    @property
+    def dormant_index_id(self) -> str | None:
+        """Identity of the opened dormant index, if recall has touched it."""
+
+        return None if self._bridge is None else self._bridge.index.index_id
+
+    def sync_to_branch_head(self) -> SharedFieldSnapshot:
+        """Synchronize coordinator memory to durable canonical HEAD."""
+
+        self._sync_to_branch_head()
+        return self._current_field
+
     def _load_field(self) -> SharedFieldSnapshot:
         if self._branch.initialized:
             return self._branch.load_head()
@@ -210,9 +235,33 @@ class BeatCoordinator:
         persisted = self._branch.commit(
             commit.delta,
             permitted_regions=commit.grant.governed_regions,
+            metadata={"heart_commit": commit.to_canonical_dict()},
         )
         self._current_field = persisted
         return persisted
+
+    def commit_heart_delta(
+        self,
+        base: SharedFieldSnapshot,
+        delta: FieldDelta,
+        grant: AuthorityGrant,
+        *,
+        valve_provenance: Mapping[str, Any] | None = None,
+    ) -> HeartCommit:
+        """Validate through the one Heart boundary and persist through its branch."""
+
+        commit = self._boundary.commit(
+            base,
+            delta,
+            grant,
+            valve_provenance=valve_provenance,
+        )
+        persisted = self._commit_to_branch(commit)
+        if persisted.field_id != commit.successor.field_id:
+            raise HeartTransactionError(
+                "canonical branch HEAD disagrees with the Heart commit successor"
+            )
+        return commit
 
     def _drain_and_commit_ingress(
         self,
@@ -276,7 +325,7 @@ class BeatCoordinator:
     ) -> tuple[SharedFieldSnapshot, HeartCommit | None]:
         """Run primitive dormant recall and commit surfaced structured_knowledge."""
 
-        if self._state_root is None:
+        if self._state_root is None or self._config.recall_limit <= 0:
             return field, None
 
         query = self._extract_recall_query(field)
@@ -309,10 +358,27 @@ class BeatCoordinator:
             pass_id="recall",
             provenance=f"dormant_valve:{bridge.index.index_id}",
         )
+        recall_item_id = canonical_sha256(
+            {
+                "valve_id": "dormant_recall",
+                "base_field_id": field.field_id,
+                "query": query,
+                "index_id": bridge.index.index_id,
+            }
+        )
         commit = self._boundary.commit(
             field,
             delta,
             AuthorityGrant.dormant_valve(),
+            valve_provenance={
+                "valve_id": "dormant_recall",
+                "valve_version": 1,
+                "source_id": "dormant_valve",
+                "item_id": recall_item_id,
+                "provenance": f"dormant_valve:{bridge.index.index_id}",
+                "authority_class": "dormant_valve",
+                "governed_regions": [LogicalRegion.STRUCTURED_KNOWLEDGE.value],
+            },
         )
         self._commit_to_branch(commit)
         return commit.successor, commit
@@ -335,15 +401,40 @@ class BeatCoordinator:
                     f"expected {len(expected)} chars, observed {len(observed)}"
                 )
 
+    def stabilize_recall(
+        self,
+        field: SharedFieldSnapshot,
+    ) -> tuple[SharedFieldSnapshot, HeartCommit | None]:
+        """Run the accepted primitive P0 recall through the Heart boundary."""
+
+        return self._run_recall(field)
+
+    def freeze_tick(
+        self,
+        field: SharedFieldSnapshot,
+        identity: TickIdentity,
+    ) -> FrozenTickImage:
+        """Freeze an already-reserved tick identity as the exact D64 view."""
+
+        if identity.base_field_id != field.field_id or identity.base_tick_id != field.tick_id:
+            raise HeartTransactionError("reserved tick identity is stale for the field being frozen")
+        masks = self._region_masks()
+        compiled = self._compiler.compile(field, region_masks=masks)
+        self._verify_masked_roundtrip(compiled, field)
+        image = FrozenTickImage.from_compiled(
+            identity,
+            {64: compiled},
+            view_id=derive_view_id(masks),
+        )
+        self._boundary.note_tick_opened(image)
+        self._open_tick_image = image
+        return image
+
     def _open_tick(self, field: SharedFieldSnapshot) -> FrozenTickImage:
         """Compile the field with derived masks and freeze one 64D tick image."""
 
         identity = self._clock.open_tick(field)
-        compiled = self._compiler.compile(field, region_masks=self._region_masks())
-        self._verify_masked_roundtrip(compiled, field)
-        image = FrozenTickImage.from_compiled(identity, {64: compiled})
-        self._boundary.note_tick_opened(image)
-        return image
+        return self.freeze_tick(field, identity)
 
     def beat(self, *, force: bool = False) -> BeatResult:
         """Execute one heartbeat cycle.

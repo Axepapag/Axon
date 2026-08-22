@@ -1,22 +1,21 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-22T11:37:24-05:00
-Current through event: `evt-20260822T163724095387Z-chatgpt-heart-host-valve-assignment`
+Updated: 2026-08-22T13:51:16-05:00
+Current through event: `evt-20260822T185116429009Z-chatgpt-heart-host-completion`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
 ## Current mission state
 
-Axon remains at the clean Day Zero boundary with **P0 dormant evidence retrieval/surfacing complete and proven against the real recovered corpus**. Kimmy published Build B (`aca1bbc`) and Build B.1 (`b3ff286`); ChatGPT independently rechecked and accepted B.1. Attention masks are derived compile-time views that do not alter canonical identity; ingress drains transactionally and preserves unprocessed arrivals on failure; coordinator memory resynchronizes to durable branch HEAD after every commit and exception. Focused verification is 52/52 and the full active suite is 209/209.
+Axon now has a **real permanent Heart runtime** on top of the independently accepted A/A.1/B/B.1 circulation anatomy. The Heart Host + Sovereign Valve Plane increment is complete: OS-enforced single-writer ownership, restart-safe cardiac identity, durable/recoverable ingress, poison quarantine/rejection evidence, a twenty-slot closed-by-default valve plane, Heart-derived authority, rich commit provenance, explicit derived-view identity, health observability, and the production entry point `scripts/run_axon_heart.py` are implemented and verified.
 
-Current engineering focus is **not** the old scripted/non-neural P1 skeleton. Jeff's newer directive supersedes it: build one real organ at a time, no scripted/fake organs, with the **64D Field Compiler Organ / heart** first. Heartbeat is its own cadence and is distinct from a cognitive tick.
+Full active verification is **248/248 tests passed**. Source-of-Truth mirrors are byte-identical at SHA256 `F1752718BFC366F92E8BAA95ECBC0189A1BF6B8A6207CD17CFAC1DE5A7AC0DE3`. A real cross-process collision proved the OS lease denies a second Heart writer. The live canonical proof on `D:\Axon\State` used Jeff's real request `can you continue the build?`: durable user ingress -> Heart commit -> real P0 dormant retrieval -> 4,241 chars of grounded `structured_knowledge` -> exact D64 freeze, with branch HEAD / host field / D64 source-field parity and zero pending ingress. Restart then advanced durable host/heartbeat identity while leaving canonical field/tick unchanged on an idle beat.
 
-Heart doctrine is ratified (`b0fcb85`) and Builds A/A.1/B/B.1 are independently green. The current assignment is **Heart Host + Sovereign Valve Plane** (`evt-20260822T163724095387Z-chatgpt-heart-host-valve-assignment`): Kimmy is to make circulation a permanent single-writer runtime with event-driven + bounded-idle heartbeat, restart-safe identity, durable/recoverable ingress, poison-event quarantine, Heart-owned authority construction, rich provenance/health, and a closed-by-default 20-slot valve plane. Only the existing real primitive user/tool/advisor/P0 dormant paths begin CAPPED; future-organ paths remain CLOSED. Build C and production Cortex training stay gated on independent proof that this Heart truly runs, survives restart/failure, and remains the sole canonical writer.
-
+The H1-H14 runtime-liveness gate is therefore closed. **Build C is the next allowed engineering phase**: mature dormant relevance/retention and derived semantic senses, then incremental/generational index maintenance and Semantic Cortex service/evaluation integration. Heart-only canonical commit, exact dormant JSONL authority, D64-first grounding, and CLOSED future-organ valves remain binding. No substantive neural/Cortex training is authorized merely by this runtime milestone.
 ## Binding authority and invariants
 
 - Jeff is final authority; `docs/SOURCE_OF_TRUTH.md` is the architecture master below his explicit rulings.
-- Root `SOURCE_OF_TRUTH.md` is an exact mirror. Current verified SHA256: `A8BC4DCDCAEF27449A26B489E1A4186B8A2FD712EB78C20DDDABF46C562740E8` (Build B.1 ratification).
+- Root `SOURCE_OF_TRUTH.md` is an exact mirror. Current verified SHA256: `F1752718BFC366F92E8BAA95ECBC0189A1BF6B8A6207CD17CFAC1DE5A7AC0DE3` (Permanent Heart Host ratification).
 - Root/docs Working Contract are exact mirrors. SHA256: `DC946600ADD64C51EC0AE40BB4D7F4F5E708387DD2A9E384DE268701959FAA31`.
 - One living/durable State root: `D:\Axon\State`.
 - One dormant-memory authority: exact recovered files under `State\dormant`.
@@ -41,7 +40,7 @@ Active canonical field/runtime:
 - `runtime/field/state_branch.py`
 - `runtime/axon_runtime/d64_adapter.py`
 - `runtime/dormant/evidence_bridge.py`
-- `runtime/heart/` (authority, registry, tick, board, transaction — Build A/A.1; ingress queue and beat coordinator — Build B)
+- `runtime/heart/` (accepted control plane + permanent host, sovereign valves, durable ingress/replay, OS lease, cardiac identity, health, explicit view identity)
 
 Active canonical D64 training:
 
@@ -177,18 +176,14 @@ The proposal also sketches specialized taxonomy/identity, causal/mechanistic, an
 
 ## Current State / machine observations
 
-Reverified 2026-08-21:
+Reverified 2026-08-22 after live Heart proof:
 
-- `State/active`: empty.
-- `State/souls`: empty.
-- `State/training`: README + empty curriculum directory; no live run/curriculum files.
-- no Axon runtime/training process.
-- GTX 1650 4 GiB: 0% utilization, ~1307 MiB used, 32 C when checked.
-- D: free bytes ~145,027,747,840.
-- Python 3.12.10.
-- Git 2.55.0.windows.4.
-- local MCP bridge safety mode: yolo (permission mode only; Axon contract still binding).
-
+- `State/active` is now live and contains the canonical active branch plus Heart control/health metadata; this is the first real canonical runtime body, not smoke-only state.
+- Live canonical head after the first real Heart circulation: `36ee60543e55e327b3dd7353c3c26307b67d78d25a4d443943fb002e82d3aa9e`.
+- First real Heart circulation surfaced 4,241 chars of P0 dormant evidence and froze an exact D64 rail; dormant index id `139f4a6268e7c500378426e804a11e2d8ec847c52d4b00b464dab168c9d2c330`.
+- Restart/idle proof advanced heartbeat/start identity without changing canonical field/tick; pending durable ingress remained 0.
+- Cross-process lease proof denied a second live Heart writer.
+- No production neural D64 reasoning core is attached yet; absence of reasoning participants is explicit rather than simulated.
 ## Kimi / team coordination
 
 `roundtable/ENGINE_TEAM_BUS.md` is coordination only; canonical ledger remains historical authority. It is now tracked/durable as of `72d8da6`.
@@ -197,17 +192,12 @@ Kimmy maintains `D:\kimmy` and holds day-to-day senior-engineer steering unless 
 
 ## Next recommended actions
 
-1. ~~Revise and land heart doctrine~~ **DONE 2026-08-21 (`b0fcb85`)**: wording corrections applied, Jeff's primitive-but-real/runtime-first rulings incorporated, amendment spliced into both SoT mirrors (SHA256 `D35A0FA9…`).
-2. ~~Mirror equality, doctrine/hygiene tests, full suite, doctrine event~~ **DONE**: full suite exit 0 with zero failures (mirror equality enforced); event `evt-20260821T222755580056Z-kimmy-heart-amendment-ratified`.
-3. ~~**Build A.1 — BLOCKER before B**~~ **DONE / independently accepted 2026-08-21 (`0229080`)**: hardened `HeartTransactionBoundary`; added CORE/CONSOLIDATOR/VALVE fail-closed semantics; added 64D rail guardrail; applied SoT cleanup; Kimmy regression tests and ChatGPT adversarial rechecks are green.
-4. ~~**Build B.1 — BLOCKER before C/Cortex**~~ **DONE / independently accepted** (`b3ff286`, acceptance `evt-20260822T052850836507Z-chatgpt-build-b1-acceptance`): attention masks are derived compile-time views; ingress queue acks only after successful commit and preserves unprocessed arrivals on failure; coordinator state resynchronizes to durable branch HEAD after every commit and after any exception. ChatGPT reran all three original failures plus real dormant circulation; 52 focused and 209 full tests are green.
-5. **Heart Host + Sovereign Valve Plane — assigned to Kimmy:** implement the latest `ENGINE_TEAM_BUS.md` H1-H14 packet. Permanent single-writer Heart host; event-driven + bounded-idle heartbeat; restart-safe cardiac identity; durable/recoverable ingress and poison quarantine; 20-slot fail-closed Heart valve plane with only current primitive paths CAPPED; Heart-derived authority; two-stage gating; rich commit provenance; explicit derived-view identity; health/recovery; adversarial restart/replay/second-writer/live-P0 proof. No fake reasoning cores and no Build C/Cortex training until independently accepted.
-6. **Semantic Cortex proposal stays active but downstream of a genuinely beating Heart:** preserve `roundtable/SEMANTIC_CORTEX_PROPOSAL.md`; design/evaluation work may continue, but production cortex training/integration waits for the permanent heartbeat host/liveness layer to be independently green.
-7. **Build C after the heartbeat runtime host:** mature dormant recall quality, retention budgets, semantic senses and incremental/generational index maintenance on top of continuously hosted, failure-safe circulation.
-8. **Build D later:** dual-surface 64D rail semantic slots bound to exact source spans; no wider rail until 64D is proven.
-9. **Build E later:** attach real 64D cores/souls to the permanent tick path: sparse initial proposals -> all-proposal visibility -> soul exhale/inhale -> sparse refinement -> rotating consolidator proposal -> one heart commit -> successor field -> next heartbeat.
-10. **Training follows organism anatomy.** Only after the runtime/tick anatomy is real and robust should substantive core training begin; train cores to operate as Axon organs inside that path.
-
+1. ~~Heart Host + Sovereign Valve Plane~~ **DONE / accepted 2026-08-22**: permanent single-writer Heart, durable identity/ingress, poison handling, twenty-slot fail-closed valves, rich provenance, view identity, health, production entry point, live P0/D64 proof, restart proof, and cross-process lease proof are green; full suite 248/248.
+2. **Build C next:** improve dormant relevance/retention while keeping exact recovered JSONL authoritative; add measurable semantic/relevance evaluation and move derived index maintenance toward incremental/generational updates with atomic promotion/fallback.
+3. **Semantic Cortex integration/evaluation may now begin as Build C service work, not training-first:** preserve `roundtable/SEMANTIC_CORTEX_PROPOSAL.md` and `D:\Axon\Cortext`; define the first specialist contract and held-out evaluation against real dormant supervision before production training or opening the `semantic_cortex` valve.
+4. **Build D later:** dual-surface 64D semantic slots bound to exact source spans; no wider rail until the 64D path earns it.
+5. **Build E later:** real core proposal/refinement/consolidator lifecycle -> one Heart commit -> successor field -> next heartbeat.
+6. **Training follows organism anatomy and evaluation.** Do not substitute conversational or fake cores for missing organs.
 ## Fast orientation
 
 - Team bus: `roundtable/ENGINE_TEAM_BUS.md`
@@ -223,4 +213,4 @@ Kimmy maintains `D:\kimmy` and holds day-to-day senior-engineer steering unless 
 - Dormant authority: `State/dormant/`
 - Full tests: `python -m pytest -q -p no:cacheprovider`
 
-**Kimmy / Kimi Code CLI / 2026-08-22** (prior update: ChatGPT / GPT-5.6 Sol / 2026-08-21)
+**ChatGPT / GPT-5.6 Sol / 2026-08-22**

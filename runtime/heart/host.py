@@ -1,0 +1,647 @@
+"""Permanent single-writer Heart host for Axon.
+
+The host owns cadence, durable intake, the sovereign valve plane, and runtime
+observability.  It deliberately does *not* own a second canonical mutation
+path: every accepted mutation still crosses the existing
+``HeartTransactionBoundary`` and ``CanonicalStateBranch`` owned by
+``BeatCoordinator``.
+"""
+from __future__ import annotations
+
+import threading
+import time
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from enum import Enum
+from pathlib import Path
+from typing import Iterable
+
+from runtime.field import (
+    CanonicalStateBranch,
+    FieldDelta,
+    InsertText,
+    LogicalRegion,
+    SharedFieldSnapshot,
+)
+from runtime.field.state_branch import DEFAULT_STATE_ROOT
+
+from .authority import AuthorityClass
+from .coordinator import BeatConfig, BeatCoordinator
+from .durable_ingress import DurableIngressSpool, IngressRecord
+from .errors import (
+    HealthCorruptionError,
+    HostStateError,
+    ReplayEventError,
+    UnknownValveError,
+    ValveAdmissionError,
+)
+from .health import HeartHealth, HealthJournal
+from .identity import HeartIdentityStore
+from .lease import SingleWriterLease
+from .registry import CoreRegistry
+from .tick import FrozenTickImage, TickIdentity
+from .transaction import HeartCommit
+from .valve import (
+    HeartValveDefinition,
+    HeartValveRegistry,
+    ValveBudget,
+    ValveDecision,
+    ValveEnvelope,
+    ValveReceipt,
+    primitive_valve_registry,
+)
+
+
+class HostBeatState(str, Enum):
+    IDLE = "idle"
+    CIRCULATED = "circulated"
+    TICK_IN_FLIGHT = "tick_in_flight"
+
+
+@dataclass(frozen=True, slots=True)
+class HeartHostConfig:
+    """Permanent-host cadence and global intake limits."""
+
+    idle_interval_seconds: float = 30.0
+    global_budget: ValveBudget = field(
+        default_factory=lambda: ValveBudget(
+            pending_cap=10_000,
+            items_per_beat=256,
+            chars_per_beat=32_768,
+            max_item_chars=16_384,
+            max_item_bytes=65_536,
+        )
+    )
+    auto_close_null_ticks: bool = True
+    max_consecutive_failures: int = 3
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.idle_interval_seconds, (int, float)):
+            raise TypeError("idle_interval_seconds must be numeric")
+        if self.idle_interval_seconds <= 0:
+            raise ValueError("idle_interval_seconds must be positive")
+        if not isinstance(self.global_budget, ValveBudget):
+            raise TypeError("global_budget must be ValveBudget")
+        if (
+            isinstance(self.max_consecutive_failures, bool)
+            or not isinstance(self.max_consecutive_failures, int)
+            or self.max_consecutive_failures < 1
+        ):
+            raise ValueError("max_consecutive_failures must be a positive integer")
+
+
+@dataclass(frozen=True, slots=True)
+class HeartHostBeatResult:
+    heartbeat_sequence: int
+    state: HostBeatState
+    field: SharedFieldSnapshot
+    commits: tuple[HeartCommit, ...]
+    processed_event_ids: tuple[str, ...]
+    tick_image: FrozenTickImage | None = None
+    deferred_event_id: str | None = None
+
+
+class HeartHost:
+    """Long-running sovereign Heart process over the one active branch."""
+
+    def __init__(
+        self,
+        *,
+        state_root: Path | str = DEFAULT_STATE_ROOT,
+        host_config: HeartHostConfig | None = None,
+        beat_config: BeatConfig | None = None,
+        valve_registry: HeartValveRegistry | None = None,
+        core_registry: CoreRegistry | None = None,
+    ) -> None:
+        self.state_root = Path(state_root).resolve(strict=False)
+        self.host_config = host_config or HeartHostConfig()
+        self.beat_config = beat_config or BeatConfig()
+        self.valves = valve_registry or primitive_valve_registry()
+        self.cores = core_registry or CoreRegistry()
+        self.heart_dir = self.state_root / "active" / "heart"
+        self._lease = SingleWriterLease(self.state_root)
+        self._identity_store: HeartIdentityStore | None = None
+        self._spool: DurableIngressSpool | None = None
+        self._health_journal: HealthJournal | None = None
+        self._coordinator: BeatCoordinator | None = None
+        self._lease_record: dict | None = None
+        self._started = False
+        self._last_successful_circulation_at: datetime | None = None
+        self._wake_event = threading.Event()
+        self._stop_event = threading.Event()
+        self._lock = threading.RLock()
+
+    @property
+    def started(self) -> bool:
+        return self._started
+
+    @property
+    def coordinator(self) -> BeatCoordinator:
+        if self._coordinator is None:
+            raise HostStateError("Heart host has not been started")
+        return self._coordinator
+
+    @property
+    def spool(self) -> DurableIngressSpool:
+        if self._spool is None:
+            raise HostStateError("Heart host has not been started")
+        return self._spool
+
+    @property
+    def identity_store(self) -> HeartIdentityStore:
+        if self._identity_store is None:
+            raise HostStateError("Heart host has not been started")
+        return self._identity_store
+
+    def start(self) -> None:
+        """Acquire writer authority and bind to ``State/active``."""
+
+        with self._lock:
+            if self._started:
+                return
+            lease_record = self._lease.acquire()
+            try:
+                self.heart_dir.mkdir(parents=True, exist_ok=True)
+                identity_store = HeartIdentityStore(self.heart_dir / "identity.json")
+                identity_store.begin_start()
+                spool = DurableIngressSpool(self.heart_dir / "ingress")
+                health = HealthJournal(self.heart_dir)
+                branch = CanonicalStateBranch.active_runtime(
+                    branch_id="active",
+                    state_root=self.state_root,
+                )
+                coordinator = BeatCoordinator(
+                    branch,
+                    self.cores,
+                    state_root=self.state_root,
+                    config=self.beat_config,
+                )
+            except Exception:
+                self._lease.release()
+                raise
+            self._identity_store = identity_store
+            self._spool = spool
+            self._health_journal = health
+            self._coordinator = coordinator
+            self._lease_record = lease_record
+            self._started = True
+            self._stop_event.clear()
+            self._wake_event.clear()
+            latest = health.latest()
+            prior = latest.get("last_successful_circulation_at") if latest else None
+            if prior:
+                try:
+                    self._last_successful_circulation_at = datetime.fromisoformat(prior)
+                except (TypeError, ValueError):
+                    self._last_successful_circulation_at = None
+            self._write_health(
+                last_beat_at=None,
+                last_failure_reason=None,
+                last_tick=None,
+            )
+
+    def stop(self) -> None:
+        with self._lock:
+            self._stop_event.set()
+            self._wake_event.set()
+            self._started = False
+            self._coordinator = None
+            self._spool = None
+            self._health_journal = None
+            self._identity_store = None
+            self._lease_record = None
+            self._lease.release()
+
+    def request_stop(self) -> None:
+        self._stop_event.set()
+        self._wake_event.set()
+
+    def __enter__(self) -> "HeartHost":
+        self.start()
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.stop()
+
+    def submit_user(self, text: str, *, provenance: str = "user") -> ValveDecision:
+        return self.submit(
+            ValveEnvelope(
+                valve_id="user_ingress",
+                source_id="external_user",
+                payload=text,
+                provenance=provenance,
+                envelope_type="text/plain",
+            )
+        )
+
+    def submit_tool(self, text: str, *, provenance: str = "tool") -> ValveDecision:
+        return self.submit(
+            ValveEnvelope(
+                valve_id="tool_ingress",
+                source_id="external_tool",
+                payload=text,
+                provenance=provenance,
+                envelope_type="text/plain",
+            )
+        )
+
+    def submit_advisor(self, text: str, *, provenance: str = "advisor") -> ValveDecision:
+        return self.submit(
+            ValveEnvelope(
+                valve_id="advisor_ingress",
+                source_id="external_advisor",
+                payload=text,
+                provenance=provenance,
+                envelope_type="text/plain",
+            )
+        )
+
+    def submit(self, envelope: ValveEnvelope) -> ValveDecision:
+        """Valve-local admission followed by durable spool append.
+
+        This method never constructs an ``AuthorityGrant`` and never touches
+        canonical state.  ``dormant_recall`` is internal Heart circulation and
+        cannot be injected through the public spool.
+        """
+
+        with self._lock:
+            self._require_started()
+            if not isinstance(envelope, ValveEnvelope):
+                raise TypeError("HeartHost.submit requires a ValveEnvelope")
+            if envelope.valve_id == "dormant_recall":
+                decision = ValveDecision(
+                    admitted=False,
+                    reason="dormant_recall is Heart-internal",
+                    quarantine=False,
+                    receipt=None,
+                )
+                self.spool.reject_envelope(
+                    envelope,
+                    reason=decision.reason,
+                    valve_version=1,
+                    quarantine=False,
+                )
+                return decision
+            try:
+                definition = self.valves.get(envelope.valve_id)
+                version = definition.version
+                pending = self.spool.pending_count_for_valve(envelope.valve_id)
+            except UnknownValveError:
+                decision = ValveDecision(
+                    admitted=False,
+                    reason=f"unknown valve_id {envelope.valve_id!r}",
+                    quarantine=False,
+                    receipt=None,
+                )
+                self.spool.reject_envelope(
+                    envelope,
+                    reason=decision.reason,
+                    valve_version=0,
+                    quarantine=False,
+                )
+                return decision
+            decision = self.valves.local_validate(envelope, pending_count=pending)
+            if not decision.admitted:
+                self.spool.reject_envelope(
+                    envelope,
+                    reason=decision.reason,
+                    valve_version=version,
+                    quarantine=decision.quarantine,
+                )
+                return decision
+            local = ValveDecision(True, "admitted_local", False, None)
+            record = self.spool.submit(
+                envelope,
+                decision=local,
+                valve_version=version,
+            )
+            receipt = ValveReceipt(
+                valve_id=definition.valve_id,
+                valve_version=definition.version,
+                source_id=envelope.source_id,
+                item_id=record.event_id,
+                authority_class=definition.authority_class,
+                governed_regions=definition.governed_regions,
+                enqueued_at=datetime.fromisoformat(record.enqueued_at),
+            )
+            self._wake_event.set()
+            return ValveDecision(True, "admitted", False, receipt)
+
+    def heartbeat(self, *, force: bool = False) -> HeartHostBeatResult:
+        """Execute one permanent-host heartbeat against the canonical active body."""
+
+        with self._lock:
+            self._require_started()
+            beat_identity = self.identity_store.next_heartbeat()
+            heartbeat_sequence = beat_identity.heartbeat_sequence
+            now = datetime.now(timezone.utc)
+            commits: list[HeartCommit] = []
+            processed_ids: list[str] = []
+            deferred_event_id: str | None = None
+            tick_image: FrozenTickImage | None = None
+            try:
+                coordinator = self.coordinator
+                if coordinator.tick_in_flight:
+                    active_cores = self.cores.active(64)
+                    if active_cores or not self.host_config.auto_close_null_ticks:
+                        field = coordinator.sync_to_branch_head()
+                        self._write_health(
+                            last_beat_at=now,
+                            last_failure_reason=None,
+                            last_tick=coordinator.open_tick_image,
+                        )
+                        return HeartHostBeatResult(
+                            heartbeat_sequence=heartbeat_sequence,
+                            state=HostBeatState.TICK_IN_FLIGHT,
+                            field=field,
+                            commits=(),
+                            processed_event_ids=(),
+                            tick_image=coordinator.open_tick_image,
+                        )
+                    coordinator.close_tick()
+
+                self.valves.tracker.reset_beat()
+                current = coordinator.sync_to_branch_head()
+                starting_field_id = current.field_id
+
+                while True:
+                    pending = self.spool.pending(1)
+                    if not pending:
+                        break
+                    record = pending[0]
+                    if self._canonical_contains_event(current, record.event_id):
+                        self.spool.acknowledge(record.event_id)
+                        processed_ids.append(record.event_id)
+                        continue
+
+                    final = self._final_gate(record)
+                    if not final.admitted:
+                        if self._is_budget_defer(final.reason):
+                            deferred_event_id = record.event_id
+                            break
+                        self.spool.quarantine_front(record, f"final_gate:{final.reason}")
+                        processed_ids.append(record.event_id)
+                        continue
+
+                    definition = self.valves.get(record.valve_id)
+                    grant = self.valves.resolve_grant(record.valve_id, record.source_id)
+                    if definition.authority_class is not AuthorityClass.EXTERNAL_INGRESS:
+                        self.spool.quarantine_front(
+                            record,
+                            "final_gate:external spool valve is not external_ingress",
+                        )
+                        self.valves.tracker.complete(record.valve_id)
+                        processed_ids.append(record.event_id)
+                        continue
+                    if len(definition.governed_regions) != 1:
+                        raise HostStateError(
+                            f"primitive ingress valve {definition.valve_id!r} must govern one region"
+                        )
+                    region = next(iter(definition.governed_regions))
+                    operation = InsertText(
+                        region=region,
+                        offset=len(current.region(region).text),
+                        text=record.payload,
+                        provenance=self._canonical_event_provenance(record),
+                    )
+                    delta = FieldDelta(
+                        base_field_id=current.field_id,
+                        base_tick_id=current.tick_id,
+                        operations=(operation,),
+                        author_core_id=f"heart-valve:{record.valve_id}",
+                        pass_id="heart_ingress",
+                    )
+                    provenance = {
+                        "valve_id": definition.valve_id,
+                        "valve_version": definition.version,
+                        "source_id": record.source_id,
+                        "authority_class": definition.authority_class.value,
+                        "governed_regions": sorted(
+                            item.value for item in definition.governed_regions
+                        ),
+                        "item_id": record.event_id,
+                        "provenance": record.provenance,
+                        "heartbeat_sequence": heartbeat_sequence,
+                    }
+                    try:
+                        commit = coordinator.commit_heart_delta(
+                            current,
+                            delta,
+                            grant,
+                            valve_provenance=provenance,
+                        )
+                        current = coordinator.current_field
+                        # Ack *only* after canonical branch persistence.  If this
+                        # step fails, canonical span provenance reconciles replay.
+                        self.spool.acknowledge(record.event_id)
+                        commits.append(commit)
+                        processed_ids.append(record.event_id)
+                    finally:
+                        # Final-gate admission consumes an in-memory pending
+                        # budget slot.  Durable spool state, not this counter,
+                        # decides retry eligibility, so always release it.
+                        self.valves.tracker.complete(record.valve_id)
+
+                changed = current.field_id != starting_field_id
+                if changed or force:
+                    current, recall_commit = coordinator.stabilize_recall(current)
+                    if recall_commit is not None:
+                        commits.append(recall_commit)
+
+                if commits or force:
+                    tick_reserved = self.identity_store.next_tick()
+                    tick_identity = TickIdentity(
+                        tick_sequence=tick_reserved.tick_sequence,
+                        heartbeat_id=heartbeat_sequence,
+                        base_field_id=current.field_id,
+                        base_tick_id=current.tick_id,
+                    )
+                    tick_image = coordinator.freeze_tick(current, tick_identity)
+                    if not self.cores.active(64) and self.host_config.auto_close_null_ticks:
+                        coordinator.close_tick()
+                    self._last_successful_circulation_at = now
+                    state = HostBeatState.CIRCULATED
+                else:
+                    state = HostBeatState.IDLE
+
+                current = coordinator.sync_to_branch_head()
+                self._write_health(
+                    last_beat_at=now,
+                    last_failure_reason=None,
+                    last_tick=tick_image,
+                )
+                return HeartHostBeatResult(
+                    heartbeat_sequence=heartbeat_sequence,
+                    state=state,
+                    field=current,
+                    commits=tuple(commits),
+                    processed_event_ids=tuple(processed_ids),
+                    tick_image=tick_image,
+                    deferred_event_id=deferred_event_id,
+                )
+            except Exception as exc:
+                try:
+                    field = self.coordinator.sync_to_branch_head()
+                except Exception:
+                    field = None
+                self._write_health(
+                    last_beat_at=now,
+                    last_failure_reason=f"{type(exc).__name__}: {exc}",
+                    last_tick=None,
+                    field_override=field,
+                )
+                raise
+
+    def run_forever(self) -> None:
+        """Event-driven circulation with bounded idle liveness cadence."""
+
+        if not self.started:
+            self.start()
+        failures = 0
+        try:
+            while not self._stop_event.is_set():
+                self._wake_event.wait(timeout=self.host_config.idle_interval_seconds)
+                self._wake_event.clear()
+                if self._stop_event.is_set():
+                    break
+                try:
+                    self.heartbeat()
+                    failures = 0
+                except (HealthCorruptionError, HostStateError):
+                    raise
+                except Exception:
+                    failures += 1
+                    if failures >= self.host_config.max_consecutive_failures:
+                        raise
+                    time.sleep(min(1.0, self.host_config.idle_interval_seconds))
+        finally:
+            self.stop()
+
+    def health(self) -> dict:
+        if self._health_journal is None:
+            raise HostStateError("Heart host has not been started")
+        return self._health_journal.latest()
+
+    def _final_gate(self, record: IngressRecord) -> ValveDecision:
+        try:
+            definition = self.valves.get(record.valve_id)
+        except UnknownValveError:
+            return ValveDecision(False, "unknown valve_id", False, None)
+        if record.valve_version != definition.version:
+            return ValveDecision(False, "stale valve version", False, None)
+        envelope = record.to_envelope()
+        return self.valves.decide(
+            envelope,
+            global_budget=self.host_config.global_budget,
+        )
+
+    def _write_health(
+        self,
+        *,
+        last_beat_at: datetime | None,
+        last_failure_reason: str | None,
+        last_tick: FrozenTickImage | None,
+        field_override: SharedFieldSnapshot | None = None,
+    ) -> None:
+        if self._health_journal is None or self._identity_store is None:
+            return
+        identity = self._identity_store.identity
+        field = field_override
+        if field is None and self._coordinator is not None:
+            try:
+                field = self._coordinator.current_field
+            except Exception:
+                field = None
+        pending_records = self._spool.pending(None) if self._spool is not None else ()
+        queue_depths: dict[str, int] = {}
+        for record in pending_records:
+            queue_depths[record.valve_id] = queue_depths.get(record.valve_id, 0) + 1
+        valve_states: dict[str, dict] = {}
+        for definition in self.valves:
+            valve_states[definition.valve_id] = {
+                "state": definition.state.value,
+                "version": definition.version,
+                "authority_class": definition.authority_class.value,
+                "governed_regions": sorted(
+                    region.value for region in definition.governed_regions
+                ),
+                "budget": {
+                    "pending_cap": definition.budget.pending_cap,
+                    "items_per_beat": definition.budget.items_per_beat,
+                    "chars_per_beat": definition.budget.chars_per_beat,
+                    "max_item_chars": definition.budget.max_item_chars,
+                    "max_item_bytes": definition.budget.max_item_bytes,
+                },
+                "usage": {
+                    "pending": self.valves.tracker.pending(definition.valve_id),
+                    "items_this_beat": self.valves.tracker.items_this_beat(
+                        definition.valve_id
+                    ),
+                    "chars_this_beat": self.valves.tracker.chars_this_beat(
+                        definition.valve_id
+                    ),
+                },
+            }
+        health = HeartHealth(
+            heart_epoch_id=identity.heart_epoch_id,
+            start_sequence=identity.start_sequence,
+            heartbeat_sequence=identity.heartbeat_sequence,
+            tick_sequence=identity.tick_sequence,
+            last_beat_at=last_beat_at,
+            last_successful_circulation_at=self._last_successful_circulation_at,
+            last_failure_reason=last_failure_reason,
+            canonical_head_field_id=None if field is None else field.field_id,
+            canonical_head_tick_id=None if field is None else field.tick_id,
+            tick_in_flight=(
+                False if self._coordinator is None else self._coordinator.tick_in_flight
+            ),
+            queue_depth_by_valve=queue_depths,
+            quarantine_count=(0 if self._spool is None else self._spool.quarantine_count),
+            rejection_count=(0 if self._spool is None else self._spool.rejection_count),
+            valve_states=valve_states,
+            dormant_index_id=(
+                None if self._coordinator is None else self._coordinator.dormant_index_id
+            ),
+            lease_owner_pid=(
+                None if self._lease_record is None else self._lease_record.get("pid")
+            ),
+            lease_owner_token=(
+                None
+                if self._lease_record is None
+                else self._lease_record.get("owner_token")
+            ),
+            last_tick_uid=None if last_tick is None else last_tick.identity.tick_uid,
+            last_view_id=None if last_tick is None else last_tick.view_id,
+        )
+        self._health_journal.write(health)
+
+    @staticmethod
+    def _canonical_event_provenance(record: IngressRecord) -> str:
+        suffix = record.provenance.replace("\n", " ").strip()
+        return f"heart_ingress:{record.event_id}|{suffix}"
+
+    @staticmethod
+    def _canonical_contains_event(field: SharedFieldSnapshot, event_id: str) -> bool:
+        prefix = f"heart_ingress:{event_id}|"
+        return any(
+            span.provenance.startswith(prefix)
+            for region in field.regions
+            for span in region.spans
+        )
+
+    @staticmethod
+    def _is_budget_defer(reason: str) -> bool:
+        lowered = reason.lower()
+        return "budget" in lowered or "pending cap" in lowered or "items_per_beat" in lowered
+
+    def _require_started(self) -> None:
+        if not self._started or not self._lease.is_held_by_us():
+            raise HostStateError("Heart host does not hold the single-writer lease")
+
+
+__all__ = [
+    "HostBeatState",
+    "HeartHostConfig",
+    "HeartHostBeatResult",
+    "HeartHost",
+]

@@ -51,6 +51,12 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "transaction.py",
         "ingress_queue.py",
         "coordinator.py",
+        "durable_ingress.py",
+        "health.py",
+        "host.py",
+        "identity.py",
+        "lease.py",
+        "valve.py",
     }
 
     training_files = {path.name for path in (ROOT / "training").glob("*.py")}

@@ -14,7 +14,7 @@ commit-capable, regardless of tick state.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Mapping
 
 from runtime.field import (
     FieldDelta,
@@ -50,6 +50,7 @@ class HeartCommit:
     delta: FieldDelta
     grant: AuthorityGrant
     tick: TickIdentity | None = None
+    valve_provenance: Mapping[str, Any] = field(default_factory=dict)
     commit_id: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -61,6 +62,9 @@ class HeartCommit:
             raise TypeError("HeartCommit.grant must be an AuthorityGrant")
         if self.tick is not None and not isinstance(self.tick, TickIdentity):
             raise TypeError("HeartCommit.tick must be a TickIdentity or None")
+        if not isinstance(self.valve_provenance, Mapping):
+            raise TypeError("HeartCommit.valve_provenance must be a mapping")
+        object.__setattr__(self, "valve_provenance", dict(self.valve_provenance))
         if self.successor.parent_field_id != self.base_field_id:
             raise HeartTransactionError(
                 "commit successor is not parented to the committed base field"
@@ -80,7 +84,9 @@ class HeartCommit:
             "successor_tick_id": self.successor.tick_id,
             "delta_id": self.delta.delta_id,
             "authority_class": self.grant.authority_class.value,
+            "governed_regions": sorted(region.value for region in self.grant.governed_regions),
             "tick_uid": None if self.tick is None else self.tick.tick_uid,
+            "valve_provenance": dict(self.valve_provenance),
         }
 
 
@@ -150,6 +156,7 @@ class HeartTransactionBoundary:
         grant: AuthorityGrant,
         *,
         tick: TickIdentity | None = None,
+        valve_provenance: Mapping[str, Any] | None = None,
     ) -> HeartCommit:
         """Validate and atomically apply one proposal as the successor field.
 
@@ -229,6 +236,7 @@ class HeartTransactionBoundary:
             delta=delta,
             grant=grant,
             tick=tick,
+            valve_provenance={} if valve_provenance is None else dict(valve_provenance),
         )
 
 
