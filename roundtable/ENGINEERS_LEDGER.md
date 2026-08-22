@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-21T19:26:26-05:00
-Current through event: `evt-20260822T002626307422Z-chatgpt-semantic-cortex-proposal`
+Updated: 2026-08-21T20:38:52-05:00
+Current through event: `evt-20260822T013852288186Z-kimmy-build-a1-hardening`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -11,12 +11,12 @@ Axon remains at the clean Day Zero boundary, now with **P0 dormant evidence retr
 
 Current engineering focus is **not** the old scripted/non-neural P1 skeleton. Jeff's newer directive supersedes it: build one real organ at a time, no scripted/fake organs, with the **64D Field Compiler Organ / heart** next. Heartbeat is its own cadence and is distinct from a cognitive tick.
 
-Heart doctrine is now ratified (`b0fcb85`) and Kimmy published Build A (`63b8106`), but ChatGPT's independent supervision found **Build A is not complete yet**. The architecture is sound and the full suite passes 187 tests, but adversarial probes reproduced three transaction-boundary violations: an ordinary core proposal can commit directly between ticks; a consolidator can commit against a different base while another tick is open if optional `tick=` is omitted; and a successful consolidator commit does not atomically consume the open tick, allowing two divergent successor commits from one frozen tick. `FrozenTickImage.from_compiled()` also accepts a real `CompiledD64Field` mislabeled as d_model 128, violating the 64D-first/no-fake-wider-rails boundary. Build A.1 hardening is therefore the immediate blocker before Build B. Jeff's primitive-but-real/runtime-first rulings remain binding: semantic quality may be weak and improve later, but authority/frozen-tick anatomy must be real and fail closed before circulation advances.
+Heart doctrine is ratified (`b0fcb85`) and Kimmy published Build A (`63b8106`) plus Build A.1 hardening (`0229080`). ChatGPT's supervision blockers are now closed: CORE grants are never commit-capable; CONSOLIDATOR commits require the in-flight tick token and exact frozen base and atomically consume the tick; DORMANT_VALVE commits are rejected during ticks; and `FrozenTickImage.from_compiled()` rejects non-64D rail labels. The full active suite passes. The next engineering boundary is Build B: a real ingress/beat coordinator that queues arrivals during ticks, commits between ticks, detects change, recalls dormant evidence, and freezes the next canonical field.
 
 ## Binding authority and invariants
 
 - Jeff is final authority; `docs/SOURCE_OF_TRUTH.md` is the architecture master below his explicit rulings.
-- Root `SOURCE_OF_TRUTH.md` is an exact mirror. Current verified SHA256: `D35A0FA96FACB5717982549FBC214A268616F60F9BE1E385761C7B53558A5527` (heart amendment ratified 2026-08-21, `b0fcb85`).
+- Root `SOURCE_OF_TRUTH.md` is an exact mirror. Current verified SHA256: `52A6F23A9E4C0F9DB6EADCBF2F2DC5689B751C85386C498A48B70DCDFA0AE879` (Build A.1 doctrine cleanup, `0229080`).
 - Root/docs Working Contract are exact mirrors. SHA256: `DC946600ADD64C51EC0AE40BB4D7F4F5E708387DD2A9E384DE268701959FAA31`.
 - One living/durable State root: `D:\Axon\State`.
 - One dormant-memory authority: exact recovered files under `State\dormant`.
@@ -199,9 +199,8 @@ Kimmy maintains `D:\kimmy` and holds day-to-day senior-engineer steering unless 
 
 1. ~~Revise and land heart doctrine~~ **DONE 2026-08-21 (`b0fcb85`)**: wording corrections applied, Jeff's primitive-but-real/runtime-first rulings incorporated, amendment spliced into both SoT mirrors (SHA256 `D35A0FA9…`).
 2. ~~Mirror equality, doctrine/hygiene tests, full suite, doctrine event~~ **DONE**: full suite exit 0 with zero failures (mirror equality enforced); event `evt-20260821T222755580056Z-kimmy-heart-amendment-ratified`.
-3. **Build A.1 — BLOCKER before B:** harden `HeartTransactionBoundary` so CORE proposals are never commit-capable; CONSOLIDATOR may commit only one matching in-flight tick/frozen base and successful commit atomically consumes/closes that tick; ingress/dormant commits remain between-tick only. Add regression tests for direct-core commit rejection, omitted/mismatched tick rejection, and duplicate-final-commit rejection.
-4. **Build A.1 rail guardrail:** reject any `CompiledD64Field` labeled as a non-64 d_model until a genuine wider rail implementation exists. No fake 128/256/512/1024 labels.
-5. **Build A.1 doctrine truth cleanup:** add `runtime/heart/` to the Source-of-Truth active implementation surface; state incremental dormant indexing as a required future/live-memory capability rather than already implemented; allow future learned semantic improvement to strengthen the 64D heart itself instead of binding trained semantics exclusively to wider rails.
+3. ~~**Build A.1 — BLOCKER before B**~~ **DONE 2026-08-21 (`0229080`)**: hardened `HeartTransactionBoundary`; added CORE/CONSOLIDATOR/VALVE fail-closed semantics; added 64D rail guardrail; applied SoT cleanup; regression tests green.
+4. **Build B — next organ:** real ingress/beat coordinator. Heart-owned user/tool/advisor queue; between-tick ingress commit; change detection; primitive P0 dormant recall/materialization; canonical stabilization; exact D64 compile/freeze; tick image. Do not advance to learned semantic cores or wider rails until circulation works.
 6. **Build B after A.1 is green:** real ingress/beat coordinator: heart-owned user/tool/advisor queue -> governed between-tick ingress commit -> change detection -> primitive existing P0 dormant recall/materialization -> canonical stabilization -> exact D64 compile/freeze -> tick image. Weak-but-real graph semantics are acceptable; do not wait for semantic perfection.
 7. **Build C later:** mature dormant recall quality, retention budgets, semantic senses and incremental/generational index maintenance after real Build B circulation works.
 8. **Build D later:** dual-surface 64D rail semantic slots bound to exact source spans; no wider rail until 64D is proven.
@@ -222,4 +221,4 @@ Kimmy maintains `D:\kimmy` and holds day-to-day senior-engineer steering unless 
 - Dormant authority: `State/dormant/`
 - Full tests: `python -m pytest -q -p no:cacheprovider`
 
-**ChatGPT / GPT-5.6 Sol / 2026-08-21** (prior update: Kimmy / Kimi Code CLI / 2026-08-21)
+**Kimmy / Kimi Code CLI / 2026-08-21** (prior update: ChatGPT / GPT-5.6 Sol / 2026-08-21)
