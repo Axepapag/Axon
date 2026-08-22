@@ -193,11 +193,12 @@ Kimmy maintains `D:\kimmy` and holds day-to-day senior-engineer steering unless 
 ## Next recommended actions
 
 1. ~~Heart Host + Sovereign Valve Plane~~ **DONE / accepted 2026-08-22**: permanent single-writer Heart, durable identity/ingress, poison handling, twenty-slot fail-closed valves, rich provenance, view identity, health, production entry point, live P0/D64 proof, restart proof, and cross-process lease proof are green; full suite 248/248.
-2. **Build C next:** improve dormant relevance/retention while keeping exact recovered JSONL authoritative; add measurable semantic/relevance evaluation and move derived index maintenance toward incremental/generational updates with atomic promotion/fallback.
-3. **Semantic Cortex integration/evaluation may now begin as Build C service work, not training-first:** preserve `roundtable/SEMANTIC_CORTEX_PROPOSAL.md` and `D:\Axon\Cortext`; define the first specialist contract and held-out evaluation against real dormant supervision before production training or opening the `semantic_cortex` valve.
-4. **Build D later:** dual-surface 64D semantic slots bound to exact source spans; no wider rail until the 64D path earns it.
-5. **Build E later:** real core proposal/refinement/consolidator lifecycle -> one Heart commit -> successor field -> next heartbeat.
-6. **Training follows organism anatomy and evaluation.** Do not substitute conversational or fake cores for missing organs.
+2. ~~Build C.1 dormant relevance/generational substrate~~ **DONE / accepted 2026-08-22**: bounded recovered-relation candidate expansion, deterministic relevance/retention auditor, exact canonical evidence refs, verified atomic index generations, held-out forward evaluation, and Cortex service contracts are green; accepted v3 forward benchmark pool recall 0.687500, raw Hit@8 0.203125 / MRR 0.053032, audited Hit@8 0.625000 / MRR 0.529557; full suite 266/266.
+3. **Build C.2 next:** implement true append/update incremental derived-index maintenance on top of the accepted generation/promotion substrate; continue retrieval/evaluation hardening without changing exact dormant JSONL authority.
+4. **Semantic Cortex service design/evaluation may proceed behind the CLOSED valve:** `D:\Axon\Cortext\contracts.py` is permanent contract anatomy, but no production Cortex implementation/training/promotion is authorized until one real specialist earns it on held-out evidence.
+5. **Build D later:** dual-surface 64D semantic slots bound to exact source spans; no wider rail until the 64D path earns it.
+6. **Build E later:** real core proposal/refinement/consolidator lifecycle -> one Heart commit -> successor field -> next heartbeat.
+7. **Training follows organism anatomy and evaluation.** Do not substitute conversational or fake cores for missing organs.
 ## Fast orientation
 
 - Team bus: `roundtable/ENGINE_TEAM_BUS.md`

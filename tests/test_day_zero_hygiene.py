@@ -38,7 +38,16 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
     assert runtime_files == {"__init__.py", "d64_adapter.py"}
 
     dormant_files = {path.name for path in (ROOT / "runtime" / "dormant").glob("*.py")}
-    assert dormant_files == {"__init__.py", "evidence_bridge.py"}
+    assert dormant_files == {
+        "__init__.py",
+        "evidence_bridge.py",
+        "evaluation.py",
+        "generations.py",
+        "relevance.py",
+    }
+
+    cortext_files = {path.name for path in (ROOT / "Cortext").glob("*.py")}
+    assert cortext_files == {"__init__.py", "contracts.py"}
 
     heart_files = {path.name for path in (ROOT / "runtime" / "heart").glob("*.py")}
     assert heart_files == {

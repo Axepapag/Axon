@@ -390,21 +390,55 @@ explicit runtime spans rather than alterations to dormant text. The resulting
 complete coverage and exact roundtrip before it is accepted as core-facing
 state. Retrieval/indexing has no reasoning vote and no commit authority.
 
-The dormant valve is part of the heart. Candidate ranking combines graph/edge
-semantics, lexical support, confidence, type and task relevance, and novelty
-versus the active field, under a governed budget. First-form semantic
-relevance is recovered-edge graph semantics: the readable English semantic
-edges and container graph are walked from changed text to find related
-memories. This is real semantics already owned by the corpus; no trained
-encoder exists and none may be simulated. Learned vector similarity, when
-trained later, is a disposable derived sense only. The semantic path fails
-closed to exact lexical retrieval, and exact bytes are always dereferenced
-from the authoritative JSONL and hash/provenance-verified before surfacing.
+The dormant valve is part of the heart. Candidate ranking combines lexical
+support, recovered graph topology, query-matched semantic-edge support,
+confidence, type/task relevance, and novelty versus the active field under a
+governed budget. First-form semantic relevance is recovered-edge graph
+semantics already owned by the corpus; no trained encoder exists and none may
+be simulated. Relation propagation is bounded and fail-closed: generic graph
+hops and query-matched relations are distinct signals, one strongly matched
+edge may contribute bounded best-edge support, and duplicate/weak edges may
+not accumulate into synthetic certainty. Exact bytes are always dereferenced
+from authoritative JSONL and hash/provenance-verified before surfacing. If the
+semantic/relevance path yields nothing eligible, fallback is limited to exact
+grounded lexical candidates under the same full-item and total budgets.
 
-The derived index must become incremental/generational: append/update with
-binding verification and atomic swap. That capability does not exist yet;
-until then, full rebuild is the accepted static cost, and it must never
-become the per-beat cost of live memory.
+Build C.1 adds a deterministic relevance/retention auditor in
+`runtime/dormant/relevance.py`. It ranks only already verified exact evidence;
+it does not truncate source containers, invent vectors, or gain commit
+authority. Heart materialization preserves the selected container and semantic-
+edge references on the canonical `structured_knowledge` span itself as well as
+in the Heart commit receipt, together with dormant index generation identity.
+
+The derived evidence index now has verified generations and atomic active-
+generation promotion in `runtime/dormant/generations.py`. The existing
+`evidence_v1/index.sqlite3` may be adopted zero-copy as a generation after full
+binding verification. Candidate generations are opened and verified before an
+atomic pointer swap; a failed candidate cannot evict a healthy reader. This is
+generational maintenance, not true append/update incremental indexing. Full
+rebuild remains the current way to construct a new complete generation, and
+must never become a per-heartbeat cost. True append/update incremental build is
+a later Build C increment and may not be claimed until implemented and proven.
+
+Build C.1 also establishes deterministic held-out evaluation in
+`runtime/dormant/evaluation.py` and `scripts/evaluate_dormant_relevance.py`.
+The accepted 64-case forward recovered-semantic-edge benchmark measures
+source+relation -> exact target without target-text leakage and reports both
+candidate-pool and post-auditor quality. On the accepted generation it produced
+pool recall 0.687500, raw Hit@8 0.203125 / MRR 0.053032, and audited Hit@8
+0.625000 / MRR 0.529557. Final v4 publication verification reproduced the same
+evaluation ID and byte-identical report after a lookup-plan optimization reduced
+the representative 36-term real candidate query from 61.5 seconds to 2.87
+seconds and the full 64-case evaluation from about one hour to 2m50s. These
+metrics are evidence of a primitive real semantic sense, not a claim of mature
+semantic recall.
+
+`Cortext/contracts.py` is now permanent interface anatomy only: grounded
+semantic queries, exact evidence references, semantic observations, and a
+width/architecture-independent specialist protocol. No production Semantic
+Cortex implementation or training is authorized by this contract alone, and
+the Heart's `semantic_cortex` valve remains CLOSED until a real specialist is
+evaluated and explicitly promoted.
 
 ## Day Zero active surface
 
@@ -415,9 +449,10 @@ The active implementation surface is intentionally narrow:
 - `runtime/field/compiler_d64.py` ? exact deterministic D64 compiler,
 - `runtime/field/state_branch.py` ? canonical branch persistence,
 - `runtime/axon_runtime/d64_adapter.py` ? runtime-facing D64 adapter,
-- `runtime/dormant/evidence_bridge.py` ? read-only manifest/hash-bound dormant retrieval, exact dereference, and structured-knowledge surfacing,
-- `runtime/heart/` ? heart anatomy: authority/core control plane, canonical transaction boundary, beat coordinator, sovereign 20-slot valve plane, OS single-writer lease, restart-safe cardiac identity, durable ingress/replay/quarantine spool, health observability, explicit derived-view identity, and the permanent Heart host;
-- `scripts/run_axon_heart.py` ? production entry point for the permanent Heart host and bounded idle/event-driven cadence;
+- `runtime/dormant/evidence_bridge.py`, `runtime/dormant/relevance.py`, `runtime/dormant/generations.py`, and `runtime/dormant/evaluation.py` ? read-only manifest/hash-bound dormant retrieval, exact dereference, bounded graph/relation relevance, verified derived-index generations, and held-out evaluation,
+- `Cortext/contracts.py` ? grounded Semantic Cortex service contract only; no active specialist/training authority and the `semantic_cortex` valve remains CLOSED,
+- `runtime/heart/` ? heart anatomy: authority/core control plane, canonical transaction boundary, beat coordinator, sovereign 20-slot valve plane, OS single-writer lease, restart-safe cardiac identity, durable ingress/replay/quarantine spool, health observability, explicit derived-view identity, relevance-gated dormant recall, and the permanent Heart host;
+- `scripts/run_axon_heart.py` and `scripts/evaluate_dormant_relevance.py` ? permanent Heart runtime entry point and deterministic dormant semantic/relevance evaluation entry point;
 - `training/canonical_d64.py`, `training/complete_field_64d.py`, and `training/train_complete_field_64d.py` ? canonical D64 training path,
 - `curator/` recovered-corpus schema/materialization/building utilities ? offline exact dormant-memory tooling,
 

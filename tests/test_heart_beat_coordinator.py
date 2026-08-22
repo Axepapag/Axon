@@ -76,9 +76,16 @@ class _FakeDormantBridge:
             provenance="test",
             confidence=1.0,
             status="dormant",
+            record={},
         )
         evidence = SimpleNamespace(
-            candidate=SimpleNamespace(container_id="container-1", score=1.0),
+            candidate=SimpleNamespace(
+                container_id="container-1",
+                score=10.0,
+                lexical_hits=1,
+                graph_hits=0,
+                edge_ids=(),
+            ),
             container=container,
             edges=(),
         )
@@ -264,8 +271,13 @@ def test_coordinator_runs_recall_when_field_changes(tmp_path: Path) -> None:
 
     result = coordinator.beat()
     assert result.state is BeatState.TICK_OPENED
-    assert result.field.region(LogicalRegion.STRUCTURED_KNOWLEDGE).text == "Axon is a field compiler organ."
-    assert any(commit.delta.author_core_id == "dormant-valve" for commit in result.commits)
+    structured = result.field.region(LogicalRegion.STRUCTURED_KNOWLEDGE)
+    assert structured.text == "Axon is a field compiler organ."
+    assert structured.spans[0].container_refs == ("container-1",)
+    dormant_commit = next(commit for commit in result.commits if commit.delta.author_core_id == "dormant-valve")
+    assert "container-1" in dormant_commit.delta.evidence
+    assert dormant_commit.valve_provenance["selected_container_ids"] == ["container-1"]
+    assert dormant_commit.valve_provenance["generation_token"] == "unversioned"
 
 
 def test_coordinator_skips_recall_when_query_is_empty(tmp_path: Path) -> None:

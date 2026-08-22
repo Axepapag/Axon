@@ -32,7 +32,12 @@ from runtime.field import (
     canonical_sha256,
     replacement_delta,
 )
-from runtime.dormant import DormantEvidenceBridge, DormantEvidenceIndex
+from runtime.dormant import (
+    DormantEvidenceBridge,
+    DormantEvidenceGenerationStore,
+    DormantRelevanceAuditor,
+    DormantRelevancePolicy,
+)
 
 from .authority import AuthorityGrant, IngressChannel, INGRESS_OWNED_REGIONS
 from .errors import HeartTransactionError
@@ -57,6 +62,10 @@ class BeatConfig:
     recall_limit: int = 8
     recall_min_confidence: float = 0.0
     recall_include_graph: bool = True
+    recall_candidate_multiplier: int = 4
+    recall_max_chars: int = 10_000
+    recall_max_item_chars: int = 4_096
+    recall_min_relevance: float = 0.0
     max_query_length: int = 512
     region_policies: Mapping[LogicalRegion, RegionMaskPolicy] | None = None
 
@@ -69,6 +78,18 @@ class BeatConfig:
             raise ValueError("BeatConfig.recall_min_confidence must be in [0, 1]")
         if not isinstance(self.recall_include_graph, bool):
             raise TypeError("BeatConfig.recall_include_graph must be a boolean")
+        if (
+            isinstance(self.recall_candidate_multiplier, bool)
+            or not isinstance(self.recall_candidate_multiplier, int)
+            or self.recall_candidate_multiplier < 1
+        ):
+            raise ValueError("BeatConfig.recall_candidate_multiplier must be a positive integer")
+        for name in ("recall_max_chars", "recall_max_item_chars"):
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+                raise ValueError(f"BeatConfig.{name} must be a positive integer")
+        if not 0.0 <= float(self.recall_min_relevance) <= 1.0:
+            raise ValueError("BeatConfig.recall_min_relevance must be in [0, 1]")
         if isinstance(self.max_query_length, bool) or not isinstance(self.max_query_length, int):
             raise TypeError("BeatConfig.max_query_length must be an integer")
         if self.max_query_length < 0:
@@ -124,6 +145,8 @@ class BeatCoordinator:
         self._last_field_id: str | None = None
         self._open_tick_image: FrozenTickImage | None = None
         self._bridge: DormantEvidenceBridge | None = None
+        self._dormant_generations: DormantEvidenceGenerationStore | None = None
+        self._bridge_generation_token: str | None = None
 
     @property
     def tick_in_flight(self) -> bool:
@@ -308,15 +331,31 @@ class BeatCoordinator:
         return query.strip()
 
     def _ensure_bridge(self) -> DormantEvidenceBridge:
-        """Lazily open the P0 dormant evidence bridge from State/dormant."""
+        """Open the active verified dormant-index generation, swapping atomically."""
 
-        if self._bridge is None:
-            if self._state_root is None:
-                raise RuntimeError(
-                    "BeatCoordinator has no state_root; cannot open dormant evidence bridge"
-                )
-            index = DormantEvidenceIndex.open(self._state_root)
-            self._bridge = DormantEvidenceBridge(index)
+        if self._bridge is not None and not isinstance(self._bridge, DormantEvidenceBridge):
+            # Existing deterministic tests inject a bridge double through the
+            # private slot. Keep that explicit seam without weakening production
+            # generation resolution for real DormantEvidenceBridge instances.
+            return self._bridge
+        if self._state_root is None:
+            raise RuntimeError(
+                "BeatCoordinator has no state_root; cannot open dormant evidence bridge"
+            )
+        if self._dormant_generations is None:
+            self._dormant_generations = DormantEvidenceGenerationStore(self._state_root)
+        generation_token = self._dormant_generations.active_token()
+        if self._bridge is not None and generation_token == self._bridge_generation_token:
+            return self._bridge
+
+        # Open and verify the new generation before releasing the previous one.
+        # A bad/corrupt candidate therefore cannot evict a healthy reader.
+        new_index = self._dormant_generations.open_active(verify_binding=True)
+        previous = self._bridge
+        self._bridge = DormantEvidenceBridge(new_index)
+        self._bridge_generation_token = generation_token
+        if previous is not None:
+            previous.index.close()
         return self._bridge
 
     def _run_recall(
@@ -333,16 +372,52 @@ class BeatCoordinator:
             return field, None
 
         bridge = self._ensure_bridge()
+        candidate_limit = min(
+            128,
+            max(
+                self._config.recall_limit,
+                self._config.recall_limit * self._config.recall_candidate_multiplier,
+            ),
+        )
         evidence = bridge.index.retrieve(
             query,
-            limit=self._config.recall_limit,
+            limit=candidate_limit,
             min_confidence=self._config.recall_min_confidence,
             include_graph=self._config.recall_include_graph,
         )
         if not evidence:
             return field, None
 
-        surfaced = bridge.surface(field, evidence, replace_existing=True)
+        auditor = DormantRelevanceAuditor(
+            DormantRelevancePolicy(
+                max_items=self._config.recall_limit,
+                max_chars=self._config.recall_max_chars,
+                max_item_chars=self._config.recall_max_item_chars,
+                min_score=self._config.recall_min_relevance,
+            )
+        )
+        relevance = auditor.select(query, evidence, field)
+        if not relevance.selected:
+            return field, None
+
+        container_refs = tuple(sorted(relevance.selected_container_ids))
+        edge_refs = tuple(
+            sorted(
+                {
+                    str(edge.edge_id)
+                    for item in relevance.selected
+                    for edge in item.edges
+                    if getattr(edge, "edge_id", None)
+                }
+            )
+        )
+        generation_token = self._bridge_generation_token or "unversioned"
+        recall_provenance = (
+            f"dormant_valve:{bridge.index.index_id}:generation:{generation_token}:"
+            f"relevance:{relevance.decision_id}"
+        )
+
+        surfaced = bridge.surface(field, relevance.selected, replace_existing=True)
         new_sk = surfaced.region(LogicalRegion.STRUCTURED_KNOWLEDGE)
         current_sk = field.region(LogicalRegion.STRUCTURED_KNOWLEDGE)
         if new_sk.text == current_sk.text:
@@ -356,7 +431,10 @@ class BeatCoordinator:
             text=new_sk.text,
             author_core_id="dormant-valve",
             pass_id="recall",
-            provenance=f"dormant_valve:{bridge.index.index_id}",
+            evidence=(*container_refs, *edge_refs),
+            provenance=recall_provenance,
+            container_refs=container_refs,
+            edge_refs=edge_refs,
         )
         recall_item_id = canonical_sha256(
             {
@@ -364,6 +442,10 @@ class BeatCoordinator:
                 "base_field_id": field.field_id,
                 "query": query,
                 "index_id": bridge.index.index_id,
+                "generation_token": generation_token,
+                "relevance_decision_id": relevance.decision_id,
+                "selected_container_ids": list(relevance.selected_container_ids),
+                "selected_edge_ids": list(edge_refs),
             }
         )
         commit = self._boundary.commit(
@@ -375,7 +457,14 @@ class BeatCoordinator:
                 "valve_version": 1,
                 "source_id": "dormant_valve",
                 "item_id": recall_item_id,
-                "provenance": f"dormant_valve:{bridge.index.index_id}",
+                "provenance": recall_provenance,
+                "index_id": bridge.index.index_id,
+                "generation_token": generation_token,
+                "relevance_decision_id": relevance.decision_id,
+                "selected_container_ids": list(relevance.selected_container_ids),
+                "selected_edge_ids": list(edge_refs),
+                "fallback_used": relevance.fallback_used,
+                "selected_chars": relevance.total_chars,
                 "authority_class": "dormant_valve",
                 "governed_regions": [LogicalRegion.STRUCTURED_KNOWLEDGE.value],
             },

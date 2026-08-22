@@ -1,5 +1,35 @@
 """Canonical read-only dormant-memory retrieval senses."""
 
+from .evaluation import (
+    EVALUATION_SCHEMA,
+    FORWARD_EVALUATION_SCHEMA,
+    DormantEvaluationCase,
+    DormantEvaluationCaseResult,
+    DormantEvaluationResult,
+    DormantForwardEvaluationCase,
+    DormantForwardEvaluationCaseResult,
+    DormantForwardEvaluationResult,
+    evaluate_forward_relevance,
+    evaluate_relevance,
+    forward_semantic_edge_cases,
+    semantic_edge_cases,
+)
+from .generations import (
+    ACTIVE_POINTER_NAME,
+    GENERATION_MANIFEST_SCHEMA,
+    GENERATION_POINTER_SCHEMA,
+    GENERATIONS_DIR_NAME,
+    DormantEvidenceGenerationStore,
+    DormantGenerationError,
+    DormantIndexGeneration,
+)
+from .relevance import (
+    AUDITOR_SCHEMA,
+    DormantRelevanceAuditor,
+    DormantRelevanceDecision,
+    DormantRelevancePolicy,
+    DormantRelevanceScore,
+)
 from .evidence_bridge import (
     AUTHORITATIVE_FILES,
     DEFAULT_INDEX_RELATIVE,
@@ -24,6 +54,30 @@ from .evidence_bridge import (
 )
 
 __all__ = [
+    "EVALUATION_SCHEMA",
+    "FORWARD_EVALUATION_SCHEMA",
+    "DormantEvaluationCase",
+    "DormantEvaluationCaseResult",
+    "DormantEvaluationResult",
+    "DormantForwardEvaluationCase",
+    "DormantForwardEvaluationCaseResult",
+    "DormantForwardEvaluationResult",
+    "evaluate_forward_relevance",
+    "evaluate_relevance",
+    "forward_semantic_edge_cases",
+    "semantic_edge_cases",
+    "GENERATION_POINTER_SCHEMA",
+    "GENERATION_MANIFEST_SCHEMA",
+    "ACTIVE_POINTER_NAME",
+    "GENERATIONS_DIR_NAME",
+    "DormantGenerationError",
+    "DormantIndexGeneration",
+    "DormantEvidenceGenerationStore",
+    "AUDITOR_SCHEMA",
+    "DormantRelevancePolicy",
+    "DormantRelevanceScore",
+    "DormantRelevanceDecision",
+    "DormantRelevanceAuditor",
     "INDEX_SCHEMA",
     "INDEX_MANIFEST_SCHEMA",
     "DEFAULT_INDEX_RELATIVE",

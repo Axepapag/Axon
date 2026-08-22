@@ -326,6 +326,7 @@ class EvidenceCandidate:
     lexical_hits: int
     graph_hits: int
     edge_ids: tuple[str, ...] = ()
+    relation_hits: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -760,6 +761,81 @@ class DormantEvidenceIndex:
                 "derived dormant index is stale: authoritative corpus file metadata changed"
             )
 
+    def lookup_container_ids_by_normalized_text(
+        self,
+        text: str,
+        *,
+        limit: int = 32,
+    ) -> tuple[str, ...]:
+        """Resolve an exact normalized-text key to derived container IDs.
+
+        This is lookup metadata only. Callers that need evidence must still
+        dereference the returned IDs through ``dereference_container`` before
+        treating them as authoritative.
+        """
+
+        self._require_verified()
+        if not isinstance(text, str) or not text.strip():
+            raise DormantQueryError("text must be a non-empty string")
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 128:
+            raise DormantQueryError("limit must be an integer in [1, 128]")
+        rows = self._connection.execute(
+            """
+            SELECT container_id
+            FROM containers
+            WHERE normalized_key = ?
+            ORDER BY container_rowid ASC
+            LIMIT ?
+            """,
+            (_graph_key(text), limit),
+        )
+        return tuple(str(row["container_id"]) for row in rows)
+
+    def iter_edge_sources(self) -> Iterable[tuple[str, str]]:
+        """Yield derived edge/source IDs in stable index order.
+
+        This is a sequential metadata-only sense over the compact edge table.
+        It exposes no edge or container text; callers must exact-dereference IDs
+        before treating a sampled link as evidence.
+        """
+
+        self._require_verified()
+        rows = self._connection.execute(
+            """
+            SELECT edge_id, source_container_id
+            FROM edges
+            ORDER BY edge_rowid ASC
+            """
+        )
+        for row in rows:
+            yield str(row["edge_id"]), str(row["source_container_id"])
+
+    def resolved_target_container_ids(
+        self,
+        edge_id: str,
+        *,
+        limit: int = 16,
+    ) -> tuple[str, ...]:
+        """Resolve one derived edge ID to matching target-container IDs."""
+
+        self._require_verified()
+        if not isinstance(edge_id, str) or not edge_id:
+            raise DormantQueryError("edge_id must be a non-empty string")
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 128:
+            raise DormantQueryError("limit must be an integer in [1, 128]")
+        rows = self._connection.execute(
+            """
+            SELECT target.container_id
+            FROM edges e
+            JOIN containers target ON target.normalized_key = e.target_key
+            WHERE e.edge_id = ?
+            ORDER BY target.container_rowid ASC
+            LIMIT ?
+            """,
+            (edge_id, limit),
+        )
+        return tuple(str(row["container_id"]) for row in rows)
+
     def query_candidates(
         self,
         query: str,
@@ -788,6 +864,7 @@ class DormantEvidenceIndex:
         scores: dict[int, float] = {}
         lexical_hits: dict[int, int] = {}
         graph_hits: dict[int, int] = {}
+        relation_hits: dict[int, int] = {}
         edge_refs: dict[int, set[str]] = {}
 
         rows = self._connection.execute(
@@ -807,63 +884,168 @@ class DormantEvidenceIndex:
             lexical_hits[container_rowid] = lexical_hits.get(container_rowid, 0) + hits
             scores[container_rowid] = scores.get(container_rowid, 0.0) + hits * 10.0
 
-        edge_rows = self._connection.execute(
-            f"""
-            SELECT e.edge_id, source.container_rowid AS source_container_rowid, COUNT(*) AS hits
-            FROM edge_terms t
-            JOIN edges e ON e.edge_rowid = t.edge_rowid
-            LEFT JOIN containers source ON source.container_id = e.source_container_id
-            WHERE t.term_hash IN ({placeholders})
-            GROUP BY e.edge_rowid, e.edge_id, source.container_rowid
-            ORDER BY hits DESC, e.edge_rowid ASC
-            LIMIT ?
-            """,
-            (*term_hashes, max(limit * 60, 300)),
+        # Rank edge IDs from the compact postings table first. Joining source
+        # metadata during the aggregate is needlessly expensive on the live
+        # multi-GB index; hydrate only the bounded winners afterward.
+        ranked_edge_rows = tuple(
+            self._connection.execute(
+                f"""
+                SELECT edge_rowid, COUNT(*) AS hits
+                FROM edge_terms
+                WHERE term_hash IN ({placeholders})
+                GROUP BY edge_rowid
+                ORDER BY hits DESC, edge_rowid ASC
+                LIMIT ?
+                """,
+                (*term_hashes, max(limit * 60, 300)),
+            )
         )
-        for row in edge_rows:
-            if row["source_container_rowid"] is None:
+        ranked_edge_hits = tuple(
+            (int(row["edge_rowid"]), int(row["hits"])) for row in ranked_edge_rows
+        )
+        edge_meta: dict[int, tuple[str, int, bytes]] = {}
+        edge_rowids = [edge_rowid for edge_rowid, _ in ranked_edge_hits]
+        for start in range(0, len(edge_rowids), 800):
+            chunk = edge_rowids[start : start + 800]
+            chunk_placeholders = ",".join("?" for _ in chunk)
+            rows = self._connection.execute(
+                f"""
+                SELECT e.edge_rowid, e.edge_id, e.target_key,
+                       source.container_rowid AS source_container_rowid
+                FROM edges e
+                LEFT JOIN containers source ON source.container_id = e.source_container_id
+                WHERE e.edge_rowid IN ({chunk_placeholders})
+                """,
+                chunk,
+            )
+            for row in rows:
+                if row["source_container_rowid"] is None:
+                    continue
+                edge_meta[int(row["edge_rowid"])] = (
+                    str(row["edge_id"]),
+                    int(row["source_container_rowid"]),
+                    bytes(row["target_key"]),
+                )
+
+        matched_edges: list[tuple[int, str, int, int, bytes]] = []
+        for edge_rowid, hits in ranked_edge_hits:
+            meta = edge_meta.get(edge_rowid)
+            if meta is None:
                 continue
-            container_rowid = int(row["source_container_rowid"])
-            edge_id = str(row["edge_id"])
-            hits = int(row["hits"])
+            edge_id, container_rowid, target_key = meta
             lexical_hits[container_rowid] = lexical_hits.get(container_rowid, 0) + hits
             scores[container_rowid] = scores.get(container_rowid, 0.0) + hits * 6.0
             edge_refs.setdefault(container_rowid, set()).add(edge_id)
+            matched_edges.append((edge_rowid, edge_id, container_rowid, hits, target_key))
+
+        if include_graph and matched_edges:
+            # Relation-aware expansion: edges whose *own indexed terms* matched
+            # the query get a bounded direct path to their resolved targets.
+            # Resolve target keys through the existing normalized-key index,
+            # keeping at most four IDs per key. This avoids materializing every
+            # duplicate target row for common concepts.
+            #
+            # Support is a bounded best-edge signal, never an additive pile-up:
+            # target_support = matched_source_score * edge_query_coverage.
+            matched_cap = min(len(matched_edges), min(max(limit * 16, 64), 1024))
+            matched = matched_edges[:matched_cap]
+            resolved_targets: dict[bytes, tuple[int, ...]] = {}
+            for target_key in {item[4] for item in matched}:
+                rows = self._connection.execute(
+                    """
+                    SELECT container_rowid
+                    FROM containers
+                    WHERE normalized_key = ?
+                    ORDER BY container_rowid ASC
+                    LIMIT 4
+                    """,
+                    (target_key,),
+                )
+                resolved_targets[target_key] = tuple(int(row["container_rowid"]) for row in rows)
+
+            relation_support: dict[int, float] = {}
+            relation_hits = {}
+            relation_edge: dict[int, str] = {}
+            query_term_count = max(1, len(terms))
+            for _, edge_id, source_rowid, hits, target_key in matched:
+                coverage = min(1.0, hits / query_term_count)
+                support = scores.get(source_rowid, 0.0) * coverage
+                if support <= 0.0:
+                    continue
+                for target_rowid in resolved_targets.get(target_key, ()):
+                    if target_rowid == source_rowid:
+                        continue
+                    if support > relation_support.get(target_rowid, 0.0):
+                        relation_support[target_rowid] = support
+                        relation_hits[target_rowid] = hits
+                        relation_edge[target_rowid] = edge_id
+
+            for target_rowid, support in relation_support.items():
+                scores[target_rowid] = max(scores.get(target_rowid, 0.0), support)
+                graph_hits[target_rowid] = max(graph_hits.get(target_rowid, 0), 1)
+                edge_refs.setdefault(target_rowid, set()).add(relation_edge[target_rowid])
 
         if include_graph and scores:
+            # Topological expansion remains useful when a query identifies a
+            # container but does not strongly match one edge.  Traverse a small
+            # equal fan-out per seed in both directions rather than one global
+            # LIMIT, so a 10k-degree node cannot consume another seed's budget.
             seed_rowids = [
                 item[0]
                 for item in sorted(scores.items(), key=lambda item: (-item[1], item[0]))[
-                    : min(max(limit * 4, 20), 400)
+                    : min(max(limit * 2, 12), 128)
                 ]
             ]
-            seed_placeholders = ",".join("?" for _ in seed_rowids)
-            neighbor_rows = self._connection.execute(
-                f"""
-                SELECT g.source_container_rowid, g.target_container_rowid, e.edge_id
-                FROM graph_neighbors g
-                JOIN edges e ON e.edge_rowid = g.edge_rowid
-                WHERE g.source_container_rowid IN ({seed_placeholders})
-                   OR g.target_container_rowid IN ({seed_placeholders})
-                LIMIT 5000
-                """,
-                (*seed_rowids, *seed_rowids),
-            )
             seed_scores = {item: scores[item] for item in seed_rowids}
-            for row in neighbor_rows:
-                source_rowid = int(row["source_container_rowid"])
-                target_rowid = int(row["target_container_rowid"])
-                edge_id = str(row["edge_id"])
-                if source_rowid in seed_scores and target_rowid != source_rowid:
-                    graph_hits[target_rowid] = graph_hits.get(target_rowid, 0) + 1
-                    scores[target_rowid] = scores.get(target_rowid, 0.0) + min(
-                        seed_scores[source_rowid] * 0.15, 5.0
+            fanout_per_direction = 8
+            for seed_rowid in seed_rowids:
+                outgoing = self._connection.execute(
+                    """
+                    SELECT g.source_container_rowid, g.target_container_rowid, e.edge_id
+                    FROM graph_neighbors g
+                    JOIN edges e ON e.edge_rowid = g.edge_rowid
+                    WHERE g.source_container_rowid = ?
+                    ORDER BY g.edge_rowid ASC, g.target_container_rowid ASC
+                    LIMIT ?
+                    """,
+                    (seed_rowid, fanout_per_direction),
+                )
+                for row in outgoing:
+                    target_rowid = int(row["target_container_rowid"])
+                    if target_rowid == seed_rowid:
+                        continue
+                    edge_id = str(row["edge_id"])
+                    prior_graph_hits = graph_hits.get(target_rowid, 0)
+                    if prior_graph_hits < 8:
+                        graph_hits[target_rowid] = prior_graph_hits + 1
+                    scores[target_rowid] = max(
+                        scores.get(target_rowid, 0.0),
+                        min(seed_scores[seed_rowid] * 0.10, 3.0),
                     )
                     edge_refs.setdefault(target_rowid, set()).add(edge_id)
-                if target_rowid in seed_scores and source_rowid != target_rowid:
-                    graph_hits[source_rowid] = graph_hits.get(source_rowid, 0) + 1
-                    scores[source_rowid] = scores.get(source_rowid, 0.0) + min(
-                        seed_scores[target_rowid] * 0.15, 5.0
+
+                incoming = self._connection.execute(
+                    """
+                    SELECT g.source_container_rowid, g.target_container_rowid, e.edge_id
+                    FROM graph_neighbors g
+                    JOIN edges e ON e.edge_rowid = g.edge_rowid
+                    WHERE g.target_container_rowid = ?
+                    ORDER BY g.edge_rowid ASC, g.source_container_rowid ASC
+                    LIMIT ?
+                    """,
+                    (seed_rowid, fanout_per_direction),
+                )
+                for row in incoming:
+                    source_rowid = int(row["source_container_rowid"])
+                    if source_rowid == seed_rowid:
+                        continue
+                    edge_id = str(row["edge_id"])
+                    prior_graph_hits = graph_hits.get(source_rowid, 0)
+                    if prior_graph_hits < 8:
+                        graph_hits[source_rowid] = prior_graph_hits + 1
+                    scores[source_rowid] = max(
+                        scores.get(source_rowid, 0.0),
+                        min(seed_scores[seed_rowid] * 0.10, 3.0),
                     )
                     edge_refs.setdefault(source_rowid, set()).add(edge_id)
 
@@ -901,6 +1083,7 @@ class DormantEvidenceIndex:
                         lexical_hits=int(lexical_hits.get(container_rowid, 0)),
                         graph_hits=int(graph_hits.get(container_rowid, 0)),
                         edge_ids=tuple(sorted(edge_refs.get(container_rowid, set()))),
+                        relation_hits=int(relation_hits.get(container_rowid, 0)),
                     )
                 )
         filtered.sort(key=lambda item: (-item.score, -item.lexical_hits, item.container_id))

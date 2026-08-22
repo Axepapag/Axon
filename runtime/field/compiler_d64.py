@@ -526,6 +526,8 @@ def replacement_delta(
     pass_id: str | int,
     evidence: Iterable[str] = (),
     provenance: str = "d64_field_compiler_exact_replace",
+    container_refs: Iterable[str] = (),
+    edge_refs: Iterable[str] = (),
 ) -> FieldDelta:
     """Construct an ordinary exact whole-region delta against a fresh rail."""
 
@@ -545,6 +547,8 @@ def replacement_delta(
                 end=len(prior),
                 text=text,
                 provenance=provenance,
+                container_refs=tuple(container_refs),
+                edge_refs=tuple(edge_refs),
             ),
         ),
         evidence=tuple(evidence),

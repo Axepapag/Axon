@@ -40,6 +40,8 @@ class CanonicalD64RuntimeAdapter:
         pass_id: str | int,
         evidence: Iterable[str] = (),
         provenance: str = "runtime_d64_exact_replace",
+        container_refs: Iterable[str] = (),
+        edge_refs: Iterable[str] = (),
     ) -> FieldDelta:
         return replacement_delta(
             snapshot,
@@ -50,6 +52,8 @@ class CanonicalD64RuntimeAdapter:
             pass_id=pass_id,
             evidence=evidence,
             provenance=provenance,
+            container_refs=container_refs,
+            edge_refs=edge_refs,
         )
 
     def apply_candidate(
