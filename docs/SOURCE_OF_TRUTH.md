@@ -46,6 +46,13 @@ paragraphs, containers, or conversational turns. Changing a threshold moves
 the boundary only: masked text is preserved exactly, and moving the boundary
 back immediately restores that material to the shared field.
 
+Attention masks are **derived compile-time views**, not part of the canonical
+shared-field identity. The canonical `SharedFieldSnapshot` is the ordered spans;
+mask policies are resolved to attended intervals when the heart compiles a rail
+or forms a recall query. Changing a mask therefore does not create a new
+canonical body and does not allow the heart to hold a second canonical field
+that is not persisted through the branch.
+
 The initial implementation may use one movable boundary per region. The
 versioned future mask schema may additionally select multiple ordered,
 non-overlapping active intervals, such as a pinned older passage plus the
@@ -114,10 +121,11 @@ Each beat:
    as a heart-governed typed delta into its runtime-owned region. Arrivals
    during an in-flight tick queue for the next beat and never mutate the
    frozen base.
-2. Applies per-region attention masks. Masked text remains canonical and
-   restorable; only attended intervals enter the compiled rails. Policies are
-   resolved from explicit attended intervals or reusable mask policies such as
-   `all`, `none`, or `last_n_spans`.
+2. Resolves derived per-region attention masks for the rail and recall query.
+   Masked text remains canonical and restorable; only attended intervals enter
+   the compiled rails. Policies are resolved from reusable mask policies such
+   as `all`, `none`, or `last_n_spans` at compile/recall time and do not alter
+   the canonical `SharedFieldSnapshot` identity.
 3. Detects change via canonical field identity/freshness. No change means no
    recompilation.
 4. Runs the dormant valve when change warrants recall.
@@ -127,11 +135,12 @@ Each beat:
    committing the validated consolidator decision.
 
 Build B realizes the first living circulation organ: `runtime/heart/ingress_queue.py`
-holds external arrivals, and `runtime/heart/coordinator.py` drains the queue,
-reapplies masks, runs primitive recall, freezes a D64 tick image, and guards
-against commits during an in-flight tick. Build B stops at the frozen tick
-image; proposal/refinement/consolidation barriers attach to that image in later
-builds.
+holds external arrivals, and `runtime/heart/coordinator.py` drains the queue
+transactionally (acknowledging each item only after its heart-governed commit
+persists), resolves derived masks, runs primitive recall, freezes a D64 tick
+image, and guards against commits during an in-flight tick. Build B stops at the
+frozen tick image; proposal/refinement/consolidation barriers attach to that
+image in later builds.
 
 Primitive but real organs are acceptable progress; fake organs are not. An
 organ may be noisy or weak in its first form provided it is real permanent
@@ -257,6 +266,8 @@ Binding invariants:
   explicitly masked regions; masked text remains canonical state but is not an
   attended rail character; attended intervals are sorted, non-overlapping,
   half-open ranges over the region's full span text and are compiled exactly;
+  masks may be supplied at compile time as derived views and do not change the
+  canonical field identity;
 - compilation is accepted only after complete coverage and exact 16D roundtrip
   verification; a rail from an older `field_id` is stale and must not be used;
 - a D64 row is lossless storage, not four magically independent Transformer

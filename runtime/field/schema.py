@@ -394,18 +394,16 @@ class RegionState:
         )
 
     def to_canonical_dict(self) -> dict[str, Any]:
-        value: dict[str, Any] = {
+        # Attention masks are derived views of the canonical text, not part of
+        # the canonical identity.  Changing a mask must not create a new
+        # canonical field; the canonical body is the ordered spans and region
+        # metadata (visibility/write_policy), not which characters are attended.
+        return {
             "name": self.name.value,
             "visibility": self.visibility.value,
             "write_policy": self.write_policy.value,
             "spans": [span.to_canonical_dict() for span in self.spans],
-            "attended_intervals": [
-                interval.to_canonical_dict() for interval in self.attended_intervals
-            ],
         }
-        if self.mask_policy is not None:
-            value["mask_policy"] = self.mask_policy.to_canonical_dict()
-        return value
 
     @property
     def canonical_hash(self) -> str:

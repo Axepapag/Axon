@@ -65,8 +65,33 @@ class IngressQueue:
         self._items.append(item)
         return item
 
+    def peek(self, count: int = 1) -> tuple[IngressItem, ...]:
+        """Return up to ``count`` items from the front without removing them."""
+
+        if isinstance(count, bool) or not isinstance(count, int):
+            raise TypeError("IngressQueue.peek count must be an integer")
+        if count < 0:
+            raise ValueError("IngressQueue.peek count must be non-negative")
+        return tuple(self._items[:count])
+
+    def acknowledge(self, count: int = 1) -> None:
+        """Remove ``count`` items from the front after successful processing."""
+
+        if isinstance(count, bool) or not isinstance(count, int):
+            raise TypeError("IngressQueue.acknowledge count must be an integer")
+        if count < 0:
+            raise ValueError("IngressQueue.acknowledge count must be non-negative")
+        if count > len(self._items):
+            raise ValueError(
+                f"cannot acknowledge {count} items; only {len(self._items)} queued"
+            )
+        del self._items[:count]
+
     def drain(self) -> tuple[IngressItem, ...]:
-        """Atomically remove and return all queued items in arrival order."""
+        """Atomically remove and return all queued items in arrival order.
+
+        Prefer :meth:`peek` + :meth:`acknowledge` for transactional processing.
+        """
 
         items = tuple(self._items)
         self._items.clear()

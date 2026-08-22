@@ -3,9 +3,16 @@
 A ``BeatCoordinator`` owns one canonical state branch, a heart transaction
 boundary, and a heartbeat clock.  Each beat drains the ingress queue between
 ticks, runs primitive dormant recall when the canonical field changes, applies
-per-region attention masks, and freezes the stabilized field as a D64 tick
-image.  Build B stops at the tick image; Build E will attach proposal,
-refinement, and consolidation barriers to the same frozen image.
+per-region attention masks as a derived compile-time view, and freezes the
+canonical field as a D64 tick image.  Build B stops at the tick image; Build E
+will attach proposal, refinement, and consolidation barriers to the same frozen
+image.
+
+Attention masks are intentionally not part of the canonical identity.  The
+branch stores and hashes only the ordered spans; changing a mask does not create
+a new canonical body.  This preserves the one-body doctrine: there is exactly
+one authoritative ``SharedFieldSnapshot``, and rails/tick images are derived
+projections of it.
 """
 from __future__ import annotations
 
@@ -132,6 +139,11 @@ class BeatCoordinator:
         self._branch.initialize(empty)
         return empty
 
+    def _sync_to_branch_head(self) -> None:
+        """Reload the canonical field from the branch after any durable commit."""
+
+        self._current_field = self._branch.load_head()
+
     def enqueue(
         self,
         channel: IngressChannel,
@@ -143,34 +155,24 @@ class BeatCoordinator:
 
         return self._queue.enqueue(channel, text, provenance=provenance)
 
-    def _apply_region_policies(
-        self,
-        field: SharedFieldSnapshot,
-    ) -> SharedFieldSnapshot:
-        """Re-resolve attention policies for every region that has one."""
+    def _region_masks(self) -> dict[LogicalRegion, RegionMaskPolicy]:
+        """Return the derived attention masks supplied by configuration."""
 
         policies = self._config.region_policies
-        if not policies:
-            return field
-        new_regions = []
-        changed = False
-        for region_state in field.regions:
-            policy = policies.get(region_state.name)
-            if policy is not None:
-                new_state = region_state.with_policy(policy)
-                if new_state.attended_intervals != region_state.attended_intervals:
-                    changed = True
-                new_regions.append(new_state)
-            else:
-                new_regions.append(region_state)
-        if not changed:
-            return field
-        return SharedFieldSnapshot(
-            tick_id=field.tick_id,
-            regions=tuple(new_regions),
-            parent_field_id=field.parent_field_id,
-            source_manifest_ids=field.source_manifest_ids,
-        )
+        return dict(policies) if policies else {}
+
+    def _attended_text(
+        self,
+        field: SharedFieldSnapshot,
+        region: LogicalRegion,
+    ) -> str:
+        """Return the attended substring for ``region`` using derived masks."""
+
+        region_state = field.region(region)
+        override = self._region_masks().get(region)
+        if override is not None:
+            return region_state.with_policy(override).attended_text
+        return region_state.attended_text
 
     def _append_delta(
         self,
@@ -178,7 +180,7 @@ class BeatCoordinator:
         region: LogicalRegion,
         item: IngressItem,
     ) -> FieldDelta:
-        """Build an append delta for one ingress item into its owned region."""
+        """Build an append delta for one ingress item into its runtime-owned region."""
 
         region_state = base.region(region)
         offset = len(region_state.text)
@@ -198,22 +200,33 @@ class BeatCoordinator:
         )
 
     def _commit_to_branch(self, commit: HeartCommit) -> SharedFieldSnapshot:
-        """Persist one heart commit through the canonical state branch."""
+        """Persist one heart commit through the canonical state branch.
 
-        return self._branch.commit(
+        The branch is the durable canonical authority.  After persisting, the
+        coordinator's in-memory view is synchronized to the branch head so that
+        a later failure cannot leave coordinator memory behind durable state.
+        """
+
+        persisted = self._branch.commit(
             commit.delta,
             permitted_regions=commit.grant.governed_regions,
         )
+        self._current_field = persisted
+        return persisted
 
     def _drain_and_commit_ingress(
         self,
         field: SharedFieldSnapshot,
     ) -> tuple[SharedFieldSnapshot, tuple[HeartCommit, ...]]:
-        """Drain the ingress queue and commit each item as a typed delta."""
+        """Commit queued arrivals one at a time, acknowledging only on success.
+
+        If one item fails, the queue retains that item and all successors.
+        """
 
         commits: list[HeartCommit] = []
         current = field
-        for item in self._queue.drain():
+        while not self._queue.is_empty:
+            item = self._queue.peek(1)[0]
             owned = INGRESS_OWNED_REGIONS[item.channel]
             region = next(iter(owned))
             delta = self._append_delta(current, region, item)
@@ -223,6 +236,7 @@ class BeatCoordinator:
                 AuthorityGrant.ingress(item.channel),
             )
             self._commit_to_branch(commit)
+            self._queue.acknowledge(1)
             commits.append(commit)
             current = commit.successor
         return current, tuple(commits)
@@ -236,7 +250,7 @@ class BeatCoordinator:
             LogicalRegion.TOOL_RESULTS,
             LogicalRegion.ADVISOR_INPUT,
         ):
-            text = field.region(region).attended_text.strip()
+            text = self._attended_text(field, region).strip()
             if text:
                 parts.append(text)
         query = " ".join(parts)
@@ -285,7 +299,7 @@ class BeatCoordinator:
         if new_sk.text == current_sk.text:
             return field, None
 
-        compiled = self._compiler.compile(field)
+        compiled = self._compiler.compile(field, region_masks=self._region_masks())
         delta = replacement_delta(
             field,
             compiled,
@@ -303,12 +317,30 @@ class BeatCoordinator:
         self._commit_to_branch(commit)
         return commit.successor, commit
 
+    def _verify_masked_roundtrip(
+        self,
+        compiled: Any,
+        field: SharedFieldSnapshot,
+    ) -> None:
+        """Verify the compiled rail matches the derived attended text exactly."""
+
+        for region in compiled.active_texts():
+            expected = self._attended_text(field, LogicalRegion(region))
+            observed = compiled.region_text(region)
+            if observed != expected:
+                from runtime.field import IncompleteRailError
+
+                raise IncompleteRailError(
+                    f"D64 roundtrip mismatch in {region!r}: "
+                    f"expected {len(expected)} chars, observed {len(observed)}"
+                )
+
     def _open_tick(self, field: SharedFieldSnapshot) -> FrozenTickImage:
-        """Compile the field and freeze one 64D tick image."""
+        """Compile the field with derived masks and freeze one 64D tick image."""
 
         identity = self._clock.open_tick(field)
-        compiled = self._compiler.compile(field)
-        compiled.verify_roundtrip(field)
+        compiled = self._compiler.compile(field, region_masks=self._region_masks())
+        self._verify_masked_roundtrip(compiled, field)
         image = FrozenTickImage.from_compiled(identity, {64: compiled})
         self._boundary.note_tick_opened(image)
         return image
@@ -318,7 +350,11 @@ class BeatCoordinator:
 
         If a tick is already in flight, the beat returns immediately without
         mutating the frozen base.  Otherwise it drains ingress, recalls,
-        stabilizes masks, and opens a new tick.
+        stabilizes, and opens a new tick against the one canonical body.
+
+        On any failure after a durable commit, the coordinator resynchronizes
+        to the branch head before re-raising so that coordinator memory and
+        durable canonical state cannot diverge.
         """
 
         if self._open_tick_image is not None:
@@ -332,44 +368,46 @@ class BeatCoordinator:
         commits: list[HeartCommit] = []
         field = self._current_field
 
-        # 1. Between-tick ingress commits.
-        field, ingress_commits = self._drain_and_commit_ingress(field)
-        commits.extend(ingress_commits)
+        try:
+            # 1. Between-tick ingress commits.
+            field, ingress_commits = self._drain_and_commit_ingress(field)
+            commits.extend(ingress_commits)
 
-        # 2. Apply per-region attention policies to the new/changed field.
-        field = self._apply_region_policies(field)
+            # 2. Detect canonical change against the last stabilized field.
+            changed = force or field.field_id != self._last_field_id
 
-        # 3. Detect canonical change against the last stabilized field.
-        changed = force or field.field_id != self._last_field_id
+            # 3. Primitive dormant recall when the active field changed.
+            if changed:
+                field, recall_commit = self._run_recall(field)
+                if recall_commit is not None:
+                    commits.append(recall_commit)
 
-        # 4. Primitive dormant recall when the active field changed.
-        if changed:
-            field, recall_commit = self._run_recall(field)
-            if recall_commit is not None:
-                commits.append(recall_commit)
-                field = self._apply_region_policies(field)
+            # 4. Stabilize.
+            self._last_field_id = field.field_id
+            self._current_field = field
 
-        # 5. Stabilize.
-        self._last_field_id = field.field_id
-        self._current_field = field
+            # 5. Open a tick if there is any work to freeze.
+            if not force and not commits and not changed:
+                return BeatResult(
+                    state=BeatState.IDLE,
+                    field=field,
+                    tick_image=None,
+                    commits=(),
+                )
 
-        # 6. Open a tick if there is any work to freeze.
-        if not force and not commits and not changed:
+            image = self._open_tick(field)
+            self._open_tick_image = image
             return BeatResult(
-                state=BeatState.IDLE,
+                state=BeatState.TICK_OPENED,
                 field=field,
-                tick_image=None,
-                commits=(),
+                tick_image=image,
+                commits=tuple(commits),
             )
-
-        image = self._open_tick(field)
-        self._open_tick_image = image
-        return BeatResult(
-            state=BeatState.TICK_OPENED,
-            field=field,
-            tick_image=image,
-            commits=tuple(commits),
-        )
+        except Exception:
+            # A durable commit may have succeeded before the failure.  Resync
+            # so the next beat starts from the authoritative branch head.
+            self._sync_to_branch_head()
+            raise
 
     def close_tick(self) -> None:
         """Close the in-flight tick without a consolidator commit.

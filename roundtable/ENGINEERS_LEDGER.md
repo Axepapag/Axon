@@ -1,22 +1,22 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-21T22:50:35-05:00
-Current through event: `evt-20260822T035035286793Z-chatgpt-build-b-supervision`
+Updated: 2026-08-22T04:42:36+00:00
+Current through event: `evt-20260822T044236632933Z-kimmy-build-b1`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
 ## Current mission state
 
-Axon remains at the clean Day Zero boundary with **P0 dormant evidence retrieval/surfacing complete and proven against the real recovered corpus**. Kimmy published Build B (`aca1bbc`) and its core circulation is genuine, but independent supervision found **Build B conditionally incomplete pending B.1 hardening**.
+Axon remains at the clean Day Zero boundary with **P0 dormant evidence retrieval/surfacing complete and proven against the real recovered corpus**. Kimmy published Build B (`aca1bbc`) and, after independent ChatGPT supervision, closed Build B.1: attention masks are now derived compile-time views that do not alter canonical identity; the ingress queue drains transactionally and preserves unprocessed arrivals on failure; and the coordinator resynchronizes to durable branch HEAD after every commit and after any exception. Full active suite is green.
 
 Current engineering focus is **not** the old scripted/non-neural P1 skeleton. Jeff's newer directive supersedes it: build one real organ at a time, no scripted/fake organs, with the **64D Field Compiler Organ / heart** first. Heartbeat is its own cadence and is distinct from a cognitive tick.
 
-Heart doctrine is ratified (`b0fcb85`) and Builds A/A.1 are independently accepted. Build B (`aca1bbc`) adds real heart-governed ingress, primitive P0 recall, branch persistence, and D64 freeze; ChatGPT independently proved a live temp branch can complete user ingress -> real dormant retrieval -> structured-knowledge commit -> exact D64 tick image with persisted/frozen field parity. Existing tests are green (49 focused; 206 full), and the real P0 three-query proof remains `all_ok=true`. However B.1 is required before advancement: dynamic mask policy can create an unpersisted canonical snapshot and stale the next commit; destructive queue drain loses pending ingress on failure; and a later beat-stage exception can leave coordinator memory stale behind durable branch HEAD. No production heartbeat host/loop or bounded idle cadence exists yet. The Semantic Cortex proposal remains endorsed design work, but Build C/production cortex work is gated on B.1.
+Heart doctrine is ratified (`b0fcb85`) and Builds A/A.1 are independently accepted. Build B (`aca1bbc`) adds real heart-governed ingress, primitive P0 recall, branch persistence, and D64 freeze; Build B.1 hardens it so mask policies are derived views, ingress drains transactionally, and coordinator memory cannot diverge from durable branch HEAD. ChatGPT independently proved a live temp branch can complete user ingress -> real dormant retrieval -> structured-knowledge commit -> exact D64 tick image with persisted/frozen field parity. Existing tests are green (49 focused; 206 full), and the real P0 three-query proof remains `all_ok=true`. No production heartbeat host/loop or bounded idle cadence exists yet. The Semantic Cortex proposal remains endorsed design work, but Build C/production cortex work is gated on a green runtime host after B.1.
 
 ## Binding authority and invariants
 
 - Jeff is final authority; `docs/SOURCE_OF_TRUTH.md` is the architecture master below his explicit rulings.
-- Root `SOURCE_OF_TRUTH.md` is an exact mirror. Current verified SHA256: `9B2B0121FA176D357DED822618C41FF14F427138BF87ABF9A564FE2A6EE19F51` (Build B ratification).
+- Root `SOURCE_OF_TRUTH.md` is an exact mirror. Current verified SHA256: `A8BC4DCDCAEF27449A26B489E1A4186B8A2FD712EB78C20DDDABF46C562740E8` (Build B.1 ratification).
 - Root/docs Working Contract are exact mirrors. SHA256: `DC946600ADD64C51EC0AE40BB4D7F4F5E708387DD2A9E384DE268701959FAA31`.
 - One living/durable State root: `D:\Axon\State`.
 - One dormant-memory authority: exact recovered files under `State\dormant`.
@@ -200,8 +200,8 @@ Kimmy maintains `D:\kimmy` and holds day-to-day senior-engineer steering unless 
 1. ~~Revise and land heart doctrine~~ **DONE 2026-08-21 (`b0fcb85`)**: wording corrections applied, Jeff's primitive-but-real/runtime-first rulings incorporated, amendment spliced into both SoT mirrors (SHA256 `D35A0FA9…`).
 2. ~~Mirror equality, doctrine/hygiene tests, full suite, doctrine event~~ **DONE**: full suite exit 0 with zero failures (mirror equality enforced); event `evt-20260821T222755580056Z-kimmy-heart-amendment-ratified`.
 3. ~~**Build A.1 — BLOCKER before B**~~ **DONE / independently accepted 2026-08-21 (`0229080`)**: hardened `HeartTransactionBoundary`; added CORE/CONSOLIDATOR/VALVE fail-closed semantics; added 64D rail guardrail; applied SoT cleanup; Kimmy regression tests and ChatGPT adversarial rechecks are green.
-4. **Build B.1 — BLOCKER before C/Cortex:** harden `aca1bbc` circulation. Eliminate unpersisted canonical mask snapshots (derived mask policy or real heart-persisted mask transaction); make ingress queue ack/pop only after successful commit and preserve unprocessed arrivals on failure; keep coordinator state synchronized to durable branch HEAD after every partial failure and make failed later stages retryable. Add adversarial regression tests for all three reproduced failures.
-5. **Heartbeat runtime host after B.1:** add the smallest permanent event-driven/bounded-idle host around `BeatCoordinator`, with observable health/heartbeat state. Do not introduce fake reasoning cores; keep heartbeat circulation distinct from cognitive-tick execution where necessary. Carry durable epoch, durable/recoverable ingress, and class-specific authority provenance into this boundary.
+4. ~~**Build B.1 — BLOCKER before C/Cortex**~~ **DONE** (`evt-20260822T044236632933Z-kimmy-build-b1`): hardened `aca1bbc` circulation. Attention masks are derived compile-time views; ingress queue acks only after successful commit and preserves unprocessed arrivals on failure; coordinator state resynchronizes to durable branch HEAD after every commit and after any exception. Adversarial regression tests added; full suite green.
+5. **Heartbeat runtime host — next:** add the smallest permanent event-driven/bounded-idle host around `BeatCoordinator`, with observable health/heartbeat state. Do not introduce fake reasoning cores; keep heartbeat circulation distinct from cognitive-tick execution where necessary. Carry durable epoch, durable/recoverable ingress, and class-specific authority provenance into this boundary.
 6. **Semantic Cortex proposal stays active but downstream of robust circulation:** preserve `roundtable/SEMANTIC_CORTEX_PROPOSAL.md`; no production cortex training/integration until B.1 is independently green. Design/evaluation work may continue.
 7. **Build C after B.1:** mature dormant recall quality, retention budgets, semantic senses and incremental/generational index maintenance on top of failure-safe circulation.
 8. **Build D later:** dual-surface 64D rail semantic slots bound to exact source spans; no wider rail until 64D is proven.
@@ -223,4 +223,4 @@ Kimmy maintains `D:\kimmy` and holds day-to-day senior-engineer steering unless 
 - Dormant authority: `State/dormant/`
 - Full tests: `python -m pytest -q -p no:cacheprovider`
 
-**ChatGPT / GPT-5.6 Sol / 2026-08-21** (prior update: Kimmy / Kimi Code CLI / 2026-08-22)
+**Kimmy / Kimi Code CLI / 2026-08-22** (prior update: ChatGPT / GPT-5.6 Sol / 2026-08-21)

@@ -16,7 +16,7 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass, replace
-from typing import Any, Iterable, Iterator
+from typing import Any, Iterable, Iterator, Mapping
 
 import numpy as np
 
@@ -27,9 +27,11 @@ from .schema import (
     CANONICAL_REGION_ORDER,
     LOGICAL_REGION_IDS,
     LogicalRegion,
+    RegionMaskPolicy,
     SharedFieldSnapshot,
     canonical_json_bytes,
     canonical_sha256,
+    resolve_mask_policy,
 )
 
 
@@ -322,13 +324,19 @@ class D64FieldCompiler:
 
     schema = D64_COMPILER_SCHEMA
 
-    def compile(self, snapshot: SharedFieldSnapshot) -> CompiledD64Field:
+    def compile(
+        self,
+        snapshot: SharedFieldSnapshot,
+        *,
+        region_masks: Mapping[LogicalRegion, RegionMaskPolicy] | None = None,
+    ) -> CompiledD64Field:
         if not isinstance(snapshot, SharedFieldSnapshot):
             raise TypeError("D64FieldCompiler.compile requires SharedFieldSnapshot")
         if SLOT_DIM != SUBSTRATE_WIDTH:
             raise FieldCompilerError(
                 f"frozen substrate width changed: expected 16, got {SLOT_DIM}"
             )
+        masks = region_masks or {}
 
         rows: list[np.ndarray] = []
         valid_masks: list[np.ndarray] = []
@@ -345,7 +353,11 @@ class D64FieldCompiler:
             region_row_start = len(rows)
 
             text = state.text
-            attended_intervals = tuple(state.attended_intervals)
+            override = masks.get(region)
+            if override is not None:
+                attended_intervals = resolve_mask_policy(state.spans, override)
+            else:
+                attended_intervals = tuple(state.attended_intervals)
             expected_active += sum(
                 interval.end - interval.start for interval in attended_intervals
             )
@@ -494,7 +506,12 @@ class D64FieldCompiler:
             coverage=coverage,
             rail_id=rail_id,
         )
-        compiled.verify_roundtrip(snapshot)
+        # When the caller supplies derived region masks, the canonical snapshot
+        # does not know the attended view; the caller is responsible for its own
+        # masked roundtrip verification.  Unmasked compiles still prove exact
+        # canonical coverage here.
+        if region_masks is None:
+            compiled.verify_roundtrip(snapshot)
         _verify_vector_roundtrip(compiled)
         return compiled
 

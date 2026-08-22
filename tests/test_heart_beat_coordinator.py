@@ -22,6 +22,7 @@ from runtime.heart import (
     CoreRegistry,
     HeartTransactionError,
     IngressChannel,
+    IngressItem,
 )
 
 D64 = 64
@@ -215,15 +216,15 @@ def test_coordinator_change_detection_and_force_opens_tick(tmp_path: Path) -> No
 def test_coordinator_applies_per_region_attention_policies(tmp_path: Path) -> None:
     from runtime.field import FieldSpan
 
-    # Seed the branch with two conversation spans so last-n-spans masking has
-    # something to select from.
+    # Seed the branch with two conversation spans.  Attention masks are a
+    # derived view, not part of the canonical identity, so the policy lives in
+    # BeatConfig and is applied at compile/recall time.
     history = RegionState(
         name=LogicalRegion.CONVERSATION_HISTORY,
         spans=(
             FieldSpan(span_id="h1", text="old line 1\n"),
             FieldSpan(span_id="h2", text="old line 2\n"),
         ),
-        mask_policy=RegionMaskPolicy("last_n_spans", 1),
     )
     branch = _branch(tmp_path)
     branch.initialize(SharedFieldSnapshot(tick_id=0, regions=(history,)))
@@ -239,11 +240,15 @@ def test_coordinator_applies_per_region_attention_policies(tmp_path: Path) -> No
     result = coordinator.beat()
     assert result.state is BeatState.TICK_OPENED
 
+    # The canonical field preserves the full text.
     ch = result.field.region(LogicalRegion.CONVERSATION_HISTORY)
     assert ch.text == "old line 1\nold line 2\n"
-    assert ch.attended_text == "old line 2\n"
+    assert ch.attended_text == "old line 1\nold line 2\n"
 
-    compiled = D64FieldCompiler().compile(result.field)
+    # The tick rail applies the derived last-n-spans mask.
+    compiled = D64FieldCompiler().compile(
+        result.field, region_masks=config.region_policies
+    )
     assert compiled.region_text("conversation_history") == "old line 2\n"
 
 
@@ -299,3 +304,83 @@ def test_coordinator_recall_is_idempotent_when_knowledge_unchanged(
     # duplicate recall commit.
     second = coordinator.beat()
     assert second.state is BeatState.IDLE
+
+
+def test_attention_masks_are_derived_not_canonical(tmp_path: Path) -> None:
+    branch = _branch(tmp_path)
+    coordinator1 = BeatCoordinator(
+        branch,
+        _registry(),
+        config=BeatConfig(
+            region_policies={
+                LogicalRegion.USER_INPUT: RegionMaskPolicy("last_n_spans", 1),
+            }
+        ),
+    )
+    field_id_with_mask = coordinator1.current_field.field_id
+
+    coordinator2 = BeatCoordinator(
+        branch,
+        _registry(),
+        config=BeatConfig(
+            region_policies={
+                LogicalRegion.USER_INPUT: RegionMaskPolicy("none"),
+            }
+        ),
+    )
+    assert coordinator2.current_field.field_id == field_id_with_mask
+
+
+def test_failed_ingress_commit_preserves_later_arrivals(tmp_path: Path) -> None:
+    from datetime import datetime, timezone
+
+    branch = _branch(tmp_path)
+    coordinator = BeatCoordinator(branch, _registry())
+    # Inject an empty item at the front that will fail delta construction.
+    coordinator._queue._items.insert(
+        0,
+        IngressItem(
+            channel=IngressChannel.USER,
+            text="",
+            provenance="test",
+            enqueued_at=datetime.now(timezone.utc),
+        ),
+    )
+    coordinator.enqueue(IngressChannel.USER, "valid")
+
+    with pytest.raises(Exception):
+        coordinator.beat()
+
+    # The failed item and the unprocessed successor must both remain.
+    texts = {item.text for item in coordinator._queue}
+    assert texts == {"", "valid"}
+
+
+def test_coordinator_resynchronizes_to_branch_head_after_recall_failure(
+    tmp_path: Path,
+) -> None:
+    branch = _branch(tmp_path)
+    coordinator = BeatCoordinator(
+        branch,
+        _registry(),
+        state_root=tmp_path,
+    )
+    coordinator.enqueue(IngressChannel.USER, "hello")
+
+    class _FailingBridge(_FakeDormantBridge):
+        def retrieve(self, query, **kwargs):
+            if query:
+                raise RuntimeError("bridge failure")
+            return ()
+
+    coordinator._bridge = _FailingBridge("ignored")
+    with pytest.raises(RuntimeError, match="bridge failure"):
+        coordinator.beat()
+
+    # The ingress commit was durable; coordinator memory must reflect it.
+    assert coordinator.current_field.region(LogicalRegion.USER_INPUT).text == "hello"
+    assert branch.load_head().region(LogicalRegion.USER_INPUT).text == "hello"
+
+    # A new coordinator loading the same branch must not see a stale base.
+    coordinator2 = BeatCoordinator(branch, _registry(), state_root=tmp_path)
+    assert coordinator2.current_field.region(LogicalRegion.USER_INPUT).text == "hello"
