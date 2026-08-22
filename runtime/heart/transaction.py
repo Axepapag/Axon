@@ -8,7 +8,8 @@ the binding gate for typing, region sealing, bounds, and overlap.
 
 External ingress commits only between ticks; while a tick is in flight, only
 the consolidator's validated decision may commit, and the tick ends at that
-commit — and only there.
+commit — and only there.  Cores only propose; a core grant is never
+commit-capable, regardless of tick state.
 """
 from __future__ import annotations
 
@@ -25,10 +26,14 @@ from runtime.field import (
 
 from .authority import AuthorityClass, AuthorityGrant
 from .errors import (
+    CoreCommitError,
+    FinalCommitAlreadyMadeError,
     HeartTransactionError,
     IngressDuringTickError,
     StaleBaseProposalError,
     AuthorityViolationError,
+    TickBindingError,
+    ValveDuringTickError,
 )
 from .tick import FrozenTickImage, TickIdentity
 
@@ -84,6 +89,7 @@ class HeartTransactionBoundary:
 
     def __init__(self) -> None:
         self._open_tick: TickIdentity | None = None
+        self._last_consumed_tick: TickIdentity | None = None
 
     @property
     def tick_in_flight(self) -> bool:
@@ -143,38 +149,77 @@ class HeartTransactionBoundary:
         *,
         tick: TickIdentity | None = None,
     ) -> HeartCommit:
-        """Validate and atomically apply one proposal as the successor field."""
+        """Validate and atomically apply one proposal as the successor field.
+
+        A successful consolidator commit atomically consumes the in-flight
+        tick: the tick ends at this commit — and only there.
+        """
 
         if not isinstance(grant, AuthorityGrant):
             raise TypeError("commit requires an AuthorityGrant")
-        if self._open_tick is not None:
+        # Cores only propose; a core grant is never commit-capable,
+        # regardless of tick state.
+        if grant.authority_class is AuthorityClass.CORE:
+            raise CoreCommitError(
+                "cores only propose; a core grant may never commit canonical state"
+            )
+        if grant.authority_class is AuthorityClass.CONSOLIDATOR:
+            # The consolidator's decision commits only against the tick that
+            # produced it: the tick token is mandatory, never optional, and a
+            # tick must be in flight.
+            if tick is None:
+                raise TickBindingError(
+                    "a consolidator commit requires the in-flight tick token"
+                )
+            if self._open_tick is None:
+                if (
+                    self._last_consumed_tick is not None
+                    and tick == self._last_consumed_tick
+                ):
+                    raise FinalCommitAlreadyMadeError(
+                        "the final consolidator commit for this tick has already been made"
+                    )
+                raise TickBindingError(
+                    "a consolidator decision may commit only while its tick "
+                    "is in flight"
+                )
+        elif self._open_tick is not None:
             if grant.authority_class is AuthorityClass.EXTERNAL_INGRESS:
                 raise IngressDuringTickError(
                     "external ingress commits only between ticks; a tick is in flight"
                 )
-            if grant.authority_class is not AuthorityClass.CONSOLIDATOR:
-                raise AuthorityViolationError(
-                    "only the consolidator's decision may commit while a tick "
-                    "is in flight"
+            if grant.authority_class is AuthorityClass.DORMANT_VALVE:
+                raise ValveDuringTickError(
+                    "the dormant valve may materialize structured knowledge "
+                    "only between ticks; a tick is in flight"
                 )
+            raise AuthorityViolationError(
+                "only the consolidator's decision may commit while a tick "
+                "is in flight"
+            )
         if tick is not None:
             if self._open_tick is None:
-                raise HeartTransactionError(
+                raise TickBindingError(
                     "commit claims a tick but no tick is in flight"
                 )
             if tick != self._open_tick:
-                raise HeartTransactionError(
+                raise TickBindingError(
                     "commit tick identity does not match the in-flight tick"
                 )
             if (
                 tick.base_field_id != base.field_id
                 or tick.base_tick_id != base.tick_id
             ):
-                raise StaleBaseProposalError(
+                raise TickBindingError(
                     "commit base does not match the in-flight tick's frozen base"
                 )
         self.validate_proposal(base, delta, grant)
         successor = apply_delta(base, delta)
+        if grant.authority_class is AuthorityClass.CONSOLIDATOR:
+            # The tick ends at the heart commit — and only there.  Consuming
+            # it here makes any second commit from this tick fail closed.
+            self._last_consumed_tick = self._open_tick
+            self._open_tick = None
         return HeartCommit(
             base_field_id=base.field_id,
             base_tick_id=base.tick_id,

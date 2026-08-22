@@ -270,9 +270,10 @@ characters. Semantic slots are derived and rebuildable; they never become the
 only copy of anything, and they hold no reasoning vote and no commit
 authority. First-form semantic slots are deterministic derivations from exact
 structure; trained semantic richness enters in the 128/256/512/1024 dialing
-sequence, one rail size at a time, each proven before the next begins. A
-reasoning core is never required to reproduce every character to prove
-grounding.
+sequence, one rail size at a time, each proven before the next begins, and may
+also improve the 64D heart provided exact-character grounding and roundtrip
+remain mandatory. A reasoning core is never required to reproduce every
+character to prove grounding.
 
 ## Canonical state root
 
@@ -335,9 +336,10 @@ trained later, is a disposable derived sense only. The semantic path fails
 closed to exact lexical retrieval, and exact bytes are always dereferenced
 from the authoritative JSONL and hash/provenance-verified before surfacing.
 
-The derived index is maintained incrementally: generational append/update
-with binding verification and atomic swap; full rebuild is the fallback,
-never the per-beat cost.
+The derived index must become incremental/generational: append/update with
+binding verification and atomic swap. That capability does not exist yet;
+until then, full rebuild is the accepted static cost, and it must never
+become the per-beat cost of live memory.
 
 ## Day Zero active surface
 
@@ -349,6 +351,7 @@ The active implementation surface is intentionally narrow:
 - `runtime/field/state_branch.py` ? canonical branch persistence,
 - `runtime/axon_runtime/d64_adapter.py` ? runtime-facing D64 adapter,
 - `runtime/dormant/evidence_bridge.py` ? read-only manifest/hash-bound dormant retrieval, exact dereference, and structured-knowledge surfacing,
+- `runtime/heart/` ? heart control plane: authority classes, core registry, tick identities and frozen images, the noncanonical proposal board, and the heart transaction boundary,
 - `training/canonical_d64.py`, `training/complete_field_64d.py`, and `training/train_complete_field_64d.py` ? canonical D64 training path,
 - `curator/` recovered-corpus schema/materialization/building utilities ? offline exact dormant-memory tooling,
 

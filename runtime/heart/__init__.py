@@ -27,9 +27,11 @@ from .errors import (
     AuthorityViolationError,
     BarrierClosedError,
     BarrierNotReadyError,
+    CoreCommitError,
     CoreRegistryError,
     DuplicateCoreError,
     DuplicateProposalError,
+    FinalCommitAlreadyMadeError,
     HeartError,
     HeartTransactionError,
     HeartbeatError,
@@ -38,10 +40,13 @@ from .errors import (
     NoActiveParticipantsError,
     ProposalBoardError,
     RailMembershipError,
+    RailWidthMismatchError,
     StaleBaseProposalError,
     StaleRailBindingError,
+    TickBindingError,
     UnknownCoreError,
     UnknownParticipantError,
+    ValveDuringTickError,
 )
 from .registry import CoreDescriptor, CoreRegistry, CoreStatus
 from .tick import (
@@ -92,6 +97,7 @@ __all__ = [
     "NoActiveParticipantsError",
     "HeartbeatError",
     "StaleRailBindingError",
+    "RailWidthMismatchError",
     "StaleBaseProposalError",
     "ProposalBoardError",
     "UnknownParticipantError",
@@ -101,4 +107,8 @@ __all__ = [
     "BarrierClosedError",
     "HeartTransactionError",
     "IngressDuringTickError",
+    "ValveDuringTickError",
+    "CoreCommitError",
+    "TickBindingError",
+    "FinalCommitAlreadyMadeError",
 ]

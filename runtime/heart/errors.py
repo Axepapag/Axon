@@ -43,6 +43,10 @@ class StaleRailBindingError(HeartbeatError):
     """A rail reference is not bound to the frozen base field identity."""
 
 
+class RailWidthMismatchError(HeartbeatError):
+    """A rail label claims a width other than the compiled rail's physical width."""
+
+
 class StaleBaseProposalError(HeartError):
     """A proposal is not bound to the frozen base field identity."""
 
@@ -79,6 +83,22 @@ class IngressDuringTickError(HeartTransactionError):
     """External ingress attempted to commit while a tick is in flight."""
 
 
+class ValveDuringTickError(HeartTransactionError):
+    """The dormant valve attempted to commit while a tick is in flight."""
+
+
+class CoreCommitError(HeartTransactionError):
+    """A core attempted to commit canonical state; cores only propose."""
+
+
+class TickBindingError(HeartTransactionError):
+    """A consolidator commit is not bound to the in-flight tick identity/base."""
+
+
+class FinalCommitAlreadyMadeError(HeartTransactionError):
+    """A tick's final consolidator commit has already occurred."""
+
+
 __all__ = [
     "HeartError",
     "InvalidAuthorityGrantError",
@@ -89,6 +109,7 @@ __all__ = [
     "NoActiveParticipantsError",
     "HeartbeatError",
     "StaleRailBindingError",
+    "RailWidthMismatchError",
     "StaleBaseProposalError",
     "ProposalBoardError",
     "UnknownParticipantError",
@@ -98,4 +119,8 @@ __all__ = [
     "BarrierClosedError",
     "HeartTransactionError",
     "IngressDuringTickError",
+    "ValveDuringTickError",
+    "CoreCommitError",
+    "TickBindingError",
+    "FinalCommitAlreadyMadeError",
 ]

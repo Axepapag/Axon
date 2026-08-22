@@ -19,11 +19,13 @@ from runtime.heart import (
     AuthorityGrant,
     AuthorityViolationError,
     BarrierNotReadyError,
+    CoreCommitError,
     CoreDescriptor,
     CoreRegistry,
     CoreStatus,
     DuplicateCoreError,
     DuplicateProposalError,
+    FinalCommitAlreadyMadeError,
     FrozenTickImage,
     HeartbeatClock,
     HeartbeatError,
@@ -38,11 +40,14 @@ from runtime.heart import (
     ProposalBoardError,
     ProposalPass,
     RailMembershipError,
+    RailWidthMismatchError,
     StaleBaseProposalError,
     StaleRailBindingError,
+    TickBindingError,
     TickIdentity,
     UnknownCoreError,
     UnknownParticipantError,
+    ValveDuringTickError,
 )
 
 D64 = 64
@@ -431,14 +436,22 @@ def test_boundary_rejects_stale_base_proposals() -> None:
         (InsertText(region=LogicalRegion.SCRATCH, offset=0, text="stale"),),
     )
     with pytest.raises(StaleBaseProposalError):
-        boundary.commit(base, stale, AuthorityGrant.consolidator())
-    with pytest.raises(StaleBaseProposalError):
         boundary.validate_proposal(base, stale, AuthorityGrant.consolidator())
+
+    # A consolidator commit requires its matching in-flight tick; with that
+    # tick open, a proposal bound to another base is still rejected as stale.
+    _, identity, image = _image(base)
+    boundary.note_tick_opened(image)
+    with pytest.raises(StaleBaseProposalError):
+        boundary.commit(base, stale, AuthorityGrant.consolidator(), tick=identity)
+    boundary.note_tick_closed(identity)
 
 
 def test_boundary_rejects_conflicting_sparse_edits() -> None:
     base = _base()
+    _, identity, image = _image(base)
     boundary = HeartTransactionBoundary()
+    boundary.note_tick_opened(image)
     grant = AuthorityGrant.consolidator()
 
     overlapping_replaces = _delta(
@@ -451,7 +464,7 @@ def test_boundary_rejects_conflicting_sparse_edits() -> None:
         ),
     )
     with pytest.raises(OverlappingDeltaError):
-        boundary.commit(base, overlapping_replaces, grant)
+        boundary.commit(base, overlapping_replaces, grant, tick=identity)
 
     colliding_inserts = _delta(
         base,
@@ -463,7 +476,12 @@ def test_boundary_rejects_conflicting_sparse_edits() -> None:
         ),
     )
     with pytest.raises(OverlappingDeltaError):
-        boundary.commit(base, colliding_inserts, grant)
+        boundary.commit(base, colliding_inserts, grant, tick=identity)
+
+    # Rejected commits leave the tick in flight; only a successful
+    # consolidator commit or an explicit close ends it.
+    assert boundary.tick_in_flight
+    boundary.note_tick_closed(identity)
 
 
 def test_validated_consolidator_decision_commits_via_canonical_delta_path() -> None:
@@ -535,15 +553,28 @@ def test_validated_consolidator_decision_commits_via_canonical_delta_path() -> N
     compiled.verify_roundtrip(successor)
     assert compiled.coverage.complete
 
-    boundary.note_tick_closed(identity)
+    # The successful consolidator commit atomically ends the tick; a second
+    # commit from the same tick identity fails closed.
     assert not boundary.tick_in_flight
+    with pytest.raises(HeartTransactionError):
+        boundary.note_tick_closed(identity)
+    with pytest.raises(FinalCommitAlreadyMadeError):
+        boundary.commit(base, decision, AuthorityGrant.consolidator(), tick=identity)
 
     # The base snapshot is untouched by the commit; replaying the same delta
-    # against the successor is stale and fails closed.
+    # against the successor under a fresh tick is stale and fails closed.
     assert base.tick_id == 0
     assert base.field_id != successor.field_id
+    _, next_identity, next_image = _image(successor)
+    boundary.note_tick_opened(next_image)
     with pytest.raises(StaleBaseProposalError):
-        boundary.commit(successor, decision, AuthorityGrant.consolidator())
+        boundary.commit(
+            successor,
+            decision,
+            AuthorityGrant.consolidator(),
+            tick=next_identity,
+        )
+    boundary.note_tick_closed(next_identity)
 
 
 def test_tick_commit_requires_the_in_flight_tick() -> None:
@@ -556,11 +587,11 @@ def test_tick_commit_requires_the_in_flight_tick() -> None:
     boundary = HeartTransactionBoundary()
     decision = _scratch_append(base, "consolidator-01", "consolidation", "x")
 
-    with pytest.raises(HeartTransactionError):
+    with pytest.raises(TickBindingError):
         boundary.commit(base, decision, AuthorityGrant.consolidator(), tick=identity)
 
     boundary.note_tick_opened(image)
-    with pytest.raises(HeartTransactionError):
+    with pytest.raises(TickBindingError):
         boundary.commit(base, decision, AuthorityGrant.consolidator(), tick=other_identity)
     with pytest.raises(HeartTransactionError):
         boundary.note_tick_closed(other_identity)
@@ -604,15 +635,134 @@ def test_ingress_and_valve_governance_at_the_boundary() -> None:
     with pytest.raises(SealedRegionWriteError):
         boundary.commit(base, valve_delta, AuthorityGrant.dormant_valve())
 
-    # During an in-flight tick, ingress never commits, and only the
-    # consolidator's decision may cross the boundary.
+    # During an in-flight tick, ingress and the dormant valve must queue for
+    # the next beat; only the consolidator's decision may cross the boundary.
     boundary.note_tick_opened(image)
     with pytest.raises(IngressDuringTickError):
         boundary.commit(base, ingress_delta, AuthorityGrant.ingress(IngressChannel.USER))
-    with pytest.raises(AuthorityViolationError):
+    with pytest.raises(ValveDuringTickError):
+        boundary.commit(base, valve_delta, AuthorityGrant.dormant_valve())
+    with pytest.raises(CoreCommitError):
         boundary.commit(
             base,
             _scratch_append(base, "core-alpha", "first", "bypass"),
             AuthorityGrant.core(),
         )
     boundary.note_tick_closed(identity)
+
+
+# --- Build A.1 regression tests: doctrine-violation blockers ----------------
+
+
+def test_core_grants_are_never_commit_capable() -> None:
+    base = _base()
+    boundary = HeartTransactionBoundary()
+    decision = _scratch_append(base, "core-alpha", "first", "rogue")
+
+    # Between ticks: cores only propose; a direct core commit fails closed.
+    with pytest.raises(CoreCommitError):
+        boundary.commit(base, decision, AuthorityGrant.core())
+    assert not boundary.tick_in_flight
+
+    # During a tick: a core grant is still never commit-capable.
+    _, identity, image = _image(base)
+    boundary.note_tick_opened(image)
+    with pytest.raises(CoreCommitError):
+        boundary.commit(base, decision, AuthorityGrant.core())
+    assert boundary.tick_in_flight
+    boundary.note_tick_closed(identity)
+
+
+def test_consolidator_commit_requires_in_flight_tick_token_and_frozen_base() -> None:
+    base = _base()
+    _, identity, image = _image(base)
+    boundary = HeartTransactionBoundary()
+    decision = _scratch_append(base, "consolidator-01", "consolidation", "x")
+
+    # No tick in flight: a consolidator decision cannot commit at all.
+    with pytest.raises(TickBindingError):
+        boundary.commit(base, decision, AuthorityGrant.consolidator())
+
+    boundary.note_tick_opened(image)
+
+    # The tick token is mandatory while a tick is in flight; omitting it
+    # must not skip the identity/base binding checks.
+    with pytest.raises(TickBindingError):
+        boundary.commit(base, decision, AuthorityGrant.consolidator())
+
+    # The commit base must be the in-flight tick's exact frozen base, even
+    # when the delta itself is valid against another real snapshot.
+    other = SharedFieldSnapshot.from_texts({LogicalRegion.SCRATCH: "elsewhere"})
+    other_decision = _scratch_append(other, "consolidator-01", "consolidation", "y")
+    with pytest.raises(TickBindingError):
+        boundary.commit(
+            other,
+            other_decision,
+            AuthorityGrant.consolidator(),
+            tick=identity,
+        )
+
+    # Every rejection left the tick in flight.
+    assert boundary.tick_in_flight
+    boundary.note_tick_closed(identity)
+
+
+def test_successful_consolidator_commit_consumes_the_tick() -> None:
+    base = _base()
+    _, identity, image = _image(base)
+    boundary = HeartTransactionBoundary()
+    boundary.note_tick_opened(image)
+    decision = _scratch_append(base, "consolidator-01", "consolidation", "final")
+
+    commit = boundary.commit(base, decision, AuthorityGrant.consolidator(), tick=identity)
+    assert commit.tick == identity
+    # The tick ends at the heart commit — and only there.
+    assert not boundary.tick_in_flight
+
+    # A second commit from the same tick identity/base fails closed as an
+    # already-consumed tick.
+    with pytest.raises(FinalCommitAlreadyMadeError):
+        boundary.commit(base, decision, AuthorityGrant.consolidator(), tick=identity)
+
+    # note_tick_closed remains correct for the no-commit close path: there is
+    # nothing left to close after the commit consumed the tick.
+    with pytest.raises(HeartTransactionError):
+        boundary.note_tick_closed(identity)
+
+
+def test_valve_may_not_commit_during_a_tick() -> None:
+    base = _base()
+    _, identity, image = _image(base)
+    boundary = HeartTransactionBoundary()
+    valve_delta = _delta(
+        base,
+        "dormant-valve",
+        "recall",
+        (InsertText(region=LogicalRegion.STRUCTURED_KNOWLEDGE, offset=0, text="fact"),),
+    )
+
+    # Between ticks the valve is admitted (subject to region authority and the
+    # bootstrap delta seal), but during a tick it must queue for the next beat.
+    boundary.note_tick_opened(image)
+    with pytest.raises(ValveDuringTickError):
+        boundary.commit(base, valve_delta, AuthorityGrant.dormant_valve())
+    assert boundary.tick_in_flight
+    boundary.note_tick_closed(identity)
+
+
+def test_fake_wider_rail_labels_fail_closed() -> None:
+    base = _base()
+    clock = HeartbeatClock()
+    identity = clock.open_tick(base)
+    compiled = D64FieldCompiler().compile(base)
+    assert compiled.rows.shape[1] == 64
+
+    # Build A is 64D-first: no wider rail may be bound yet.
+    with pytest.raises(RailWidthMismatchError):
+        FrozenTickImage.from_compiled(identity, {128: compiled})
+    with pytest.raises(RailWidthMismatchError):
+        FrozenTickImage.from_compiled(identity, {1024: compiled})
+
+    # The honest 64D binding still works.
+    image = FrozenTickImage.from_compiled(identity, {D64: compiled})
+    assert image.require_rail(D64).d_model == D64

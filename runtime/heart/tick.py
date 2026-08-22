@@ -17,7 +17,7 @@ from runtime.field import (
     canonical_sha256,
 )
 
-from .errors import HeartbeatError, StaleRailBindingError
+from .errors import HeartbeatError, RailWidthMismatchError, StaleRailBindingError
 
 TICK_IDENTITY_SCHEMA = "axon-heart-tick-identity-v1"
 TICK_IMAGE_SCHEMA = "axon-heart-frozen-tick-image-v1"
@@ -215,6 +215,22 @@ class FrozenTickImage:
             if not isinstance(compiled, CompiledD64Field):
                 raise TypeError(
                     "FrozenTickImage rails must be CompiledD64Field values"
+                )
+            # Build A is 64D-first: only the canonical D64 rail may be bound
+            # until a real wider compiler is proven and ratified.
+            if d_model != 64:
+                raise RailWidthMismatchError(
+                    f"Build A supports only the 64D rail; received d_model={d_model}"
+                )
+            # The compiled rail self-describes its physical width; a label
+            # that disagrees with it is a fake rail and fails closed.  Today
+            # CompiledD64Field rows are physically [N, 64], so any d_model
+            # other than 64 is rejected until a real wider compiler exists.
+            rail_width = int(compiled.rows.shape[1])
+            if d_model != rail_width:
+                raise RailWidthMismatchError(
+                    f"rail label d_model={d_model} does not match the compiled "
+                    f"rail's physical width {rail_width}"
                 )
             if (
                 compiled.source_field_id != identity.base_field_id
