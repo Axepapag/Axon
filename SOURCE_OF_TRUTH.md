@@ -371,6 +371,36 @@ Build D.1 is first-form semantic *anatomy*, not mature learned semantics. The
 activated by D.1, and learned specialists must later earn their own explicit
 model/surface generation while preserving the same exact grounding contract.
 
+Build D.2 establishes the grounded specialist evaluation boundary without
+activating a Cortex organ. `Cortext/contracts.py` service schema v2 binds every
+specialist query/observation to an explicit D64 semantic projection: exact
+`field_id`, `tick_id`, `rail_id`, semantic-surface ID, feature generation, and
+selected semantic-slot receipts containing exact lane references, canonical
+source-span IDs, and exact text hashes. A stale, substituted, or tampered
+projection fails closed. Specialist observations remain noncanonical and carry
+no Heart authority.
+
+`Cortext/evaluation.py` provides the first real consumer of that boundary: the
+untrained `d64-structural-lexical-cosine-v1` reranking baseline over the same
+held-out recovered semantic-edge task used for Build C.1. On the accepted
+64-case seed and pool limit 64, candidate-pool recall remains 0.687500. The D.1
+`structural-lexical-v1` surface alone achieves Hit@8 0.078125 / MRR 0.021354,
+while the existing exact-evidence C.1 relevance auditor on the identical pools
+achieves Hit@8 0.625000 / MRR 0.529557. The evaluation compiled 1,659,828 exact
+characters into 250,507 grounded semantic slots across the cases. One recovered
+candidate contained an exact character unsupported by the frozen 16D substrate;
+it was counted explicitly as D64-inaccessible rather than normalized or
+truncated, and it was not an expected target. Artifact:
+`State/dormant/.derived/evidence_v1/evaluations/build_d2_d64_specialist_baseline_64_v1.json`,
+SHA256 `1e176a27d6ab24cf79969f73c6ab8b68486f66acaaf5d0176e8b5b453cc4b0ee`.
+
+D.2 therefore proves a material semantic capability gap and justifies designing
+and training a narrow semantic-edge reranking specialist as the next measured
+intelligence experiment. It does not prove any learned specialist, does not
+open the `semantic_cortex` valve, and does not authorize canonical writes or a
+wider rail. Any trained successor must beat declared held-out baselines while
+preserving the same exact projection/evidence grounding before promotion.
+
 ## Canonical state root
 
 All living or durable Axon state resides beneath `D:\Axon\State`,

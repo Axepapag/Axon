@@ -49,7 +49,7 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
     }
 
     cortext_files = {path.name for path in (ROOT / "Cortext").glob("*.py")}
-    assert cortext_files == {"__init__.py", "contracts.py"}
+    assert cortext_files == {"__init__.py", "contracts.py", "evaluation.py"}
 
     heart_files = {path.name for path in (ROOT / "runtime" / "heart").glob("*.py")}
     assert heart_files == {
