@@ -117,7 +117,7 @@ def test_build_query_exact_dereference_graph_surface_and_d64_roundtrip(tmp_path:
             "stateful architecture",
             limit=2,
         )
-        structured = result.snapshot.region(LogicalRegion.STRUCTURED_KNOWLEDGE)
+        structured = result.snapshot.region(LogicalRegion.CORTEX)
         assert structured.spans[0].text == "Axon"
         assert structured.spans[0].container_refs == ("c-axon",)
         assert "fixture:container:axon" in structured.spans[0].provenance
@@ -125,7 +125,7 @@ def test_build_query_exact_dereference_graph_surface_and_d64_roundtrip(tmp_path:
         assert result.snapshot.tick_id == 1
         assert result.compiled.coverage.complete is True
         assert (
-            result.compiled.region_text(LogicalRegion.STRUCTURED_KNOWLEDGE)
+            result.compiled.region_text(LogicalRegion.CORTEX)
             == structured.text
         )
         result.compiled.verify_roundtrip(result.snapshot)

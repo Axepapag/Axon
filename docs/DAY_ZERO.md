@@ -41,7 +41,18 @@ No production neural runtime driver exists yet. That absence is explicit; no arc
 - `training/complete_field_64d.py`
 - `training/train_complete_field_64d.py`
 
-The active trainer has no detached-record/legacy-anatomy switch. Curriculum JSON is source material only; the core receives canonical snapshots through the D64 compiler.
+The active developmental trainer has no detached-record/legacy-anatomy switch. Curriculum JSON is source material only; the core receives canonical snapshots through the D64 compiler. Archived Bible checkpoints remain historical evidence and are not an active initialization path.
+
+### Trainer organ control plane
+
+- `runtime/trainer/contracts.py`
+- `runtime/trainer/registry.py`
+- `runtime/trainer/authority.py`
+- `runtime/trainer/telemetry.py`
+- `runtime/trainer/store.py`
+- `runtime/trainer/host.py`
+
+This is parameter-governance anatomy, not an active optimizer loop. It inventories heterogeneous parameter-bearing organs, records exact lineage fingerprints and per-parameter telemetry, and fail-closes parameter mutation authority before future offline/online learning is allowed to operate.
 
 ### Dormant-memory construction utilities
 
@@ -56,7 +67,7 @@ These are offline exact-corpus utilities.
 
 - `runtime/dormant/evidence_bridge.py`
 
-The bridge builds only disposable lookup metadata beneath `State/dormant/.derived/`: manifest/hash binding, byte offsets/lengths, hashes, compact SHA256 lexical postings, filters, and graph neighbor row references. Exact container/edge text, source strings, and provenance remain authoritative only in the existing JSONL corpus. Candidate stable IDs are dereferenced and verified from those exact bytes before evidence is surfaced into canonical `structured_knowledge` and compiled through D64. `scripts/build_dormant_evidence_index.py` is the canonical rebuild/verify operator entry point and refuses State/index roots outside the one canonical State tree.
+The bridge builds only disposable lookup metadata beneath `State/dormant/.derived/`: manifest/hash binding, byte offsets/lengths, hashes, compact SHA256 lexical postings, filters, and graph neighbor row references. Exact container/edge text, source strings, and provenance remain authoritative only in the existing JSONL corpus. Candidate stable IDs are dereferenced and verified from those exact bytes before evidence is surfaced into canonical `cortex` and compiled through D64. `scripts/build_dormant_evidence_index.py` is the canonical rebuild/verify operator entry point and refuses State/index roots outside the one canonical State tree.
 
 ## Engineering infrastructure kept active
 

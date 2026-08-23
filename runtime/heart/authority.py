@@ -5,7 +5,7 @@ Doctrine (docs/SOURCE_OF_TRUTH.md, "Authority Classes"):
 - external ingress (user/tool/advisor) may submit heart-governed mutations
   targeting only its runtime-owned regions, and only between ticks;
 - the dormant valve may submit heart-governed materialization of governed
-  ``structured_knowledge``; it never independently writes truth;
+  ``cortex``; it never independently writes truth;
 - core proposals may target only the scopes their authority class permits;
 - the consolidator's proposal may address every canonical region as governed;
 - only the heart's transaction layer converts any proposal into canonical
@@ -62,7 +62,7 @@ INGRESS_OWNED_REGIONS: Mapping[IngressChannel, frozenset[LogicalRegion]] = (
 )
 
 DORMANT_VALVE_GOVERNED_REGIONS: frozenset[LogicalRegion] = frozenset(
-    {LogicalRegion.STRUCTURED_KNOWLEDGE}
+    {LogicalRegion.CORTEX}
 )
 
 CONSOLIDATOR_GOVERNED_REGIONS: frozenset[LogicalRegion] = frozenset(

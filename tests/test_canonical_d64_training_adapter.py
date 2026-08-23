@@ -24,7 +24,7 @@ def _record() -> dict:
             "conversation_history": "",
             "user_input": "Where is the dog?",
             "response_draft": "",
-            "structured_knowledge": "The dog is at the park.",
+            "cortex": "The dog is at the park.",
             "situation_awareness": "",
             "scratch": "",
             "tool_results": "",

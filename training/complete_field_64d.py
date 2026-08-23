@@ -34,7 +34,7 @@ from runtime.field import (
 REGION_ORDER: tuple[str, ...] = (
     "conversation_history",
     "user_input",
-    "structured_knowledge",
+    "cortex",
     "situation_awareness",
     "tool_results",
     "advisor_input",

@@ -1,6 +1,6 @@
 # Axon Source Of Truth
 
-Last updated: 2026-08-22 (Build B: beat coordinator, ingress queue, and per-region attention masking ratified)
+Last updated: 2026-08-23 (Trainer parameter-control plane + Cortex cadence/role doctrine ratified)
 
 ## Core Doctrine
 
@@ -22,13 +22,19 @@ The shared field is organized into regions. Regions can include:
 - `conversation_history`
 - `user_input`
 - `response_draft`
-- `structured_knowledge`
+- `cortex`
 - `situation_awareness`
 - `scratch`
 - `tool_results`
 - `advisor_input`
 - `task_state`
 - `diary`
+
+As of Shared Field schema `shared-field-v2`, the canonical semantic-context region is named **`cortex`**. The old `structured_knowledge` concept is a subset of Cortex function: exact dormant material recovered by semantic relevance belongs inside the Cortex picture, but Cortex is not merely a retrieval bucket. The region is the Heart-governed, auditable textual/materialized surface of Axon's broader Semantic Cortex organ: relevant dormant evidence, grounded semantic relationships, concepts, entity/relation context, and other semantic interpretation that reasoning cores should be able to inspect alongside the exact rest of the Shared Field.
+
+The canonical `cortex` region is not the whole Semantic Cortex organ. The organ may maintain richer derived/noncanonical working state and semantic-core outputs between canonical materializations. It never becomes a second canonical body and never bypasses Heart authority. The separate `semantic_cortex` Heart valve is the governed organ-to-Heart boundary and remains CLOSED until a real autonomous Cortex service earns activation.
+
+Persisted `shared-field-v1` history is immutable. Historical v1 snapshots keep their original serialized region name `structured_knowledge` and therefore keep their original `field_id`/hash. `CanonicalStateBranch.migrate_to_current_schema()` advances a branch by creating a new v2 successor with the exact same spans, provenance, manifests, and text, parented to the v1 HEAD; it never rewrites the historical snapshot. New v2 snapshots serialize the region as `cortex`.
 
 Each region contains ordered character cells plus metadata spans. Words, sentences, paragraphs, and semantic edges are represented as spans over exact characters with auditable metadata.
 
@@ -71,6 +77,51 @@ Dormant memory is not attended directly. Search and surfacing copy relevant read
 Masking is not truncation. It is an explicit, auditable shared-to-dormant
 membership transition governed independently per region. A model window may
 never move this boundary implicitly.
+
+## Semantic Cortex Organ
+
+The Semantic Cortex gives Axon a continuously refreshed semantic understanding
+of the universe represented by the current Shared Field and the knowledge and
+experience stored in Dormant State. It is not equivalent to vector search,
+embeddings retrieval, or the canonical `cortex` region alone. Dormant retrieval
+is one Cortex sense; semantic interpretation is the organ's larger job.
+
+The Cortex runs on its own **cortical cadence**. A Cortex tick is distinct from
+both a heartbeat and a reasoning tick. The Cortex may inspect the exact current
+Shared Field repeatedly even when `field_id` has not changed. On each cortical
+tick it may inspect its prior derived semantic state, query Dormant State,
+follow semantic edges, reevaluate concepts/entities/relationships and confidence,
+and refresh its grounded semantic picture. A later pass may discover useful
+relationships that an earlier pass did not, even against an unchanged Shared
+Field.
+
+The intended mature circulation is:
+
+1. Heart exposes the current canonical Shared Field and exact grounded rail views.
+2. Semantic cores of one or more `d_model` widths operate as a Cortex ensemble on
+   their own cadence.
+3. The Cortex queries Dormant State through a governed dormant-memory sense as
+   often as required by its semantic work; Dormant State remains the durable
+   store of Axon's experience and knowledge.
+4. The Cortex maintains derived/noncanonical semantic working state and may submit
+   a grounded semantic materialization proposal through the `semantic_cortex`
+   Heart valve.
+5. Only the Heart may materialize accepted Cortex output into the canonical
+   `cortex` region or bind a frozen cortical semantic projection into a reasoning
+   tick image.
+
+The current implementation is a bootstrap predecessor to that mature circulation:
+`dormant_recall` is presently a real Heart-owned CAPPED valve and the Heart itself
+runs recall/materialization into `cortex`; `semantic_cortex` remains CLOSED. This
+direct Dormant-to-Heart recall path is acceptable temporary anatomy, not the final
+ownership model. As the Cortex comes alive, dormant recall becomes a Cortex-owned
+semantic sense while Heart remains the sole canonical state writer.
+
+Semantic Cortex cores are not reasoning cores. They may share substrate, rail
+contracts, parameter governance, and Transformer mechanisms, but their purpose,
+cadence, curricula, evaluations, and promotion gates are distinct. The Cortex
+may ultimately contain an ensemble of semantic cores of different widths and
+specialties, all grounded back to the same exact Shared Field and Dormant State.
 
 ## Semantic Edges
 
@@ -150,7 +201,7 @@ Each beat:
    the canonical `SharedFieldSnapshot` identity.
 3. Detects change via canonical field identity/freshness. No change means no
    recompilation.
-4. Runs the dormant valve when change warrants recall.
+4. In the current bootstrap runtime, runs the Heart-owned `dormant_recall` valve when change warrants recall. Mature Cortex anatomy moves semantic recall ownership behind the independent cortical cadence; Heart continues to validate any canonical materialization.
 5. Recompiles the affected rail(s), proving complete coverage and exact
    roundtrip against the fresh canonical field.
 6. Services the tick workspace: collecting proposals, enforcing barriers, and
@@ -197,8 +248,7 @@ correctly inside this anatomy.
 
 - External ingress (user/tool/advisor) may submit heart-governed mutations
   targeting only its runtime-owned regions, and only between ticks.
-- The dormant valve may submit heart-governed materialization of governed
-  `structured_knowledge`; it never independently writes truth.
+- The current bootstrap dormant valve may submit Heart-governed materialization of governed `cortex`; it never independently writes truth. In mature anatomy, dormant recall is a Cortex-owned semantic sense and the Semantic Cortex submits any canonical Cortex materialization through its governed Heart boundary.
 - Core proposals may target only the scopes their authority class permits.
 - The consolidator's proposal may address every canonical region as governed.
 - Only the heart's transaction layer converts any proposal into canonical
@@ -211,7 +261,9 @@ authority model.
 
 ## Cores
 
-Cores are transformer reasoners with private souls. A tick is one full
+Cores are transformer reasoners with private souls. Axon's mature reasoning ensemble is heterogeneous: cores may have different architectures, specialties, parameter counts, and `d_model` widths while still reasoning against the same frozen canonical Shared Field. Each active width receives its own derived rail/lens from the Heart, bound to the same exact field/tick identity and provenance. No core's larger or smaller rail becomes a competing truth body.
+
+The present 64D core is a developmental proving width, not a final architecture limit. Development may prove new widths deliberately and independently, but mature Axon may run 64D, 128D, 256D, 512D, 1024D, or other explicitly governed widths together in one ensemble once each rail/compiler/core contract is proven. A tick is one full
 deliberation round against a frozen canonical base:
 
 1. The heart stabilizes intake and dormant recall, freezes canonical field
@@ -258,6 +310,28 @@ Soul state is private per core. It is not the canonical knowledge store.
 
 Soul writes move hot to warm to cold over time. The soul should learn experience, habits, and intuition from repeated episodes. Auditable knowledge belongs in dormant state.
 
+## Trainer Organ (Parameter Guardian)
+
+The Trainer is a permanent organism subsystem, not merely a command-line script used to create seed models. Its sovereignty is over **parameter state and learning lineage** in the same way that the Heart's sovereignty is over canonical Shared Field state.
+
+The Heart remains the sole canonical Shared Field writer. The Trainer becomes the sole governed authority that may create or mutate candidate model parameters, optimizer state, LoRA/adapters, or other learned parameter-bearing generations. Reasoning cores, semantic cores, Cortex, tools, and Trainer advisory cores may request or recommend learning; they do not directly own unrestricted backpropagation or parameter writes.
+
+Every live parameter-bearing organ must eventually register with the Trainer. The Trainer maintains a complete parameter inventory containing module identity, organ role, architecture, `d_model` width, generation identity, parameter names/shapes/dtypes/trainability, and exact lineage fingerprints at governed boundaries. A declared organism inventory that is missing an expected parameter-bearing module is incomplete and may not authorize a training mutation.
+
+The Trainer's learning state is durable beneath `State/training/trainer`. It records immutable inventories, candidate-generation lineage, mutation plans and authorization receipts, source/curriculum manifests, holdouts, optimizer and schedule configuration, telemetry, checkpoints, evaluations, rejected generations, promotion proposals, active adapter ancestry, and rollback points. Parameter history must be inspectable rather than mystical.
+
+The Trainer must expose transparent telemetry for every parameter under its authority. At minimum, each governed training step/cadence must be able to report per-tensor value and gradient health, norms/RMS/extrema, finite/zero fractions, trainability, optimizer/schedule state, active grants, candidate generation, data provenance, evaluation state, and parameter/update budgets. Exact full tensor hashes are required at lineage/checkpoint/promotion boundaries; continuous telemetry may use bounded numeric summaries while still enumerating every parameter.
+
+Training is branch-like. A live accepted generation is never silently edited in place. Learning creates an isolated candidate generation from an explicit base inventory, with declared writable tensors and budgets. Promotion requires held-out and counterfactual evidence, lineage receipts, regression/forgetting checks, and a separately governed activation step. Rejection preserves evidence; it does not erase the failed generation from learning history.
+
+LoRA/adapters are first-class governed parameter generations, not a loophole around parameter authority. The Trainer may issue adapter-only grants that fail closed if a plan attempts to touch base parameters. Online/inference-time adaptation must be more tightly budgeted than offline learning and is never allowed to bypass source provenance, telemetry, holdouts, rollback, or promotion rules.
+
+The Trainer may eventually contain its own ensemble of Transformer cores. Candidate advisory roles include curriculum construction, optimizer/gradient control, evaluation, catastrophic-forgetting audit, and promotion criticism. These Trainer cores may have different `d_model` widths and specialties, but their outputs are advisory proposals. A deterministic Trainer authority layer validates the exact parameter inventory and grant before any optimizer/backpropagation path is allowed to mutate tensors.
+
+Trainer cadence is distinct from heartbeat, Cortex tick, and reasoning tick. The Trainer may run sustained offline learning, bounded online adaptation, continuous parameter-health observation, or study campaigns such as "learn philosophy". Study acquisition enters Dormant State with provenance first; Cortex may semantically organize it; Trainer then constructs governed curricula/candidates and evaluates them before any learned generation can become active.
+
+`runtime/trainer/` implements the first non-training control plane for this organ: complete heterogeneous parameter registration/inventory, exact parameter fingerprints, per-parameter value/gradient telemetry, fail-closed mutation grants/plans, immutable durable control records, and promotion proposals that themselves have no activation authority. No optimizer loop is activated by this control-plane milestone.
+
 ## Training Contract
 
 Training must match runtime:
@@ -285,7 +359,9 @@ Current Day Zero D64 trainer:
 - response-draft learning remains observable and exact-position/copy-gate evaluation remains available,
 - training workspaces live beneath `State/training`; branch-backed episode journaling and canonical split/resume proof remain required before a new training campaign is authorized.
 
-Pre-Day-Zero 384-slot readers, ExactV4 runtime/trainer paths, multi-tick prototypes, soul pilots, detached curriculum builders, and their dedicated tests are historical evidence only under `archive/day_zero_legacy_2026-08-20/`. They are not active fallback interfaces.
+The archived 461,500-step Bible-trained 64D checkpoint family remains historical evidence only. A bounded compatibility/donor experiment was performed during development, then explicitly rejected as the future initialization path. Fresh reasoning-core and semantic-core training begins from clean current anatomy; legacy 384-slot checkpoints are not imported, resumed, or used as seed weights.
+
+Pre-Day-Zero 384-slot readers, ExactV4 runtime/trainer paths, multi-tick prototypes, soul pilots, detached curriculum builders, and their dedicated tests are historical evidence only under `archive/day_zero_legacy_2026-08-20/`. They are not active fallback or initialization interfaces.
 
 ## Deterministic D64 Field Compiler
 
@@ -334,11 +410,15 @@ semantic slot carries source-span references back to exact canonical
 characters. Semantic slots are derived and rebuildable; they never become the
 only copy of anything, and they hold no reasoning vote and no commit
 authority. First-form semantic slots are deterministic derivations from exact
-structure; trained semantic richness enters in the 128/256/512/1024 dialing
-sequence, one rail size at a time, each proven before the next begins, and may
-also improve the 64D heart provided exact-character grounding and roundtrip
-remain mandatory. A reasoning core is never required to reproduce every
-character to prove grounding.
+structure. During development, new rail widths may be proven deliberately one
+at a time so failures stay attributable, but this is a validation sequence rather
+than a mature-runtime exclusivity rule. Axon's eventual Cortex and reasoning
+ensembles may contain 64D, 128D, 256D, 512D, 1024D, or other explicitly governed
+widths concurrently. Each width receives its own derived lens from the same
+canonical Shared Field and must preserve exact-character grounding, provenance,
+freshness, and coverage/roundtrip guarantees. Improvements at larger widths may
+also feed better 64D specialists; no width supersedes the canonical 16D substrate.
+A reasoning core is never required to reproduce every character to prove grounding.
 
 Build D.1 implements the first permanent dual-surface D64 anatomy in
 `runtime/field/semantic_d64.py`. The exact `CompiledD64Field` remains unchanged
@@ -445,7 +525,7 @@ stale until verified maintenance publishes a generation bound to the new exact
 corpus; readers never silently treat stale lookup metadata as current memory.
 
 Selected exact container text is surfaced as provenance-bearing `FieldSpan`
-material in canonical `structured_knowledge`; source container IDs and verified
+material in canonical `cortex`; source container IDs and verified
 semantic-edge IDs remain attached as references. Generated separators are
 explicit runtime spans rather than alterations to dormant text. The resulting
 `SharedFieldSnapshot` must compile through the deterministic D64 compiler with
@@ -469,7 +549,7 @@ Build C.1 adds a deterministic relevance/retention auditor in
 `runtime/dormant/relevance.py`. It ranks only already verified exact evidence;
 it does not truncate source containers, invent vectors, or gain commit
 authority. Heart materialization preserves the selected container and semantic-
-edge references on the canonical `structured_knowledge` span itself as well as
+edge references on the canonical `cortex` span itself as well as
 in the Heart commit receipt, together with dormant index generation identity.
 
 The derived evidence index has verified generations and atomic active-generation
@@ -538,8 +618,9 @@ The active implementation surface is intentionally narrow:
 - `runtime/dormant/evidence_bridge.py`, `runtime/dormant/relevance.py`, `runtime/dormant/generations.py`, `runtime/dormant/incremental.py`, and `runtime/dormant/evaluation.py` ? read-only manifest/hash-bound dormant retrieval, exact dereference, bounded graph/relation relevance, verified derived-index generations, transactional append/layout-preserving update maintenance, and held-out evaluation,
 - `Cortext/contracts.py` ? grounded Semantic Cortex service contract only; no active specialist/training authority and the `semantic_cortex` valve remains CLOSED,
 - `runtime/heart/` ? heart anatomy: authority/core control plane, canonical transaction boundary, beat coordinator, sovereign 20-slot valve plane, OS single-writer lease, restart-safe cardiac identity, durable ingress/replay/quarantine spool, health observability, explicit derived-view identity, relevance-gated dormant recall, and the permanent Heart host;
+- `runtime/trainer/` ? first permanent Trainer control-plane anatomy: heterogeneous parameter registration, exact inventory/fingerprints, mutation authority, per-parameter telemetry, immutable control-state store, and non-activating promotion proposals; no optimizer loop is activated by this package;
 - `scripts/run_axon_heart.py`, `scripts/evaluate_dormant_relevance.py`, `scripts/maintain_dormant_index.py`, and `scripts/verify_d64_dual_surface.py` ? permanent Heart runtime, deterministic dormant semantic/relevance evaluation, explicit derived-index maintenance/recovery, and read-only live D64 dual-surface verification entry points;
-- `training/canonical_d64.py`, `training/complete_field_64d.py`, and `training/train_complete_field_64d.py` ? canonical D64 training path,
+- `training/canonical_d64.py`, `training/complete_field_64d.py`, and `training/train_complete_field_64d.py` ? current developmental canonical D64 training path only; future campaigns must execute behind Trainer parameter authority,
 - `curator/` recovered-corpus schema/materialization/building utilities ? offline exact dormant-memory tooling,
 
 The former council, old core/soul implementation, ExactV4/identity-v2 runtime stack, 384-slot views/schedules, legacy trainers/curricula, launchers, policies, and dedicated tests are archived beneath `archive/day_zero_legacy_2026-08-20/`. Local historical runs, datasets, checkpoint bundles, and generated distributions are preserved beneath `State/archive/day_zero_legacy_20260820/local_artifacts/`. They may be inspected for provenance or mechanism recovery but may not be imported, launched, resumed, or presented as current Axon without a new explicit convener decision.

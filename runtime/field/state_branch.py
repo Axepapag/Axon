@@ -21,8 +21,12 @@ from .delta import (
     apply_delta,
 )
 from .schema import (
+    LEGACY_CORTEX_REGION_NAME,
+    LEGACY_SCHEMA_VERSION,
+    SCHEMA_VERSION,
     AttendedInterval,
     FieldSpan,
+    LogicalRegion,
     RegionMaskPolicy,
     RegionState,
     SharedFieldSnapshot,
@@ -255,6 +259,55 @@ class CanonicalStateBranch:
         self._append_event(event)
         return successor
 
+    def migrate_to_current_schema(self) -> SharedFieldSnapshot:
+        """Advance HEAD to the current shared-field schema without rewriting history.
+
+        Historical snapshots remain immutable and retain their original field IDs.
+        The migration creates one new successor containing the exact same spans and
+        manifests, increments tick/generation, and parents it to the legacy HEAD.
+        """
+
+        current_record = self.load_head_record()
+        current = self.load_snapshot(current_record.field_id)
+        if current.schema_version == SCHEMA_VERSION:
+            return current
+        if current.schema_version != LEGACY_SCHEMA_VERSION:
+            raise CanonicalStateBranchError(
+                f"cannot migrate unsupported shared-field schema {current.schema_version!r}"
+            )
+        successor = SharedFieldSnapshot(
+            tick_id=current.tick_id + 1,
+            regions=current.regions,
+            parent_field_id=current.field_id,
+            source_manifest_ids=current.source_manifest_ids,
+            schema_version=SCHEMA_VERSION,
+        )
+        self._persist_snapshot(successor)
+        next_head = BranchHead(
+            branch_id=self.branch_id,
+            generation=current_record.generation + 1,
+            field_id=successor.field_id,
+            tick_id=successor.tick_id,
+            parent_field_id=successor.parent_field_id,
+        )
+        _atomic_json(self.head_path, next_head.to_dict())
+        self._append_event(
+            {
+                "event": "schema_migration",
+                "generation": next_head.generation,
+                "from_schema": current.schema_version,
+                "to_schema": successor.schema_version,
+                "base_field_id": current.field_id,
+                "field_id": successor.field_id,
+                "tick_id": successor.tick_id,
+                "parent_field_id": successor.parent_field_id,
+                "region_rename": {
+                    LEGACY_CORTEX_REGION_NAME: LogicalRegion.CORTEX.value,
+                },
+            }
+        )
+        return successor
+
     def _persist_snapshot(self, snapshot: SharedFieldSnapshot) -> None:
         path = self.snapshots_dir / f"{snapshot.field_id}.json"
         value = snapshot.to_dict()
@@ -307,7 +360,8 @@ def _snapshot_from_dict(value: Mapping[str, Any]) -> SharedFieldSnapshot:
     }
     if set(item) != required:
         raise BranchIntegrityError("serialized canonical snapshot fields are invalid")
-    if item["schema"] != "shared-field-v1":
+    schema_version = str(item["schema"])
+    if schema_version not in {LEGACY_SCHEMA_VERSION, SCHEMA_VERSION}:
         raise BranchIntegrityError("unsupported canonical snapshot schema")
     if not isinstance(item["regions"], list):
         raise BranchIntegrityError("serialized regions must be a list")
@@ -360,9 +414,12 @@ def _snapshot_from_dict(value: Mapping[str, Any]) -> SharedFieldSnapshot:
         if mask_policy is not None:
             mask_policy = RegionMaskPolicy(mask_policy["kind"], mask_policy["limit"])
 
+        raw_region_name = region_item["name"]
+        if schema_version == LEGACY_SCHEMA_VERSION and raw_region_name == LEGACY_CORTEX_REGION_NAME:
+            raw_region_name = LogicalRegion.CORTEX.value
         regions.append(
             RegionState(
-                name=region_item["name"],
+                name=raw_region_name,
                 visibility=region_item["visibility"],
                 write_policy=region_item["write_policy"],
                 spans=tuple(spans),
@@ -375,6 +432,7 @@ def _snapshot_from_dict(value: Mapping[str, Any]) -> SharedFieldSnapshot:
         parent_field_id=item["parent_field_id"],
         source_manifest_ids=tuple(item["source_manifest_ids"]),
         regions=tuple(regions),
+        schema_version=schema_version,
     )
     if snapshot.field_id != item["field_id"] or snapshot.canonical_hash != item["canonical_hash"]:
         raise BranchIntegrityError("serialized canonical snapshot hash mismatch")
@@ -403,8 +461,11 @@ def _field_delta_from_dict(value: Mapping[str, Any]) -> FieldDelta:
         if not isinstance(raw, Mapping):
             raise BranchIntegrityError("serialized field operation must be an object")
         op = raw.get("op")
+        raw_region = raw.get("region")
+        if raw_region == LEGACY_CORTEX_REGION_NAME:
+            raw_region = LogicalRegion.CORTEX.value
         common = {
-            "region": raw.get("region"),
+            "region": raw_region,
             "provenance": raw.get("provenance", ""),
             "container_refs": tuple(raw.get("container_refs", ())),
             "edge_refs": tuple(raw.get("edge_refs", ())),

@@ -135,13 +135,13 @@ def test_authority_matrix_governs_exact_regions_per_class() -> None:
     assert advisor.governs(LogicalRegion.ADVISOR_INPUT)
     for grant in (user, tool, advisor):
         assert not grant.governs(LogicalRegion.SCRATCH)
-        assert not grant.governs(LogicalRegion.STRUCTURED_KNOWLEDGE)
+        assert not grant.governs(LogicalRegion.CORTEX)
     assert not user.governs(LogicalRegion.TOOL_RESULTS)
 
     valve = AuthorityGrant.dormant_valve()
     for region in LogicalRegion:
         assert valve.governs(region) is (
-            region is LogicalRegion.STRUCTURED_KNOWLEDGE
+            region is LogicalRegion.CORTEX
         )
 
     core = AuthorityGrant.core()
@@ -614,7 +614,7 @@ def test_ingress_and_valve_governance_at_the_boundary() -> None:
         base,
         "dormant-valve",
         "recall",
-        (InsertText(region=LogicalRegion.STRUCTURED_KNOWLEDGE, offset=0, text="fact"),),
+        (InsertText(region=LogicalRegion.CORTEX, offset=0, text="fact"),),
     )
     valve_overreach = _delta(
         base,
@@ -623,12 +623,12 @@ def test_ingress_and_valve_governance_at_the_boundary() -> None:
         (InsertText(region=LogicalRegion.SCRATCH, offset=0, text="fact"),),
     )
 
-    # The valve may address only governed structured_knowledge.
+    # The valve may address only governed cortex.
     with pytest.raises(AuthorityViolationError):
         boundary.commit(base, valve_overreach, AuthorityGrant.dormant_valve())
 
     # Build B widens the canonical validator so the authority matrix can admit
-    # ingress-owned regions and the dormant valve's structured_knowledge scope.
+    # ingress-owned regions and the dormant valve's cortex scope.
     commit = boundary.commit(base, ingress_delta, AuthorityGrant.ingress(IngressChannel.USER))
     assert commit.successor.region(LogicalRegion.USER_INPUT).text == "jeff says hihi axon"
 
@@ -637,14 +637,14 @@ def test_ingress_and_valve_governance_at_the_boundary() -> None:
         successor,
         "dormant-valve",
         "recall",
-        (InsertText(region=LogicalRegion.STRUCTURED_KNOWLEDGE, offset=0, text="fact"),),
+        (InsertText(region=LogicalRegion.CORTEX, offset=0, text="fact"),),
     )
     valve_commit = boundary.commit(
         successor,
         valve_delta_against_successor,
         AuthorityGrant.dormant_valve(),
     )
-    assert valve_commit.successor.region(LogicalRegion.STRUCTURED_KNOWLEDGE).text == "fact"
+    assert valve_commit.successor.region(LogicalRegion.CORTEX).text == "fact"
 
     # During an in-flight tick, ingress and the dormant valve must queue for
     # the next beat; only the consolidator's decision may cross the boundary.
@@ -749,7 +749,7 @@ def test_valve_may_not_commit_during_a_tick() -> None:
         base,
         "dormant-valve",
         "recall",
-        (InsertText(region=LogicalRegion.STRUCTURED_KNOWLEDGE, offset=0, text="fact"),),
+        (InsertText(region=LogicalRegion.CORTEX, offset=0, text="fact"),),
     )
 
     # Between ticks the valve is admitted (subject to region authority and the

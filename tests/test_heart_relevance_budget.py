@@ -58,5 +58,5 @@ def test_coordinator_enforces_full_item_dormant_budget_without_truncation(tmp_pa
     result = coordinator.beat()
     assert result.state is BeatState.TICK_OPENED
     assert result.field.region(LogicalRegion.USER_INPUT).text == "x"
-    assert result.field.region(LogicalRegion.STRUCTURED_KNOWLEDGE).text == ""
+    assert result.field.region(LogicalRegion.CORTEX).text == ""
     assert len(result.commits) == 1

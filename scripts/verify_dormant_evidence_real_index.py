@@ -1,4 +1,4 @@
-"""Prove query -> exact dereference -> structured_knowledge -> D64 roundtrip on the real corpus.
+"""Prove query -> exact dereference -> cortex -> D64 roundtrip on the real corpus.
 
 Runs the full dormant evidence bridge chain against the live
 ``D:\\Axon\\State\\dormant`` corpus and its derived index. The JSONL corpus
@@ -29,7 +29,7 @@ def run_query(bridge: DormantEvidenceBridge, query: str) -> dict:
     base = SharedFieldSnapshot(tick_id=0)
     result = bridge.query_surface_compile(base, query, limit=4)
 
-    structured = result.snapshot.region(LogicalRegion.STRUCTURED_KNOWLEDGE)
+    structured = result.snapshot.region(LogicalRegion.CORTEX)
     checks = {
         "evidence_non_empty": len(result.evidence) > 0,
         "tick_advanced": result.snapshot.tick_id == base.tick_id + 1,
@@ -43,7 +43,7 @@ def run_query(bridge: DormantEvidenceBridge, query: str) -> dict:
         ),
         "coverage_complete": result.compiled.coverage.complete is True,
         "region_text_exact": (
-            result.compiled.region_text(LogicalRegion.STRUCTURED_KNOWLEDGE)
+            result.compiled.region_text(LogicalRegion.CORTEX)
             == structured.text
         ),
     }
@@ -56,7 +56,7 @@ def run_query(bridge: DormantEvidenceBridge, query: str) -> dict:
         "checks": checks,
         "containers": [item.container.container_id for item in result.evidence],
         "span_count": len(structured.spans),
-        "structured_knowledge_chars": len(structured.text),
+        "cortex_chars": len(structured.text),
         "field_id": result.snapshot.field_id,
         "elapsed_s": round(time.time() - started, 3),
     }

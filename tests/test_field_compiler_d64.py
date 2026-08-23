@@ -93,10 +93,10 @@ def test_lane_addresses_preserve_span_source_and_exact_positions() -> None:
     )
     snapshot = SharedFieldSnapshot(
         tick_id=3,
-        regions=(RegionState(name="structured_knowledge", spans=(span,)),),
+        regions=(RegionState(name="cortex", spans=(span,)),),
     )
     compiled = D64FieldCompiler().compile(snapshot)
-    addresses = compiled.region_addresses("structured_knowledge")
+    addresses = compiled.region_addresses("cortex")
     assert [address.region_position for address in addresses] == [0, 1, 2, 3]
     assert [address.span_position for address in addresses] == [0, 1, 2, 3]
     assert all(address.span_id == "evidence-1" for address in addresses)
@@ -162,7 +162,7 @@ def test_d64_reader_consumes_only_the_canonical_compiled_rail() -> None:
     field = {
         "conversation_history": "history",
         "user_input": "question",
-        "structured_knowledge": "evidence",
+        "cortex": "evidence",
         "scratch": "plan",
     }
     snapshot = SharedFieldSnapshot.from_texts(field)

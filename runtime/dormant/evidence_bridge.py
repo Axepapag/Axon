@@ -1224,7 +1224,7 @@ class DormantEvidenceIndex:
 
 
 class DormantEvidenceBridge:
-    """Retrieval -> exact dereference -> canonical structured_knowledge -> D64."""
+    """Retrieval -> exact dereference -> canonical cortex -> D64."""
 
     def __init__(self, index: DormantEvidenceIndex) -> None:
         self.index = index
@@ -1243,7 +1243,7 @@ class DormantEvidenceBridge:
 
         spans: list[FieldSpan] = []
         if not replace_existing:
-            spans.extend(base.region(LogicalRegion.STRUCTURED_KNOWLEDGE).spans)
+            spans.extend(base.region(LogicalRegion.CORTEX).spans)
         for index, item in enumerate(evidence):
             container = item.container
             if not container.text:
@@ -1287,12 +1287,12 @@ class DormantEvidenceBridge:
             raise DormantQueryError("selected evidence had no surfacable exact text")
 
         replacement = RegionState(
-            name=LogicalRegion.STRUCTURED_KNOWLEDGE,
+            name=LogicalRegion.CORTEX,
             spans=tuple(spans),
             visibility=RegionVisibility.ATTENDED,
         )
         regions = tuple(
-            replacement if region.name is LogicalRegion.STRUCTURED_KNOWLEDGE else region
+            replacement if region.name is LogicalRegion.CORTEX else region
             for region in base.regions
         )
         manifest_ids = tuple(

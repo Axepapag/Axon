@@ -653,7 +653,7 @@ def primitive_valve_registry() -> HeartValveRegistry:
         ("user_ingress", "external_user", AuthorityClass.EXTERNAL_INGRESS, LogicalRegion.USER_INPUT),
         ("tool_ingress", "external_tool", AuthorityClass.EXTERNAL_INGRESS, LogicalRegion.TOOL_RESULTS),
         ("advisor_ingress", "external_advisor", AuthorityClass.EXTERNAL_INGRESS, LogicalRegion.ADVISOR_INPUT),
-        ("dormant_recall", "dormant_valve", AuthorityClass.DORMANT_VALVE, LogicalRegion.STRUCTURED_KNOWLEDGE),
+        ("dormant_recall", "dormant_valve", AuthorityClass.DORMANT_VALVE, LogicalRegion.CORTEX),
     )
     for valve_id, source_class, authority_class, region in primitive_specs:
         definitions.append(

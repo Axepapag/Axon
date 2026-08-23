@@ -21,7 +21,7 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         for path in (ROOT / "runtime").iterdir()
         if path.is_dir() and path.name != "__pycache__"
     }
-    assert runtime_dirs == {"axon_runtime", "field", "dormant", "heart"}
+    assert runtime_dirs == {"axon_runtime", "field", "dormant", "heart", "trainer"}
 
     field_files = {path.name for path in (ROOT / "runtime" / "field").glob("*.py")}
     assert field_files == {
@@ -68,6 +68,17 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "identity.py",
         "lease.py",
         "valve.py",
+    }
+
+    trainer_files = {path.name for path in (ROOT / "runtime" / "trainer").glob("*.py")}
+    assert trainer_files == {
+        "__init__.py",
+        "contracts.py",
+        "registry.py",
+        "authority.py",
+        "telemetry.py",
+        "store.py",
+        "host.py",
     }
 
     training_files = {path.name for path in (ROOT / "training").glob("*.py")}

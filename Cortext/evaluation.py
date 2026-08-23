@@ -210,7 +210,7 @@ class StructuralLexicalD64Reranker:
             regions=(
                 query_region,
                 RegionState(
-                    name=LogicalRegion.STRUCTURED_KNOWLEDGE,
+                    name=LogicalRegion.CORTEX,
                     spans=tuple(knowledge_spans),
                 ),
             ),

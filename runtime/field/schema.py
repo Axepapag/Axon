@@ -13,7 +13,10 @@ from enum import Enum, IntEnum
 from types import MappingProxyType
 from typing import Any, Mapping
 
-SCHEMA_VERSION = "shared-field-v1"
+LEGACY_SCHEMA_VERSION = "shared-field-v1"
+SCHEMA_VERSION = "shared-field-v2"
+SUPPORTED_SCHEMA_VERSIONS: frozenset[str] = frozenset({LEGACY_SCHEMA_VERSION, SCHEMA_VERSION})
+LEGACY_CORTEX_REGION_NAME = "structured_knowledge"
 
 
 class LogicalRegion(str, Enum):
@@ -21,7 +24,7 @@ class LogicalRegion(str, Enum):
 
     CONVERSATION_HISTORY = "conversation_history"
     USER_INPUT = "user_input"
-    STRUCTURED_KNOWLEDGE = "structured_knowledge"
+    CORTEX = "cortex"
     SITUATION_AWARENESS = "situation_awareness"
     TOOL_RESULTS = "tool_results"
     ADVISOR_INPUT = "advisor_input"
@@ -34,7 +37,7 @@ class LogicalRegion(str, Enum):
 CANONICAL_REGION_ORDER: tuple[LogicalRegion, ...] = (
     LogicalRegion.CONVERSATION_HISTORY,
     LogicalRegion.USER_INPUT,
-    LogicalRegion.STRUCTURED_KNOWLEDGE,
+    LogicalRegion.CORTEX,
     LogicalRegion.SITUATION_AWARENESS,
     LogicalRegion.TOOL_RESULTS,
     LogicalRegion.ADVISOR_INPUT,
@@ -162,6 +165,12 @@ def _as_logical_region(value: LogicalRegion | str) -> LogicalRegion:
             f"unknown logical region {value!r}; dormant state is surfaced into "
             "an active logical region before it can be attended"
         ) from exc
+
+
+def _serialized_region_name(region: LogicalRegion, schema_version: str) -> str:
+    if schema_version == LEGACY_SCHEMA_VERSION and region is LogicalRegion.CORTEX:
+        return LEGACY_CORTEX_REGION_NAME
+    return region.value
 
 
 def canonical_json_bytes(value: Any) -> bytes:
@@ -462,10 +471,16 @@ class SharedFieldSnapshot:
     regions: tuple[RegionState, ...] = ()
     parent_field_id: str | None = None
     source_manifest_ids: tuple[str, ...] = ()
+    schema_version: str = SCHEMA_VERSION
     field_id: str = field(init=False)
     canonical_hash: str = field(init=False)
 
     def __post_init__(self) -> None:
+        if self.schema_version not in SUPPORTED_SCHEMA_VERSIONS:
+            raise ValueError(
+                f"unsupported shared-field schema {self.schema_version!r}; "
+                f"expected one of {sorted(SUPPORTED_SCHEMA_VERSIONS)!r}"
+            )
         if isinstance(self.tick_id, bool) or not isinstance(self.tick_id, int):
             raise TypeError("SharedFieldSnapshot.tick_id must be an integer")
         if self.tick_id < 0:
@@ -508,12 +523,17 @@ class SharedFieldSnapshot:
         return self.regions[LOGICAL_REGION_IDS[logical_name]]
 
     def to_canonical_dict(self) -> dict[str, Any]:
+        regions = []
+        for region in self.regions:
+            payload = region.to_canonical_dict()
+            payload["name"] = _serialized_region_name(region.name, self.schema_version)
+            regions.append(payload)
         return {
-            "schema": SCHEMA_VERSION,
+            "schema": self.schema_version,
             "tick_id": self.tick_id,
             "parent_field_id": self.parent_field_id,
             "source_manifest_ids": list(self.source_manifest_ids),
-            "regions": [region.to_canonical_dict() for region in self.regions],
+            "regions": regions,
         }
 
     def to_dict(self) -> dict[str, Any]:
@@ -571,7 +591,10 @@ class SharedFieldSnapshot:
 
 
 __all__ = [
+    "LEGACY_SCHEMA_VERSION",
     "SCHEMA_VERSION",
+    "SUPPORTED_SCHEMA_VERSIONS",
+    "LEGACY_CORTEX_REGION_NAME",
     "LogicalRegion",
     "CANONICAL_REGION_ORDER",
     "LOGICAL_REGION_IDS",

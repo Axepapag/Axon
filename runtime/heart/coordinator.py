@@ -375,7 +375,7 @@ class BeatCoordinator:
         self,
         field: SharedFieldSnapshot,
     ) -> tuple[SharedFieldSnapshot, HeartCommit | None]:
-        """Run primitive dormant recall and commit surfaced structured_knowledge."""
+        """Run primitive dormant recall and commit surfaced cortex."""
 
         if self._state_root is None or self._config.recall_limit <= 0:
             return field, None
@@ -431,8 +431,8 @@ class BeatCoordinator:
         )
 
         surfaced = bridge.surface(field, relevance.selected, replace_existing=True)
-        new_sk = surfaced.region(LogicalRegion.STRUCTURED_KNOWLEDGE)
-        current_sk = field.region(LogicalRegion.STRUCTURED_KNOWLEDGE)
+        new_sk = surfaced.region(LogicalRegion.CORTEX)
+        current_sk = field.region(LogicalRegion.CORTEX)
         if new_sk.text == current_sk.text:
             return field, None
 
@@ -440,7 +440,7 @@ class BeatCoordinator:
         delta = replacement_delta(
             field,
             compiled,
-            region=LogicalRegion.STRUCTURED_KNOWLEDGE,
+            region=LogicalRegion.CORTEX,
             text=new_sk.text,
             author_core_id="dormant-valve",
             pass_id="recall",
@@ -479,7 +479,7 @@ class BeatCoordinator:
                 "fallback_used": relevance.fallback_used,
                 "selected_chars": relevance.total_chars,
                 "authority_class": "dormant_valve",
-                "governed_regions": [LogicalRegion.STRUCTURED_KNOWLEDGE.value],
+                "governed_regions": [LogicalRegion.CORTEX.value],
             },
         )
         self._commit_to_branch(commit)

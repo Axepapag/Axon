@@ -240,7 +240,7 @@ def build_surfacing_example(
         "edge_type": edge_type,
         "target": answer,
         "answer": answer,
-        "structured_knowledge": structured,
+        "cortex": structured,
         "provenance": container.provenance or container.source,
     }
 
@@ -291,7 +291,7 @@ def iter_surfacing_examples(
                     stats.skipped_empty_answer += 1
                 continue
             # Preflight the visible field now, before this reaches a trainer.
-            visible = example["structured_knowledge"]
+            visible = example["cortex"]
             slots = materialize_visible_text(visible)
             assert_charwise_materialization(visible, slots)
             yield example

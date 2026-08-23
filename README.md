@@ -24,7 +24,7 @@ Canonical field/runtime boundary:
 - `runtime/axon_runtime/d64_adapter.py`
 - `runtime/dormant/evidence_bridge.py`
 
-The dormant evidence bridge keeps exact memory authoritative in `State/dormant/*.jsonl`. Its local SQLite index is disposable lookup metadata only; lexical postings use SHA256 term keys plus integer row references rather than copied text/IDs, and selected stable IDs are dereferenced and hash/provenance-verified from the JSONL before surfacing into `structured_knowledge` and D64.
+The dormant evidence bridge keeps exact memory authoritative in `State/dormant/*.jsonl`. Its local SQLite index is disposable lookup metadata only; lexical postings use SHA256 term keys plus integer row references rather than copied text/IDs, and selected stable IDs are dereferenced and hash/provenance-verified from the JSONL before surfacing into `cortex` and D64.
 
 Build or verify the derived sense from the canonical State root:
 
@@ -33,11 +33,22 @@ python scripts/build_dormant_evidence_index.py
 python scripts/build_dormant_evidence_index.py --verify-only
 ```
 
-Canonical D64 training:
+Trainer organ control plane:
+
+- `runtime/trainer/contracts.py`
+- `runtime/trainer/registry.py`
+- `runtime/trainer/authority.py`
+- `runtime/trainer/telemetry.py`
+- `runtime/trainer/store.py`
+- `runtime/trainer/host.py`
+
+Current developmental D64 training tissue:
 
 - `training/canonical_d64.py`
 - `training/complete_field_64d.py`
 - `training/train_complete_field_64d.py`
+
+The Trainer control plane is parameter-governance/observability anatomy only; it does not start an optimizer or authorize a live model promotion by itself. The present 64D model path is a proving width, not a final limit on Axon's heterogeneous semantic/reasoning/trainer ensembles.
 
 Recovered dormant-memory construction/audit utilities:
 
@@ -83,4 +94,4 @@ python -m pytest -q -p no:cacheprovider
 
 ## Next build target
 
-Connect the real `State/dormant` body to canonical D64 through a rebuildable retrieval/index bridge that dereferences exact authoritative records and surfaces provenance-bearing evidence into canonical active state. Do not create a second dormant-memory authority.
+Complete the Trainer organ's permanent control plane before new core training: parameter-generation lifecycle, optimizer ownership, telemetry/monitoring surfaces, study/curriculum ingestion, rollback/promotion protocol, and eventual Trainer-core advisory ensemble. Keep Semantic Cortex parked behind its CLOSED valve while preserving its independent cortical cadence doctrine and future Dormant-State sense ownership.

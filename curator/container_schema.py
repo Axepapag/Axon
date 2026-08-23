@@ -123,7 +123,7 @@ class SemanticEdge:
         )
 
     def render(self) -> str:
-        """Render in the kg_search / structured_knowledge style:
+        """Render in the kg_search / cortex style:
         'edge_type target'. Legacy symbols are intentionally not rendered.
         """
         return f"{self.edge_type} {self.target}"
@@ -297,12 +297,12 @@ class Container:
     # --- rendering --------------------------------------------------------
 
     def render(self, max_edges: int | None = None) -> str:
-        """Render in the kg_search / structured_knowledge style:
+        """Render in the kg_search / cortex style:
         'text: edge_type target; edge_type target ...'
 
         This is compatible with the existing kg_search.KGSearch.render format
         so that containers serialized via this schema can drop into the same
-        structured_knowledge region rendering. By default, all edges render.
+        cortex region rendering. By default, all edges render.
         Pass max_edges only for an explicit display or curriculum budget.
         """
         rendered_edges = [

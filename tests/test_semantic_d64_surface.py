@@ -47,7 +47,7 @@ def _snapshot() -> SharedFieldSnapshot:
                 ),
             ),
             RegionState(
-                name=LogicalRegion.STRUCTURED_KNOWLEDGE,
+                name=LogicalRegion.CORTEX,
                 spans=(
                     FieldSpan(
                         span_id="knowledge:fastapi",

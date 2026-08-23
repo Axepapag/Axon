@@ -723,6 +723,10 @@ def main() -> int:
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--page-size", type=int, default=256)
     parser.add_argument("--max-output-chars", type=int, default=512)
+    parser.add_argument("--n-heads", type=int, default=4)
+    parser.add_argument("--n-layers", type=int, default=1)
+    parser.add_argument("--ffn-dim", type=int, default=192)
+    parser.add_argument("--dropout", type=float, default=0.05)
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--weight-decay", type=float, default=0.01)
     parser.add_argument("--grad-accum", type=int, default=1)
@@ -777,6 +781,10 @@ def main() -> int:
         or args.causal_every < 1
         or args.counterfactual_sample_count < 1
         or args.v6_eval_examples < 1
+        or args.n_heads < 1
+        or args.n_layers < 1
+        or args.ffn_dim < 1
+        or args.dropout < 0.0
         or args.alignment_weight < 0.0
         or args.copy_gate_weight < 0.0
         or not 0.0 <= args.teacher_forcing_ratio <= 1.0
@@ -828,7 +836,14 @@ def main() -> int:
     device = torch.device(args.device)
     if device.type == "cuda" and not torch.cuda.is_available():
         raise RuntimeError("CUDA was requested but is unavailable")
-    config = ReaderConfig(page_size=args.page_size, max_output_chars=args.max_output_chars)
+    config = ReaderConfig(
+        page_size=args.page_size,
+        max_output_chars=args.max_output_chars,
+        n_heads=args.n_heads,
+        n_layers=args.n_layers,
+        ffn_dim=args.ffn_dim,
+        dropout=args.dropout,
+    )
     model = CompleteField64D(config).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     use_amp = bool(args.amp and device.type == "cuda")

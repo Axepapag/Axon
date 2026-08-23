@@ -105,7 +105,7 @@ def test_build_surfacing_example_uses_source_edge_answer():
     assert example["query"] == "dog is a"
     assert example["answer"] == "animal"
     assert "edge_symbol" not in example
-    assert "LAY" not in example["structured_knowledge"]
+    assert "LAY" not in example["cortex"]
 
 
 def test_iter_surfacing_examples_skips_invalid_symbol_leak(tmp_path: Path):

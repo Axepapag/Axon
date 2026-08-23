@@ -169,7 +169,7 @@ class DormantRelevanceAuditor:
     @staticmethod
     def _active_refs(field: SharedFieldSnapshot) -> frozenset[str]:
         refs: set[str] = set()
-        for span in field.region(LogicalRegion.STRUCTURED_KNOWLEDGE).spans:
+        for span in field.region(LogicalRegion.CORTEX).spans:
             refs.update(span.container_refs)
         return frozenset(refs)
 
@@ -177,7 +177,7 @@ class DormantRelevanceAuditor:
     def _active_terms(field: SharedFieldSnapshot) -> frozenset[str]:
         values: list[str] = []
         for region in field.regions:
-            if region.name is LogicalRegion.STRUCTURED_KNOWLEDGE:
+            if region.name is LogicalRegion.CORTEX:
                 continue
             if region.text:
                 values.append(region.text)

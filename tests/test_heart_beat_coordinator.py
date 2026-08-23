@@ -116,11 +116,11 @@ class _FakeDormantBridge:
             source_manifest_ids=base.source_manifest_ids,
             regions=tuple(
                 RegionState(
-                    name=LogicalRegion.STRUCTURED_KNOWLEDGE,
+                    name=LogicalRegion.CORTEX,
                     spans=spans,
                     visibility=RegionVisibility.ATTENDED,
                 )
-                if region.name is LogicalRegion.STRUCTURED_KNOWLEDGE
+                if region.name is LogicalRegion.CORTEX
                 else region
                 for region in base.regions
             ),
@@ -279,7 +279,7 @@ def test_coordinator_runs_recall_when_field_changes(tmp_path: Path) -> None:
 
     result = coordinator.beat()
     assert result.state is BeatState.TICK_OPENED
-    structured = result.field.region(LogicalRegion.STRUCTURED_KNOWLEDGE)
+    structured = result.field.region(LogicalRegion.CORTEX)
     assert structured.text == "Axon is a field compiler organ."
     assert structured.spans[0].container_refs == ("container-1",)
     dormant_commit = next(commit for commit in result.commits if commit.delta.author_core_id == "dormant-valve")
@@ -299,7 +299,7 @@ def test_coordinator_skips_recall_when_query_is_empty(tmp_path: Path) -> None:
     # Force a tick with no attended ingress text.
     result = coordinator.beat(force=True)
     assert result.state is BeatState.TICK_OPENED
-    assert result.field.region(LogicalRegion.STRUCTURED_KNOWLEDGE).text == ""
+    assert result.field.region(LogicalRegion.CORTEX).text == ""
     assert not any(
         commit.delta.author_core_id == "dormant-valve" for commit in result.commits
     )

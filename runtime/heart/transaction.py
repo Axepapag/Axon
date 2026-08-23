@@ -146,7 +146,7 @@ class HeartTransactionBoundary:
         # Canonical machinery remains the binding gate: typing, region
         # sealing, bounds, and overlapping/conflicting sparse edits.  The
         # authority model may permit regions beyond the bootstrap core-writable
-        # set (ingress-owned regions, structured_knowledge for the valve).
+        # set (ingress-owned regions, cortex for the valve).
         validate_delta(base, delta, permitted_regions=grant.governed_regions)
 
     def commit(

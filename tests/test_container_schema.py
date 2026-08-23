@@ -4,7 +4,7 @@ These tests verify:
   - ContainerStatus enum values
   - SemanticEdge creation, validation, serialization, rendering
   - Container creation, normalization from loose records, serialization
-  - Rendering compatible with kg_search / structured_knowledge style
+  - Rendering compatible with kg_search / cortex style
   - Round-trip: loose dict -> Container -> dict -> Container
   - Edge coercion from legacy [etype, target] list form
   - Lifecycle helpers (update_status, add_edge, add_symbol)

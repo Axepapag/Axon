@@ -1,8 +1,9 @@
 """Canonical Axon shared-field contracts and deterministic D64 compiler.
 
 Day Zero active surface only. Historical 384-slot views, schedule cursors,
-schema-v2 experiments, and related compatibility code live under
-``archive/day_zero_legacy_2026-08-20`` and are not imported here.
+and unrelated experimental schemas live under ``archive/day_zero_legacy_2026-08-20``
+and are not imported here. The active canonical schema is shared-field-v2; its
+Cortex-region migration retains read-only compatibility with persisted v1 history.
 """
 
 from .compiler_d64 import (
@@ -59,8 +60,11 @@ from .schema import (
     CANONICAL_REGION_ORDER,
     CORE_WRITABLE_REGIONS,
     LOGICAL_REGION_IDS,
+    LEGACY_CORTEX_REGION_NAME,
+    LEGACY_SCHEMA_VERSION,
     RegionMaskPolicy,
     SCHEMA_VERSION,
+    SUPPORTED_SCHEMA_VERSIONS,
     FieldSpan,
     LogicalRegion,
     PhysicalRole,
@@ -84,7 +88,10 @@ from .state_branch import (
 )
 
 __all__ = [
+    "LEGACY_SCHEMA_VERSION",
     "SCHEMA_VERSION",
+    "SUPPORTED_SCHEMA_VERSIONS",
+    "LEGACY_CORTEX_REGION_NAME",
     "LogicalRegion",
     "CANONICAL_REGION_ORDER",
     "LOGICAL_REGION_IDS",

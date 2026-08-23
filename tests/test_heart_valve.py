@@ -52,7 +52,7 @@ def test_capped_primitive_valves_admit_valid_envelopes() -> None:
         ("user_ingress", "external_user", LogicalRegion.USER_INPUT),
         ("tool_ingress", "external_tool", LogicalRegion.TOOL_RESULTS),
         ("advisor_ingress", "external_advisor", LogicalRegion.ADVISOR_INPUT),
-        ("dormant_recall", "dormant_valve", LogicalRegion.STRUCTURED_KNOWLEDGE),
+        ("dormant_recall", "dormant_valve", LogicalRegion.CORTEX),
     ):
         envelope = _envelope(valve_id=valve_id, source_id=source_id)
         decision = registry.decide(envelope)
