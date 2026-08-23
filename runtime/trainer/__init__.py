@@ -56,14 +56,23 @@ from .gates import (
 )
 from .host import TrainerControlPlane
 from .inspection import TRAINER_INSPECTION_SCHEMA, TrainerInspectionSnapshot, inspect_trainer_state
+from .learning import (
+    LEARNING_POLICY_SCHEMA,
+    GovernedLearningPolicy,
+    OptimizerKind,
+    PrecisionMode,
+    SchedulerKind,
+)
 from .lease import TrainerLeaseDeniedError, TrainerWriterLease
 from .lifecycle import (
     CANDIDATE_CHECKPOINT_SCHEMA,
     CANDIDATE_LIFECYCLE_SCHEMA,
+    LEARNING_MICROSTEP_SCHEMA,
     OPTIMIZATION_STEP_SCHEMA,
     CandidateCheckpointRecord,
     CandidateLifecycleEvent,
     CandidateStatus,
+    LearningMicrostepReceipt,
     OptimizationStepReceipt,
 )
 from .registry import (
@@ -101,6 +110,8 @@ __all__ = [
     "PARAMETER_TELEMETRY_SCHEMA",
     "CANDIDATE_LIFECYCLE_SCHEMA",
     "CANDIDATE_CHECKPOINT_SCHEMA",
+    "LEARNING_POLICY_SCHEMA",
+    "LEARNING_MICROSTEP_SCHEMA",
     "OPTIMIZATION_STEP_SCHEMA",
     "EVALUATION_OBSERVATION_SCHEMA",
     "EVALUATION_REQUIREMENT_SCHEMA",
@@ -110,6 +121,10 @@ __all__ = [
     "OrganKind",
     "ParameterMutationPolicy",
     "TrainerCoreRole",
+    "OptimizerKind",
+    "SchedulerKind",
+    "PrecisionMode",
+    "GovernedLearningPolicy",
     "ParameterModuleDescriptor",
     "ParameterTensorRecord",
     "ParameterModuleManifest",
@@ -136,6 +151,7 @@ __all__ = [
     "CandidateStatus",
     "CandidateLifecycleEvent",
     "CandidateCheckpointRecord",
+    "LearningMicrostepReceipt",
     "OptimizationStepReceipt",
     "MetricComparison",
     "EvaluationObservation",

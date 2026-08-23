@@ -1,15 +1,16 @@
 """Isolated governed optimizer execution for Axon's Trainer organ.
 
-The live registered module is never optimized in place.  An authorized plan
+The live registered module is never optimized in place. An authorized plan
 creates a candidate clone, freezes every tensor outside the authorized scope,
-and checks after each step that both the live base and unauthorized candidate
-tensors remain byte-identical.
+and executes only through an immutable governed learning policy. Optimizer
+updates, gradient accumulation, precision, clipping/budgets, checkpoint state,
+and telemetry are explicit rather than ad-hoc trainer arguments.
 """
 from __future__ import annotations
 
 import copy
 import math
-from dataclasses import dataclass
+from contextlib import nullcontext
 from typing import Callable
 
 import torch
@@ -17,7 +18,14 @@ from torch import nn
 
 from .authority import AuthorizedParameterMutation, ParameterAuthorityError
 from .contracts import ParameterInventory, ParameterModuleDescriptor, ParameterMutationPlan
-from .lifecycle import CandidateCheckpointRecord, CandidateLifecycleEvent, CandidateStatus, OptimizationStepReceipt
+from .learning import GovernedLearningPolicy, OptimizerKind, PrecisionMode
+from .lifecycle import (
+    CandidateCheckpointRecord,
+    CandidateLifecycleEvent,
+    CandidateStatus,
+    LearningMicrostepReceipt,
+    OptimizationStepReceipt,
+)
 from .registry import capture_module_manifest, parameter_value_sha256
 from .store import TrainerStateStore
 from .telemetry import capture_parameter_telemetry
@@ -27,18 +35,9 @@ class TrainerExecutionError(RuntimeError):
     pass
 
 
-@dataclass(frozen=True, slots=True)
-class OptimizerExecutionPolicy:
-    gradient_clip_norm: float | None = 1.0
-    exact_scope_verification_each_step: bool = True
-    full_parameter_telemetry_each_step: bool = True
-
-    def __post_init__(self) -> None:
-        if self.gradient_clip_norm is not None:
-            clip = float(self.gradient_clip_norm)
-            if not (0.0 < clip < float("inf")):
-                raise ValueError("gradient_clip_norm must be positive and finite")
-            object.__setattr__(self, "gradient_clip_norm", clip)
+# Backward-compatible public name retained while the permanent policy contract
+# moves into runtime/trainer/learning.py.
+OptimizerExecutionPolicy = GovernedLearningPolicy
 
 
 def _candidate_descriptor(base: ParameterModuleDescriptor, candidate_generation_id: str) -> ParameterModuleDescriptor:
@@ -53,13 +52,23 @@ def _candidate_descriptor(base: ParameterModuleDescriptor, candidate_generation_
     )
 
 
-def _optimizer_for(plan: ParameterMutationPlan, parameters: list[nn.Parameter]) -> torch.optim.Optimizer:
-    name = plan.optimizer_name.strip().lower()
-    if name == "adamw":
-        return torch.optim.AdamW(parameters, lr=plan.learning_rate)
-    if name == "sgd":
-        return torch.optim.SGD(parameters, lr=plan.learning_rate)
-    raise TrainerExecutionError(f"unsupported governed optimizer {plan.optimizer_name!r}; supported: AdamW, SGD")
+def _optimizer_for(policy: GovernedLearningPolicy, parameters: list[nn.Parameter], initial_lr: float) -> torch.optim.Optimizer:
+    if policy.optimizer is OptimizerKind.ADAMW:
+        return torch.optim.AdamW(
+            parameters,
+            lr=initial_lr,
+            weight_decay=policy.weight_decay,
+            betas=(policy.adam_beta1, policy.adam_beta2),
+            eps=policy.adam_eps,
+        )
+    if policy.optimizer is OptimizerKind.SGD:
+        return torch.optim.SGD(
+            parameters,
+            lr=initial_lr,
+            weight_decay=policy.weight_decay,
+            momentum=policy.sgd_momentum,
+        )
+    raise TrainerExecutionError(f"unsupported governed optimizer {policy.optimizer.value!r}")
 
 
 class CandidateOptimizationSession:
@@ -74,7 +83,7 @@ class CandidateOptimizationSession:
         plan: ParameterMutationPlan,
         authorization: AuthorizedParameterMutation,
         store: TrainerStateStore,
-        policy: OptimizerExecutionPolicy | None = None,
+        policy: GovernedLearningPolicy | None = None,
     ) -> None:
         if not isinstance(live_module, nn.Module):
             raise TypeError("live_module must be torch.nn.Module")
@@ -109,6 +118,14 @@ class CandidateOptimizationSession:
         if any(item.value_sha256 is None for item in base_manifest.tensors):
             raise TrainerExecutionError("candidate session requires exact value hashes in base inventory")
 
+        learning_policy = policy or GovernedLearningPolicy.from_plan(plan)
+        if not isinstance(learning_policy, GovernedLearningPolicy):
+            raise TypeError("policy must be GovernedLearningPolicy")
+        try:
+            learning_policy.assert_plan_compatible(plan)
+        except ValueError as exc:
+            raise TrainerExecutionError(str(exc)) from exc
+
         self.live_module = live_module
         self.base_descriptor = base_descriptor
         self.candidate_descriptor = _candidate_descriptor(base_descriptor, plan.candidate_generation_id)
@@ -116,9 +133,12 @@ class CandidateOptimizationSession:
         self.plan = plan
         self.authorization = authorization
         self.store = store
-        self.policy = policy or OptimizerExecutionPolicy()
+        self.policy = learning_policy
         self.candidate_module = copy.deepcopy(live_module)
-        self.step_index = 0
+        self.step_index = 0  # completed optimizer updates
+        self.micro_step_index = 0
+        self.accumulation_index = 0
+        self.accumulated_loss_sum = 0.0
         self._closed = False
         self._previous_lifecycle_event_id: str | None = None
         self._previous_checkpoint_id: str | None = None
@@ -133,6 +153,7 @@ class CandidateOptimizationSession:
         live_buffer_names = {name for name, _ in live_module.named_buffers(recurse=True)}
         if live_buffer_names != set(self._base_buffer_hashes):
             raise TrainerExecutionError("live module persistent-buffer names disagree with base inventory")
+
         candidate_named = dict(self.candidate_module.named_parameters(recurse=True))
         if set(candidate_named) != set(self._base_hashes):
             raise TrainerExecutionError("candidate clone parameter names disagree with base inventory")
@@ -144,15 +165,40 @@ class CandidateOptimizationSession:
         self._unauthorized_names = tuple(sorted(set(candidate_named) - authorized_names))
         for name, parameter in candidate_named.items():
             parameter.requires_grad_(name in authorized_names)
-        selected = [candidate_named[name] for name in authorization.tensor_names]
-        if not selected:
+        self._selected_names = tuple(authorization.tensor_names)
+        self._selected = [candidate_named[name] for name in self._selected_names]
+        if not self._selected:
             raise TrainerExecutionError("authorized candidate contains no trainable parameters")
-        self.optimizer = _optimizer_for(plan, selected)
-        self._emit_lifecycle(CandidateStatus.PREPARED, step=0, reason="isolated candidate clone prepared")
+
+        device_types = {parameter.device.type for parameter in self._selected}
+        if len(device_types) != 1:
+            raise TrainerExecutionError("first-form governed learning requires authorized parameters on one device type")
+        self._device_type = next(iter(device_types))
+        if self.policy.precision is PrecisionMode.FP16 and self._device_type != "cuda":
+            raise TrainerExecutionError("fp16 governed precision currently requires CUDA")
+        if self.policy.precision is PrecisionMode.BF16 and self._device_type not in {"cpu", "cuda"}:
+            raise TrainerExecutionError("bf16 governed precision currently supports CPU or CUDA only")
+
+        initial_lr = self.policy.learning_rate_for_step(0, self.plan.max_steps)
+        self.optimizer = _optimizer_for(self.policy, self._selected, initial_lr)
+        self._scaler = (
+            torch.amp.GradScaler("cuda", enabled=True)
+            if self.policy.precision is PrecisionMode.FP16
+            else None
+        )
+        self.optimizer.zero_grad(set_to_none=True)
+        self.store.write_learning_policy(self.policy)
+        self._emit_lifecycle(CandidateStatus.PREPARED, step=0, reason="isolated candidate clone prepared under governed learning policy")
 
     @property
     def closed(self) -> bool:
         return self._closed
+
+    @property
+    def current_learning_rate(self) -> float:
+        if not self.optimizer.param_groups:
+            raise TrainerExecutionError("optimizer has no parameter groups")
+        return float(self.optimizer.param_groups[0]["lr"])
 
     def _assert_open(self) -> None:
         if self._closed:
@@ -168,9 +214,7 @@ class CandidateOptimizationSession:
         buffers = dict(self.live_module.named_buffers(recurse=True))
         if set(buffers) != set(self._base_buffer_hashes):
             raise TrainerExecutionError("live module persistent-buffer surface changed during candidate session")
-        changed_buffers = [
-            name for name, buffer in buffers.items() if parameter_value_sha256(buffer) != self._base_buffer_hashes[name]
-        ]
+        changed_buffers = [name for name, buffer in buffers.items() if parameter_value_sha256(buffer) != self._base_buffer_hashes[name]]
         if changed_buffers:
             raise TrainerExecutionError(f"live persistent buffers changed during candidate training: {changed_buffers}")
 
@@ -206,8 +250,46 @@ class CandidateOptimizationSession:
         self._previous_lifecycle_event_id = event.event_id
         return event
 
-    def step(self, loss_fn: Callable[[nn.Module], torch.Tensor]) -> OptimizationStepReceipt:
-        """Run one governed optimizer step on the isolated candidate only."""
+    def _autocast_context(self):
+        if self.policy.precision is PrecisionMode.FP32:
+            return nullcontext()
+        dtype = torch.float16 if self.policy.precision is PrecisionMode.FP16 else torch.bfloat16
+        return torch.autocast(device_type=self._device_type, dtype=dtype)
+
+    def _set_lr_for_next_update(self) -> float:
+        lr = self.policy.learning_rate_for_step(self.step_index, self.plan.max_steps)
+        for group in self.optimizer.param_groups:
+            group["lr"] = lr
+        return lr
+
+    def _gradient_state(self) -> dict[str, torch.Tensor | None]:
+        named = dict(self.candidate_module.named_parameters(recurse=True))
+        return {
+            name: None if named[name].grad is None else named[name].grad.detach().clone()
+            for name in self._selected_names
+        }
+
+    def _restore_gradient_state(self, state: dict[str, torch.Tensor | None]) -> None:
+        named = dict(self.candidate_module.named_parameters(recurse=True))
+        if set(state) != set(self._selected_names):
+            raise TrainerExecutionError("checkpoint gradient-state surface differs from authorized tensor scope")
+        for name in self._selected_names:
+            value = state[name]
+            if value is None:
+                named[name].grad = None
+            else:
+                named[name].grad = value.to(device=named[name].device, dtype=named[name].dtype).clone()
+
+    def _reject(self, reason: str, *, step: int | None = None) -> None:
+        self.optimizer.zero_grad(set_to_none=True)
+        self._emit_lifecycle(CandidateStatus.REJECTED, step=self.step_index if step is None else step, reason=reason)
+        self._closed = True
+
+    def micro_step(
+        self,
+        loss_fn: Callable[[nn.Module], torch.Tensor],
+    ) -> tuple[LearningMicrostepReceipt, OptimizationStepReceipt | None]:
+        """Accumulate one governed microbatch; update only at the policy boundary."""
 
         self._assert_open()
         if self.step_index >= self.plan.max_steps:
@@ -215,81 +297,129 @@ class CandidateOptimizationSession:
         if not callable(loss_fn):
             raise TypeError("loss_fn must be callable")
         self._assert_live_base_unchanged()
+
+        if self.accumulation_index == 0:
+            self.optimizer.zero_grad(set_to_none=True)
+            self.accumulated_loss_sum = 0.0
         before_hashes = self._hash_candidate() if self.policy.exact_scope_verification_each_step else {}
         before_buffer_hashes = self._hash_candidate_buffers() if self.policy.exact_scope_verification_each_step else {}
 
-        self.optimizer.zero_grad(set_to_none=True)
-        loss = loss_fn(self.candidate_module)
+        with self._autocast_context():
+            loss = loss_fn(self.candidate_module)
         if not isinstance(loss, torch.Tensor) or loss.numel() != 1:
             raise TrainerExecutionError("loss_fn must return one scalar torch.Tensor")
-        loss_value = float(loss.detach().item())
+        loss_value = float(loss.detach().float().item())
         if not math.isfinite(loss_value):
-            self.optimizer.zero_grad(set_to_none=True)
-            self._emit_lifecycle(CandidateStatus.REJECTED, step=self.step_index, reason="non-finite loss")
-            self._closed = True
+            self._reject("non-finite loss")
             raise TrainerExecutionError("non-finite loss rejected before backpropagation")
-        loss.backward()
+        scaled_loss = loss / float(self.policy.gradient_accumulation_steps)
+        if self._scaler is not None:
+            self._scaler.scale(scaled_loss).backward()
+        else:
+            scaled_loss.backward()
+
         if self.policy.exact_scope_verification_each_step:
+            forward_hashes = self._hash_candidate()
+            changed_parameters = [name for name in forward_hashes if forward_hashes[name] != before_hashes[name]]
+            if changed_parameters:
+                self._reject("forward/backward mutated parameter values before optimizer step")
+                raise ParameterAuthorityError(f"candidate forward/backward mutated parameter values: {changed_parameters}")
             forward_buffer_hashes = self._hash_candidate_buffers()
-            changed_buffers = [
-                name for name in forward_buffer_hashes if forward_buffer_hashes[name] != before_buffer_hashes[name]
-            ]
+            changed_buffers = [name for name in forward_buffer_hashes if forward_buffer_hashes[name] != before_buffer_hashes[name]]
             if changed_buffers:
-                self.optimizer.zero_grad(set_to_none=True)
-                self._emit_lifecycle(
-                    CandidateStatus.REJECTED,
-                    step=self.step_index,
-                    reason="forward/backward mutated ungranted persistent buffers",
-                )
-                self._closed = True
+                self._reject("forward/backward mutated ungranted persistent buffers")
                 raise ParameterAuthorityError(
                     f"candidate changed persistent buffers without an explicit buffer-state grant: {changed_buffers}"
                 )
 
-        selected = [dict(self.candidate_module.named_parameters(recurse=True))[name] for name in self.authorization.tensor_names]
-        gradients = [parameter.grad for parameter in selected if parameter.grad is not None]
-        if any(not bool(torch.isfinite(gradient).all().item()) for gradient in gradients):
-            self.optimizer.zero_grad(set_to_none=True)
-            self._emit_lifecycle(CandidateStatus.REJECTED, step=self.step_index, reason="non-finite gradient")
-            self._closed = True
-            raise TrainerExecutionError("non-finite gradient rejected before optimizer step")
-        grad_l2 = float(
-            math.sqrt(sum(float(torch.sum(gradient.detach().float() ** 2).item()) for gradient in gradients))
-        ) if gradients else 0.0
+        self.micro_step_index += 1
+        self.accumulation_index += 1
+        self.accumulated_loss_sum += loss_value
+        micro_receipt = LearningMicrostepReceipt(
+            module_id=self.base_descriptor.module_id,
+            candidate_generation_id=self.candidate_descriptor.generation_id,
+            plan_id=self.plan.plan_id,
+            authorization_id=self.authorization.authorization_id,
+            learning_policy_id=self.policy.policy_id,
+            micro_step=self.micro_step_index,
+            optimizer_step_before=self.step_index,
+            accumulation_index=self.accumulation_index,
+            accumulation_target=self.policy.gradient_accumulation_steps,
+            loss=loss_value,
+            scaled_loss=float(loss_value / float(self.policy.gradient_accumulation_steps)),
+            precision_mode=self.policy.precision.value,
+        )
+        self.store.append_learning_microstep(micro_receipt)
 
+        if self.accumulation_index < self.policy.gradient_accumulation_steps:
+            self._emit_lifecycle(
+                CandidateStatus.RUNNING,
+                step=self.step_index,
+                reason=f"accumulated microstep {self.accumulation_index}/{self.policy.gradient_accumulation_steps}",
+            )
+            return micro_receipt, None
+
+        return micro_receipt, self._apply_optimizer_step()
+
+    def _apply_optimizer_step(self) -> OptimizationStepReceipt:
+        if self._scaler is not None:
+            self._scaler.unscale_(self.optimizer)
+        gradients = [parameter.grad for parameter in self._selected if parameter.grad is not None]
+        if any(not bool(torch.isfinite(gradient).all().item()) for gradient in gradients):
+            self._reject("non-finite gradient")
+            raise TrainerExecutionError("non-finite gradient rejected before optimizer step")
+        grad_l2 = float(math.sqrt(sum(float(torch.sum(gradient.detach().float() ** 2).item()) for gradient in gradients))) if gradients else 0.0
+        if self.policy.max_gradient_l2 is not None and grad_l2 > self.policy.max_gradient_l2:
+            self._reject("gradient L2 exceeded governed budget")
+            raise ParameterAuthorityError(
+                f"gradient L2 {grad_l2} exceeds governed maximum {self.policy.max_gradient_l2}"
+            )
         if self.policy.gradient_clip_norm is not None:
-            torch.nn.utils.clip_grad_norm_(selected, self.policy.gradient_clip_norm)
-        self.optimizer.step()
+            torch.nn.utils.clip_grad_norm_(self._selected, self.policy.gradient_clip_norm)
+
+        lr = self._set_lr_for_next_update()
+        before_hashes = self._hash_candidate() if self.policy.exact_scope_verification_each_step else {}
+        before_buffer_hashes = self._hash_candidate_buffers() if self.policy.exact_scope_verification_each_step else {}
+        update_before = None
+        if self.policy.max_update_l2 is not None:
+            update_before = [parameter.detach().clone() for parameter in self._selected]
+
+        if self._scaler is not None:
+            self._scaler.step(self.optimizer)
+            self._scaler.update()
+        else:
+            self.optimizer.step()
         self.step_index += 1
 
-        after_hashes = self._hash_candidate() if self.policy.exact_scope_verification_each_step else {}
-        after_buffer_hashes = self._hash_candidate_buffers() if self.policy.exact_scope_verification_each_step else {}
-        if self.policy.exact_scope_verification_each_step:
-            changed_buffers = [
-                name for name in after_buffer_hashes if after_buffer_hashes[name] != before_buffer_hashes[name]
-            ]
-            if changed_buffers:
-                self._emit_lifecycle(
-                    CandidateStatus.REJECTED,
-                    step=self.step_index,
-                    reason="ungranted persistent buffers changed",
+        update_l2: float | None = None
+        if update_before is not None:
+            squared = 0.0
+            for previous, parameter in zip(update_before, self._selected):
+                squared += float(torch.sum((parameter.detach().float() - previous.detach().float()) ** 2).item())
+            update_l2 = float(math.sqrt(squared))
+            if update_l2 > float(self.policy.max_update_l2):
+                with torch.no_grad():
+                    for previous, parameter in zip(update_before, self._selected):
+                        parameter.copy_(previous)
+                self._reject("parameter update L2 exceeded governed budget", step=self.step_index)
+                raise ParameterAuthorityError(
+                    f"parameter update L2 {update_l2} exceeds governed maximum {self.policy.max_update_l2}"
                 )
-                self._closed = True
+
+        if self.policy.exact_scope_verification_each_step:
+            after_hashes = self._hash_candidate()
+            after_buffer_hashes = self._hash_candidate_buffers()
+            changed_buffers = [name for name in after_buffer_hashes if after_buffer_hashes[name] != before_buffer_hashes[name]]
+            if changed_buffers:
+                self._reject("optimizer mutated ungranted persistent buffers", step=self.step_index)
                 raise ParameterAuthorityError(
                     f"candidate changed persistent buffers without an explicit buffer-state grant: {changed_buffers}"
                 )
             unauthorized_changed = [name for name in self._unauthorized_names if after_hashes[name] != before_hashes[name]]
             if unauthorized_changed:
-                self._emit_lifecycle(
-                    CandidateStatus.REJECTED,
-                    step=self.step_index,
-                    reason="unauthorized candidate parameters changed",
-                )
-                self._closed = True
-                raise ParameterAuthorityError(
-                    f"optimizer changed parameters outside authorized scope: {unauthorized_changed}"
-                )
-            changed = tuple(sorted(name for name in self.authorization.tensor_names if after_hashes[name] != before_hashes[name]))
+                self._reject("optimizer changed parameters outside authorized scope", step=self.step_index)
+                raise ParameterAuthorityError(f"optimizer changed parameters outside authorized scope: {unauthorized_changed}")
+            changed = tuple(sorted(name for name in self._selected_names if after_hashes[name] != before_hashes[name]))
             unchanged = tuple(sorted(name for name in after_hashes if after_hashes[name] == before_hashes[name]))
         else:
             changed = tuple()
@@ -305,40 +435,70 @@ class CandidateOptimizationSession:
         )
         payload = frame.to_canonical_dict()
         if not payload["all_values_finite"] or not payload["all_present_gradients_finite"]:
-            self._emit_lifecycle(CandidateStatus.REJECTED, step=self.step_index, reason="non-finite post-step telemetry")
-            self._closed = True
+            self._reject("non-finite post-step telemetry", step=self.step_index)
             raise TrainerExecutionError("candidate telemetry became non-finite")
         if self.policy.full_parameter_telemetry_each_step:
             self.store.append_telemetry(frame)
 
+        mean_loss = self.accumulated_loss_sum / float(self.policy.gradient_accumulation_steps)
         receipt = OptimizationStepReceipt(
             module_id=self.base_descriptor.module_id,
             candidate_generation_id=self.candidate_descriptor.generation_id,
             plan_id=self.plan.plan_id,
             authorization_id=self.authorization.authorization_id,
+            learning_policy_id=self.policy.policy_id,
             step=self.step_index,
-            loss=loss_value,
+            micro_step=self.micro_step_index,
+            microbatches_accumulated=self.policy.gradient_accumulation_steps,
+            loss=mean_loss,
             gradient_l2=grad_l2,
             gradient_clip_norm=self.policy.gradient_clip_norm,
+            learning_rate=lr,
+            weight_decay=self.policy.weight_decay,
+            precision_mode=self.policy.precision.value,
+            update_l2=update_l2,
             telemetry_frame_id=frame.frame_id,
             changed_tensor_names=changed,
             unchanged_tensor_names=unchanged,
         )
         self.store.append_optimization_step(receipt)
         self._emit_lifecycle(CandidateStatus.RUNNING, step=self.step_index, reason="governed optimizer step completed")
+        self.optimizer.zero_grad(set_to_none=True)
+        self.accumulation_index = 0
+        self.accumulated_loss_sum = 0.0
         return receipt
+
+    def step(self, loss_fn: Callable[[nn.Module], torch.Tensor]) -> OptimizationStepReceipt:
+        """Backward-compatible one-call optimizer step for accumulation=1 policies."""
+
+        if self.policy.gradient_accumulation_steps != 1:
+            raise TrainerExecutionError("step() requires gradient_accumulation_steps=1; use micro_step() for accumulation")
+        _micro, optimizer_receipt = self.micro_step(loss_fn)
+        if optimizer_receipt is None:
+            raise TrainerExecutionError("internal error: accumulation=1 did not produce an optimizer step")
+        return optimizer_receipt
 
     def checkpoint(self, *, include_optimizer: bool = True) -> CandidateCheckpointRecord:
         self._assert_open()
         self._assert_live_base_unchanged()
+        if self.accumulation_index and not include_optimizer:
+            raise TrainerExecutionError("mid-accumulation checkpoints require optimizer state for exact resume")
+        scaler_state = None if self._scaler is None else self._scaler.state_dict()
         record = self.store.save_candidate_checkpoint(
             module=self.candidate_module,
             descriptor=self.candidate_descriptor,
             base_generation_id=self.base_descriptor.generation_id,
             plan_id=self.plan.plan_id,
             authorization_id=self.authorization.authorization_id,
+            learning_policy=self.policy,
             step=self.step_index,
+            micro_step=self.micro_step_index,
+            accumulation_index=self.accumulation_index,
+            current_learning_rate=self.current_learning_rate,
+            accumulated_loss_sum=self.accumulated_loss_sum,
             optimizer=self.optimizer if include_optimizer else None,
+            scaler_state=scaler_state,
+            gradient_state=self._gradient_state(),
             previous_checkpoint_id=self._previous_checkpoint_id,
         )
         self._previous_checkpoint_id = record.checkpoint_id
@@ -350,17 +510,38 @@ class CandidateOptimizationSession:
             raise TrainerExecutionError("checkpoint belongs to another candidate generation")
         if record.plan_id != self.plan.plan_id or record.authorization_id != self.authorization.authorization_id:
             raise TrainerExecutionError("checkpoint plan/authorization lineage mismatch")
+        if record.learning_policy_id != self.policy.policy_id:
+            raise TrainerExecutionError("checkpoint learning-policy lineage mismatch")
+        if (record.step > 0 or record.accumulation_index > 0) and not record.optimizer_included:
+            raise TrainerExecutionError("exact resume after learning has begun requires optimizer state")
+        if record.accumulation_index > 0 and not record.gradient_state_included:
+            raise TrainerExecutionError("mid-accumulation resume requires pending gradient state")
+        if self._scaler is not None and not record.scaler_included:
+            raise TrainerExecutionError("fp16 exact resume requires AMP scaler state")
+
         payload = self.store.load_verified_candidate_checkpoint(record)
         self.candidate_module.load_state_dict(payload["module_state_dict"], strict=True)
         if record.optimizer_included and payload["optimizer_state_dict"] is not None:
             self.optimizer.load_state_dict(payload["optimizer_state_dict"])
+        gradients = payload.get("gradient_state_dict")
+        if gradients is not None:
+            self._restore_gradient_state(dict(gradients))
+        else:
+            self.optimizer.zero_grad(set_to_none=True)
+        if self._scaler is not None and payload.get("scaler_state_dict") is not None:
+            self._scaler.load_state_dict(payload["scaler_state_dict"])
         self.step_index = record.step
+        self.micro_step_index = record.micro_step
+        self.accumulation_index = record.accumulation_index
+        self.accumulated_loss_sum = record.accumulated_loss_sum
         self._previous_checkpoint_id = record.checkpoint_id
         self._assert_live_base_unchanged()
 
     def complete(self, *, reason: str = "candidate optimization completed") -> CandidateLifecycleEvent:
         self._assert_open()
         self._assert_live_base_unchanged()
+        if self.accumulation_index:
+            raise TrainerExecutionError("cannot complete candidate with uncommitted gradient accumulation")
         event = self._emit_lifecycle(CandidateStatus.COMPLETED, step=self.step_index, reason=reason)
         self._closed = True
         return event
@@ -368,6 +549,7 @@ class CandidateOptimizationSession:
     def reject(self, *, reason: str) -> CandidateLifecycleEvent:
         self._assert_open()
         self._assert_live_base_unchanged()
+        self.optimizer.zero_grad(set_to_none=True)
         event = self._emit_lifecycle(CandidateStatus.REJECTED, step=self.step_index, reason=reason)
         self._closed = True
         return event

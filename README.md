@@ -43,6 +43,7 @@ Trainer organ control plane:
 - `runtime/trainer/store.py`
 - `runtime/trainer/lifecycle.py`
 - `runtime/trainer/execution.py`
+- `runtime/trainer/learning.py`
 - `runtime/trainer/gates.py`
 - `runtime/trainer/lease.py`
 - `runtime/trainer/inspection.py`
@@ -55,7 +56,7 @@ Current developmental D64 training tissue:
 - `training/complete_field_64d.py`
 - `training/train_complete_field_64d.py`
 
-The Trainer now owns governed **isolated candidate**, activation, and rollback boundaries as well as parameter governance/observability. It never optimizes the registered live organ in place: mutations are grant-scoped, model-state lineage includes persistent buffers, checkpoints are hash-verified/restorable, deterministic evaluation gates precede promotion, and only the leased Trainer can atomically advance an active-generation pointer after saving an exact rollback target. Restart hydration and reversible rollback are explicit. Use `python scripts/inspect_trainer.py` for read-only current Trainer status, including active generations. No real core-training campaign is launched by this anatomy. The present 64D model path is a proving width, not a final limit on Axon's heterogeneous semantic/reasoning/trainer ensembles.
+The Trainer now owns governed **isolated candidate**, activation, and rollback boundaries as well as parameter governance/observability. It never optimizes the registered live organ in place: mutations are grant-scoped and every candidate runs under an immutable content-addressed learning policy governing AdamW/SGD hyperparameters, weight decay, deterministic scheduling, gradient accumulation, clipping/budgets, and FP32/BF16/FP16 precision. Mid-accumulation checkpoints preserve optimizer, pending gradients, AMP scaler state when present, counters, LR and accumulated-loss state for exact resume. Deterministic evaluation gates precede promotion, and only the leased Trainer can atomically advance an active-generation pointer after saving an exact rollback target. Restart hydration and reversible rollback are explicit. Use `python scripts/inspect_trainer.py` for read-only current Trainer status, including the latest learning policy/microstep and active generations. No real core-training campaign is launched by this anatomy. The present 64D model path is a proving width, not a final limit on Axon's heterogeneous semantic/reasoning/trainer ensembles.
 
 Recovered dormant-memory construction/audit utilities:
 

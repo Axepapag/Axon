@@ -82,6 +82,7 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "lifecycle.py",
         "execution.py",
         "gates.py",
+        "learning.py",
         "lease.py",
         "inspection.py",
         "host.py",

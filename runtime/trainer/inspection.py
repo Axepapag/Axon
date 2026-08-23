@@ -36,6 +36,8 @@ class TrainerInspectionSnapshot:
     trainer_root: str
     lease: dict[str, Any] | None
     latest_lifecycle: dict[str, Any] | None
+    latest_learning_policy: dict[str, Any] | None
+    latest_microstep: dict[str, Any] | None
     latest_step: dict[str, Any] | None
     latest_telemetry: dict[str, Any] | None
     latest_checkpoints: tuple[dict[str, Any], ...]
@@ -65,6 +67,8 @@ class TrainerInspectionSnapshot:
             "writer_lease_present": self.lease is not None,
             "lease": self.lease,
             "latest_lifecycle": self.latest_lifecycle,
+            "latest_learning_policy": self.latest_learning_policy,
+            "latest_microstep": self.latest_microstep,
             "latest_step": self.latest_step,
             "latest_telemetry": self.latest_telemetry,
             "latest_checkpoints": list(self.latest_checkpoints),
@@ -81,6 +85,8 @@ def inspect_trainer_state(*, state_root: Path | str = Path(r"D:\Axon\State")) ->
     trainer = state / "training" / "trainer"
     lease = _read_json(trainer / "authority" / "lease.json")
     latest_lifecycle = _read_json(trainer / "latest_candidate_lifecycle.json")
+    latest_learning_policy = _read_json(trainer / "latest_learning_policy.json")
+    latest_microstep = _read_json(trainer / "latest_learning_microstep.json")
     latest_step = _read_json(trainer / "latest_optimization_step.json")
     latest_telemetry = _read_json(trainer / "latest_telemetry.json")
 
@@ -103,6 +109,7 @@ def inspect_trainer_state(*, state_root: Path | str = Path(r"D:\Axon\State")) ->
     counts = (
         ("inventories", _count_json(trainer / "inventories")),
         ("plans", _count_json(trainer / "plans")),
+        ("learning_policies", _count_json(trainer / "learning_policies")),
         ("authorizations", _count_json(trainer / "authorizations")),
         ("evaluations", _count_json(trainer / "evaluations")),
         ("gate_decisions", _count_json(trainer / "gate_decisions")),
@@ -117,6 +124,8 @@ def inspect_trainer_state(*, state_root: Path | str = Path(r"D:\Axon\State")) ->
         trainer_root=str(trainer),
         lease=lease,
         latest_lifecycle=latest_lifecycle,
+        latest_learning_policy=latest_learning_policy,
+        latest_microstep=latest_microstep,
         latest_step=latest_step,
         latest_telemetry=latest_telemetry,
         latest_checkpoints=tuple(checkpoints),

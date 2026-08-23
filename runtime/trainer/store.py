@@ -21,7 +21,13 @@ from .activation import (
 from .authority import AuthorizedParameterMutation
 from .contracts import ParameterInventory, ParameterModuleDescriptor, ParameterMutationPlan, ParameterPromotionProposal
 from .gates import EvaluationObservation, PromotionGateDecision
-from .lifecycle import CandidateCheckpointRecord, CandidateLifecycleEvent, OptimizationStepReceipt
+from .learning import GovernedLearningPolicy
+from .lifecycle import (
+    CandidateCheckpointRecord,
+    CandidateLifecycleEvent,
+    LearningMicrostepReceipt,
+    OptimizationStepReceipt,
+)
 from .registry import capture_module_manifest
 from .telemetry import ParameterTelemetryFrame
 
@@ -39,6 +45,8 @@ class TrainerStateStore:
         self.plans_dir = self.root / "plans"
         self.authorizations_dir = self.root / "authorizations"
         self.promotions_dir = self.root / "promotion_proposals"
+        self.learning_policies_dir = self.root / "learning_policies"
+        self.latest_learning_policy_path = self.root / "latest_learning_policy.json"
         self.candidates_dir = self.root / "candidates"
         self.active_generations_dir = self.root / "active_generations"
         self.generation_snapshots_dir = self.root / "generation_snapshots"
@@ -46,6 +54,8 @@ class TrainerStateStore:
         self.rollback_receipts_dir = self.root / "rollback_receipts"
         self.lifecycle_path = self.root / "candidate_lifecycle.jsonl"
         self.latest_lifecycle_path = self.root / "latest_candidate_lifecycle.json"
+        self.microsteps_path = self.root / "learning_microsteps.jsonl"
+        self.latest_microstep_path = self.root / "latest_learning_microstep.json"
         self.steps_path = self.root / "optimization_steps.jsonl"
         self.latest_step_path = self.root / "latest_optimization_step.json"
         self.evaluations_dir = self.root / "evaluations"
@@ -70,6 +80,15 @@ class TrainerStateStore:
             raise TypeError("plan must be ParameterMutationPlan")
         path = self.plans_dir / f"{plan.plan_id}.json"
         self._write_immutable(path, plan.to_canonical_dict())
+        return path
+
+    def write_learning_policy(self, policy: GovernedLearningPolicy) -> Path:
+        if not isinstance(policy, GovernedLearningPolicy):
+            raise TypeError("policy must be GovernedLearningPolicy")
+        path = self.learning_policies_dir / f"{policy.policy_id}.json"
+        value = policy.to_canonical_dict()
+        self._write_immutable(path, value)
+        self._atomic_json(self.latest_learning_policy_path, value)
         return path
 
     def write_authorization(self, authorization: AuthorizedParameterMutation) -> Path:
@@ -103,6 +122,12 @@ class TrainerStateStore:
         self._append_jsonl(self.lifecycle_path, event.to_canonical_dict())
         self._atomic_json(self.latest_lifecycle_path, event.to_canonical_dict())
 
+    def append_learning_microstep(self, receipt: LearningMicrostepReceipt) -> None:
+        if not isinstance(receipt, LearningMicrostepReceipt):
+            raise TypeError("receipt must be LearningMicrostepReceipt")
+        self._append_jsonl(self.microsteps_path, receipt.to_canonical_dict())
+        self._atomic_json(self.latest_microstep_path, receipt.to_canonical_dict())
+
     def append_optimization_step(self, receipt: OptimizationStepReceipt) -> None:
         if not isinstance(receipt, OptimizationStepReceipt):
             raise TypeError("receipt must be OptimizationStepReceipt")
@@ -131,36 +156,63 @@ class TrainerStateStore:
         base_generation_id: str,
         plan_id: str,
         authorization_id: str,
+        learning_policy: GovernedLearningPolicy,
         step: int,
+        micro_step: int,
+        accumulation_index: int,
+        current_learning_rate: float,
+        accumulated_loss_sum: float,
         optimizer: torch.optim.Optimizer | None = None,
+        scaler_state: Mapping[str, Any] | None = None,
+        gradient_state: Mapping[str, torch.Tensor | None] | None = None,
         previous_checkpoint_id: str | None = None,
     ) -> CandidateCheckpointRecord:
         if not isinstance(module, nn.Module):
             raise TypeError("module must be torch.nn.Module")
         if not isinstance(descriptor, ParameterModuleDescriptor):
             raise TypeError("descriptor must be ParameterModuleDescriptor")
+        if not isinstance(learning_policy, GovernedLearningPolicy):
+            raise TypeError("learning_policy must be GovernedLearningPolicy")
         if descriptor.generation_id == base_generation_id:
             raise TrainerStoreError("candidate descriptor generation must differ from base generation")
-        if isinstance(step, bool) or not isinstance(step, int) or step < 0:
-            raise ValueError("step must be a non-negative integer")
+        for label, value in (("step", step), ("micro_step", micro_step), ("accumulation_index", accumulation_index)):
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                raise ValueError(f"{label} must be a non-negative integer")
+        current_learning_rate = float(current_learning_rate)
+        if not (0.0 < current_learning_rate < float("inf")):
+            raise ValueError("current_learning_rate must be positive and finite")
 
         manifest = capture_module_manifest(descriptor, module, exact_value_hashes=True)
         candidate_root = self.candidates_dir / descriptor.module_id / descriptor.generation_id
         checkpoints_dir = candidate_root / "checkpoints"
         checkpoints_dir.mkdir(parents=True, exist_ok=True)
-        artifact_path = checkpoints_dir / f"step_{step:09d}.pt"
+        artifact_path = checkpoints_dir / f"step_{step:09d}_micro_{micro_step:012d}.pt"
         temporary = artifact_path.with_name(artifact_path.name + ".tmp")
+        gradients = None
+        if gradient_state is not None:
+            gradients = {
+                str(name): None if gradient is None else gradient.detach().to(device="cpu").clone()
+                for name, gradient in gradient_state.items()
+            }
         payload = {
-            "schema": "axon-trainer-candidate-checkpoint-payload-v1",
+            "schema": "axon-trainer-candidate-checkpoint-payload-v2",
             "descriptor": descriptor.to_canonical_dict(),
             "base_generation_id": base_generation_id,
             "plan_id": plan_id,
             "authorization_id": authorization_id,
+            "learning_policy_id": learning_policy.policy_id,
+            "learning_policy": learning_policy.to_canonical_dict(),
             "step": step,
+            "micro_step": micro_step,
+            "accumulation_index": accumulation_index,
+            "current_learning_rate": current_learning_rate,
+            "accumulated_loss_sum": float(accumulated_loss_sum),
             "parameter_manifest_id": manifest.manifest_id,
             "parameter_manifest": manifest.to_canonical_dict(),
             "module_state_dict": module.state_dict(),
             "optimizer_state_dict": None if optimizer is None else optimizer.state_dict(),
+            "scaler_state_dict": None if scaler_state is None else dict(scaler_state),
+            "gradient_state_dict": gradients,
         }
         with temporary.open("wb") as handle:
             torch.save(payload, handle)
@@ -176,12 +228,19 @@ class TrainerStateStore:
             candidate_generation_id=descriptor.generation_id,
             plan_id=plan_id,
             authorization_id=authorization_id,
+            learning_policy_id=learning_policy.policy_id,
             step=step,
+            micro_step=micro_step,
+            accumulation_index=accumulation_index,
             parameter_manifest_id=manifest.manifest_id,
             artifact_relpath=relpath,
             artifact_sha256=digest,
             artifact_bytes=size,
             optimizer_included=optimizer is not None,
+            gradient_state_included=gradient_state is not None,
+            scaler_included=scaler_state is not None,
+            current_learning_rate=current_learning_rate,
+            accumulated_loss_sum=float(accumulated_loss_sum),
             previous_checkpoint_id=previous_checkpoint_id,
         )
         record_path = candidate_root / "checkpoint_records" / f"{record.checkpoint_id}.json"
@@ -204,7 +263,7 @@ class TrainerStateStore:
         if self._file_sha256(artifact_path) != record.artifact_sha256:
             raise TrainerStoreError("candidate checkpoint SHA256 disagrees with record")
         payload = torch.load(artifact_path, map_location="cpu", weights_only=False)
-        if payload.get("schema") != "axon-trainer-candidate-checkpoint-payload-v1":
+        if payload.get("schema") != "axon-trainer-candidate-checkpoint-payload-v2":
             raise TrainerStoreError("candidate checkpoint payload schema mismatch")
         descriptor = payload.get("descriptor", {})
         checks = {
@@ -213,8 +272,13 @@ class TrainerStateStore:
             "base_generation_id": payload.get("base_generation_id"),
             "plan_id": payload.get("plan_id"),
             "authorization_id": payload.get("authorization_id"),
+            "learning_policy_id": payload.get("learning_policy_id"),
             "step": payload.get("step"),
+            "micro_step": payload.get("micro_step"),
+            "accumulation_index": payload.get("accumulation_index"),
             "parameter_manifest_id": payload.get("parameter_manifest_id"),
+            "current_learning_rate": payload.get("current_learning_rate"),
+            "accumulated_loss_sum": payload.get("accumulated_loss_sum"),
         }
         expected = {
             "module_id": record.module_id,
@@ -222,14 +286,28 @@ class TrainerStateStore:
             "base_generation_id": record.base_generation_id,
             "plan_id": record.plan_id,
             "authorization_id": record.authorization_id,
+            "learning_policy_id": record.learning_policy_id,
             "step": record.step,
+            "micro_step": record.micro_step,
+            "accumulation_index": record.accumulation_index,
             "parameter_manifest_id": record.parameter_manifest_id,
+            "current_learning_rate": record.current_learning_rate,
+            "accumulated_loss_sum": record.accumulated_loss_sum,
         }
         if checks != expected:
             raise TrainerStoreError("candidate checkpoint lineage metadata disagrees with record")
         manifest = payload.get("parameter_manifest")
         if not isinstance(manifest, dict) or manifest.get("manifest_id") != record.parameter_manifest_id:
             raise TrainerStoreError("candidate checkpoint embedded manifest disagrees with record")
+        policy = payload.get("learning_policy")
+        if not isinstance(policy, dict) or policy.get("policy_id") != record.learning_policy_id:
+            raise TrainerStoreError("candidate checkpoint embedded learning policy disagrees with record")
+        if bool(payload.get("optimizer_state_dict") is not None) != bool(record.optimizer_included):
+            raise TrainerStoreError("candidate checkpoint optimizer-state flag mismatch")
+        if bool(payload.get("gradient_state_dict") is not None) != bool(record.gradient_state_included):
+            raise TrainerStoreError("candidate checkpoint gradient-state flag mismatch")
+        if bool(payload.get("scaler_state_dict") is not None) != bool(record.scaler_included):
+            raise TrainerStoreError("candidate checkpoint scaler-state flag mismatch")
         return payload
 
     def save_generation_snapshot(

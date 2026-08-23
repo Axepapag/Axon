@@ -53,13 +53,14 @@ The active developmental trainer has no detached-record/legacy-anatomy switch. C
 - `runtime/trainer/store.py`
 - `runtime/trainer/lifecycle.py`
 - `runtime/trainer/execution.py`
+- `runtime/trainer/learning.py`
 - `runtime/trainer/gates.py`
 - `runtime/trainer/lease.py`
 - `runtime/trainer/inspection.py`
 - `runtime/trainer/host.py`
 - `scripts/inspect_trainer.py`
 
-This is now a governed candidate-learning and activation boundary, not merely bookkeeping. One OS-backed Trainer writer owns parameter-state mutation; live registered organs are never optimized in place; authorized learning occurs on isolated candidate clones with exact parameter+buffer lineage, per-step telemetry, finite/scope checks, hash-bound checkpoint/restore, and deterministic evaluation gates. A passed proposal can be activated only by the leased Trainer through stale-inventory checks, exact candidate verification, a durable rollback snapshot, and atomic active-generation pointer publication; rollback and restart hydration are explicit. Unit-scale synthetic candidates prove the mechanism; no real semantic/reasoning training campaign is authorized or running by this milestone.
+This is now a governed candidate-learning and activation boundary, not merely bookkeeping. One OS-backed Trainer writer owns parameter-state mutation; live registered organs are never optimized in place; authorized learning occurs on isolated candidate clones under immutable content-addressed learning policies governing optimizer hyperparameters, weight decay, constant/warmup-cosine scheduling, gradient accumulation, clipping, gradient/update budgets, and FP32/BF16/FP16 precision. Mid-accumulation checkpoints preserve optimizer, pending gradients, AMP scaler state when present, counters, LR and accumulated-loss telemetry for exact resume. A passed proposal can be activated only by the leased Trainer through stale-inventory checks, exact candidate verification, a durable rollback snapshot, and atomic active-generation pointer publication; rollback and restart hydration are explicit. Unit-scale synthetic candidates prove the mechanism; no real semantic/reasoning training campaign is authorized or running by this milestone.
 
 ### Dormant-memory construction utilities
 
