@@ -1,21 +1,21 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-22T13:51:16-05:00
-Current through event: `evt-20260822T185116429009Z-chatgpt-heart-host-completion`
+Updated: 2026-08-22T19:19:11-05:00
+Current through event: `evt-20260823T001911871370Z-chatgpt-build-c2-acceptance`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
 ## Current mission state
 
-Axon now has a **real permanent Heart runtime** on top of the independently accepted A/A.1/B/B.1 circulation anatomy. The Heart Host + Sovereign Valve Plane increment is complete: OS-enforced single-writer ownership, restart-safe cardiac identity, durable/recoverable ingress, poison quarantine/rejection evidence, a twenty-slot closed-by-default valve plane, Heart-derived authority, rich commit provenance, explicit derived-view identity, health observability, and the production entry point `scripts/run_axon_heart.py` are implemented and verified.
+Axon now has a **real permanent Heart runtime plus accepted Build C.1/C.2 dormant-memory senses** on top of the independently accepted A/A.1/B/B.1 circulation anatomy. The Heart Host + Sovereign Valve Plane remains the sole canonical mutation boundary. C.1 added measured recovered-relation relevance/retention and exact evidence refs; C.2 now gives the disposable dormant evidence index real transactional append/layout-preserving update maintenance with verified generation publication and crash recovery.
 
-Full active verification is **248/248 tests passed**. Source-of-Truth mirrors are byte-identical at SHA256 `F1752718BFC366F92E8BAA95ECBC0189A1BF6B8A6207CD17CFAC1DE5A7AC0DE3`. A real cross-process collision proved the OS lease denies a second Heart writer. The live canonical proof on `D:\Axon\State` used Jeff's real request `can you continue the build?`: durable user ingress -> Heart commit -> real P0 dormant retrieval -> 4,241 chars of grounded `structured_knowledge` -> exact D64 freeze, with branch HEAD / host field / D64 source-field parity and zero pending ingress. Restart then advanced durable host/heartbeat identity while leaving canonical field/tick unchanged on an idle beat.
+Full active verification is **277/277 tests passed** on the C.2 tree. The real 427,001-container / 351,978-edge corpus incremental dry-run is an exact no-op and completed in 19.652s without modifying the 4.4 GB derived index. An isolated 10,000-container / 9,999-edge proof appended 250 containers + 250 edges in 2.013s; exact dereference/relation retrieval passed and the maintained index converged on the same final index identity as a clean full rebuild. C.1 semantic quality remains measured at pool recall 0.687500, raw Hit@8 0.203125 / MRR 0.053032, audited Hit@8 0.625000 / MRR 0.529557.
 
-The H1-H14 runtime-liveness gate is therefore closed. **Build C is the next allowed engineering phase**: mature dormant relevance/retention and derived semantic senses, then incremental/generational index maintenance and Semantic Cortex service/evaluation integration. Heart-only canonical commit, exact dormant JSONL authority, D64-first grounding, and CLOSED future-organ valves remain binding. No substantive neural/Cortex training is authorized merely by this runtime milestone.
+Build C.2's incremental scope is intentionally bounded: append-only growth and equal-byte-length/layout-preserving updates are supported; destructive or layout-shifting mutations fail closed to an isolated verified full-generation rebuild. Exact dormant JSONL remains sole memory authority, maintenance is never per-heartbeat work, and the Heart only reopens the verified derived reader when its generation token changes. The `semantic_cortex` valve remains CLOSED; no Cortex model or training is implied by completing the memory/index substrate.
 ## Binding authority and invariants
 
 - Jeff is final authority; `docs/SOURCE_OF_TRUTH.md` is the architecture master below his explicit rulings.
-- Root `SOURCE_OF_TRUTH.md` is an exact mirror. Current verified SHA256: `F1752718BFC366F92E8BAA95ECBC0189A1BF6B8A6207CD17CFAC1DE5A7AC0DE3` (Permanent Heart Host ratification).
+- Root `SOURCE_OF_TRUTH.md` is an exact mirror. Current verified SHA256: `13259F0ADA421A97260377FD9742EACEB1CDA1E8D23789318383C5F8647930AC` (Build C.2 incremental dormant maintenance ratification).
 - Root/docs Working Contract are exact mirrors. SHA256: `DC946600ADD64C51EC0AE40BB4D7F4F5E708387DD2A9E384DE268701959FAA31`.
 - One living/durable State root: `D:\Axon\State`.
 - One dormant-memory authority: exact recovered files under `State\dormant`.
@@ -39,7 +39,7 @@ Active canonical field/runtime:
 - `runtime/field/compiler_d64.py`
 - `runtime/field/state_branch.py`
 - `runtime/axon_runtime/d64_adapter.py`
-- `runtime/dormant/evidence_bridge.py`
+- `runtime/dormant/evidence_bridge.py`, `runtime/dormant/relevance.py`, `runtime/dormant/generations.py`, `runtime/dormant/incremental.py`, `runtime/dormant/evaluation.py`
 - `runtime/heart/` (accepted control plane + permanent host, sovereign valves, durable ingress/replay, OS lease, cardiac identity, health, explicit view identity)
 
 Active canonical D64 training:
@@ -194,9 +194,9 @@ Kimmy maintains `D:\kimmy` and holds day-to-day senior-engineer steering unless 
 
 1. ~~Heart Host + Sovereign Valve Plane~~ **DONE / accepted 2026-08-22**: permanent single-writer Heart, durable identity/ingress, poison handling, twenty-slot fail-closed valves, rich provenance, view identity, health, production entry point, live P0/D64 proof, restart proof, and cross-process lease proof are green; full suite 248/248.
 2. ~~Build C.1 dormant relevance/generational substrate~~ **DONE / accepted 2026-08-22**: bounded recovered-relation candidate expansion, deterministic relevance/retention auditor, exact canonical evidence refs, verified atomic index generations, held-out forward evaluation, and Cortex service contracts are green; accepted v3 forward benchmark pool recall 0.687500, raw Hit@8 0.203125 / MRR 0.053032, audited Hit@8 0.625000 / MRR 0.529557; full suite 266/266.
-3. **Build C.2 next:** implement true append/update incremental derived-index maintenance on top of the accepted generation/promotion substrate; continue retrieval/evaluation hardening without changing exact dormant JSONL authority.
-4. **Semantic Cortex service design/evaluation may proceed behind the CLOSED valve:** `D:\Axon\Cortext\contracts.py` is permanent contract anatomy, but no production Cortex implementation/training/promotion is authorized until one real specialist earns it on held-out evidence.
-5. **Build D later:** dual-surface 64D semantic slots bound to exact source spans; no wider rail until the 64D path earns it.
+3. ~~Build C.2 incremental derived-index maintenance~~ **DONE / accepted 2026-08-22**: append-only and equal-length/layout-preserving changes update the disposable SQLite sense transactionally, publish/recover verified logical generations, reject stale plans, and fail closed to full isolated rebuild when authoritative byte layout shifts; full suite 277/277.
+4. **Build D next:** add the first real dual-surface D64 representation—lossless exact scaffold plus derived semantic slots bound back to exact source spans/objects. Keep D64 physical width and Heart-owned frozen-view identity; no fake wider rails.
+5. **Semantic Cortex service design/evaluation may proceed behind the CLOSED valve:** `D:\Axon\Cortext\contracts.py` is permanent contract anatomy, but no production Cortex implementation/training/promotion is authorized until one real specialist earns it on held-out evidence.
 6. **Build E later:** real core proposal/refinement/consolidator lifecycle -> one Heart commit -> successor field -> next heartbeat.
 7. **Training follows organism anatomy and evaluation.** Do not substitute conversational or fake cores for missing organs.
 ## Fast orientation

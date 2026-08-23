@@ -5,10 +5,12 @@ which *derived* evidence-index generation readers should use.  Promotion is an
 atomic pointer swap after full index/binding verification.  Failed candidate
 builds or failed promotion leave the previous active generation untouched.
 
-Build C.1 provides generational promotion and legacy-index adoption without
-copying the existing multi-gigabyte index.  True append/update incremental
-indexing is deliberately not claimed here; a new generation can still be built
-by the existing full builder when required.
+Build C.1 provided generational promotion and legacy-index adoption without
+copying the existing multi-gigabyte index. Build C.2 adds transactional
+append/layout-preserving-update maintenance through ``incremental.py``. Logical
+generations may reuse the same disposable SQLite file; exact JSONL remains the
+authority, and unsupported destructive/layout-shifting mutations fail closed to
+the isolated full-generation rebuild path.
 """
 from __future__ import annotations
 
@@ -57,8 +59,8 @@ class DormantIndexGeneration:
             value = getattr(self, name)
             if not isinstance(value, str) or not value:
                 raise ValueError(f"{name} must be a non-empty string")
-        if self.mode not in {"legacy_adopted", "full_generation"}:
-            raise ValueError("mode must be legacy_adopted or full_generation")
+        if self.mode not in {"legacy_adopted", "full_generation", "incremental_update"}:
+            raise ValueError("mode must be legacy_adopted, full_generation, or incremental_update")
         if self.predecessor_generation_id is not None and (
             not isinstance(self.predecessor_generation_id, str) or not self.predecessor_generation_id
         ):
@@ -162,11 +164,17 @@ class DormantEvidenceGenerationStore:
             mode="legacy_adopted",
         )
 
-    def active_descriptor(self) -> DormantIndexGeneration:
-        """Return the active descriptor, falling back to the legacy v1 location."""
+    def pointer_descriptor_unverified(self) -> DormantIndexGeneration | None:
+        """Read and hash-verify the logical pointer without trusting index bytes.
+
+        C.2 needs this narrow recovery primitive because an authoritative corpus
+        change may make the predecessor index stale before a replacement full or
+        incremental generation is published. A malformed/tampered pointer still
+        fails closed; only index-to-pointer identity verification is deferred.
+        """
 
         if not self.pointer_path.is_file():
-            return self._legacy_descriptor()
+            return None
         try:
             raw = json.loads(self.pointer_path.read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -180,6 +188,15 @@ class DormantEvidenceGenerationStore:
             raise DormantGenerationError("active dormant generation pointer is malformed") from exc
         if descriptor.descriptor_id != descriptor_id:
             raise DormantGenerationError("active dormant generation descriptor hash mismatch")
+        self._safe_index_path(descriptor.relative_index_path)
+        return descriptor
+
+    def active_descriptor(self) -> DormantIndexGeneration:
+        """Return the active descriptor, falling back to the legacy v1 location."""
+
+        descriptor = self.pointer_descriptor_unverified()
+        if descriptor is None:
+            return self._legacy_descriptor()
         index_path = self._safe_index_path(descriptor.relative_index_path)
         index_id, binding_id = self._read_index_identity(index_path)
         if index_id != descriptor.index_id or binding_id != descriptor.binding_id:
@@ -252,13 +269,18 @@ class DormantEvidenceGenerationStore:
             if verified.index_id != descriptor.index_id or verified.binding.binding_id != descriptor.binding_id:
                 raise DormantGenerationError("candidate generation does not match its descriptor")
         predecessor = None
-        try:
-            predecessor = self.active_descriptor().generation_id
-        except DormantGenerationError:
-            # Do not hide a corrupt existing pointer.  A missing legacy index is
-            # also not a valid basis for silently replacing authority routing.
-            if self.pointer_path.exists():
-                raise
+        pointer_predecessor = self.pointer_descriptor_unverified()
+        if pointer_predecessor is not None:
+            # The predecessor may already be stale against changed authoritative
+            # JSONL. Its pointer must still be structurally/hash valid, but full
+            # rebuild promotion must not require stale predecessor bytes to match
+            # the old descriptor after the corpus itself has legitimately moved.
+            predecessor = pointer_predecessor.generation_id
+        else:
+            try:
+                predecessor = self._legacy_descriptor().generation_id
+            except DormantGenerationError:
+                predecessor = None
         promoted = DormantIndexGeneration(
             generation_id=descriptor.generation_id,
             index_id=descriptor.index_id,

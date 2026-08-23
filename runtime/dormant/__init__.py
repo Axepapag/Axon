@@ -23,6 +23,17 @@ from .generations import (
     DormantGenerationError,
     DormantIndexGeneration,
 )
+from .incremental import (
+    INCREMENTAL_PLAN_SCHEMA,
+    INCREMENTAL_RESULT_SCHEMA,
+    DormantIncrementalError,
+    DormantIncrementalFallbackRequired,
+    DormantIncrementalMaintainer,
+    DormantIncrementalPlan,
+    DormantIncrementalRecoveryRequired,
+    DormantIncrementalResult,
+    DormantRecordMutation,
+)
 from .relevance import (
     AUDITOR_SCHEMA,
     DormantRelevanceAuditor,
@@ -73,6 +84,15 @@ __all__ = [
     "DormantGenerationError",
     "DormantIndexGeneration",
     "DormantEvidenceGenerationStore",
+    "INCREMENTAL_PLAN_SCHEMA",
+    "INCREMENTAL_RESULT_SCHEMA",
+    "DormantIncrementalError",
+    "DormantIncrementalFallbackRequired",
+    "DormantIncrementalRecoveryRequired",
+    "DormantRecordMutation",
+    "DormantIncrementalPlan",
+    "DormantIncrementalResult",
+    "DormantIncrementalMaintainer",
     "AUDITOR_SCHEMA",
     "DormantRelevancePolicy",
     "DormantRelevanceScore",

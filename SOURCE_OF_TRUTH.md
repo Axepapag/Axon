@@ -374,13 +374,14 @@ integer row references rather than repeating source text or stable IDs per
 posting. It must not copy authoritative container text, semantic-edge text,
 source strings, or provenance strings into index record tables.
 
-Every index build is bound to SHA256 identities for the authoritative dormant
-files plus the recovered source hashes recorded by `corpus_manifest.json`.
+Every active index generation is bound to SHA256 identities for the authoritative
+dormant files plus the recovered source hashes recorded by `corpus_manifest.json`.
 Candidate retrieval returns IDs. Before evidence can enter the shared field,
 the bridge seeks back into the authoritative JSONL, rereads the exact bytes,
 and verifies raw-record hash, record identity, exact text hash, source hash,
-and provenance hash. A changed corpus makes the derived index stale and it
-fails closed until rebuilt.
+and provenance hash. A changed corpus makes the previously bound derived index
+stale until verified maintenance publishes a generation bound to the new exact
+corpus; readers never silently treat stale lookup metadata as current memory.
 
 Selected exact container text is surfaced as provenance-bearing `FieldSpan`
 material in canonical `structured_knowledge`; source container IDs and verified
@@ -410,15 +411,39 @@ authority. Heart materialization preserves the selected container and semantic-
 edge references on the canonical `structured_knowledge` span itself as well as
 in the Heart commit receipt, together with dormant index generation identity.
 
-The derived evidence index now has verified generations and atomic active-
-generation promotion in `runtime/dormant/generations.py`. The existing
+The derived evidence index has verified generations and atomic active-generation
+promotion in `runtime/dormant/generations.py`. The existing
 `evidence_v1/index.sqlite3` may be adopted zero-copy as a generation after full
-binding verification. Candidate generations are opened and verified before an
-atomic pointer swap; a failed candidate cannot evict a healthy reader. This is
-generational maintenance, not true append/update incremental indexing. Full
-rebuild remains the current way to construct a new complete generation, and
-must never become a per-heartbeat cost. True append/update incremental build is
-a later Build C increment and may not be claimed until implemented and proven.
+binding verification. Candidate full generations are opened and verified before
+an atomic pointer swap; a failed candidate cannot evict a healthy reader.
+
+Build C.2 adds real transactional append/update maintenance in
+`runtime/dormant/incremental.py`. Ordinary append-only growth and equal-byte-
+length/layout-preserving updates are detected by sequential exact-byte scan,
+reindexed inside one SQLite transaction, rebound to the complete current corpus,
+then exact-opened and binding-verified before a new logical generation pointer is
+published. The logical generation may reuse the same derived SQLite file; this
+is not a second memory body and does not copy 4.4 GB merely to record a small
+memory change. Updated postings and graph links are limited to affected rows and
+existing lookup indexes rather than scanning/rebuilding the entire derived graph.
+
+Incremental maintenance is deliberately narrower than arbitrary file mutation.
+Truncation, deletion, insertion into the indexed prefix, stable container-ID
+replacement, or any variable-length edit that shifts authoritative record offsets
+fails closed to the isolated full-generation rebuild path. A prepared generation
+manifest is fsynced before the SQLite transaction, so a crash after derived-index
+commit but before active-pointer publication can be recovered only from durable
+generation evidence that matches the current verified index and exact corpus.
+Stale maintenance plans cannot replay after generation identity advances.
+
+Index maintenance is not heartbeat work and has no canonical-state write
+authority. The Heart only notices the verified active-generation token change and
+reopens its disposable reader. On the accepted real 427,001-container / 351,978-
+edge corpus, a C.2 dry-run verified an exact no-op in about 22 seconds without
+modifying the 4.4 GB index. An isolated 10,000-container / 9,999-edge benchmark
+then appended 250 containers and 250 edges in-place in about 2.01 seconds and
+converged on the same final corpus/index identity as a clean full rebuild. These
+figures are machine-specific operational evidence, not latency guarantees.
 
 Build C.1 also establishes deterministic held-out evaluation in
 `runtime/dormant/evaluation.py` and `scripts/evaluate_dormant_relevance.py`.
@@ -449,10 +474,10 @@ The active implementation surface is intentionally narrow:
 - `runtime/field/compiler_d64.py` ? exact deterministic D64 compiler,
 - `runtime/field/state_branch.py` ? canonical branch persistence,
 - `runtime/axon_runtime/d64_adapter.py` ? runtime-facing D64 adapter,
-- `runtime/dormant/evidence_bridge.py`, `runtime/dormant/relevance.py`, `runtime/dormant/generations.py`, and `runtime/dormant/evaluation.py` ? read-only manifest/hash-bound dormant retrieval, exact dereference, bounded graph/relation relevance, verified derived-index generations, and held-out evaluation,
+- `runtime/dormant/evidence_bridge.py`, `runtime/dormant/relevance.py`, `runtime/dormant/generations.py`, `runtime/dormant/incremental.py`, and `runtime/dormant/evaluation.py` ? read-only manifest/hash-bound dormant retrieval, exact dereference, bounded graph/relation relevance, verified derived-index generations, transactional append/layout-preserving update maintenance, and held-out evaluation,
 - `Cortext/contracts.py` ? grounded Semantic Cortex service contract only; no active specialist/training authority and the `semantic_cortex` valve remains CLOSED,
 - `runtime/heart/` ? heart anatomy: authority/core control plane, canonical transaction boundary, beat coordinator, sovereign 20-slot valve plane, OS single-writer lease, restart-safe cardiac identity, durable ingress/replay/quarantine spool, health observability, explicit derived-view identity, relevance-gated dormant recall, and the permanent Heart host;
-- `scripts/run_axon_heart.py` and `scripts/evaluate_dormant_relevance.py` ? permanent Heart runtime entry point and deterministic dormant semantic/relevance evaluation entry point;
+- `scripts/run_axon_heart.py`, `scripts/evaluate_dormant_relevance.py`, and `scripts/maintain_dormant_index.py` ? permanent Heart runtime, deterministic dormant semantic/relevance evaluation, and explicit derived-index maintenance/recovery entry points;
 - `training/canonical_d64.py`, `training/complete_field_64d.py`, and `training/train_complete_field_64d.py` ? canonical D64 training path,
 - `curator/` recovered-corpus schema/materialization/building utilities ? offline exact dormant-memory tooling,
 
