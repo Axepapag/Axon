@@ -50,6 +50,61 @@ def parameter_value_sha256(parameter: torch.Tensor, *, chunk_numel: int = 1_000_
     return digest.hexdigest()
 
 
+def capture_module_manifest(
+    descriptor: ParameterModuleDescriptor,
+    module: nn.Module,
+    *,
+    exact_value_hashes: bool = True,
+) -> ParameterModuleManifest:
+    """Capture one exact module manifest outside the live registry.
+
+    Candidate branches use this helper to prove their complete parameter state
+    without registering the candidate as a live organism module.
+    """
+
+    if not isinstance(descriptor, ParameterModuleDescriptor):
+        raise TypeError("descriptor must be ParameterModuleDescriptor")
+    if not isinstance(module, nn.Module):
+        raise TypeError("module must be torch.nn.Module")
+    records: list[ParameterTensorRecord] = []
+    seen: set[str] = set()
+    for name, parameter in module.named_parameters(recurse=True):
+        if name in seen:
+            raise ParameterRegistryError(f"duplicate named parameter {descriptor.module_id}:{name}")
+        seen.add(name)
+        digest = parameter_value_sha256(parameter) if exact_value_hashes else None
+        records.append(
+            ParameterTensorRecord(
+                name=name,
+                shape=tuple(parameter.shape),
+                dtype=str(parameter.dtype),
+                numel=int(parameter.numel()),
+                requires_grad=bool(parameter.requires_grad),
+                value_sha256=digest,
+            )
+        )
+    buffers: list[ParameterTensorRecord] = []
+    buffer_seen: set[str] = set()
+    for name, buffer in module.named_buffers(recurse=True):
+        if name in buffer_seen:
+            raise ParameterRegistryError(f"duplicate named buffer {descriptor.module_id}:{name}")
+        if name in seen:
+            raise ParameterRegistryError(f"parameter/buffer name collision {descriptor.module_id}:{name}")
+        buffer_seen.add(name)
+        digest = parameter_value_sha256(buffer) if exact_value_hashes else None
+        buffers.append(
+            ParameterTensorRecord(
+                name=name,
+                shape=tuple(buffer.shape),
+                dtype=str(buffer.dtype),
+                numel=int(buffer.numel()),
+                requires_grad=False,
+                value_sha256=digest,
+            )
+        )
+    return ParameterModuleManifest(descriptor=descriptor, tensors=tuple(records), buffers=tuple(buffers))
+
+
 class ParameterRegistry:
     """Registry of every live parameter-bearing module known to the Trainer.
 
@@ -145,27 +200,11 @@ class ParameterRegistry:
         manifests: list[ParameterModuleManifest] = []
         for module_id in sorted(self._registered):
             registration = self._registered[module_id]
-            records: list[ParameterTensorRecord] = []
-            seen: set[str] = set()
-            for name, parameter in registration.module.named_parameters(recurse=True):
-                if name in seen:
-                    raise ParameterRegistryError(f"duplicate named parameter {module_id}:{name}")
-                seen.add(name)
-                digest = parameter_value_sha256(parameter) if exact_value_hashes else None
-                records.append(
-                    ParameterTensorRecord(
-                        name=name,
-                        shape=tuple(parameter.shape),
-                        dtype=str(parameter.dtype),
-                        numel=int(parameter.numel()),
-                        requires_grad=bool(parameter.requires_grad),
-                        value_sha256=digest,
-                    )
-                )
             manifests.append(
-                ParameterModuleManifest(
-                    descriptor=registration.descriptor,
-                    tensors=tuple(records),
+                capture_module_manifest(
+                    registration.descriptor,
+                    registration.module,
+                    exact_value_hashes=exact_value_hashes,
                 )
             )
 
@@ -181,5 +220,6 @@ __all__ = [
     "ParameterRegistryError",
     "IncompleteParameterInventoryError",
     "parameter_value_sha256",
+    "capture_module_manifest",
     "ParameterRegistry",
 ]

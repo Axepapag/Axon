@@ -50,9 +50,15 @@ The active developmental trainer has no detached-record/legacy-anatomy switch. C
 - `runtime/trainer/authority.py`
 - `runtime/trainer/telemetry.py`
 - `runtime/trainer/store.py`
+- `runtime/trainer/lifecycle.py`
+- `runtime/trainer/execution.py`
+- `runtime/trainer/gates.py`
+- `runtime/trainer/lease.py`
+- `runtime/trainer/inspection.py`
 - `runtime/trainer/host.py`
+- `scripts/inspect_trainer.py`
 
-This is parameter-governance anatomy, not an active optimizer loop. It inventories heterogeneous parameter-bearing organs, records exact lineage fingerprints and per-parameter telemetry, and fail-closes parameter mutation authority before future offline/online learning is allowed to operate.
+This is now a governed candidate-learning boundary, not merely bookkeeping. One OS-backed Trainer writer owns parameter-state mutation; live registered organs are never optimized in place; authorized learning occurs on isolated candidate clones with exact parameter+buffer lineage, per-step telemetry, finite/scope checks, hash-bound checkpoint/restore, and deterministic evaluation gates. Promotion proposals still cannot activate a candidate. Unit-scale synthetic candidates prove the mechanism; no real semantic/reasoning training campaign is authorized or running by this milestone.
 
 ### Dormant-memory construction utilities
 

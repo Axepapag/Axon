@@ -145,8 +145,11 @@ class ParameterTensorRecord:
 class ParameterModuleManifest:
     descriptor: ParameterModuleDescriptor
     tensors: tuple[ParameterTensorRecord, ...]
+    buffers: tuple[ParameterTensorRecord, ...] = ()
     parameter_count: int = field(init=False)
     trainable_parameter_count: int = field(init=False)
+    buffer_count: int = field(init=False)
+    buffer_numel: int = field(init=False)
     manifest_id: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -159,10 +162,23 @@ class ParameterModuleManifest:
         if len(names) != len(set(names)):
             raise ValueError("duplicate parameter tensor name")
         object.__setattr__(self, "tensors", tensors)
+        buffers = tuple(sorted(tuple(self.buffers), key=lambda item: item.name))
+        if not all(isinstance(item, ParameterTensorRecord) for item in buffers):
+            raise TypeError("buffers must contain only ParameterTensorRecord values")
+        buffer_names = [item.name for item in buffers]
+        if len(buffer_names) != len(set(buffer_names)):
+            raise ValueError("duplicate persistent buffer name")
+        if set(names) & set(buffer_names):
+            raise ValueError("parameter and buffer names must be disjoint")
+        if any(item.requires_grad for item in buffers):
+            raise ValueError("persistent buffers cannot be marked trainable parameters")
+        object.__setattr__(self, "buffers", buffers)
         total = sum(item.numel for item in tensors)
         trainable = sum(item.numel for item in tensors if item.requires_grad)
         object.__setattr__(self, "parameter_count", total)
         object.__setattr__(self, "trainable_parameter_count", trainable)
+        object.__setattr__(self, "buffer_count", len(buffers))
+        object.__setattr__(self, "buffer_numel", sum(item.numel for item in buffers))
         object.__setattr__(self, "manifest_id", canonical_sha256(self.to_canonical_dict(include_id=False)))
 
     def to_canonical_dict(self, *, include_id: bool = True) -> dict[str, Any]:
@@ -171,7 +187,10 @@ class ParameterModuleManifest:
             "descriptor": self.descriptor.to_canonical_dict(),
             "parameter_count": self.parameter_count,
             "trainable_parameter_count": self.trainable_parameter_count,
+            "buffer_count": self.buffer_count,
+            "buffer_numel": self.buffer_numel,
             "tensors": [item.to_canonical_dict() for item in self.tensors],
+            "buffers": [item.to_canonical_dict() for item in self.buffers],
         }
         if include_id:
             value["manifest_id"] = self.manifest_id
@@ -213,6 +232,14 @@ class ParameterInventory:
     def trainable_parameter_count(self) -> int:
         return sum(item.trainable_parameter_count for item in self.manifests)
 
+    @property
+    def buffer_numel(self) -> int:
+        return sum(item.buffer_numel for item in self.manifests)
+
+    @property
+    def state_numel(self) -> int:
+        return self.parameter_count + self.buffer_numel
+
     def module(self, module_id: str) -> ParameterModuleManifest:
         module_id = _nonempty(module_id, "module_id")
         for manifest in self.manifests:
@@ -228,6 +255,8 @@ class ParameterInventory:
             "complete": self.complete,
             "parameter_count": self.parameter_count,
             "trainable_parameter_count": self.trainable_parameter_count,
+            "buffer_numel": self.buffer_numel,
+            "state_numel": self.state_numel,
             "manifests": [item.to_canonical_dict() for item in self.manifests],
         }
         if include_id:

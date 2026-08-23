@@ -40,7 +40,13 @@ Trainer organ control plane:
 - `runtime/trainer/authority.py`
 - `runtime/trainer/telemetry.py`
 - `runtime/trainer/store.py`
+- `runtime/trainer/lifecycle.py`
+- `runtime/trainer/execution.py`
+- `runtime/trainer/gates.py`
+- `runtime/trainer/lease.py`
+- `runtime/trainer/inspection.py`
 - `runtime/trainer/host.py`
+- `scripts/inspect_trainer.py`
 
 Current developmental D64 training tissue:
 
@@ -48,7 +54,7 @@ Current developmental D64 training tissue:
 - `training/complete_field_64d.py`
 - `training/train_complete_field_64d.py`
 
-The Trainer control plane is parameter-governance/observability anatomy only; it does not start an optimizer or authorize a live model promotion by itself. The present 64D model path is a proving width, not a final limit on Axon's heterogeneous semantic/reasoning/trainer ensembles.
+The Trainer now owns a governed **isolated candidate** optimizer boundary as well as parameter governance/observability. It never optimizes the registered live organ in place: mutations are grant-scoped, model-state lineage includes persistent buffers, checkpoints are hash-verified/restorable, and deterministic evaluation gates precede any non-activating promotion proposal. Use `python scripts/inspect_trainer.py` for read-only current Trainer status. No real core-training campaign is launched by this anatomy. The present 64D model path is a proving width, not a final limit on Axon's heterogeneous semantic/reasoning/trainer ensembles.
 
 Recovered dormant-memory construction/audit utilities:
 
@@ -94,4 +100,4 @@ python -m pytest -q -p no:cacheprovider
 
 ## Next build target
 
-Complete the Trainer organ's permanent control plane before new core training: parameter-generation lifecycle, optimizer ownership, telemetry/monitoring surfaces, study/curriculum ingestion, rollback/promotion protocol, and eventual Trainer-core advisory ensemble. Keep Semantic Cortex parked behind its CLOSED valve while preserving its independent cortical cadence doctrine and future Dormant-State sense ownership.
+Continue the Trainer organ before new core training: add governed **activation/rollback of promoted generations**, richer optimizer/scheduler/AMP/accumulation policy, explicit LoRA/adapter construction and ancestry, study/curriculum ingestion, and eventually the Trainer-core advisory ensemble. The candidate-generation executor, writer lease, telemetry/checkpoint lineage, deterministic promotion gates, and read-only inspector now exist. Keep Semantic Cortex parked behind its CLOSED valve while preserving its independent cortical cadence doctrine and future Dormant-State sense ownership.

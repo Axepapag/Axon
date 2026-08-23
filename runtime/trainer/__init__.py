@@ -1,7 +1,9 @@
-"""Axon Trainer organ control-plane contracts.
+"""Axon Trainer organ parameter authority and candidate-learning contracts.
 
-No optimizer/training loop is activated here.  This package owns parameter
-inventory, mutation authority, telemetry and lineage boundaries only.
+Live registered organs remain sealed from direct optimization.  Governed
+learning occurs only on isolated candidate generations with exact lineage,
+telemetry, checkpoints, deterministic evaluation gates, and non-activating
+promotion proposals.
 """
 from .authority import (
     AUTHORIZED_MUTATION_SCHEMA,
@@ -29,11 +31,36 @@ from .contracts import (
     ParameterTensorRecord,
     TrainerCoreRole,
 )
+from .execution import CandidateOptimizationSession, OptimizerExecutionPolicy, TrainerExecutionError
+from .gates import (
+    EVALUATION_OBSERVATION_SCHEMA,
+    EVALUATION_REQUIREMENT_SCHEMA,
+    PROMOTION_GATE_DECISION_SCHEMA,
+    PROMOTION_GATE_SCHEMA,
+    EvaluationObservation,
+    EvaluationRequirement,
+    MetricComparison,
+    PromotionGate,
+    PromotionGateDecision,
+    evaluate_promotion_gate,
+)
 from .host import TrainerControlPlane
+from .inspection import TRAINER_INSPECTION_SCHEMA, TrainerInspectionSnapshot, inspect_trainer_state
+from .lease import TrainerLeaseDeniedError, TrainerWriterLease
+from .lifecycle import (
+    CANDIDATE_CHECKPOINT_SCHEMA,
+    CANDIDATE_LIFECYCLE_SCHEMA,
+    OPTIMIZATION_STEP_SCHEMA,
+    CandidateCheckpointRecord,
+    CandidateLifecycleEvent,
+    CandidateStatus,
+    OptimizationStepReceipt,
+)
 from .registry import (
     IncompleteParameterInventoryError,
     ParameterRegistry,
     ParameterRegistryError,
+    capture_module_manifest,
     parameter_value_sha256,
 )
 from .store import TrainerStateStore, TrainerStoreError
@@ -57,6 +84,14 @@ __all__ = [
     "AUTHORIZED_MUTATION_SCHEMA",
     "PARAMETER_STAT_SCHEMA",
     "PARAMETER_TELEMETRY_SCHEMA",
+    "CANDIDATE_LIFECYCLE_SCHEMA",
+    "CANDIDATE_CHECKPOINT_SCHEMA",
+    "OPTIMIZATION_STEP_SCHEMA",
+    "EVALUATION_OBSERVATION_SCHEMA",
+    "EVALUATION_REQUIREMENT_SCHEMA",
+    "PROMOTION_GATE_SCHEMA",
+    "PROMOTION_GATE_DECISION_SCHEMA",
+    "TRAINER_INSPECTION_SCHEMA",
     "OrganKind",
     "ParameterMutationPolicy",
     "TrainerCoreRole",
@@ -72,11 +107,29 @@ __all__ = [
     "authorize_parameter_mutation",
     "ParameterRegistryError",
     "IncompleteParameterInventoryError",
+    "capture_module_manifest",
     "parameter_value_sha256",
     "ParameterRegistry",
     "ParameterStat",
     "ParameterTelemetryFrame",
     "capture_parameter_telemetry",
+    "CandidateStatus",
+    "CandidateLifecycleEvent",
+    "CandidateCheckpointRecord",
+    "OptimizationStepReceipt",
+    "MetricComparison",
+    "EvaluationObservation",
+    "EvaluationRequirement",
+    "PromotionGate",
+    "PromotionGateDecision",
+    "evaluate_promotion_gate",
+    "TrainerExecutionError",
+    "OptimizerExecutionPolicy",
+    "CandidateOptimizationSession",
+    "TrainerLeaseDeniedError",
+    "TrainerWriterLease",
+    "TrainerInspectionSnapshot",
+    "inspect_trainer_state",
     "TrainerStoreError",
     "TrainerStateStore",
     "TrainerControlPlane",

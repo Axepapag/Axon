@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-23T15:38:55-05:00
-Current through event: `evt-20260823T203855138785Z-chatgpt-trainer-control-plane`
+Updated: 2026-08-23T17:24:35-05:00
+Current through event: `evt-20260823T222435856056Z-chatgpt-trainer-candidate-lifecycle`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -13,18 +13,18 @@ Current Cortex doctrine is now explicit: the old `structured_knowledge` role is 
 
 The prior turn performed a bounded compatibility experiment with the archived 461,500-step Bible/384-slot checkpoint family and a five-step modern donor smoke; the experiment never earned promotion. Jeff has now explicitly reversed that initialization direction: those checkpoints remain historical evidence only and future reasoning/semantic cores start fresh from current anatomy. Active donor-import code/tests were removed from the live tree. The experiment artifacts remain preserved as non-authoritative evidence; no training ran in this turn.
 
-Trainer is now the next organism focus. `runtime/trainer/` implements the first permanent non-training control plane: heterogeneous parameter registration, exact per-tensor lineage fingerprints, complete-inventory fail-closed checks, per-parameter value/gradient telemetry, explicit mutation grants/plans, immutable State-store records, and non-activating promotion proposals. Future Trainer Transformer cores are advisory only; deterministic Trainer authority remains the parameter writer. The control plane is deliberately width-agnostic: tests register 64D reasoning, 256D semantic, and 128D Trainer cores together. Full active verification is **297/297 tests passed**; no optimizer loop, training run, parameter mutation, or model promotion occurred in this turn.
+Trainer remains the primary organism focus and now has its first governed candidate-learning lifecycle. `runtime/trainer/` enforces an OS-backed single parameter writer, complete heterogeneous parameter + persistent-buffer inventory, exact grant/plan lineage, isolated candidate cloning, grant-scoped AdamW/SGD execution, finite loss/gradient checks, per-step parameter telemetry, exact unauthorized/live-state hash checks, immutable lifecycle receipts, SHA256-bound checkpoint/restore, deterministic capability/counterfactual/regression/forgetting gates, and read-only inspection. The registered live organ is never handed to an optimizer, and a passed gate may only create a non-activating promotion proposal. Full active verification is **309/309 tests passed**. Real `D:\Axon\State` Trainer inspection remains empty (no writer lease, inventory, plan, candidate, optimizer step, checkpoint, evaluation, gate or promotion), so no semantic/reasoning training campaign was started.
 ## Binding authority and invariants
 
 - Jeff is final authority; `docs/SOURCE_OF_TRUTH.md` is the architecture master below his explicit rulings.
-- Root `SOURCE_OF_TRUTH.md` is an exact mirror. Current verified SHA256: `29C8CBB9A86DE8D1A2BBC35377A85F6FE1A2483FE9ED26248A81296D7A172AF0` (Shared Field v2 Cortex role/cadence + Trainer parameter-authority doctrine).
+- Root `SOURCE_OF_TRUTH.md` is an exact mirror. Current verified SHA256: `FBE4B8CF79F5D798667AD378EF307D393E9D956497604043A68715D2CF1148EE` (Trainer candidate-generation lifecycle + parameter/buffer authority doctrine).
 - Root/docs Working Contract are exact mirrors. SHA256: `DC946600ADD64C51EC0AE40BB4D7F4F5E708387DD2A9E384DE268701959FAA31`.
 - One living/durable State root: `D:\Axon\State`.
 - One dormant-memory authority: exact recovered files under `State\dormant`.
 - The derived SQLite evidence index is a disposable lookup sense, not a second memory body.
 - Exact visible text remains grounded in the frozen 16D character substrate.
 - Rail/compiler output at any width is derived/authority-free; cores/consolidator propose, while the Heart-owned typed validation/transaction boundary alone materializes canonical Shared Field commit.
-- The Trainer is the governed parameter-state authority: live parameter-bearing organs must register into a complete inventory; candidate mutation is generation-bound and grant-scoped; Trainer advisory cores never gain direct tensor-write authority.
+- The Trainer is the governed parameter-state authority: one OS-backed writer owns mutation; live parameter-bearing organs register into a complete parameter+buffer inventory; accepted live generations are never optimized in place; candidate mutation is generation-bound/grant-scoped; Trainer advisory cores never gain direct tensor-write authority.
 - 64D is the present proving width, not mature Axon doctrine. Future semantic/reasoning/Trainer ensembles may contain multiple proven `d_model` widths concurrently, all grounded to the same canonical Shared Field and frozen 16D substrate.
 - Archived Day Zero/Bible code and checkpoints are evidence only, never implicit fallback or initialization.
 - A smoke may be small; its anatomy may not be fake.
@@ -53,7 +53,13 @@ Active Trainer parameter-control plane:
 - `runtime/trainer/authority.py`
 - `runtime/trainer/telemetry.py`
 - `runtime/trainer/store.py`
+- `runtime/trainer/lifecycle.py`
+- `runtime/trainer/execution.py`
+- `runtime/trainer/gates.py`
+- `runtime/trainer/lease.py`
+- `runtime/trainer/inspection.py`
 - `runtime/trainer/host.py`
+- `scripts/inspect_trainer.py`
 
 Current developmental canonical D64 training tissue:
 
@@ -209,7 +215,7 @@ Kimmy maintains `D:\kimmy` and holds day-to-day senior-engineer steering unless 
 1. ~~Heart Host + Sovereign Valve Plane~~ **DONE / accepted**: permanent single-writer Heart, durable ingress/replay, OS lease, health, twenty-slot fail-closed valve plane and Heart-only canonical transaction path are established.
 2. ~~Dormant C.1/C.2~~ **DONE / accepted**: exact recovered dormant authority, deterministic relevance/retention, generational derived index and safe incremental maintenance are established; exact JSONL remains the sole memory body.
 3. ~~D.1/D.2 D64 + specialist boundary~~ **DONE / accepted**: exact lossless D64 plus grounded structural-lexical semantic slots and fail-closed specialist projection receipts are established; 64D is the only real rail width today.
-4. **Primary focus: complete the Trainer organ before new core training.** Build the parameter-generation lifecycle around the new `runtime/trainer/` authority: isolated candidates, optimizer/backprop execution boundary, exact checkpoint lineage, rollback, LoRA/adapter lifecycle, held-out/regression/forgetting gates, study/curriculum ingestion, and transparent live monitoring. No new semantic/reasoning training campaign starts until this control plane is ready to govern it.
+4. **Primary focus remains the Trainer organ before new core training.** The isolated candidate lifecycle, optimizer boundary, writer lease, telemetry, checkpoint/restore, deterministic promotion gates and read-only inspection are now established. Next build the separately governed **live-generation activation/rollback** path, richer optimizer/scheduler/weight-decay/AMP/gradient-accumulation policy, explicit LoRA/adapter construction/ancestry, and study/curriculum ingestion. No semantic/reasoning training campaign starts until those controls can govern it.
 5. **Trainer intelligence may become an ensemble, but authority stays deterministic.** Add advisory Trainer-core interfaces for curriculum, optimizer/gradient analysis, evaluation, forgetting audit and promotion criticism without giving those Transformer advisers unrestricted tensor-write authority.
 6. **D.3 Semantic Cortex work is PAUSED, not discarded.** v3/v4/v5 remain valuable evidence that grounded semantic signal exists but query-specific representation is not mature. Keep `semantic_cortex` CLOSED while Trainer work proceeds; when Cortex resumes, implement its independent cortical cadence and move semantic dormant recall behind Cortex rather than treating retrieval as the organ itself.
 7. **Reasoning circulation remains the next cognitive integration after Trainer governance.** Wire real heterogeneous core participants through `CoreRegistry` -> Heart-delivered frozen per-width rails -> `ProposalBoard` -> refinement -> consolidator proposal -> Heart validation/commit. Do not assume the first production ensemble is permanently 64D-only.
@@ -229,6 +235,7 @@ Kimmy maintains `D:\kimmy` and holds day-to-day senior-engineer steering unless 
 - Beat coordinator / ingress queue: `runtime/heart/coordinator.py`, `runtime/heart/ingress_queue.py`
 - Real proof: `scripts/verify_dormant_evidence_real_index.py`
 - Trainer parameter authority: `runtime/trainer/`
+- Read-only Trainer inspector: `scripts/inspect_trainer.py`
 - Developmental D64 trainer tissue: `training/train_complete_field_64d.py`
 - Dormant authority: `State/dormant/`
 - Full tests: `python -m pytest -q -p no:cacheprovider`
