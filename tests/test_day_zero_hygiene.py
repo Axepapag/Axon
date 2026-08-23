@@ -76,6 +76,7 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "contracts.py",
         "registry.py",
         "authority.py",
+        "activation.py",
         "telemetry.py",
         "store.py",
         "lifecycle.py",

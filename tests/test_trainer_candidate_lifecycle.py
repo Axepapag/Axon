@@ -48,7 +48,7 @@ def _setup(tmp_path: Path, *, max_steps: int = 3):
         architecture="tiny-test-core",
         d_model=4,
     )
-    control = TrainerControlPlane(registry=ParameterRegistry(), store=TrainerStateStore(tmp_path / "trainer"))
+    control = TrainerControlPlane.active(state_root=tmp_path)
     control.declare_expected((descriptor,))
     control.register(descriptor, module)
     inventory = control.snapshot_inventory(exact_value_hashes=True)
@@ -91,9 +91,9 @@ def test_candidate_optimizer_changes_only_authorized_clone_and_never_live_module
     assert parameter_value_sha256(session.candidate_module.adapter.weight) != live_before["adapter.weight"]
     assert live.adapter.weight.data_ptr() != session.candidate_module.adapter.weight.data_ptr()
 
-    lifecycle = (tmp_path / "trainer" / "candidate_lifecycle.jsonl").read_text(encoding="utf-8").splitlines()
-    steps = (tmp_path / "trainer" / "optimization_steps.jsonl").read_text(encoding="utf-8").splitlines()
-    telemetry = (tmp_path / "trainer" / "telemetry.jsonl").read_text(encoding="utf-8").splitlines()
+    lifecycle = (tmp_path / "training" / "trainer" / "candidate_lifecycle.jsonl").read_text(encoding="utf-8").splitlines()
+    steps = (tmp_path / "training" / "trainer" / "optimization_steps.jsonl").read_text(encoding="utf-8").splitlines()
+    telemetry = (tmp_path / "training" / "trainer" / "telemetry.jsonl").read_text(encoding="utf-8").splitlines()
     assert len(lifecycle) == 2
     assert len(steps) == 1
     assert len(telemetry) == 1
@@ -116,7 +116,7 @@ def test_candidate_checkpoint_is_hash_verified_and_restorable(tmp_path: Path) ->
     assert all(parameter.grad is None or torch.isfinite(parameter.grad).all() for parameter in session.candidate_module.parameters())
     assert all(torch.isfinite(parameter).all() for parameter in live.parameters())
 
-    artifact = tmp_path / "trainer" / record.artifact_relpath
+    artifact = tmp_path / "training" / "trainer" / record.artifact_relpath
     data = bytearray(artifact.read_bytes())
     data[-1] ^= 0x01
     artifact.write_bytes(data)
@@ -281,7 +281,7 @@ def test_persistent_buffers_are_in_inventory_and_ungranted_mutation_fails_closed
         architecture="buffer-mutating-test",
         d_model=4,
     )
-    control = TrainerControlPlane(registry=ParameterRegistry(), store=TrainerStateStore(tmp_path / "trainer"))
+    control = TrainerControlPlane.active(state_root=tmp_path)
     control.declare_expected((descriptor,))
     control.register(descriptor, live)
     inventory = control.snapshot_inventory(exact_value_hashes=True)
@@ -329,7 +329,7 @@ def test_read_only_trainer_inspection_exposes_current_candidate_state(tmp_path: 
         architecture="inspect-test",
         d_model=4,
     )
-    control = TrainerControlPlane(registry=ParameterRegistry(), store=TrainerStateStore.active(state_root=tmp_path))
+    control = TrainerControlPlane.active(state_root=tmp_path)
     control.declare_expected((descriptor,))
     control.register(descriptor, module)
     inventory = control.snapshot_inventory(exact_value_hashes=True)
@@ -358,7 +358,7 @@ def test_read_only_trainer_inspection_exposes_current_candidate_state(tmp_path: 
 
     snapshot = inspect_trainer_state(state_root=tmp_path)
     payload = snapshot.to_canonical_dict()
-    assert payload["writer_lease_present"] is False
+    assert payload["writer_lease_present"] is True
     assert payload["latest_lifecycle"]["candidate_generation_id"] == plan.candidate_generation_id
     assert payload["latest_step"]["step"] == 1
     assert payload["latest_telemetry"]["generation_id"] == plan.candidate_generation_id

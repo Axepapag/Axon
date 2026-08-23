@@ -48,6 +48,7 @@ The active developmental trainer has no detached-record/legacy-anatomy switch. C
 - `runtime/trainer/contracts.py`
 - `runtime/trainer/registry.py`
 - `runtime/trainer/authority.py`
+- `runtime/trainer/activation.py`
 - `runtime/trainer/telemetry.py`
 - `runtime/trainer/store.py`
 - `runtime/trainer/lifecycle.py`
@@ -58,7 +59,7 @@ The active developmental trainer has no detached-record/legacy-anatomy switch. C
 - `runtime/trainer/host.py`
 - `scripts/inspect_trainer.py`
 
-This is now a governed candidate-learning boundary, not merely bookkeeping. One OS-backed Trainer writer owns parameter-state mutation; live registered organs are never optimized in place; authorized learning occurs on isolated candidate clones with exact parameter+buffer lineage, per-step telemetry, finite/scope checks, hash-bound checkpoint/restore, and deterministic evaluation gates. Promotion proposals still cannot activate a candidate. Unit-scale synthetic candidates prove the mechanism; no real semantic/reasoning training campaign is authorized or running by this milestone.
+This is now a governed candidate-learning and activation boundary, not merely bookkeeping. One OS-backed Trainer writer owns parameter-state mutation; live registered organs are never optimized in place; authorized learning occurs on isolated candidate clones with exact parameter+buffer lineage, per-step telemetry, finite/scope checks, hash-bound checkpoint/restore, and deterministic evaluation gates. A passed proposal can be activated only by the leased Trainer through stale-inventory checks, exact candidate verification, a durable rollback snapshot, and atomic active-generation pointer publication; rollback and restart hydration are explicit. Unit-scale synthetic candidates prove the mechanism; no real semantic/reasoning training campaign is authorized or running by this milestone.
 
 ### Dormant-memory construction utilities
 

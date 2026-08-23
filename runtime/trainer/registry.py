@@ -105,6 +105,21 @@ def capture_module_manifest(
     return ParameterModuleManifest(descriptor=descriptor, tensors=tuple(records), buffers=tuple(buffers))
 
 
+def descriptors_share_anatomy(left: ParameterModuleDescriptor, right: ParameterModuleDescriptor) -> bool:
+    """Return True when descriptors differ, at most, by generation identity."""
+
+    if not isinstance(left, ParameterModuleDescriptor) or not isinstance(right, ParameterModuleDescriptor):
+        raise TypeError("descriptor comparison requires ParameterModuleDescriptor values")
+    return (
+        left.module_id == right.module_id
+        and left.organ_kind == right.organ_kind
+        and left.architecture == right.architecture
+        and left.d_model == right.d_model
+        and left.trainer_core_role == right.trainer_core_role
+        and left.tags == right.tags
+    )
+
+
 class ParameterRegistry:
     """Registry of every live parameter-bearing module known to the Trainer.
 
@@ -179,6 +194,31 @@ class ParameterRegistry:
         except KeyError as exc:
             raise KeyError(module_id) from exc
 
+    def transition_generation(
+        self,
+        module_id: str,
+        *,
+        expected_generation_id: str,
+        new_descriptor: ParameterModuleDescriptor,
+    ) -> None:
+        """Advance only generation identity for an already registered live organ."""
+
+        if module_id not in self._registered:
+            raise KeyError(module_id)
+        registration = self._registered[module_id]
+        if registration.descriptor.generation_id != expected_generation_id:
+            raise ParameterRegistryError("registered generation changed before Trainer transition")
+        if new_descriptor.module_id != module_id:
+            raise ParameterRegistryError("generation transition module_id mismatch")
+        if not descriptors_share_anatomy(registration.descriptor, new_descriptor):
+            raise ParameterRegistryError("generation transition attempted to change organ anatomy")
+        expected = self._expected.get(module_id)
+        if expected is not None and not descriptors_share_anatomy(expected, new_descriptor):
+            raise ParameterRegistryError("generation transition conflicts with declared organism anatomy")
+        registration.descriptor = new_descriptor
+        if expected is not None:
+            self._expected[module_id] = new_descriptor
+
     def capture_inventory(
         self,
         *,
@@ -221,5 +261,6 @@ __all__ = [
     "IncompleteParameterInventoryError",
     "parameter_value_sha256",
     "capture_module_manifest",
+    "descriptors_share_anatomy",
     "ParameterRegistry",
 ]

@@ -5,6 +5,16 @@ learning occurs only on isolated candidate generations with exact lineage,
 telemetry, checkpoints, deterministic evaluation gates, and non-activating
 promotion proposals.
 """
+from .activation import (
+    ACTIVE_GENERATION_POINTER_SCHEMA,
+    GENERATION_SNAPSHOT_SCHEMA,
+    PARAMETER_ACTIVATION_SCHEMA,
+    PARAMETER_ROLLBACK_SCHEMA,
+    ActiveGenerationPointer,
+    GenerationSnapshotRecord,
+    ParameterActivationReceipt,
+    ParameterRollbackReceipt,
+)
 from .authority import (
     AUTHORIZED_MUTATION_SCHEMA,
     AuthorizedParameterMutation,
@@ -61,6 +71,7 @@ from .registry import (
     ParameterRegistry,
     ParameterRegistryError,
     capture_module_manifest,
+    descriptors_share_anatomy,
     parameter_value_sha256,
 )
 from .store import TrainerStateStore, TrainerStoreError
@@ -74,6 +85,10 @@ from .telemetry import (
 
 __all__ = [
     "TRAINER_PARAMETER_SCHEMA",
+    "ACTIVE_GENERATION_POINTER_SCHEMA",
+    "GENERATION_SNAPSHOT_SCHEMA",
+    "PARAMETER_ACTIVATION_SCHEMA",
+    "PARAMETER_ROLLBACK_SCHEMA",
     "PARAMETER_MODULE_SCHEMA",
     "PARAMETER_TENSOR_SCHEMA",
     "PARAMETER_MANIFEST_SCHEMA",
@@ -102,12 +117,17 @@ __all__ = [
     "ParameterMutationGrant",
     "ParameterMutationPlan",
     "ParameterPromotionProposal",
+    "GenerationSnapshotRecord",
+    "ActiveGenerationPointer",
+    "ParameterActivationReceipt",
+    "ParameterRollbackReceipt",
     "ParameterAuthorityError",
     "AuthorizedParameterMutation",
     "authorize_parameter_mutation",
     "ParameterRegistryError",
     "IncompleteParameterInventoryError",
     "capture_module_manifest",
+    "descriptors_share_anatomy",
     "parameter_value_sha256",
     "ParameterRegistry",
     "ParameterStat",

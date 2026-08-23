@@ -179,7 +179,7 @@ def test_telemetry_covers_every_parameter_and_present_gradient() -> None:
 def test_control_plane_persists_inventory_plan_authorization_and_telemetry(tmp_path: Path) -> None:
     desc = descriptor("trainer-core", kind=OrganKind.TRAINER_CORE, width=4, role=TrainerCoreRole.OPTIMIZER)
     module = TinyCore(4)
-    control = TrainerControlPlane(registry=ParameterRegistry(), store=TrainerStateStore(tmp_path / "trainer"))
+    control = TrainerControlPlane.active(state_root=tmp_path)
     control.declare_expected((desc,))
     control.register(desc, module)
     inventory = control.snapshot_inventory(exact_value_hashes=True)
@@ -206,9 +206,9 @@ def test_control_plane_persists_inventory_plan_authorization_and_telemetry(tmp_p
     authorization = control.authorize(inventory, grant, plan)
     frame = control.record_telemetry("trainer-core", step=0, inventory_id=inventory.inventory_id)
 
-    assert (tmp_path / "trainer" / "inventories" / f"{inventory.inventory_id}.json").exists()
-    assert (tmp_path / "trainer" / "plans" / f"{plan.plan_id}.json").exists()
-    assert (tmp_path / "trainer" / "authorizations" / f"{authorization.authorization_id}.json").exists()
-    latest = json.loads((tmp_path / "trainer" / "latest_telemetry.json").read_text(encoding="utf-8"))
+    assert (tmp_path / "training" / "trainer" / "inventories" / f"{inventory.inventory_id}.json").exists()
+    assert (tmp_path / "training" / "trainer" / "plans" / f"{plan.plan_id}.json").exists()
+    assert (tmp_path / "training" / "trainer" / "authorizations" / f"{authorization.authorization_id}.json").exists()
+    latest = json.loads((tmp_path / "training" / "trainer" / "latest_telemetry.json").read_text(encoding="utf-8"))
     assert latest["frame_id"] == frame.frame_id
-    assert len((tmp_path / "trainer" / "telemetry.jsonl").read_text(encoding="utf-8").splitlines()) == 1
+    assert len((tmp_path / "training" / "trainer" / "telemetry.jsonl").read_text(encoding="utf-8").splitlines()) == 1

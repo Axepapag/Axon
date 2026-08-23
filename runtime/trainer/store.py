@@ -12,6 +12,12 @@ from torch import nn
 
 from runtime.field import canonical_json_bytes
 
+from .activation import (
+    ActiveGenerationPointer,
+    GenerationSnapshotRecord,
+    ParameterActivationReceipt,
+    ParameterRollbackReceipt,
+)
 from .authority import AuthorizedParameterMutation
 from .contracts import ParameterInventory, ParameterModuleDescriptor, ParameterMutationPlan, ParameterPromotionProposal
 from .gates import EvaluationObservation, PromotionGateDecision
@@ -34,6 +40,10 @@ class TrainerStateStore:
         self.authorizations_dir = self.root / "authorizations"
         self.promotions_dir = self.root / "promotion_proposals"
         self.candidates_dir = self.root / "candidates"
+        self.active_generations_dir = self.root / "active_generations"
+        self.generation_snapshots_dir = self.root / "generation_snapshots"
+        self.activation_receipts_dir = self.root / "activation_receipts"
+        self.rollback_receipts_dir = self.root / "rollback_receipts"
         self.lifecycle_path = self.root / "candidate_lifecycle.jsonl"
         self.latest_lifecycle_path = self.root / "latest_candidate_lifecycle.json"
         self.steps_path = self.root / "optimization_steps.jsonl"
@@ -148,6 +158,7 @@ class TrainerStateStore:
             "authorization_id": authorization_id,
             "step": step,
             "parameter_manifest_id": manifest.manifest_id,
+            "parameter_manifest": manifest.to_canonical_dict(),
             "module_state_dict": module.state_dict(),
             "optimizer_state_dict": None if optimizer is None else optimizer.state_dict(),
         }
@@ -216,7 +227,145 @@ class TrainerStateStore:
         }
         if checks != expected:
             raise TrainerStoreError("candidate checkpoint lineage metadata disagrees with record")
+        manifest = payload.get("parameter_manifest")
+        if not isinstance(manifest, dict) or manifest.get("manifest_id") != record.parameter_manifest_id:
+            raise TrainerStoreError("candidate checkpoint embedded manifest disagrees with record")
         return payload
+
+    def save_generation_snapshot(
+        self,
+        *,
+        module: nn.Module,
+        descriptor: ParameterModuleDescriptor,
+        source_inventory_id: str,
+        previous_pointer_id: str | None = None,
+    ) -> GenerationSnapshotRecord:
+        """Persist one exact restorable model-state generation outside the live module."""
+
+        if not isinstance(module, nn.Module):
+            raise TypeError("module must be torch.nn.Module")
+        if not isinstance(descriptor, ParameterModuleDescriptor):
+            raise TypeError("descriptor must be ParameterModuleDescriptor")
+        manifest = capture_module_manifest(descriptor, module, exact_value_hashes=True)
+        generation_root = self.generation_snapshots_dir / descriptor.module_id / descriptor.generation_id
+        generation_root.mkdir(parents=True, exist_ok=True)
+        lineage_suffix = hashlib.sha256(source_inventory_id.encode("utf-8")).hexdigest()[:16]
+        artifact_path = generation_root / f"{manifest.manifest_id}.{lineage_suffix}.pt"
+        if not artifact_path.exists():
+            temporary = artifact_path.with_name(artifact_path.name + ".tmp")
+            payload = {
+                "schema": "axon-trainer-generation-snapshot-payload-v1",
+                "descriptor": descriptor.to_canonical_dict(),
+                "source_inventory_id": source_inventory_id,
+                "parameter_manifest_id": manifest.manifest_id,
+                "module_state_dict": module.state_dict(),
+            }
+            with temporary.open("wb") as handle:
+                torch.save(payload, handle)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, artifact_path)
+        digest = self._file_sha256(artifact_path)
+        record = GenerationSnapshotRecord(
+            module_id=descriptor.module_id,
+            generation_id=descriptor.generation_id,
+            parameter_manifest_id=manifest.manifest_id,
+            artifact_relpath=artifact_path.relative_to(self.root).as_posix(),
+            artifact_sha256=digest,
+            artifact_bytes=artifact_path.stat().st_size,
+            source_inventory_id=source_inventory_id,
+            previous_pointer_id=previous_pointer_id,
+        )
+        record_path = generation_root / f"{record.snapshot_id}.json"
+        self._write_immutable(record_path, record.to_canonical_dict())
+        return record
+
+    def load_verified_generation_snapshot(self, record: GenerationSnapshotRecord) -> dict[str, Any]:
+        if not isinstance(record, GenerationSnapshotRecord):
+            raise TypeError("record must be GenerationSnapshotRecord")
+        artifact_path = (self.root / record.artifact_relpath).resolve(strict=False)
+        try:
+            artifact_path.relative_to(self.root)
+        except ValueError as exc:
+            raise TrainerStoreError("generation snapshot escapes Trainer state root") from exc
+        if not artifact_path.is_file():
+            raise TrainerStoreError(f"generation snapshot missing at {artifact_path}")
+        if artifact_path.stat().st_size != record.artifact_bytes:
+            raise TrainerStoreError("generation snapshot byte length disagrees with record")
+        if self._file_sha256(artifact_path) != record.artifact_sha256:
+            raise TrainerStoreError("generation snapshot SHA256 disagrees with record")
+        payload = torch.load(artifact_path, map_location="cpu", weights_only=False)
+        if payload.get("schema") != "axon-trainer-generation-snapshot-payload-v1":
+            raise TrainerStoreError("generation snapshot payload schema mismatch")
+        descriptor = payload.get("descriptor", {})
+        if descriptor.get("module_id") != record.module_id or descriptor.get("generation_id") != record.generation_id:
+            raise TrainerStoreError("generation snapshot descriptor lineage mismatch")
+        if payload.get("source_inventory_id") != record.source_inventory_id:
+            raise TrainerStoreError("generation snapshot inventory lineage mismatch")
+        if payload.get("parameter_manifest_id") != record.parameter_manifest_id:
+            raise TrainerStoreError("generation snapshot manifest lineage mismatch")
+        return payload
+
+    def write_generation_snapshot_record(self, record: GenerationSnapshotRecord) -> Path:
+        if not isinstance(record, GenerationSnapshotRecord):
+            raise TypeError("record must be GenerationSnapshotRecord")
+        path = self.generation_snapshots_dir / record.module_id / record.generation_id / f"{record.snapshot_id}.json"
+        self._write_immutable(path, record.to_canonical_dict())
+        return path
+
+    def read_active_pointer(self, module_id: str) -> ActiveGenerationPointer | None:
+        path = self.active_generations_dir / module_id / "pointer.json"
+        if not path.exists():
+            return None
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise TrainerStoreError(f"invalid active-generation pointer at {path}") from exc
+        if value.get("schema") != "axon-trainer-active-generation-pointer-v1":
+            raise TrainerStoreError("unsupported active-generation pointer schema")
+        stored_id = value.pop("pointer_id", None)
+        value.pop("schema", None)
+        pointer = ActiveGenerationPointer(**value)
+        if stored_id != pointer.pointer_id:
+            raise TrainerStoreError("active-generation pointer hash mismatch")
+        return pointer
+
+    def publish_active_pointer(self, pointer: ActiveGenerationPointer) -> Path:
+        if not isinstance(pointer, ActiveGenerationPointer):
+            raise TypeError("pointer must be ActiveGenerationPointer")
+        path = self.active_generations_dir / pointer.module_id / "pointer.json"
+        self._atomic_json(path, pointer.to_canonical_dict())
+        history = self.active_generations_dir / pointer.module_id / "history" / f"{pointer.pointer_id}.json"
+        self._write_immutable(history, pointer.to_canonical_dict())
+        return path
+
+    def write_activation_receipt(self, receipt: ParameterActivationReceipt) -> Path:
+        if not isinstance(receipt, ParameterActivationReceipt):
+            raise TypeError("receipt must be ParameterActivationReceipt")
+        path = self.activation_receipts_dir / receipt.module_id / f"{receipt.receipt_id}.json"
+        self._write_immutable(path, receipt.to_canonical_dict())
+        return path
+
+    def write_rollback_receipt(self, receipt: ParameterRollbackReceipt) -> Path:
+        if not isinstance(receipt, ParameterRollbackReceipt):
+            raise TypeError("receipt must be ParameterRollbackReceipt")
+        path = self.rollback_receipts_dir / receipt.module_id / f"{receipt.receipt_id}.json"
+        self._write_immutable(path, receipt.to_canonical_dict())
+        return path
+
+    def read_generation_snapshot_record(self, module_id: str, generation_id: str, snapshot_id: str) -> GenerationSnapshotRecord:
+        path = self.generation_snapshots_dir / module_id / generation_id / f"{snapshot_id}.json"
+        if not path.is_file():
+            raise TrainerStoreError(f"generation snapshot record missing at {path}")
+        value = json.loads(path.read_text(encoding="utf-8"))
+        if value.get("schema") != "axon-trainer-generation-snapshot-v1":
+            raise TrainerStoreError("generation snapshot record schema mismatch")
+        stored_id = value.pop("snapshot_id", None)
+        value.pop("schema", None)
+        record = GenerationSnapshotRecord(**value)
+        if stored_id != record.snapshot_id:
+            raise TrainerStoreError("generation snapshot record hash mismatch")
+        return record
 
     def _append_jsonl(self, path: Path, value: Mapping[str, Any]) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)

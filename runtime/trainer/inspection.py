@@ -23,10 +23,11 @@ def _read_json(path: Path) -> dict[str, Any] | None:
     return value
 
 
-def _count_json(directory: Path) -> int:
+def _count_json(directory: Path, *, recursive: bool = False) -> int:
     if not directory.is_dir():
         return 0
-    return sum(1 for path in directory.glob("*.json") if path.is_file())
+    pattern = "**/*.json" if recursive else "*.json"
+    return sum(1 for path in directory.glob(pattern) if path.is_file())
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,13 +39,21 @@ class TrainerInspectionSnapshot:
     latest_step: dict[str, Any] | None
     latest_telemetry: dict[str, Any] | None
     latest_checkpoints: tuple[dict[str, Any], ...]
+    active_generation_pointers: tuple[dict[str, Any], ...]
     artifact_counts: tuple[tuple[str, int], ...]
     snapshot_id: str = field(init=False)
 
     def __post_init__(self) -> None:
-        checkpoints = tuple(sorted(self.latest_checkpoints, key=lambda item: (str(item.get("module_id")), str(item.get("candidate_generation_id")))))
+        checkpoints = tuple(
+            sorted(
+                self.latest_checkpoints,
+                key=lambda item: (str(item.get("module_id")), str(item.get("candidate_generation_id"))),
+            )
+        )
+        pointers = tuple(sorted(self.active_generation_pointers, key=lambda item: str(item.get("module_id"))))
         counts = tuple(sorted((str(name), int(value)) for name, value in self.artifact_counts))
         object.__setattr__(self, "latest_checkpoints", checkpoints)
+        object.__setattr__(self, "active_generation_pointers", pointers)
         object.__setattr__(self, "artifact_counts", counts)
         object.__setattr__(self, "snapshot_id", canonical_sha256(self.to_canonical_dict(include_id=False)))
 
@@ -59,6 +68,7 @@ class TrainerInspectionSnapshot:
             "latest_step": self.latest_step,
             "latest_telemetry": self.latest_telemetry,
             "latest_checkpoints": list(self.latest_checkpoints),
+            "active_generation_pointers": list(self.active_generation_pointers),
             "artifact_counts": {name: count for name, count in self.artifact_counts},
         }
         if include_id:
@@ -82,6 +92,14 @@ def inspect_trainer_state(*, state_root: Path | str = Path(r"D:\Axon\State")) ->
             if value is not None:
                 checkpoints.append(value)
 
+    active_pointers: list[dict[str, Any]] = []
+    active_generations = trainer / "active_generations"
+    if active_generations.is_dir():
+        for pointer_path in active_generations.glob("*/pointer.json"):
+            value = _read_json(pointer_path)
+            if value is not None:
+                active_pointers.append(value)
+
     counts = (
         ("inventories", _count_json(trainer / "inventories")),
         ("plans", _count_json(trainer / "plans")),
@@ -89,6 +107,10 @@ def inspect_trainer_state(*, state_root: Path | str = Path(r"D:\Axon\State")) ->
         ("evaluations", _count_json(trainer / "evaluations")),
         ("gate_decisions", _count_json(trainer / "gate_decisions")),
         ("promotion_proposals", _count_json(trainer / "promotion_proposals")),
+        ("generation_snapshots", _count_json(trainer / "generation_snapshots", recursive=True)),
+        ("activation_receipts", _count_json(trainer / "activation_receipts", recursive=True)),
+        ("rollback_receipts", _count_json(trainer / "rollback_receipts", recursive=True)),
+        ("active_generation_pointers", len(active_pointers)),
     )
     return TrainerInspectionSnapshot(
         state_root=str(state),
@@ -98,6 +120,7 @@ def inspect_trainer_state(*, state_root: Path | str = Path(r"D:\Axon\State")) ->
         latest_step=latest_step,
         latest_telemetry=latest_telemetry,
         latest_checkpoints=tuple(checkpoints),
+        active_generation_pointers=tuple(active_pointers),
         artifact_counts=counts,
     )
 
