@@ -23,7 +23,9 @@ from typing import Any, Mapping
 
 from runtime.field import (
     CanonicalStateBranch,
+    CompiledD64DualSurface,
     D64FieldCompiler,
+    D64SemanticSurfaceCompiler,
     FieldDelta,
     InsertText,
     LogicalRegion,
@@ -126,6 +128,7 @@ class BeatCoordinator:
         state_root: Path | str | None = None,
         config: BeatConfig | None = None,
         compiler: D64FieldCompiler | None = None,
+        semantic_compiler: D64SemanticSurfaceCompiler | None = None,
     ) -> None:
         if not isinstance(branch, CanonicalStateBranch):
             raise TypeError("BeatCoordinator requires a CanonicalStateBranch")
@@ -138,12 +141,16 @@ class BeatCoordinator:
         )
         self._config = config if config is not None else BeatConfig()
         self._compiler = compiler if compiler is not None else D64FieldCompiler()
+        self._semantic_compiler = (
+            semantic_compiler if semantic_compiler is not None else D64SemanticSurfaceCompiler()
+        )
         self._clock = HeartbeatClock()
         self._boundary = HeartTransactionBoundary()
         self._queue = IngressQueue()
         self._current_field = self._load_field()
         self._last_field_id: str | None = None
         self._open_tick_image: FrozenTickImage | None = None
+        self._open_dual_surface: CompiledD64DualSurface | None = None
         self._bridge: DormantEvidenceBridge | None = None
         self._dormant_generations: DormantEvidenceGenerationStore | None = None
         self._bridge_generation_token: str | None = None
@@ -155,6 +162,12 @@ class BeatCoordinator:
     @property
     def current_field(self) -> SharedFieldSnapshot:
         return self._current_field
+
+    @property
+    def open_dual_surface(self) -> CompiledD64DualSurface | None:
+        """Current noncanonical exact+semantic D64 projection, if a tick is open."""
+
+        return self._open_dual_surface
 
     @property
     def boundary(self) -> HeartTransactionBoundary:
@@ -510,13 +523,17 @@ class BeatCoordinator:
         masks = self._region_masks()
         compiled = self._compiler.compile(field, region_masks=masks)
         self._verify_masked_roundtrip(compiled, field)
+        semantic = self._semantic_compiler.compile(field, compiled)
+        dual_surface = CompiledD64DualSurface(exact=compiled, semantic=semantic)
         image = FrozenTickImage.from_compiled(
             identity,
             {64: compiled},
             view_id=derive_view_id(masks),
+            semantic_surfaces={64: semantic},
         )
         self._boundary.note_tick_opened(image)
         self._open_tick_image = image
+        self._open_dual_surface = dual_surface
         return image
 
     def _open_tick(self, field: SharedFieldSnapshot) -> FrozenTickImage:
@@ -601,6 +618,7 @@ class BeatCoordinator:
             raise HeartTransactionError("no tick is in flight")
         self._boundary.note_tick_closed(self._open_tick_image.identity)
         self._open_tick_image = None
+        self._open_dual_surface = None
 
 
 __all__ = [

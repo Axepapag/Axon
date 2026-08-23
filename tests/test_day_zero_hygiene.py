@@ -29,6 +29,7 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "schema.py",
         "delta.py",
         "compiler_d64.py",
+        "semantic_d64.py",
         "state_branch.py",
     }
 

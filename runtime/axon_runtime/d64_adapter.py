@@ -11,8 +11,10 @@ from typing import Iterable
 
 from runtime.field import (
     CanonicalStateBranch,
+    CompiledD64DualSurface,
     CompiledD64Field,
     D64FieldCompiler,
+    D64SemanticSurfaceCompiler,
     FieldDelta,
     LogicalRegion,
     SharedFieldSnapshot,
@@ -24,10 +26,17 @@ from runtime.field import (
 @dataclass(slots=True)
 class CanonicalD64RuntimeAdapter:
     compiler: D64FieldCompiler = D64FieldCompiler()
+    semantic_compiler: D64SemanticSurfaceCompiler = D64SemanticSurfaceCompiler()
     branch: CanonicalStateBranch | None = None
 
     def compile(self, snapshot: SharedFieldSnapshot) -> CompiledD64Field:
         return self.compiler.compile(snapshot)
+
+    def compile_dual(self, snapshot: SharedFieldSnapshot) -> CompiledD64DualSurface:
+        """Compile exact D64 plus deterministic grounded first-form semantic slots."""
+
+        exact = self.compiler.compile(snapshot)
+        return self.semantic_compiler.compile_dual(snapshot, exact)
 
     def propose_region_replacement(
         self,

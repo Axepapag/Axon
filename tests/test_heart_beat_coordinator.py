@@ -9,6 +9,7 @@ import pytest
 from runtime.field import (
     CanonicalStateBranch,
     D64FieldCompiler,
+    D64_STRUCTURAL_FEATURE_GENERATION,
     LogicalRegion,
     RegionMaskPolicy,
     RegionState,
@@ -135,8 +136,15 @@ def test_coordinator_initializes_empty_branch_and_freezes_first_field(
     result = coordinator.beat()
     assert result.state is BeatState.TICK_OPENED
     assert result.tick_image is not None
+    rail = result.tick_image.require_rail(D64)
+    assert rail.semantic_surface_id is not None
+    assert rail.semantic_generation == D64_STRUCTURAL_FEATURE_GENERATION
+    assert rail.semantic_slot_count == 0
+    assert coordinator.open_dual_surface is not None
+    assert coordinator.open_dual_surface.semantic.surface_id == rail.semantic_surface_id
     assert result.commits == ()
     coordinator.close_tick()
+    assert coordinator.open_dual_surface is None
 
     idle = coordinator.beat()
     assert idle.state is BeatState.IDLE

@@ -13,6 +13,7 @@ from typing import Any, Iterable, Mapping
 
 from runtime.field import (
     CompiledD64Field,
+    D64SemanticSurface,
     LogicalRegion,
     RegionMaskPolicy,
     SharedFieldSnapshot,
@@ -22,7 +23,7 @@ from runtime.field import (
 from .errors import HeartbeatError, RailWidthMismatchError, StaleRailBindingError
 
 TICK_IDENTITY_SCHEMA = "axon-heart-tick-identity-v1"
-TICK_IMAGE_SCHEMA = "axon-heart-frozen-tick-image-v1"
+TICK_IMAGE_SCHEMA = "axon-heart-frozen-tick-image-v2"
 DERIVED_VIEW_SCHEMA = "axon-heart-derived-view-v1"
 
 
@@ -136,6 +137,9 @@ class RailBinding:
     source_field_id: str
     source_tick_id: int
     view_id: str = field(default_factory=derive_view_id)
+    semantic_surface_id: str | None = None
+    semantic_generation: str | None = None
+    semantic_slot_count: int = 0
 
     def __post_init__(self) -> None:
         if isinstance(self.d_model, bool) or not isinstance(self.d_model, int):
@@ -154,6 +158,22 @@ class RailBinding:
             raise ValueError("RailBinding.source_field_id must be non-empty")
         if not isinstance(self.view_id, str) or not self.view_id:
             raise ValueError("RailBinding.view_id must be non-empty")
+        if isinstance(self.semantic_slot_count, bool) or not isinstance(self.semantic_slot_count, int):
+            raise TypeError("RailBinding.semantic_slot_count must be an integer")
+        if self.semantic_slot_count < 0:
+            raise ValueError("RailBinding.semantic_slot_count must be non-negative")
+        if self.semantic_surface_id is None:
+            if self.semantic_generation is not None or self.semantic_slot_count != 0:
+                raise ValueError(
+                    "RailBinding semantic generation/count require semantic_surface_id"
+                )
+        else:
+            if not isinstance(self.semantic_surface_id, str) or not self.semantic_surface_id:
+                raise ValueError("RailBinding.semantic_surface_id must be None or non-empty")
+            if not isinstance(self.semantic_generation, str) or not self.semantic_generation:
+                raise ValueError(
+                    "RailBinding.semantic_generation must be non-empty when semantic surface is bound"
+                )
 
     def to_canonical_dict(self) -> dict[str, Any]:
         return {
@@ -162,6 +182,9 @@ class RailBinding:
             "source_field_id": self.source_field_id,
             "source_tick_id": self.source_tick_id,
             "view_id": self.view_id,
+            "semantic_surface_id": self.semantic_surface_id,
+            "semantic_generation": self.semantic_generation,
+            "semantic_slot_count": self.semantic_slot_count,
         }
 
 
@@ -243,6 +266,7 @@ class FrozenTickImage:
         rails: Mapping[int, CompiledD64Field] | Iterable[tuple[int, CompiledD64Field]],
         *,
         view_id: str | None = None,
+        semantic_surfaces: Mapping[int, D64SemanticSurface] | None = None,
     ) -> "FrozenTickImage":
         """Bind compiled D64 rail references to one frozen tick identity."""
 
@@ -256,7 +280,11 @@ class FrozenTickImage:
             if isinstance(rails, Mapping)
             else tuple(rails)
         )
+        semantic_map = {} if semantic_surfaces is None else dict(semantic_surfaces)
+        if any(isinstance(key, bool) or not isinstance(key, int) for key in semantic_map):
+            raise TypeError("FrozenTickImage semantic surface keys must be integer d_model values")
         bindings: list[RailBinding] = []
+        bound_d_models: set[int] = set()
         for d_model, compiled in items:
             if not isinstance(compiled, CompiledD64Field):
                 raise TypeError(
@@ -287,6 +315,21 @@ class FrozenTickImage:
                     f"{identity.tick_sequence}: not bound to base field "
                     f"{identity.base_field_id!r}"
                 )
+            semantic = semantic_map.get(d_model)
+            if semantic is not None:
+                if not isinstance(semantic, D64SemanticSurface):
+                    raise TypeError(
+                        "FrozenTickImage semantic_surfaces must contain D64SemanticSurface values"
+                    )
+                if (
+                    semantic.source_field_id != compiled.source_field_id
+                    or semantic.source_tick_id != compiled.source_tick_id
+                    or semantic.source_rail_id != compiled.rail_id
+                ):
+                    raise StaleRailBindingError(
+                        f"semantic surface for d_model={d_model} is not bound to the supplied exact rail"
+                    )
+            bound_d_models.add(d_model)
             bindings.append(
                 RailBinding(
                     d_model=d_model,
@@ -294,7 +337,16 @@ class FrozenTickImage:
                     source_field_id=compiled.source_field_id,
                     source_tick_id=compiled.source_tick_id,
                     view_id=resolved_view_id,
+                    semantic_surface_id=(None if semantic is None else semantic.surface_id),
+                    semantic_generation=(None if semantic is None else semantic.feature_generation),
+                    semantic_slot_count=(0 if semantic is None else semantic.slot_count),
                 )
+            )
+        unused_semantic = set(semantic_map) - bound_d_models
+        if unused_semantic:
+            raise HeartbeatError(
+                "semantic surfaces were supplied for rails that are not present: "
+                + ", ".join(str(item) for item in sorted(unused_semantic))
             )
         return cls(identity=identity, rails=tuple(bindings), view_id=resolved_view_id)
 

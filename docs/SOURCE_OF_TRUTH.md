@@ -340,6 +340,37 @@ also improve the 64D heart provided exact-character grounding and roundtrip
 remain mandatory. A reasoning core is never required to reproduce every
 character to prove grounding.
 
+Build D.1 implements the first permanent dual-surface D64 anatomy in
+`runtime/field/semantic_d64.py`. The exact `CompiledD64Field` remains unchanged
+as the sole coverage/roundtrip scaffold. Alongside it, a
+`D64SemanticSurfaceCompiler` derives deterministic D64 slots for exact words,
+sentences, paragraphs, and canonical `FieldSpan` boundaries. The current
+feature generation is explicitly `structural-lexical-v1`: hashed exact lexical
+and structural features only, not a trained English embedding model and not a
+simulation of Semantic Cortex intelligence.
+
+Every D.1 semantic slot is bound to the same `field_id`, `tick_id`, and exact
+`rail_id`; carries its exact D64 lane references, canonical source-span IDs,
+container/edge refs, region range, and exact text hash; and stores a read-only
+64D feature vector whose deterministic value is recomputed during grounding
+verification. A slot is omitted from a masked derived view if its complete
+structural source span is not attended; semantic slots may not bridge hidden
+characters. The semantic surface is derived/rebuildable and cannot mutate
+canonical state.
+
+Frozen tick images use `axon-heart-frozen-tick-image-v2` for this dual surface.
+Each 64D `RailBinding` may now carry the exact semantic-surface ID, feature
+generation, and slot count. The Heart coordinator freezes and retains the
+noncanonical `CompiledD64DualSurface` for the lifetime of the tick, and clears
+it when the tick closes. A semantic surface from another field, exact rail, or
+mask view fails closed. Exact-only callers remain supported, but their frozen
+image identity records that no semantic surface is bound.
+
+Build D.1 is first-form semantic *anatomy*, not mature learned semantics. The
+`semantic_cortex` Heart valve remains CLOSED, no Cortex model is trained or
+activated by D.1, and learned specialists must later earn their own explicit
+model/surface generation while preserving the same exact grounding contract.
+
 ## Canonical state root
 
 All living or durable Axon state resides beneath `D:\Axon\State`,
@@ -471,13 +502,13 @@ The active implementation surface is intentionally narrow:
 
 - `runtime/field/schema.py` ? canonical ten-region exact field schema,
 - `runtime/field/delta.py` ? typed canonical deltas and validation/apply/replay,
-- `runtime/field/compiler_d64.py` ? exact deterministic D64 compiler,
+- `runtime/field/compiler_d64.py` and `runtime/field/semantic_d64.py` ? exact deterministic D64 compiler plus grounded deterministic first-form semantic-slot surface,
 - `runtime/field/state_branch.py` ? canonical branch persistence,
-- `runtime/axon_runtime/d64_adapter.py` ? runtime-facing D64 adapter,
+- `runtime/axon_runtime/d64_adapter.py` ? runtime-facing exact and dual-surface D64 adapter,
 - `runtime/dormant/evidence_bridge.py`, `runtime/dormant/relevance.py`, `runtime/dormant/generations.py`, `runtime/dormant/incremental.py`, and `runtime/dormant/evaluation.py` ? read-only manifest/hash-bound dormant retrieval, exact dereference, bounded graph/relation relevance, verified derived-index generations, transactional append/layout-preserving update maintenance, and held-out evaluation,
 - `Cortext/contracts.py` ? grounded Semantic Cortex service contract only; no active specialist/training authority and the `semantic_cortex` valve remains CLOSED,
 - `runtime/heart/` ? heart anatomy: authority/core control plane, canonical transaction boundary, beat coordinator, sovereign 20-slot valve plane, OS single-writer lease, restart-safe cardiac identity, durable ingress/replay/quarantine spool, health observability, explicit derived-view identity, relevance-gated dormant recall, and the permanent Heart host;
-- `scripts/run_axon_heart.py`, `scripts/evaluate_dormant_relevance.py`, and `scripts/maintain_dormant_index.py` ? permanent Heart runtime, deterministic dormant semantic/relevance evaluation, and explicit derived-index maintenance/recovery entry points;
+- `scripts/run_axon_heart.py`, `scripts/evaluate_dormant_relevance.py`, `scripts/maintain_dormant_index.py`, and `scripts/verify_d64_dual_surface.py` ? permanent Heart runtime, deterministic dormant semantic/relevance evaluation, explicit derived-index maintenance/recovery, and read-only live D64 dual-surface verification entry points;
 - `training/canonical_d64.py`, `training/complete_field_64d.py`, and `training/train_complete_field_64d.py` ? canonical D64 training path,
 - `curator/` recovered-corpus schema/materialization/building utilities ? offline exact dormant-memory tooling,
 
