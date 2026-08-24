@@ -30,6 +30,7 @@ from .lifecycle import (
 )
 from .registry import capture_module_manifest
 from .preflight import TrainingPreflightReceipt
+from .sessions import TrainerSessionManifest
 from .telemetry import ParameterTelemetryFrame
 
 
@@ -46,6 +47,7 @@ class TrainerStateStore:
         self.plans_dir = self.root / "plans"
         self.capacity_contracts_dir = self.root / "capacity_contracts"
         self.preflight_receipts_dir = self.root / "preflight_receipts"
+        self.sessions_dir = self.root / "sessions"
         self.authorizations_dir = self.root / "authorizations"
         self.promotions_dir = self.root / "promotion_proposals"
         self.learning_policies_dir = self.root / "learning_policies"
@@ -101,6 +103,13 @@ class TrainerStateStore:
         value = policy.to_canonical_dict()
         self._write_immutable(path, value)
         self._atomic_json(self.latest_learning_policy_path, value)
+        return path
+
+    def write_session(self, session: TrainerSessionManifest) -> Path:
+        if not isinstance(session, TrainerSessionManifest):
+            raise TypeError("session must be a TrainerSessionManifest")
+        path = self.sessions_dir / session.session_id / "manifest.json"
+        self._write_immutable(path, session.to_canonical_dict())
         return path
 
     def write_authorization(self, authorization: AuthorizedParameterMutation) -> Path:

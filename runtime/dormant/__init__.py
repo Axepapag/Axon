@@ -41,6 +41,17 @@ from .relevance import (
     DormantRelevancePolicy,
     DormantRelevanceScore,
 )
+from .experience import (
+    EXPERIENCE_IMPORT_SCHEMA,
+    EXPERIENCE_RECORD_SCHEMA,
+    EXPERIENCE_ROOT_NAME,
+    INLINE_SOURCE_SNAPSHOT_SCHEMA,
+    DormantExperienceError,
+    DormantExperienceStore,
+    ExperienceImportManifest,
+    ExperienceRecord,
+    RecoveredSourceSnapshot,
+)
 from .evidence_bridge import (
     AUTHORITATIVE_FILES,
     DEFAULT_INDEX_RELATIVE,
@@ -65,6 +76,15 @@ from .evidence_bridge import (
 )
 
 __all__ = [
+    "EXPERIENCE_IMPORT_SCHEMA",
+    "EXPERIENCE_RECORD_SCHEMA",
+    "EXPERIENCE_ROOT_NAME",
+    "INLINE_SOURCE_SNAPSHOT_SCHEMA",
+    "DormantExperienceError",
+    "DormantExperienceStore",
+    "ExperienceImportManifest",
+    "ExperienceRecord",
+    "RecoveredSourceSnapshot",
     "EVALUATION_SCHEMA",
     "FORWARD_EVALUATION_SCHEMA",
     "DormantEvaluationCase",

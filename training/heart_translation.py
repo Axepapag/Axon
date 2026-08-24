@@ -20,7 +20,8 @@ import torch
 import torch.nn.functional as F
 
 from substrate import assert_supported_text
-from runtime.field import canonical_sha256
+from runtime.field import LogicalRegion, SharedFieldSnapshot, canonical_sha256
+from runtime.heart.d64_codec import D64HeartCodec
 from runtime.heart.intelligence import (
     CRITICAL_SEMANTIC_CLASSES,
     HeartSemanticFidelityEvidence,
@@ -28,15 +29,15 @@ from runtime.heart.intelligence import (
 from runtime.heart.translation_core import HEART_SEMANTIC_LABELS, HeartTranslationCore
 
 
-HEART_CURRICULUM_SCHEMA = "axon-heart-translation-curriculum-v2"
-HEART_CASE_SCHEMA = "axon-heart-translation-case-v2"
-HEART_EVALUATION_SCHEMA = "axon-heart-translation-evaluation-v2"
+HEART_CURRICULUM_SCHEMA = "axon-heart-translation-curriculum-v3"
+HEART_CASE_SCHEMA = "axon-heart-translation-case-v3"
+HEART_EVALUATION_SCHEMA = "axon-heart-translation-evaluation-v3"
 HEART_TRAINING_OBJECTIVE_SCHEMA = "axon-heart-translation-training-objective-v1"
 
 DIALECTS: tuple[str, ...] = (
     "canonical_english_v1",
     "heart_explicit_v1",
-    "rail_d64_v1",
+    "structured_proposition_v1",
 )
 DIALECT_TO_ID = {name: index for index, name in enumerate(DIALECTS)}
 TRAIN_DIRECTIONS: tuple[tuple[str, str], ...] = tuple(
@@ -44,8 +45,8 @@ TRAIN_DIRECTIONS: tuple[tuple[str, str], ...] = tuple(
 )
 EVAL_DIRECTIONS: tuple[tuple[str, str], ...] = (
     ("canonical_english_v1", "heart_explicit_v1"),
-    ("heart_explicit_v1", "rail_d64_v1"),
-    ("rail_d64_v1", "canonical_english_v1"),
+    ("heart_explicit_v1", "structured_proposition_v1"),
+    ("structured_proposition_v1", "canonical_english_v1"),
 )
 
 
@@ -303,7 +304,12 @@ class HeartTranslationCurriculum:
 @dataclass(slots=True)
 class HeartTranslationBatch:
     source_indices: torch.Tensor
+    source_cells16: torch.Tensor
+    source_positions: torch.Tensor
     source_mask: torch.Tensor
+    source_frame_ids: tuple[str, ...]
+    source_field_ids: tuple[str, ...]
+    source_rail_ids: tuple[str, ...]
     source_dialect_ids: torch.Tensor
     destination_dialect_ids: torch.Tensor
     decoder_input_ids: torch.Tensor
@@ -319,7 +325,12 @@ class HeartTranslationBatch:
     def to(self, device: torch.device | str) -> "HeartTranslationBatch":
         return HeartTranslationBatch(
             source_indices=self.source_indices.to(device),
+            source_cells16=self.source_cells16.to(device),
+            source_positions=self.source_positions.to(device),
             source_mask=self.source_mask.to(device),
+            source_frame_ids=self.source_frame_ids,
+            source_field_ids=self.source_field_ids,
+            source_rail_ids=self.source_rail_ids,
             source_dialect_ids=self.source_dialect_ids.to(device),
             destination_dialect_ids=self.destination_dialect_ids.to(device),
             decoder_input_ids=self.decoder_input_ids.to(device),
@@ -808,11 +819,22 @@ def collate_heart_translation_cases(
     rows = tuple(cases)
     if not rows:
         raise ValueError("cannot collate an empty Heart translation batch")
-    max_source = max(len(case.source_text) for case in rows)
     max_target = max(len(case.target_text) for case in rows) + 1
     batch = len(rows)
-    source_indices = torch.full((batch, max_source), model.source_pad_index, dtype=torch.long)
-    source_mask = torch.zeros((batch, max_source), dtype=torch.bool)
+    codec = D64HeartCodec()
+    frames = tuple(
+        codec.compile(
+            SharedFieldSnapshot.from_texts(
+                {LogicalRegion.USER_INPUT: case.source_text},
+                tick_id=0,
+                source_manifest_ids=(case.case_id,),
+                source="heart_translation_curriculum",
+                provenance=case.provenance,
+            )
+        )
+        for case in rows
+    )
+    cardiac = codec.batch_for_model(model, frames)
     decoder_input = torch.full((batch, max_target), model.decoder_pad_index, dtype=torch.long)
     target_ids = torch.zeros((batch, max_target), dtype=torch.long)
     target_mask = torch.zeros((batch, max_target), dtype=torch.bool)
@@ -825,10 +847,7 @@ def collate_heart_translation_cases(
     grounding_end = torch.empty(batch, dtype=torch.long)
 
     for row, case in enumerate(rows):
-        source = [model.char_to_index[char] for char in case.source_text]
         target = [model.char_to_index[char] for char in case.target_text]
-        source_indices[row, : len(source)] = torch.tensor(source, dtype=torch.long)
-        source_mask[row, : len(source)] = True
         decoder_input[row, 0] = model.bos_index
         if target:
             decoder_input[row, 1 : len(target) + 1] = torch.tensor(target, dtype=torch.long)
@@ -845,8 +864,13 @@ def collate_heart_translation_cases(
         grounding_end[row] = case.grounding_end - 1
 
     return HeartTranslationBatch(
-        source_indices=source_indices,
-        source_mask=source_mask,
+        source_indices=cardiac.source_indices,
+        source_cells16=cardiac.source_cells16,
+        source_positions=cardiac.source_positions,
+        source_mask=cardiac.source_mask,
+        source_frame_ids=cardiac.frame_ids,
+        source_field_ids=cardiac.field_ids,
+        source_rail_ids=cardiac.rail_ids,
         source_dialect_ids=source_dialects,
         destination_dialect_ids=destination_dialects,
         decoder_input_ids=decoder_input,
@@ -872,6 +896,8 @@ def heart_translation_loss(
         batch.source_dialect_ids,
         batch.destination_dialect_ids,
         batch.decoder_input_ids,
+        source_cells16=batch.source_cells16,
+        source_positions=batch.source_positions,
     )
     gathered = output.target_log_probs.gather(2, batch.target_ids.unsqueeze(-1)).squeeze(-1)
     translation = -(gathered * batch.target_mask.to(gathered.dtype)).sum() / batch.target_mask.sum().clamp_min(1)
@@ -932,6 +958,8 @@ def _analyze_batch(model: HeartTranslationCore, batch: HeartTranslationBatch):
         batch.source_dialect_ids,
         batch.destination_dialect_ids,
         bos,
+        source_cells16=batch.source_cells16,
+        source_positions=batch.source_positions,
     )
 
 
@@ -953,6 +981,8 @@ def evaluate_heart_translation_model(
             batch.source_dialect_ids,
             batch.destination_dialect_ids,
             max_chars=max(len(case.target_text) for case in cases) + 12,
+            source_cells16=batch.source_cells16,
+            source_positions=batch.source_positions,
         )
     generated = tuple(result.text for result in generation_results)
     terminated = tuple(result.terminated for result in generation_results)

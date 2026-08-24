@@ -97,6 +97,15 @@ from .preflight import (
     TrainingPreflightReceipt,
     build_training_preflight_receipt,
 )
+from .sessions import (
+    TRAINER_SESSION_EXAMPLE_SCHEMA,
+    TRAINER_SESSION_POLICY_SCHEMA,
+    TRAINER_SESSION_SCHEMA,
+    LivedExperienceSessionCompiler,
+    TrainerSessionExample,
+    TrainerSessionManifest,
+    TrainerSessionPolicy,
+)
 from .store import TrainerStateStore, TrainerStoreError
 from .telemetry import (
     PARAMETER_STAT_SCHEMA,
@@ -107,6 +116,13 @@ from .telemetry import (
 )
 
 __all__ = [
+    "TRAINER_SESSION_EXAMPLE_SCHEMA",
+    "TRAINER_SESSION_POLICY_SCHEMA",
+    "TRAINER_SESSION_SCHEMA",
+    "LivedExperienceSessionCompiler",
+    "TrainerSessionExample",
+    "TrainerSessionManifest",
+    "TrainerSessionPolicy",
     "TRAINER_PARAMETER_SCHEMA",
     "ACTIVE_GENERATION_POINTER_SCHEMA",
     "GENERATION_SNAPSHOT_SCHEMA",

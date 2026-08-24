@@ -15,6 +15,11 @@ from .authority import (
     AuthorityGrant,
     IngressChannel,
 )
+from .autobiography import (
+    LIVE_INGRESS_SOURCE_SCHEMA,
+    HeartAutobiography,
+    HeartAutobiographyReceipt,
+)
 from .coordinator import (
     BeatConfig,
     BeatCoordinator,
@@ -90,6 +95,13 @@ from .translation_core import (
     HeartTranslationCoreConfig,
     HeartTranslationOutput,
 )
+from .d64_codec import (
+    D64_HEART_FRAME_SCHEMA,
+    D64HeartCodec,
+    D64HeartCodecError,
+    D64HeartFrame,
+    D64HeartModelBatch,
+)
 from .ingress_queue import IngressItem, IngressQueue
 from .lease import SingleWriterLease
 from .registry import CoreDescriptor, CoreRegistry, CoreStatus
@@ -121,6 +133,14 @@ from .transaction import (
 )
 
 __all__ = [
+    "LIVE_INGRESS_SOURCE_SCHEMA",
+    "HeartAutobiography",
+    "HeartAutobiographyReceipt",
+    "D64_HEART_FRAME_SCHEMA",
+    "D64HeartCodec",
+    "D64HeartCodecError",
+    "D64HeartFrame",
+    "D64HeartModelBatch",
     "AuthorityClass",
     "IngressChannel",
     "INGRESS_OWNED_REGIONS",

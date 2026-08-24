@@ -26,6 +26,7 @@ from runtime.field import (
 from runtime.field.state_branch import DEFAULT_STATE_ROOT
 
 from .authority import AuthorityClass
+from .autobiography import HeartAutobiography
 from .coordinator import BeatConfig, BeatCoordinator
 from .durable_ingress import DurableIngressSpool, IngressRecord
 from .errors import (
@@ -122,6 +123,7 @@ class HeartHost:
         self._lease = SingleWriterLease(self.state_root)
         self._identity_store: HeartIdentityStore | None = None
         self._spool: DurableIngressSpool | None = None
+        self._autobiography: HeartAutobiography | None = None
         self._health_journal: HealthJournal | None = None
         self._coordinator: BeatCoordinator | None = None
         self._lease_record: dict | None = None
@@ -176,11 +178,13 @@ class HeartHost:
                     state_root=self.state_root,
                     config=self.beat_config,
                 )
+                autobiography = HeartAutobiography(self.state_root)
             except Exception:
                 self._lease.release()
                 raise
             self._identity_store = identity_store
             self._spool = spool
+            self._autobiography = autobiography
             self._health_journal = health
             self._coordinator = coordinator
             self._lease_record = lease_record
@@ -207,6 +211,7 @@ class HeartHost:
             self._started = False
             self._coordinator = None
             self._spool = None
+            self._autobiography = None
             self._health_journal = None
             self._identity_store = None
             self._lease_record = None
@@ -369,7 +374,9 @@ class HeartHost:
                     if not pending:
                         break
                     record = pending[0]
-                    if self._canonical_contains_event(current, record.event_id):
+                    existing_region = self._canonical_event_region(current, record.event_id)
+                    if existing_region is not None:
+                        self._deposit_accepted_ingress(record, existing_region)
                         self.spool.acknowledge(record.event_id)
                         processed_ids.append(record.event_id)
                         continue
@@ -431,8 +438,11 @@ class HeartHost:
                             valve_provenance=provenance,
                         )
                         current = coordinator.current_field
-                        # Ack *only* after canonical branch persistence.  If this
-                        # step fails, canonical span provenance reconciles replay.
+                        # Autobiography is part of acceptance durability.  Ack
+                        # only after canonical persistence *and* the exact,
+                        # idempotent Dormant deposit.  A failure leaves the event
+                        # pending; canonical provenance reconciles replay.
+                        self._deposit_accepted_ingress(record, region)
                         self.spool.acknowledge(record.event_id)
                         commits.append(commit)
                         processed_ids.append(record.event_id)
@@ -622,12 +632,27 @@ class HeartHost:
 
     @staticmethod
     def _canonical_contains_event(field: SharedFieldSnapshot, event_id: str) -> bool:
+        return HeartHost._canonical_event_region(field, event_id) is not None
+
+    @staticmethod
+    def _canonical_event_region(
+        field: SharedFieldSnapshot,
+        event_id: str,
+    ) -> LogicalRegion | None:
         prefix = f"heart_ingress:{event_id}|"
-        return any(
-            span.provenance.startswith(prefix)
-            for region in field.regions
-            for span in region.spans
-        )
+        for region in field.regions:
+            if any(span.provenance.startswith(prefix) for span in region.spans):
+                return region.name
+        return None
+
+    def _deposit_accepted_ingress(
+        self,
+        record: IngressRecord,
+        region: LogicalRegion,
+    ) -> None:
+        if self._autobiography is None:
+            raise HostStateError("Heart autobiography has not been started")
+        self._autobiography.deposit_ingress(record, canonical_region=region)
 
     @staticmethod
     def _is_budget_defer(reason: str) -> bool:

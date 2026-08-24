@@ -43,6 +43,7 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "__init__.py",
         "evidence_bridge.py",
         "evaluation.py",
+        "experience.py",
         "generations.py",
         "incremental.py",
         "relevance.py",
@@ -68,7 +69,9 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "identity.py",
         "intelligence.py",
         "translation_core.py",
-        "lease.py",
+            "d64_codec.py",
+            "autobiography.py",
+            "lease.py",
         "valve.py",
     }
 
@@ -89,6 +92,7 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "inspection.py",
         "host.py",
         "preflight.py",
+        "sessions.py",
     }
 
     training_files = {path.name for path in (ROOT / "training").glob("*.py")}

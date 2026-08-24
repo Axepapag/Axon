@@ -37,6 +37,7 @@ from .registry import (
     parameter_value_sha256,
 )
 from .preflight import TrainingPreflightReceipt
+from .sessions import TrainerSessionManifest
 from .store import TrainerStateStore
 from .telemetry import ParameterTelemetryFrame, capture_parameter_telemetry
 
@@ -163,6 +164,12 @@ class TrainerControlPlane:
         )
         self.store.append_telemetry(frame)
         return frame
+
+    def publish_session(self, session: TrainerSessionManifest) -> Path:
+        """Publish one immutable lived-experience session under Trainer lease."""
+
+        self._require_writer_authority()
+        return self.store.write_session(session)
 
     def authorize(
         self,

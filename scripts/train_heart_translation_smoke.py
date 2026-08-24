@@ -63,7 +63,7 @@ from training.heart_translation import (
 from training.heart_preflight import build_heart_training_preflight
 
 
-HEART_SMOKE_SCHEMA = "axon-heart-translation-smoke-v2"
+HEART_SMOKE_SCHEMA = "axon-heart-translation-smoke-v3"
 HEART_EVALUATION_SUITE = "heart-translation-heldout-v1"
 
 

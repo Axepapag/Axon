@@ -155,6 +155,13 @@ def test_commit_before_ack_recovery_does_not_duplicate_text(tmp_path: Path, monk
         recovered = second.heartbeat()
         assert recovered.field.region(LogicalRegion.USER_INPUT).text == "once"
         assert second.spool.pending_count == 0
+        manifests = second._autobiography.store.import_manifests()
+        live = [item for item in manifests if item.label.startswith("live-heart-ingress:")]
+        assert len(live) == 1
+        record = next(second._autobiography.store.iter_records((live[0].import_id,)))
+        assert record.exact_text == "once"
+        assert record.lifecycle == "accepted"
+        assert record.payload["canonical_region"] == LogicalRegion.USER_INPUT.value
     finally:
         second.stop()
 
