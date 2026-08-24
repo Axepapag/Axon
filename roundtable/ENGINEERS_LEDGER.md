@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-24T14:58:38-05:00
-Current through event: `evt-20260824T195838633077Z-codex-d00-heart-trainer-real-d64`
+Updated: 2026-08-24T17:57:49-05:00
+Current through event: `evt-20260824T225749627974Z-codex-chatgpt-audit-monitor`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -19,6 +19,16 @@ The project remains on the ratified Heart-first sequence. The next work is not a
 wider model or unrelated organ: repair the D64 translator's free-running
 decoder/curriculum, prove exact grounded conduction, complete autobiographical
 event capture, then turn exact lived-experience sessions into organ loaders.
+
+An independent ChatGPT audit is in progress through the custom `D:\extension`
+browser bridge. Its completed verification block agrees that the repository was
+clean and synchronized at `f784e78`, the focused new surface passed 22/22 and
+the full collection reached 354 tests without visible failure/error output.
+ChatGPT's turn then stalled before substantive findings while still exposing
+the active generation control, so no technical dialogue has yet been claimed.
+A five-minute heartbeat named `Monitor ChatGPT Axon audit` is attached to the
+current Codex task; it will read the final report, challenge it against durable
+evidence and continue the exchange when the composer actually returns.
 
 ## Binding decisions and invariants
 
@@ -145,6 +155,12 @@ addressed.
    evidence bridge/Cortex.
 5. **RESOURCE NOTE:** exact snapshots plus logical records consume about 4.30 GB;
    first full session compilation is RAM-heavy but completed.
+6. **INDEPENDENT AUDIT PENDING:** ChatGPT's audit has verified repository/test
+   boundaries but has not completed its substantive findings. No collaboration
+   result exists yet.
+7. **BROWSER-HUB LEASE PITFALL:** this extension's `context` operation creates a
+   five-minute control lease. Routine monitoring must use lease-free tab
+   metadata, and any necessary context lease must be released immediately.
 
 ## Recommended next actions
 
