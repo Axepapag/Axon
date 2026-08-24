@@ -54,6 +54,7 @@ from training.heart_translation import (
     DIALECTS,
     HeartTranslationEvaluationReport,
     HeartTranslationTrainingObjective,
+    HeartTranslationTrainingRecipe,
     build_heart_translation_curriculum,
     collate_heart_translation_cases,
     deterministic_training_batches,
@@ -63,7 +64,7 @@ from training.heart_translation import (
 from training.heart_preflight import build_heart_training_preflight
 
 
-HEART_SMOKE_SCHEMA = "axon-heart-translation-smoke-v3"
+HEART_SMOKE_SCHEMA = "axon-heart-translation-smoke-v4"
 HEART_EVALUATION_SUITE = "heart-translation-heldout-v1"
 
 
@@ -77,6 +78,7 @@ class HeartSmokeResult:
     curriculum_id: str
     architecture_config_id: str
     training_objective_id: str
+    training_recipe_id: str
     train_manifest_id: str
     heldout_manifest_id: str
     module_id: str
@@ -112,6 +114,7 @@ class HeartSmokeResult:
             "curriculum_id": self.curriculum_id,
             "architecture_config_id": self.architecture_config_id,
             "training_objective_id": self.training_objective_id,
+            "training_recipe_id": self.training_recipe_id,
             "train_manifest_id": self.train_manifest_id,
             "heldout_manifest_id": self.heldout_manifest_id,
             "module_id": self.module_id,
@@ -284,6 +287,8 @@ def run_heart_translation_smoke(
     curriculum.write(root)
     objective = HeartTranslationTrainingObjective() if training_objective is None else training_objective
     objective.write(root)
+    recipe = HeartTranslationTrainingRecipe()
+    recipe.write(root)
     cfg = HeartTranslationCoreConfig() if model_config is None else model_config
     architecture = heart_translation_architecture_id(cfg)
     architecture_config_id = canonical_sha256(
@@ -311,6 +316,7 @@ def run_heart_translation_smoke(
             "base_generation_id": base_generation_id,
             "curriculum_id": curriculum.curriculum_id,
             "training_objective_id": objective.objective_id,
+            "training_recipe_id": recipe.recipe_id,
             "learning_policy_id": learning_policy.policy_id,
             "steps": steps,
             "batch_size": batch_size,
@@ -377,7 +383,11 @@ def run_heart_translation_smoke(
             optimizer_name="AdamW",
             learning_rate=3e-4,
             max_steps=steps,
-            source_manifest_ids=(curriculum.train_manifest_id, objective.objective_id),
+            source_manifest_ids=(
+                curriculum.train_manifest_id,
+                objective.objective_id,
+                recipe.recipe_id,
+            ),
             holdout_manifest_ids=(curriculum.heldout_manifest_id,),
         )
         preflight = build_heart_training_preflight(
@@ -459,6 +469,7 @@ def run_heart_translation_smoke(
             "curriculum_id": curriculum.curriculum_id,
             "architecture_config_id": architecture_config_id,
             "training_objective_id": objective.objective_id,
+            "training_recipe_id": recipe.recipe_id,
             "module_id": module_id,
             "base_generation_id": base_generation_id,
             "candidate_generation_id": candidate_generation_id,
@@ -487,6 +498,7 @@ def run_heart_translation_smoke(
             curriculum_id=curriculum.curriculum_id,
             architecture_config_id=architecture_config_id,
             training_objective_id=objective.objective_id,
+            training_recipe_id=recipe.recipe_id,
             train_manifest_id=curriculum.train_manifest_id,
             heldout_manifest_id=curriculum.heldout_manifest_id,
             module_id=module_id,
@@ -517,6 +529,7 @@ def run_heart_translation_smoke(
                 **result.to_canonical_dict(),
                 "architecture_config": cfg.to_canonical_dict(),
                 "training_objective": objective.to_canonical_dict(),
+                "training_recipe": recipe.to_canonical_dict(),
                 "baseline_evaluation": baseline.to_canonical_dict(),
                 "final_evaluation": final_report.to_canonical_dict(),
                 "heart_promotion_decision": heart_decision.to_canonical_dict(),

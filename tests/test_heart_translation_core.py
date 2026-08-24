@@ -18,6 +18,7 @@ from training.heart_translation import (
     HeartTranslationTrainingObjective,
     build_heart_translation_curriculum,
     collate_heart_translation_cases,
+    deterministic_training_batches,
     evaluate_heart_translation_model,
     heart_translation_loss,
 )
@@ -94,6 +95,30 @@ def test_heart_training_objective_is_content_addressed_and_changes_loss_recipe(t
     default_loss = heart_translation_loss(model, batch, default)
     semantic_heavy_loss = heart_translation_loss(model, batch, semantic_heavy)
     assert float(default_loss.total.detach()) != float(semantic_heavy_loss.total.detach())
+
+
+def test_heart_training_batches_cover_each_shuffled_epoch_without_omissions() -> None:
+    curriculum = build_heart_translation_curriculum()
+    batch_size = 8
+    steps = (len(curriculum.train_cases) + batch_size - 1) // batch_size
+    first = deterministic_training_batches(
+        curriculum,
+        batch_size=batch_size,
+        steps=steps,
+        seed=20260824,
+    )
+    second = deterministic_training_batches(
+        curriculum,
+        batch_size=batch_size,
+        steps=steps,
+        seed=20260824,
+    )
+    first_epoch_ids = [
+        case.case_id for batch in first for case in batch
+    ][: len(curriculum.train_cases)]
+    assert first == second
+    assert len(first_epoch_ids) == len(set(first_epoch_ids))
+    assert set(first_epoch_ids) == {case.case_id for case in curriculum.train_cases}
 
 
 def test_heart_translation_loss_uses_text_semantics_and_grounding() -> None:

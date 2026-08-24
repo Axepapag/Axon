@@ -33,6 +33,7 @@ HEART_CURRICULUM_SCHEMA = "axon-heart-translation-curriculum-v3"
 HEART_CASE_SCHEMA = "axon-heart-translation-case-v3"
 HEART_EVALUATION_SCHEMA = "axon-heart-translation-evaluation-v3"
 HEART_TRAINING_OBJECTIVE_SCHEMA = "axon-heart-translation-training-objective-v1"
+HEART_TRAINING_RECIPE_SCHEMA = "axon-heart-translation-training-recipe-v1"
 
 DIALECTS: tuple[str, ...] = (
     "canonical_english_v1",
@@ -203,6 +204,53 @@ class HeartTranslationTrainingObjective:
         if path.exists():
             if path.read_text(encoding="utf-8") != payload:
                 raise RuntimeError("existing Heart training objective disagrees with immutable content")
+            return path
+        fd, temp_name = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=root)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temp_name, path)
+        finally:
+            if os.path.exists(temp_name):
+                os.unlink(temp_name)
+        return path
+
+
+@dataclass(frozen=True, slots=True)
+class HeartTranslationTrainingRecipe:
+    """Immutable identity for curriculum traversal outside optimizer policy."""
+
+    batch_sampler: str = "deterministic_shuffled_epoch_v1"
+    recipe_id: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        if self.batch_sampler != "deterministic_shuffled_epoch_v1":
+            raise ValueError("unsupported Heart batch sampler")
+        object.__setattr__(
+            self,
+            "recipe_id",
+            canonical_sha256(self.to_canonical_dict(include_id=False)),
+        )
+
+    def to_canonical_dict(self, *, include_id: bool = True) -> dict[str, Any]:
+        value: dict[str, Any] = {
+            "schema": HEART_TRAINING_RECIPE_SCHEMA,
+            "batch_sampler": self.batch_sampler,
+        }
+        if include_id:
+            value["recipe_id"] = self.recipe_id
+        return value
+
+    def write(self, state_root: Path | str) -> Path:
+        root = Path(state_root) / "training" / "heart" / "recipes"
+        root.mkdir(parents=True, exist_ok=True)
+        path = root / f"{self.recipe_id}.json"
+        payload = json.dumps(self.to_canonical_dict(), ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+        if path.exists():
+            if path.read_text(encoding="utf-8") != payload:
+                raise RuntimeError("existing Heart training recipe disagrees with immutable content")
             return path
         fd, temp_name = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=root)
         try:
@@ -932,12 +980,18 @@ def deterministic_training_batches(
         raise ValueError("batch_size and steps must be positive")
     rng = random.Random(seed)
     cases = list(curriculum.train_cases)
+    epoch: list[HeartTranslationCase] = []
     batches: list[tuple[HeartTranslationCase, ...]] = []
     for _ in range(steps):
-        if batch_size <= len(cases):
-            batches.append(tuple(rng.sample(cases, batch_size)))
-        else:
-            batches.append(tuple(rng.choice(cases) for _ in range(batch_size)))
+        batch: list[HeartTranslationCase] = []
+        while len(batch) < batch_size:
+            if not epoch:
+                epoch = list(cases)
+                rng.shuffle(epoch)
+            take = min(batch_size - len(batch), len(epoch))
+            batch.extend(epoch[:take])
+            del epoch[:take]
+        batches.append(tuple(batch))
     return tuple(batches)
 
 
@@ -1186,12 +1240,15 @@ __all__ = [
     "HEART_CURRICULUM_SCHEMA",
     "HEART_CASE_SCHEMA",
     "HEART_EVALUATION_SCHEMA",
+    "HEART_TRAINING_RECIPE_SCHEMA",
     "DIALECTS",
     "DIALECT_TO_ID",
     "HeartMeaningSignature",
     "HeartTranslationCase",
     "CounterfactualPair",
     "HeartTranslationCurriculum",
+    "HeartTranslationTrainingObjective",
+    "HeartTranslationTrainingRecipe",
     "HeartTranslationBatch",
     "HeartTranslationLoss",
     "HeartTranslationEvaluationReport",
