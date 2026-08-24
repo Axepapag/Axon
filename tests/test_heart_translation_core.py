@@ -68,6 +68,8 @@ def test_heart_curriculum_is_content_addressed_disjoint_and_counterfactual_compl
         HEART_SEMANTIC_LABELS
     ) | {"referent_identity", "grounding_provenance"}
     assert all(case.referent_start > 256 and len(case.source_text) > 256 for case in complete_field)
+    assert all("heart-translation-v3" in case.provenance for case in complete_field)
+    assert all("heart-translation-v2" not in case.provenance for case in complete_field)
     assert {case.spec_id for case in first.train_cases}.isdisjoint(
         {case.spec_id for case in first.heldout_cases + first.regression_cases}
     )

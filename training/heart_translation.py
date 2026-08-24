@@ -707,7 +707,7 @@ def _complete_field_variant(
         grounding_end=len(prefix) + case.grounding_end,
         signature=case.signature,
         critical_classes=case.critical_classes,
-        provenance=f"synthetic:heart-translation-v2:complete-field:{case.spec_id}",
+        provenance=f"synthetic:heart-translation-v3:complete-field:{case.spec_id}",
         spec_id=f"{case.spec_id}:complete-field:{semantic_class}",
     )
 
