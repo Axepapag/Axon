@@ -31,7 +31,7 @@ from runtime.heart.translation_core import HEART_SEMANTIC_LABELS, HeartTranslati
 
 HEART_CURRICULUM_SCHEMA = "axon-heart-translation-curriculum-v3"
 HEART_CASE_SCHEMA = "axon-heart-translation-case-v3"
-HEART_EVALUATION_SCHEMA = "axon-heart-translation-evaluation-v3"
+HEART_EVALUATION_SCHEMA = "axon-heart-translation-evaluation-v4"
 HEART_TRAINING_OBJECTIVE_SCHEMA = "axon-heart-translation-training-objective-v1"
 HEART_TRAINING_RECIPE_SCHEMA = "axon-heart-translation-training-recipe-v1"
 
@@ -402,6 +402,55 @@ class HeartTranslationLoss:
 
 
 @dataclass(frozen=True, slots=True)
+class HeartTranslationCaseResult:
+    case_id: str
+    generated_text: str
+    generated_characters: int
+    terminated: bool
+    target_exact: bool
+    source_semantic_exact: bool
+    reverse_semantic_exact: bool
+    referent_pointer_exact: bool
+    grounding_pointer_exact: bool
+    referent_preserved: bool
+    grounded_roundtrip: bool
+    aggregate_semantic_fidelity: bool
+    result_id: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        if not self.case_id:
+            raise ValueError("case_id must be non-empty")
+        if not isinstance(self.generated_text, str):
+            raise TypeError("generated_text must be a string")
+        if self.generated_characters != len(self.generated_text):
+            raise ValueError("generated character count disagrees with exact text")
+        object.__setattr__(
+            self,
+            "result_id",
+            canonical_sha256(self.to_canonical_dict(include_id=False)),
+        )
+
+    def to_canonical_dict(self, *, include_id: bool = True) -> dict[str, Any]:
+        value: dict[str, Any] = {
+            "case_id": self.case_id,
+            "generated_text": self.generated_text,
+            "generated_characters": self.generated_characters,
+            "terminated": self.terminated,
+            "target_exact": self.target_exact,
+            "source_semantic_exact": self.source_semantic_exact,
+            "reverse_semantic_exact": self.reverse_semantic_exact,
+            "referent_pointer_exact": self.referent_pointer_exact,
+            "grounding_pointer_exact": self.grounding_pointer_exact,
+            "referent_preserved": self.referent_preserved,
+            "grounded_roundtrip": self.grounded_roundtrip,
+            "aggregate_semantic_fidelity": self.aggregate_semantic_fidelity,
+        }
+        if include_id:
+            value["result_id"] = self.result_id
+        return value
+
+
+@dataclass(frozen=True, slots=True)
 class HeartTranslationEvaluationReport:
     descriptor_id: str
     curriculum_id: str
@@ -414,6 +463,7 @@ class HeartTranslationEvaluationReport:
     referent_pointer_rate: float
     grounding_pointer_rate: float
     evidence: HeartSemanticFidelityEvidence
+    case_results: tuple[HeartTranslationCaseResult, ...]
 
     def to_canonical_dict(self) -> dict[str, Any]:
         return {
@@ -429,6 +479,7 @@ class HeartTranslationEvaluationReport:
             "referent_pointer_rate": self.referent_pointer_rate,
             "grounding_pointer_rate": self.grounding_pointer_rate,
             "evidence": self.evidence.to_canonical_dict(),
+            "case_results": [item.to_canonical_dict() for item in self.case_results],
         }
 
 
@@ -1126,6 +1177,23 @@ def evaluate_heart_translation_model(
         source_semantic_ok[index] and reverse_ok[index] and referent_preserved[index]
         for index in range(len(cases))
     ]
+    case_results = tuple(
+        HeartTranslationCaseResult(
+            case_id=case.case_id,
+            generated_text=generated[index],
+            generated_characters=generation_results[index].generated_characters,
+            terminated=terminated[index],
+            target_exact=target_exact[index],
+            source_semantic_exact=source_semantic_ok[index],
+            reverse_semantic_exact=reverse_ok[index],
+            referent_pointer_exact=referent_pointer_ok[index],
+            grounding_pointer_exact=grounding_pointer_ok[index],
+            referent_preserved=referent_preserved[index],
+            grounded_roundtrip=grounded_roundtrip[index],
+            aggregate_semantic_fidelity=aggregate_semantic[index],
+        )
+        for index, case in enumerate(cases)
+    )
 
     critical_rates: dict[str, float] = {}
     for semantic_class in CRITICAL_SEMANTIC_CLASSES:
@@ -1203,6 +1271,9 @@ def evaluate_heart_translation_model(
                 for result in generation_results
             ]
         ),
+        "case_results_sha256": canonical_sha256(
+            [item.to_canonical_dict() for item in case_results]
+        ),
         "translation_termination_rate": sum(terminated) / len(cases),
         "grounded_roundtrip_rate": sum(grounded_roundtrip) / len(cases),
         "aggregate_semantic_fidelity": sum(aggregate_semantic) / len(cases),
@@ -1233,6 +1304,7 @@ def evaluate_heart_translation_model(
         referent_pointer_rate=sum(referent_pointer_ok) / len(cases),
         grounding_pointer_rate=sum(grounding_pointer_ok) / len(cases),
         evidence=evidence,
+        case_results=case_results,
     )
 
 
@@ -1252,6 +1324,7 @@ __all__ = [
     "HeartTranslationBatch",
     "HeartTranslationLoss",
     "HeartTranslationEvaluationReport",
+    "HeartTranslationCaseResult",
     "build_heart_translation_curriculum",
     "collate_heart_translation_cases",
     "heart_translation_loss",

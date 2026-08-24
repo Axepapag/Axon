@@ -142,6 +142,10 @@ def test_untrained_heart_model_produces_real_fidelity_evidence_and_fails_promoti
     curriculum = build_heart_translation_curriculum()
     report = evaluate_heart_translation_model(model, curriculum, descriptor_id="candidate-heart")
     assert report.heldout_case_count == len(curriculum.heldout_cases)
+    assert len(report.case_results) == report.heldout_case_count
+    assert all(result.result_id for result in report.case_results)
+    assert all(result.generated_characters == len(result.generated_text) for result in report.case_results)
+    assert len(report.to_canonical_dict()["case_results"]) == report.heldout_case_count
     assert report.evidence.descriptor_id == "candidate-heart"
     assert report.evidence.grounded_roundtrip_rate < 1.0
     assert not report.evidence.counterfactual_use_proven
