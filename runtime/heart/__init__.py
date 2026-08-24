@@ -1,10 +1,9 @@
-"""The Axon heart (Field Compiler Organ): control-plane contracts.
+"""The Axon heart (Field Compiler Organ): sovereign control and learned senses.
 
-Build A surface: authority classes, core registry, heartbeat/tick identity,
-frozen tick images, the noncanonical proposal board, and the heart
-transaction boundary.  No neural code lives here; canonical mutation is
-performed only through the existing typed-delta machinery in
-``runtime.field.delta``.
+Canonical mutation remains deterministic and occurs only through the typed-delta
+transaction boundary.  Trainer-governed neural Heart translation tissue may live
+in this package as a non-authoritative sense; no learned model gains canonical
+write authority from being part of the Heart package.
 """
 
 from .authority import (
@@ -83,6 +82,13 @@ from .intelligence import (
     HeartTranslatorState,
     evaluate_heart_translator_promotion,
 )
+from .translation_core import (
+    HEART_SEMANTIC_LABELS,
+    HEART_TRANSLATION_ARCHITECTURE,
+    HeartTranslationCore,
+    HeartTranslationCoreConfig,
+    HeartTranslationOutput,
+)
 from .ingress_queue import IngressItem, IngressQueue
 from .lease import SingleWriterLease
 from .registry import CoreDescriptor, CoreRegistry, CoreStatus
@@ -147,6 +153,11 @@ __all__ = [
     "HeartSemanticFidelityEvidence",
     "HeartTranslationPromotionDecision",
     "evaluate_heart_translator_promotion",
+    "HEART_TRANSLATION_ARCHITECTURE",
+    "HEART_SEMANTIC_LABELS",
+    "HeartTranslationCoreConfig",
+    "HeartTranslationOutput",
+    "HeartTranslationCore",
     "HeartHealth",
     "HealthJournal",
     "SingleWriterLease",

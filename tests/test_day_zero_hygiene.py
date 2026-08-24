@@ -67,6 +67,7 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "host.py",
         "identity.py",
         "intelligence.py",
+        "translation_core.py",
         "lease.py",
         "valve.py",
     }
@@ -94,6 +95,7 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "__init__.py",
         "canonical_d64.py",
         "complete_field_64d.py",
+        "heart_translation.py",
         "train_complete_field_64d.py",
     }
 

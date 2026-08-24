@@ -23,7 +23,9 @@ Canonical field/runtime boundary:
 - `runtime/field/state_branch.py`
 - `runtime/axon_runtime/d64_adapter.py`
 - `runtime/dormant/evidence_bridge.py`
-- `runtime/heart/intelligence.py` — first-class governed Heart translator/ensemble/fidelity contracts; no learned Heart model is active yet
+- `runtime/heart/intelligence.py` — governed Heart translator/ensemble/fidelity contracts
+- `runtime/heart/translation_core.py` — first permanent 64D/2-layer/4096-FFN non-authoritative Heart translator tissue; no learned Heart translator is serving yet
+- `training/heart_translation.py` + `scripts/train_heart_translation_smoke.py` — provenance-bound three-dialect curriculum/evaluation and Trainer-governed bounded Heart candidate training
 
 The dormant evidence bridge keeps exact memory authoritative in `State/dormant/*.jsonl`. Its local SQLite index is disposable lookup metadata only; lexical postings use SHA256 term keys plus integer row references rather than copied text/IDs, and selected stable IDs are dereferenced and hash/provenance-verified from the JSONL before surfacing into `cortex` and D64.
 
@@ -103,4 +105,4 @@ python -m pytest -q -p no:cacheprovider
 
 ## Next build target
 
-Train the **Heart translation/conduction ensemble first**. The immediate implementation target is a real Heart model + provenance-bound multilingual/native-rail curriculum and disjoint heldout/counterfactual evaluation harness operating behind Trainer authority and the new `runtime/heart/intelligence.py` promotion floor. Mature topology requires at least three accepted serving Heart translators plus one isolated candidate-learning lane. Build exact autobiographical experience capture in parallel so Heart translations/corrections become future curriculum. Do not launch reasoning or Semantic Cortex training before Heart communication tissue earns promotion; `semantic_cortex` remains CLOSED.
+Train the **Heart translation/conduction ensemble first**. The first permanent 64D Heart translator, synthetic provenance-bound curriculum, heldout/counterfactual harness, and governed smoke path now exist. The first real 12-step CUDA candidate lowered loss but still scored 0.0 grounded roundtrip/aggregate semantic fidelity and was rejected without activation, so no longer Heart campaign is justified yet. Next improve bounded semantic/grounding learning evidence and build exact autobiographical experience capture in parallel so Heart translations/corrections become future lived curriculum. Mature topology still requires at least three accepted serving Heart translators plus one isolated candidate-learning lane. Reasoning and Semantic Cortex training remain parked; `semantic_cortex` stays CLOSED.

@@ -46,8 +46,11 @@ The active developmental trainer has no detached-record/legacy-anatomy switch. C
 ### Heart intelligence boundary
 
 - `runtime/heart/intelligence.py`
+- `runtime/heart/translation_core.py`
+- `training/heart_translation.py`
+- `scripts/train_heart_translation_smoke.py`
 
-Heart learned tissue is now a first-class governed target but no neural Heart model is active yet. Mature policy requires at least three accepted serving translators plus one isolated candidate lane. Promotion requires >=0.9999 grounded roundtrip, >=0.999 aggregate semantic fidelity, perfect heldout preservation for every critical semantic class, counterfactual input-use proof, and zero regression failures. The canonical Shared Field remains truth; learned Heart translators only propose interpretations/transport and never gain direct canonical-write authority.
+The first permanent neural Heart translator now exists as non-serving 64D/2-layer/4-head/4096-FFN tissue grounded from the frozen 16D substrate, with explicit semantic/referent/grounding heads. Its synthetic three-dialect curriculum, immutable task objective, disjoint heldout/regression/counterfactual suites, and Trainer-governed bounded smoke path are active. The first real 12-step CUDA candidate lowered loss but remained at 0.0 grounded roundtrip/aggregate semantic fidelity and was rejected without activation. Mature policy still requires at least three accepted serving translators plus one isolated candidate lane; promotion remains >=0.9999 grounded roundtrip, >=0.999 aggregate semantic fidelity, perfect critical classes, counterfactual use proof, and zero regressions. The canonical Shared Field remains truth; learned Heart translators never gain direct canonical-write authority.
 
 ### Trainer organ control plane
 
@@ -66,7 +69,7 @@ Heart learned tissue is now a first-class governed target but no neural Heart mo
 - `runtime/trainer/host.py`
 - `scripts/inspect_trainer.py`
 
-This is now a governed candidate-learning and activation boundary, not merely bookkeeping. One OS-backed Trainer writer owns parameter-state mutation; live registered organs are never optimized in place; authorized learning occurs on isolated candidate clones under immutable content-addressed learning policies governing optimizer hyperparameters, weight decay, constant/warmup-cosine scheduling, gradient accumulation, clipping, gradient/update budgets, and FP32/BF16/FP16 precision. Mid-accumulation checkpoints preserve optimizer, pending gradients, AMP scaler state when present, counters, LR and accumulated-loss telemetry for exact resume. A passed proposal can be activated only by the leased Trainer through stale-inventory checks, exact candidate verification, a durable rollback snapshot, and atomic active-generation pointer publication; rollback and restart hydration are explicit. Unit-scale synthetic candidates prove the mechanism; no real semantic/reasoning training campaign is authorized or running by this milestone.
+This is now a governed candidate-learning and activation boundary, not merely bookkeeping. One OS-backed Trainer writer owns parameter-state mutation; live registered organs are never optimized in place; authorized learning occurs on isolated candidate clones under immutable content-addressed learning policies governing optimizer hyperparameters, weight decay, constant/warmup-cosine scheduling, gradient accumulation, clipping, gradient/update budgets, and FP32/BF16/FP16 precision. Mid-accumulation checkpoints preserve optimizer, pending gradients, AMP scaler state when present, counters, LR and accumulated-loss telemetry for exact resume. A passed proposal can be activated only by the leased Trainer through stale-inventory checks, exact candidate verification, a durable rollback snapshot, and atomic active-generation pointer publication; rollback and restart hydration are explicit. Unit-scale synthetic candidates prove the general mechanism, and one bounded real Heart-translation candidate smoke is now preserved in Trainer State; it was rejected and never activated. No semantic/reasoning training campaign is authorized or running by this milestone.
 
 ### Dormant-memory construction utilities
 
