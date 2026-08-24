@@ -109,6 +109,8 @@ def inspect_trainer_state(*, state_root: Path | str = Path(r"D:\Axon\State")) ->
     counts = (
         ("inventories", _count_json(trainer / "inventories")),
         ("plans", _count_json(trainer / "plans")),
+        ("capacity_contracts", _count_json(trainer / "capacity_contracts")),
+        ("preflight_receipts", _count_json(trainer / "preflight_receipts")),
         ("learning_policies", _count_json(trainer / "learning_policies")),
         ("authorizations", _count_json(trainer / "authorizations")),
         ("evaluations", _count_json(trainer / "evaluations")),

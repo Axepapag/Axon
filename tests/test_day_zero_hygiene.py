@@ -88,6 +88,7 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "lease.py",
         "inspection.py",
         "host.py",
+        "preflight.py",
     }
 
     training_files = {path.name for path in (ROOT / "training").glob("*.py")}
@@ -95,6 +96,7 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "__init__.py",
         "canonical_d64.py",
         "complete_field_64d.py",
+        "heart_preflight.py",
         "heart_translation.py",
         "train_complete_field_64d.py",
     }

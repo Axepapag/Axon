@@ -167,8 +167,11 @@ def test_d64_reader_consumes_only_the_canonical_compiled_rail() -> None:
     }
     snapshot = SharedFieldSnapshot.from_texts(field)
     model = CompleteField64D(
-        ReaderConfig(page_size=4, max_output_chars=128, dropout=0.0)
+        ReaderConfig(page_size=4, inference_budget_chars=128, dropout=0.0)
     )
+    assert "local_position" not in dict(model.named_modules())
+    assert "page_position" not in dict(model.named_modules())
+    assert model._target_indices("a" * 1024).shape == (1025,)
     model.eval()
     with torch.no_grad():
         state, memory, coverage, compiled = model.read_snapshot_with_memory(snapshot)

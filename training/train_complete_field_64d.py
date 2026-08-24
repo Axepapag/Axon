@@ -722,7 +722,14 @@ def main() -> int:
     parser.add_argument("--steps", type=int, default=200000)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--page-size", type=int, default=256)
-    parser.add_argument("--max-output-chars", type=int, default=512)
+    parser.add_argument(
+        "--inference-budget-chars",
+        "--max-output-chars",
+        dest="inference_budget_chars",
+        type=int,
+        default=512,
+        help="Per-evaluation compute budget only; it does not limit trainable target length",
+    )
     parser.add_argument("--n-heads", type=int, default=4)
     parser.add_argument("--n-layers", type=int, default=1)
     parser.add_argument("--ffn-dim", type=int, default=192)
@@ -838,7 +845,7 @@ def main() -> int:
         raise RuntimeError("CUDA was requested but is unavailable")
     config = ReaderConfig(
         page_size=args.page_size,
-        max_output_chars=args.max_output_chars,
+        inference_budget_chars=args.inference_budget_chars,
         n_heads=args.n_heads,
         n_layers=args.n_layers,
         ffn_dim=args.ffn_dim,

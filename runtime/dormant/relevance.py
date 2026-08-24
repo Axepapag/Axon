@@ -34,7 +34,7 @@ def _terms(value: str) -> frozenset[str]:
 
 
 def _string_values(value: object) -> tuple[str, ...]:
-    """Collect bounded textual metadata without treating it as authority."""
+    """Collect all textual metadata without treating it as source authority."""
 
     found: list[str] = []
     if isinstance(value, str):
@@ -46,11 +46,11 @@ def _string_values(value: object) -> tuple[str, ...]:
             if isinstance(item, str) and item:
                 found.append(item)
             elif isinstance(item, (list, tuple)):
-                for child in item[:32]:
+                for child in item:
                     if isinstance(child, str) and child:
                         found.append(child)
     elif isinstance(value, (list, tuple)):
-        for item in value[:32]:
+        for item in value:
             if isinstance(item, str) and item:
                 found.append(item)
     return tuple(found)

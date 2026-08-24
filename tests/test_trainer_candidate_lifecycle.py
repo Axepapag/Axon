@@ -26,6 +26,7 @@ from runtime.trainer import (
     inspect_trainer_state,
     parameter_value_sha256,
 )
+from tests._trainer_preflight import unit_preflight_receipt
 
 
 class TinyCore(nn.Module):
@@ -78,7 +79,7 @@ def _setup(tmp_path: Path, *, max_steps: int = 3):
 def test_candidate_optimizer_changes_only_authorized_clone_and_never_live_module(tmp_path: Path) -> None:
     control, live, _descriptor, inventory, grant, plan = _setup(tmp_path)
     live_before = {name: parameter_value_sha256(parameter) for name, parameter in live.named_parameters()}
-    session = control.begin_candidate(inventory, grant, plan)
+    session = control.begin_candidate(inventory, grant, plan, preflight_receipt=unit_preflight_receipt(inventory, plan))
 
     x = torch.tensor([[1.0, -0.5, 0.25, 2.0]])
     target = torch.zeros_like(x)
@@ -101,7 +102,7 @@ def test_candidate_optimizer_changes_only_authorized_clone_and_never_live_module
 
 def test_candidate_checkpoint_is_hash_verified_and_restorable(tmp_path: Path) -> None:
     control, live, _descriptor, inventory, grant, plan = _setup(tmp_path)
-    session = control.begin_candidate(inventory, grant, plan)
+    session = control.begin_candidate(inventory, grant, plan, preflight_receipt=unit_preflight_receipt(inventory, plan))
     x = torch.ones(1, 4)
     session.step(lambda candidate: candidate(x).square().mean())
     record = session.checkpoint(include_optimizer=True)
@@ -127,7 +128,7 @@ def test_candidate_checkpoint_is_hash_verified_and_restorable(tmp_path: Path) ->
 def test_nonfinite_loss_rejects_candidate_before_optimizer_step(tmp_path: Path) -> None:
     control, live, _descriptor, inventory, grant, plan = _setup(tmp_path)
     live_before = {name: parameter_value_sha256(parameter) for name, parameter in live.named_parameters()}
-    session = control.begin_candidate(inventory, grant, plan)
+    session = control.begin_candidate(inventory, grant, plan, preflight_receipt=unit_preflight_receipt(inventory, plan))
     candidate_before = {name: parameter_value_sha256(parameter) for name, parameter in session.candidate_module.named_parameters()}
 
     with pytest.raises(TrainerExecutionError, match="non-finite loss"):
@@ -140,7 +141,7 @@ def test_nonfinite_loss_rejects_candidate_before_optimizer_step(tmp_path: Path) 
 
 def test_authorized_max_steps_is_hard_boundary(tmp_path: Path) -> None:
     control, _live, _descriptor, inventory, grant, plan = _setup(tmp_path, max_steps=1)
-    session = control.begin_candidate(inventory, grant, plan)
+    session = control.begin_candidate(inventory, grant, plan, preflight_receipt=unit_preflight_receipt(inventory, plan))
     x = torch.ones(1, 4)
     session.step(lambda candidate: candidate(x).square().mean())
     with pytest.raises(TrainerExecutionError, match="max_steps"):
@@ -149,7 +150,7 @@ def test_authorized_max_steps_is_hard_boundary(tmp_path: Path) -> None:
 
 def test_promotion_gate_requires_every_declared_capability_and_regression_suite(tmp_path: Path) -> None:
     control, _live, _descriptor, inventory, grant, plan = _setup(tmp_path)
-    session = control.begin_candidate(inventory, grant, plan)
+    session = control.begin_candidate(inventory, grant, plan, preflight_receipt=unit_preflight_receipt(inventory, plan))
     session.step(lambda candidate: candidate(torch.ones(1, 4)).square().mean())
     checkpoint = session.checkpoint(include_optimizer=False)
 
@@ -309,7 +310,7 @@ def test_persistent_buffers_are_in_inventory_and_ungranted_mutation_fails_closed
         source_manifest_ids=("source",),
         holdout_manifest_ids=("holdout",),
     )
-    session = control.begin_candidate(inventory, grant, plan)
+    session = control.begin_candidate(inventory, grant, plan, preflight_receipt=unit_preflight_receipt(inventory, plan))
     live_buffer_before = live.running_signal.clone()
     adapter_before = session.candidate_module.adapter.weight.detach().clone()
     with pytest.raises(ParameterAuthorityError, match="persistent buffers"):
@@ -352,7 +353,7 @@ def test_read_only_trainer_inspection_exposes_current_candidate_state(tmp_path: 
         source_manifest_ids=("source",),
         holdout_manifest_ids=("holdout",),
     )
-    session = control.begin_candidate(inventory, grant, plan)
+    session = control.begin_candidate(inventory, grant, plan, preflight_receipt=unit_preflight_receipt(inventory, plan))
     session.step(lambda candidate: candidate(torch.ones(1, 4)).square().mean())
     checkpoint = session.checkpoint(include_optimizer=False)
 

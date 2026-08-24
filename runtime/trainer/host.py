@@ -36,6 +36,7 @@ from .registry import (
     descriptors_share_anatomy,
     parameter_value_sha256,
 )
+from .preflight import TrainingPreflightReceipt
 from .store import TrainerStateStore
 from .telemetry import ParameterTelemetryFrame, capture_parameter_telemetry
 
@@ -168,9 +169,17 @@ class TrainerControlPlane:
         inventory: ParameterInventory,
         grant: ParameterMutationGrant,
         plan: ParameterMutationPlan,
+        preflight_receipt: TrainingPreflightReceipt,
     ) -> AuthorizedParameterMutation:
         self._require_writer_authority()
-        authorization = authorize_parameter_mutation(inventory, grant, plan)
+        if not isinstance(preflight_receipt, TrainingPreflightReceipt):
+            raise TypeError("Trainer authorization requires a TrainingPreflightReceipt")
+        try:
+            preflight_receipt.assert_authorizes(inventory, plan)
+        except ValueError as exc:
+            raise ParameterAuthorityError(str(exc)) from exc
+        self.store.write_preflight_receipt(preflight_receipt)
+        authorization = authorize_parameter_mutation(inventory, grant, plan, preflight_receipt)
         self.store.write_plan(plan)
         self.store.write_authorization(authorization)
         return authorization
@@ -181,11 +190,12 @@ class TrainerControlPlane:
         grant: ParameterMutationGrant,
         plan: ParameterMutationPlan,
         *,
+        preflight_receipt: TrainingPreflightReceipt,
         policy: OptimizerExecutionPolicy | None = None,
     ) -> CandidateOptimizationSession:
         """Authorize and create an isolated candidate; the live module stays sealed."""
 
-        authorization = self.authorize(inventory, grant, plan)
+        authorization = self.authorize(inventory, grant, plan, preflight_receipt)
         return CandidateOptimizationSession(
             live_module=self.registry.module(plan.module_id),
             base_descriptor=self.registry.descriptor(plan.module_id),

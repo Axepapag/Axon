@@ -7,6 +7,7 @@ import torch
 
 from runtime.heart import HeartEnsemblePolicy, evaluate_heart_translator_promotion
 from runtime.heart.translation_core import (
+    HEART_SEMANTIC_LABELS,
     HEART_TRANSLATION_ARCHITECTURE,
     HeartTranslationCore,
     HeartTranslationCoreConfig,
@@ -31,8 +32,7 @@ def _small_model() -> HeartTranslationCore:
             n_layers=1,
             ffn_dim=128,
             dropout=0.0,
-            max_source_chars=192,
-            max_target_chars=192,
+            source_page_chars=32,
         )
     )
 
@@ -58,10 +58,16 @@ def test_heart_curriculum_is_content_addressed_disjoint_and_counterfactual_compl
     assert first.curriculum_id == second.curriculum_id
     assert first.train_manifest_id == second.train_manifest_id
     assert first.heldout_manifest_id == second.heldout_manifest_id
-    assert len(first.train_cases) == 582
-    assert len(first.heldout_cases) == 69
+    assert len(first.train_cases) == 590
+    assert len(first.heldout_cases) == 77
     assert len(first.regression_cases) == 21
     assert len(first.counterfactual_pairs) == 8
+    complete_field = [case for case in first.train_cases if ":complete-field:" in case.spec_id]
+    assert len(complete_field) == 8
+    assert {semantic for case in complete_field for semantic in case.critical_classes} >= set(
+        HEART_SEMANTIC_LABELS
+    ) | {"referent_identity", "grounding_provenance"}
+    assert all(case.referent_start > 256 and len(case.source_text) > 256 for case in complete_field)
     assert {case.spec_id for case in first.train_cases}.isdisjoint(
         {case.spec_id for case in first.heldout_cases + first.regression_cases}
     )
@@ -153,8 +159,7 @@ def test_smoke_generation_identity_binds_training_objective(tmp_path: Path) -> N
         n_layers=1,
         ffn_dim=128,
         dropout=0.0,
-        max_source_chars=192,
-        max_target_chars=192,
+        source_page_chars=32,
     )
     first = run_heart_translation_smoke(
         state_root=tmp_path / "first",
@@ -198,13 +203,13 @@ def test_trainer_governed_heart_smoke_rejects_without_activation(tmp_path: Path)
             n_layers=1,
             ffn_dim=128,
             dropout=0.0,
-            max_source_chars=192,
-            max_target_chars=192,
+            source_page_chars=32,
         ),
     )
     assert result.candidate_status == "rejected_not_activated"
     assert not result.heart_promotion_passed
     assert result.heart_promotion_passed == result.generic_trainer_gate_passed
+    assert result.preflight_receipt_id
     assert len(result.checkpoint_ids) == 2
     assert Path(result.summary_path).exists()
     inspection = inspect_trainer_state(state_root=tmp_path)
@@ -213,3 +218,66 @@ def test_trainer_governed_heart_smoke_rejects_without_activation(tmp_path: Path)
     assert counts["activation_receipts"] == 0
     assert counts["promotion_proposals"] == 0
     assert counts["learning_policies"] == 1
+    assert counts["capacity_contracts"] == 1
+    assert counts["preflight_receipts"] == 1
+
+
+def test_heart_translation_reads_and_addresses_every_character_beyond_old_192_cap() -> None:
+    model = _small_model()
+    source_length = 521
+    source_indices = torch.arange(source_length, dtype=torch.long).remainder(model.vocab_size).unsqueeze(0)
+    source_mask = torch.ones_like(source_indices, dtype=torch.bool)
+    output = model(
+        source_indices,
+        source_mask,
+        torch.tensor([0]),
+        torch.tensor([1]),
+        torch.tensor([[model.bos_index]]),
+    )
+
+    assert output.source_coverage.complete
+    assert output.source_coverage.source_characters == (source_length,)
+    assert output.source_coverage.visited_characters_per_sweep == (
+        (source_length,),
+        (source_length,),
+    )
+    assert output.source_coverage.page_spans[0][0] == (0, 32)
+    assert output.source_coverage.page_spans[0][-1] == (512, 521)
+    assert output.referent_start_logits.shape == (1, source_length)
+    assert output.grounding_end_logits.shape == (1, source_length)
+
+
+def test_heart_translation_target_training_has_no_learned_character_ceiling() -> None:
+    model = _small_model()
+    source_indices = torch.arange(257, dtype=torch.long).remainder(model.vocab_size).unsqueeze(0)
+    source_mask = torch.ones_like(source_indices, dtype=torch.bool)
+    decoder_input = torch.full((1, 257), model.bos_index, dtype=torch.long)
+    output = model(
+        source_indices,
+        source_mask,
+        torch.tensor([0]),
+        torch.tensor([1]),
+        decoder_input,
+    )
+    assert output.target_log_probs.shape[:2] == (1, 257)
+
+
+def test_heart_greedy_compute_budget_reports_nontermination_instead_of_partial_success() -> None:
+    model = _small_model()
+    with torch.no_grad():
+        model.decoder_output.weight.zero_()
+        model.decoder_output.bias.zero_()
+        model.copy_gate.weight.zero_()
+        model.copy_gate.bias.fill_(100.0)
+    source = torch.tensor([[model.char_to_index["a"]]], dtype=torch.long)
+    result = model.greedy_translate(
+        source,
+        torch.ones_like(source, dtype=torch.bool),
+        torch.tensor([0]),
+        torch.tensor([1]),
+        max_chars=1,
+    )[0]
+
+    assert result.text
+    assert result.generated_characters == 1
+    assert result.terminated is False

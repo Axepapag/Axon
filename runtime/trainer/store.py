@@ -29,6 +29,7 @@ from .lifecycle import (
     OptimizationStepReceipt,
 )
 from .registry import capture_module_manifest
+from .preflight import TrainingPreflightReceipt
 from .telemetry import ParameterTelemetryFrame
 
 
@@ -43,6 +44,8 @@ class TrainerStateStore:
         self.root = Path(root).resolve(strict=False)
         self.inventories_dir = self.root / "inventories"
         self.plans_dir = self.root / "plans"
+        self.capacity_contracts_dir = self.root / "capacity_contracts"
+        self.preflight_receipts_dir = self.root / "preflight_receipts"
         self.authorizations_dir = self.root / "authorizations"
         self.promotions_dir = self.root / "promotion_proposals"
         self.learning_policies_dir = self.root / "learning_policies"
@@ -80,6 +83,15 @@ class TrainerStateStore:
             raise TypeError("plan must be ParameterMutationPlan")
         path = self.plans_dir / f"{plan.plan_id}.json"
         self._write_immutable(path, plan.to_canonical_dict())
+        return path
+
+    def write_preflight_receipt(self, receipt: TrainingPreflightReceipt) -> Path:
+        if not isinstance(receipt, TrainingPreflightReceipt):
+            raise TypeError("receipt must be TrainingPreflightReceipt")
+        contract_path = self.capacity_contracts_dir / f"{receipt.contract.contract_id}.json"
+        self._write_immutable(contract_path, receipt.contract.to_canonical_dict())
+        path = self.preflight_receipts_dir / f"{receipt.receipt_id}.json"
+        self._write_immutable(path, receipt.to_canonical_dict())
         return path
 
     def write_learning_policy(self, policy: GovernedLearningPolicy) -> Path:

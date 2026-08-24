@@ -25,6 +25,7 @@ from runtime.trainer import (
     capture_module_manifest,
     parameter_value_sha256,
 )
+from tests._trainer_preflight import unit_preflight_receipt
 
 
 class TinyCore(nn.Module):
@@ -70,7 +71,7 @@ def _prepared(tmp_path: Path):
         source_manifest_ids=("source",),
         holdout_manifest_ids=("holdout",),
     )
-    session = control.begin_candidate(inventory, grant, plan)
+    session = control.begin_candidate(inventory, grant, plan, preflight_receipt=unit_preflight_receipt(inventory, plan))
     x = torch.ones(1, 4)
     session.step(lambda candidate: candidate(x).square().mean())
     checkpoint = session.checkpoint(include_optimizer=False)

@@ -305,23 +305,17 @@ def forward_semantic_edge_cases(
     *,
     sample_size: int = 64,
     seed: str = "axon-build-c1-forward",
-    max_source_chars: int = 256,
-    max_source_terms: int = 64,
 ) -> tuple[DormantForwardEvaluationCase, ...]:
     """Create grounded source+relation -> target cases with no target leakage.
 
     The recovered edge target must resolve through the derived normalized-key
     map to at least one actual container.  Source and target IDs are then exact-
-    dereferenced before the case is admitted.  Long sources are skipped rather
-    than truncated.
+    dereferenced before the case is admitted. Source length never excludes an
+    otherwise valid grounded case.
     """
 
     if isinstance(sample_size, bool) or not isinstance(sample_size, int) or sample_size < 1:
         raise ValueError("sample_size must be a positive integer")
-    if isinstance(max_source_chars, bool) or not isinstance(max_source_chars, int) or max_source_chars < 1:
-        raise ValueError("max_source_chars must be a positive integer")
-    if isinstance(max_source_terms, bool) or not isinstance(max_source_terms, int) or max_source_terms < 1:
-        raise ValueError("max_source_terms must be a positive integer")
 
     candidate_count = min(32_768, max(sample_size * 128, sample_size))
     seeds = _forward_edge_seed_sample(
@@ -350,9 +344,7 @@ def forward_semantic_edge_cases(
         if source.status not in {"dormant", "active"}:
             continue
         source_text = source.text.strip()
-        if not source_text or len(source_text) > max_source_chars:
-            continue
-        if _token_count(source_text) > max_source_terms:
+        if not source_text:
             continue
         # Do not admit a case if the expected target text is already literally
         # present in the source query; that would test lexical leakage, not graph

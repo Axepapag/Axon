@@ -1,6 +1,6 @@
 # Axon Source Of Truth
 
-Last updated: 2026-08-23 (Heart intelligence ensemble + native rail dialect doctrine ratified)
+Last updated: 2026-08-24 (non-disposable training capacity law ratified)
 
 ## Core Doctrine
 
@@ -307,6 +307,27 @@ rails, barriers, consolidator proposal, heart commit) is established before
 substantive reasoning-core training; cores are later trained to operate
 correctly inside this anatomy.
 
+### Additive developmental anatomy law
+
+This permanence rule applies to every Axon organ, suborgan, core, rail, sense,
+compiler, adapter, and learned surface. Before material implementation or
+training begins, a developmental part must have either an honest enduring role
+in the organism or an explicit composition and versioned-upgrade path into
+larger anatomy. A small part may remain as a specialist, join an ensemble,
+receive governed adapters, operate on a narrower cadence, or be accompanied by
+wider peers. Increased scale is additive growth; it is not permission to
+silently relabel, overwrite, or discard previously accepted tissue.
+
+"Upgradeable" does not mean that every experimental candidate must be promoted
+or serve forever. Failed and rejected candidates remain immutable learning
+evidence. An accepted part may later be retired or moved offline when measured
+evidence and an explicit lifecycle decision justify it. What is forbidden is a
+campaign knowingly aimed at dead-end anatomy whose learned capacity must be
+thrown away merely because the next width, context length, or organ generation
+arrives. Canonical State, provenance, interfaces, and unrelated learned tissues
+must survive scale-up. Incompleteness and weakness are admissible first forms;
+fakeness, concealed replacement, and planned disposability are not.
+
 ## Authority Classes
 
 - External ingress (user/tool/advisor) may submit heart-governed mutations
@@ -401,17 +422,61 @@ Trainer cadence is distinct from heartbeat, Cortex tick, and reasoning tick. The
 
 The Trainer is also Axon's **lived-experience compiler**. It must not blindly stream the Dormant corpus into gradient descent. It selects provenance-complete episodes and constructs runtime-faithful curriculum examples from what Axon actually experienced: the pre-action Shared Field and Cortex context, available tools/advisors, proposals/deltas/actions, tool consequences, later corrections, test/evaluation evidence, and eventual outcome. Successful and failed episodes are both valuable. The Trainer may build paired corrections, replay tasks, counterfactuals, delayed-outcome examples, retrieval-use examples, and multi-episode curricula, but every derived training target remains linked to the exact source episodes that justify it.
 
+The ratified developmental learning sequence is functional Heart circulation
+first, followed by Semantic Cortex and reasoning-core learning from exact,
+provenance-bound lived episodes in Dormant State. This sequencing does not make
+the Heart disposable pretraining infrastructure: its translations,
+disagreements, corrections, and observed consequences become part of the same
+experience record and can improve later Heart generations as well as Cortex and
+reasoning cores.
+
+A Trainer-built learning session is a durable, inspectable organ product rather
+than an ad hoc batch. The Trainer selects eligible episodes, reconstructs the
+pre-action canonical context and actually available senses/actions, derives
+targets only from outcomes, later corrections, and cited evidence, and marks
+observation separately from inference. It then constructs balanced splits,
+replay, counterfactual, delayed-outcome, retrieval-use, and forgetting probes;
+chooses an eligible candidate organ and non-disposable capacity contract;
+obtains the mandatory preflight receipt; trains only an isolated candidate;
+evaluates and promotes or rejects it through Trainer authority; and deposits
+the session manifest, lineage, evidence, and outcome back into durable history.
+Trainer advisory cores may propose curricula and session plans, but deterministic
+Trainer authority validates sources, permissions, capacity, splits, and
+promotion. Neither a curriculum nor learned weights may replace the exact
+Dormant episodes from which it was derived.
+
 The purpose of lived-experience training is primarily **procedural compression**: reasoning habits, tool-use instincts, error avoidance, planning patterns, semantic discrimination, confidence calibration, and other generalized intuition that should become easier because Axon has encountered similar situations before. Parameters are not required to memorize every factual detail. Exact facts, versions, identities, conversations, source material, and auditable outcomes remain in Dormant State and can be surfaced by Cortex when needed. In mature operation, weights should answer roughly "how have situations like this tended to work?" while Dormant State + Cortex answer "what exactly happened, what is known now, and what evidence supports it?"
 
 Core diversity should emerge naturally from governed variation in lived-experience sampling, temporal windows, curriculum order, objectives, initialization, adapters, architecture/width, and replay/counterfactual emphasis. Multiple generalist reasoning or semantic cores may therefore learn overlapping life history through different lenses and acquire different useful intuitions without requiring every core to be narrowly labeled "coding", "math", or "science". Explicit specialist cores remain optional additions, not the only path to ensemble diversity.
 
 Steady-state Axon should normally keep at least one **isolated non-live candidate learning lane** active on admissible lived-experience or study curriculum while other cores serve the organism. "Always learning" never means forcing meaningless gradient steps: if no curriculum passes provenance/quality gates, that lane remains occupied with curation, replay construction, evaluation, or forgetting analysis until admissible learning material exists. The live accepted cores remain immutable until a candidate independently passes Trainer gates and activation.
 
-**Current first learned-organ priority is the Heart translation/conduction ensemble.** Reasoning and Semantic Cortex training remain behind it. The Trainer recognizes Heart translation cores/adapters as explicit parameter-bearing organ kinds. `runtime/heart/translation_core.py` is now the first permanent learned Heart tissue: a 64D, two-layer, four-head, 4096-FFN translator grounded from the frozen 16D character substrate, with explicit semantic, referent, and grounding heads; it has no canonical-write authority. `training/heart_translation.py` provides a provenance-labeled synthetic three-dialect curriculum, disjoint heldout/regression/counterfactual suites, semantic/grounding evaluation, and an immutable content-addressed task-loss objective. A first real Trainer-governed 12-step CUDA smoke lowered loss from 4.9502 to 4.3422 and moved some semantic submetrics, but grounded roundtrip and aggregate semantic fidelity remained 0.0, so the candidate was rejected and no activation/promotion proposal occurred. Longer Heart training remains blocked until bounded smoke evidence moves the cardiac semantic/grounding task metrics meaningfully above trivial floors. Autobiographical experience capture remains required in parallel because the Heart's own lived translations, corrections, disagreements and outcomes become future Heart curriculum.
+**Current first learned-organ priority is the Heart translation/conduction ensemble.** Reasoning and Semantic Cortex training remain behind it. The Trainer recognizes Heart translation cores/adapters as explicit parameter-bearing organ kinds. `runtime/heart/translation_core.py` is now the first permanent learned Heart tissue: a 64D, two-layer, four-head, 4096-FFN translator grounded from the frozen 16D character substrate, with explicit semantic, referent, and grounding heads; it has no canonical-write authority. Architecture v2 has no learned or validated source/target character ceiling. A configurable physical page is only a processing unit: two ordered recurrent sweeps visit every exact source character, the second sweep builds full addressable character memory from a query state that has already traversed the complete source, and a coverage record binds per-row source-index hashes, page spans, and visited counts. Source and decoder positions are deterministic sinusoidal functions rather than finite learned tables. `training/heart_translation.py` provides a provenance-labeled synthetic three-dialect curriculum, disjoint heldout/regression/counterfactual suites, semantic/grounding evaluation, and an immutable content-addressed task-loss objective. Curriculum v2 includes train and held-out complete-field cases for every critical semantic class whose grounded spans begin beyond character 256. A first real Trainer-governed 12-step CUDA smoke used the obsolete fixed-192 architecture v1; it lowered loss from 4.9502 to 4.3422 and moved some semantic submetrics, but grounded roundtrip and aggregate semantic fidelity remained 0.0, so the candidate was rejected and no activation/promotion proposal occurred. Its immutable artifacts remain historical evidence and are not compatible with v2. Longer Heart training must start a new v2 generation and remains blocked until bounded smoke evidence moves the cardiac semantic/grounding task metrics meaningfully above trivial floors. Autobiographical experience capture remains required in parallel because the Heart's own lived translations, corrections, disagreements and outcomes become future Heart curriculum.
 
 `runtime/trainer/` now implements the first governed candidate-generation lifecycle behind that control plane. A live registered organ is never handed to an optimizer: the Trainer creates an isolated candidate clone, freezes tensors outside the exact mutation grant, enforces the authorized step/parameter budget, rejects non-finite loss or gradients before contamination, hashes live and unauthorized state around each step, and records full per-parameter telemetry. `runtime/trainer/learning.py` defines an immutable content-addressed learning policy bound to every candidate checkpoint/step. Current first-form execution governs AdamW or SGD, weight decay, Adam betas/epsilon, SGD momentum, constant or warmup-cosine scheduling, gradient accumulation, gradient clipping, hard gradient/update L2 budgets, and explicit FP32/BF16/FP16 precision. FP16 requires CUDA and uses a governed GradScaler; non-finite gradients still fail closed before optimizer mutation. Persistent buffers are inventoried and any buffer mutation fails closed until a future explicit buffer-state grant is designed.
 
 Candidate checkpoints are atomic, SHA256-bound, generation/plan/authorization/learning-policy-bound, and exactly restorable inside the candidate branch. A mid-accumulation checkpoint preserves optimizer state, pending authorized gradients, AMP scaler state when present, optimizer/microstep counters, accumulation index, current learning rate, and accumulated loss sum so resume does not silently discard or misreport learning state. Scheduler state is deterministic from the immutable policy plus optimizer-step count rather than hidden mutable scheduler objects. Deterministic promotion gates require predeclared evaluation suites and metric thresholds; missing capability, counterfactual, regression, or forgetting evidence blocks promotion. A passed gate may create a promotion proposal, but only the leased deterministic Trainer authority may activate it. Activation requires an exact current inventory, passed gate/proposal/checkpoint lineage agreement, architecture-compatible generation transition, exact candidate tensor/buffer verification, a durable pre-activation rollback snapshot, and atomic active-pointer publication. Runtime trainability flags are preserved independently from temporary candidate freeze policy. Rollback restores the exact previous generation and snapshots the displaced generation so rollback itself remains reversible. `hydrate_active_generation()` rehydrates a freshly registered organ from the durable pointer after restart. `scripts/inspect_trainer.py` provides read-only visibility into current lease ownership, lifecycle, optimizer-step receipts, per-parameter telemetry, checkpoints, active-generation pointers, activation/rollback evidence, evaluations, gates, and promotion proposals. These mechanisms are proven with unit-scale synthetic candidates only; no semantic-core or reasoning-core training campaign is launched by this milestone.
+
+`runtime/trainer/preflight.py` now makes the non-disposable capacity law part of
+Trainer authority. `TrainerControlPlane.authorize()` and
+`begin_candidate()` require a passed content-addressed preflight receipt; the
+authorization identity itself binds that receipt, and the Trainer persists the
+exact capacity contract and receipt before an optimizer candidate can exist.
+`training/heart_preflight.py` is the first organ-specific implementation. It
+performs semantic Python/config inspection for finite learned positions,
+page/position aliasing, destructive text slicing, tokenizer truncation and
+forgiving checkpoint loads; certifies Heart curriculum length/page/grounding
+distributions; executes page-boundary complete-coverage and head/middle/tail
+input-dependence probes; verifies strict incompatible-anatomy rejection; and
+declares physical-page, batch and optimizer-step controls as source-preserving
+work bounds. Passing this launch gate is anatomy evidence, not serving
+capability or permission to activate the candidate.
+
+Heart source-coverage receipts are computed from the page spans and character
+counts actually visited by each ordered sweep, not inferred merely from input
+length. Bounded greedy translation returns explicit per-item termination state;
+an item that exhausts its caller-selected compute budget is incomplete, is not
+used as a completed semantic roundtrip, and cannot satisfy Heart promotion.
 
 ## Training Contract
 
@@ -424,6 +489,44 @@ Training must match runtime:
 - core emits deltas,
 - loss is applied to the delta/response target,
 - core exhales after action.
+
+### Non-disposable capacity law
+
+No learned-organ campaign may spend material compute on anatomy that is known
+to be incapable of Axon's intended runtime contract. Phase-zero development may
+reduce model width, parameter count, dataset size, batch size, optimizer steps,
+precision, concurrency, and execution speed. It may not introduce a fixed
+character/context ceiling, finite learned position table, page-index alias,
+silent tokenizer/collator truncation, long-item exclusion, or other capacity
+limit that would require discarding the resulting checkpoint when the complete
+field is exercised. A physical page is a processing unit, never a declaration
+of how much canonical reality the trained organ can address.
+
+Finite hardware requires finite work controls. Every such bound on a live or
+training path must be declared in a machine-readable registry and classified as
+a physical processing unit, compute/optimization budget, admission budget, or
+result-count policy. The declaration must state what source is preserved, how
+work continues or resumes, and how the path fails closed when completion is not
+achieved. An undeclared bound, a partial result presented as complete, or a
+bound baked into checkpoint capacity is a launch-blocking defect.
+
+Before any Trainer-authorized parameter mutation, a deterministic
+Complete-Field preflight must issue a content-addressed receipt bound to the
+exact module/architecture configuration, compiler and positional schemes, base
+inventory and candidate lineage, curriculum and holdout manifests, declared
+bounds, and executable evidence. That evidence must include static source and
+configuration inspection; curriculum length/page/grounding distributions;
+boundary and beyond-page cases; exact coverage identities; head/middle/tail
+counterfactual dependence; and checkpoint/resume compatibility. Trainer must
+refuse mutation if the receipt is absent, stale, incomplete, or mismatched.
+
+Checkpoint restoration is exact-lineage restoration, not architectural
+adaptation. Missing-key, unexpected-key, shape-mismatch, positional-table, or
+compiler-contract forgiveness may not turn an obsolete checkpoint into current
+tissue. Incompatible checkpoints are preserved immutably as historical or
+behavioral evidence and machine-marked non-resumable/non-activatable. They may
+become donors only through a separately authorized, measured experiment that
+creates a new lineage and never represents the donor as a valid resume.
 
 Full-field training must reproduce the same complete ordered sweep, all-delta
 refinement, consolidator pass, soul boundaries, and typed canonical commit used
@@ -577,6 +680,15 @@ materialized as canonical state before a D64 core reads it. A smoke or
 curriculum may be small in content or compute; it may not substitute a
 truncated/fake core-facing anatomy that production later discards.
 
+The active developmental 64D reasoning reader follows the same permanence rule.
+`training/complete_field_64d.py` uses deterministic unbounded local/page
+positions and a complete ordered page sweep; page indexes never wrap or alias
+through a finite embedding table. Teacher-forced targets have no configured
+character ceiling. Greedy inference may use an explicit caller-selected compute
+budget, but that budget is not parameter capacity, may be raised without
+changing a checkpoint, reports nontermination, and an unfinished result is not
+committed as a canonical delta.
+
 Candidate checkpoints and reproducible run logs belong beneath
 `State/training/runs/` while non-authoritative. Promotion moves or copies an
 accepted state-bearing artifact into its governed canonical State location with
@@ -612,6 +724,17 @@ explicit runtime spans rather than alterations to dormant text. The resulting
 `SharedFieldSnapshot` must compile through the deterministic D64 compiler with
 complete coverage and exact roundtrip before it is accepted as core-facing
 state. Retrieval/indexing has no reasoning vote and no commit authority.
+
+Active recovered-corpus tooling preserves the full normalized source value for
+messages, diary entries, episodes, goals, procedures, relations, metadata, and
+surfaced Cortex examples; it does not slice source records to field-width or
+training convenience limits. Derived lexical bucket keys and content-addressed
+IDs may be short because they are indexes, never substitutes for source text.
+Dormant lexical queries process every unique term in ordered SQL-safe pages;
+the former 128-term rejection is removed. Recall item/result budgets remain
+explicit governed selection policy: skipped items are identified and the
+authoritative dormant record remains exact and retrievable; selected text is
+never partially truncated.
 
 The dormant valve is part of the heart. Candidate ranking combines lexical
 support, recovered graph topology, query-matched semantic-edge support,

@@ -8,6 +8,7 @@ and behind the deterministic Heart transaction boundary.
 """
 from __future__ import annotations
 
+import hashlib
 import math
 from dataclasses import dataclass
 from typing import Mapping
@@ -18,7 +19,7 @@ from torch import nn
 from substrate import get_letter_bank
 
 
-HEART_TRANSLATION_ARCHITECTURE = "heart-translation-64d-shallow-ffn-v1"
+HEART_TRANSLATION_ARCHITECTURE = "heart-translation-64d-paged-complete-field-v2"
 
 HEART_SEMANTIC_LABELS: Mapping[str, tuple[str, ...]] = {
     "polarity_negation": ("positive", "negative"),
@@ -37,8 +38,7 @@ class HeartTranslationCoreConfig:
     n_layers: int = 2
     ffn_dim: int = 4096
     dropout: float = 0.05
-    max_source_chars: int = 192
-    max_target_chars: int = 192
+    source_page_chars: int = 256
     max_dialects: int = 16
     lift_seed: int = 41
 
@@ -55,8 +55,12 @@ class HeartTranslationCoreConfig:
             raise ValueError("ffn_dim must be an integer >= d_model")
         if not 0.0 <= float(self.dropout) < 1.0:
             raise ValueError("dropout must be within [0, 1)")
-        if self.max_source_chars < 1 or self.max_target_chars < 1:
-            raise ValueError("source/target character limits must be positive")
+        if (
+            isinstance(self.source_page_chars, bool)
+            or not isinstance(self.source_page_chars, int)
+            or self.source_page_chars < 1
+        ):
+            raise ValueError("source_page_chars must be a positive processing-unit size")
         if self.max_dialects < 2:
             raise ValueError("max_dialects must be at least two")
 
@@ -67,8 +71,7 @@ class HeartTranslationCoreConfig:
             "n_layers": self.n_layers,
             "ffn_dim": self.ffn_dim,
             "dropout": float(self.dropout),
-            "max_source_chars": self.max_source_chars,
-            "max_target_chars": self.max_target_chars,
+            "source_page_chars": self.source_page_chars,
             "max_dialects": self.max_dialects,
             "lift_seed": self.lift_seed,
         }
@@ -80,7 +83,7 @@ def heart_translation_architecture_id(cfg: HeartTranslationCoreConfig) -> str:
         return HEART_TRANSLATION_ARCHITECTURE
     return (
         f"heart-translation-{cfg.d_model}d-{cfg.n_layers}l-"
-        f"{cfg.n_heads}h-{cfg.ffn_dim}ffn-v1"
+        f"{cfg.n_heads}h-{cfg.ffn_dim}ffn-paged-v2"
     )
 
 
@@ -99,6 +102,55 @@ class HeartTranslationOutput:
     referent_end_logits: torch.Tensor
     grounding_start_logits: torch.Tensor
     grounding_end_logits: torch.Tensor
+    source_coverage: "HeartSourceCoverage"
+
+
+@dataclass(frozen=True, slots=True)
+class HeartGeneratedTranslation:
+    text: str
+    terminated: bool
+    generated_characters: int
+
+
+@dataclass(frozen=True, slots=True)
+class HeartSourceCoverage:
+    """Auditable proof that both ordered source sweeps visited every character."""
+
+    page_chars: int
+    sweeps: int
+    source_characters: tuple[int, ...]
+    source_index_sha256: tuple[str, ...]
+    visited_characters_per_sweep: tuple[tuple[int, ...], ...]
+    page_spans: tuple[tuple[tuple[int, int], ...], ...]
+    complete: bool
+
+
+@dataclass(frozen=True, slots=True)
+class _HeartSourceSweepTrace:
+    visited_characters: tuple[int, ...]
+    page_spans: tuple[tuple[tuple[int, int], ...], ...]
+
+
+def _sinusoidal_positions(
+    positions: torch.Tensor,
+    d_model: int,
+    *,
+    dtype: torch.dtype,
+) -> torch.Tensor:
+    """Length-unbounded deterministic positions; no learned table can run out."""
+
+    if positions.ndim != 2:
+        raise ValueError("positions must be rank-2")
+    work = positions.to(dtype=torch.float32).unsqueeze(-1)
+    frequencies = torch.exp(
+        torch.arange(0, d_model, 2, device=positions.device, dtype=torch.float32)
+        * (-math.log(10_000.0) / d_model)
+    )
+    angles = work * frequencies
+    encoded = torch.zeros(*positions.shape, d_model, device=positions.device, dtype=torch.float32)
+    encoded[..., 0::2] = torch.sin(angles)
+    encoded[..., 1::2] = torch.cos(angles[..., : encoded[..., 1::2].shape[-1]])
+    return encoded.to(dtype=dtype)
 
 
 class HeartTranslationCore(nn.Module):
@@ -126,7 +178,6 @@ class HeartTranslationCore(nn.Module):
 
         self.source_dialect_embedding = nn.Embedding(cfg.max_dialects, cfg.d_model)
         self.destination_dialect_embedding = nn.Embedding(cfg.max_dialects, cfg.d_model)
-        self.source_position_embedding = nn.Embedding(cfg.max_source_chars, cfg.d_model)
 
         self.query_names = (
             "global",
@@ -161,7 +212,6 @@ class HeartTranslationCore(nn.Module):
         self.grounding_end_query = nn.Linear(cfg.d_model, cfg.d_model, bias=False)
 
         self.decoder_embedding = nn.Embedding(self.vocab_size + 3, cfg.d_model)
-        self.decoder_position_embedding = nn.Embedding(cfg.max_target_chars + 1, cfg.d_model)
         self.decoder_init = nn.Linear(cfg.d_model * 2, cfg.d_model)
         self.decoder = nn.GRU(cfg.d_model, cfg.d_model, batch_first=True)
         self.decoder_memory_attention = nn.MultiheadAttention(
@@ -176,9 +226,7 @@ class HeartTranslationCore(nn.Module):
 
         nn.init.normal_(self.source_dialect_embedding.weight, std=0.02)
         nn.init.normal_(self.destination_dialect_embedding.weight, std=0.02)
-        nn.init.normal_(self.source_position_embedding.weight, std=0.02)
         nn.init.normal_(self.decoder_embedding.weight, std=0.02)
-        nn.init.normal_(self.decoder_position_embedding.weight, std=0.02)
         nn.init.zeros_(self.copy_gate.weight)
         nn.init.constant_(self.copy_gate.bias, 0.5)
 
@@ -202,42 +250,164 @@ class HeartTranslationCore(nn.Module):
         cells = cells * source_mask.unsqueeze(-1).to(cells.dtype)
         return cells @ self.char_lift
 
+    def _source_coverage(
+        self,
+        source_indices: torch.Tensor,
+        source_mask: torch.Tensor,
+        traces: tuple[_HeartSourceSweepTrace, ...],
+    ) -> HeartSourceCoverage:
+        lengths = source_mask.sum(dim=1).tolist()
+        page_spans = tuple(
+            tuple(
+                (start, min(start + self.cfg.source_page_chars, int(length)))
+                for start in range(0, int(length), self.cfg.source_page_chars)
+            )
+            for length in lengths
+        )
+        expected = tuple(int(length) for length in lengths)
+        source_hashes = tuple(
+            hashlib.sha256(
+                bytes(
+                    int(value)
+                    for value in source_indices[row, : int(length)].detach().cpu().tolist()
+                )
+            ).hexdigest()
+            for row, length in enumerate(lengths)
+        )
+        return HeartSourceCoverage(
+            page_chars=self.cfg.source_page_chars,
+            sweeps=len(traces),
+            source_characters=expected,
+            source_index_sha256=source_hashes,
+            visited_characters_per_sweep=tuple(trace.visited_characters for trace in traces),
+            page_spans=page_spans,
+            complete=bool(
+                len(traces) == 2
+                and all(trace.visited_characters == expected for trace in traces)
+                and all(trace.page_spans == page_spans for trace in traces)
+            ),
+        )
+
+    def _source_sweep(
+        self,
+        *,
+        query_states: torch.Tensor,
+        lifted_chars: torch.Tensor,
+        source_mask: torch.Tensor,
+        source_dialect: torch.Tensor,
+        destination_dialect: torch.Tensor,
+        collect_memory: bool,
+    ) -> tuple[torch.Tensor, torch.Tensor | None, _HeartSourceSweepTrace]:
+        """Visit all source pages in order while carrying learned query state."""
+
+        batch, source_length, _ = lifted_chars.shape
+        memory_pages: list[torch.Tensor] = []
+        visited_characters = [0] * batch
+        visited_spans: list[list[tuple[int, int]]] = [[] for _ in range(batch)]
+        prefix_mask = torch.ones(
+            batch,
+            len(self.query_names),
+            dtype=torch.bool,
+            device=source_mask.device,
+        )
+        for start in range(0, source_length, self.cfg.source_page_chars):
+            end = min(start + self.cfg.source_page_chars, source_length)
+            page_mask = source_mask[:, start:end]
+            page_counts = page_mask.sum(dim=1).tolist()
+            for row, count in enumerate(page_counts):
+                count = int(count)
+                if count:
+                    visited_characters[row] += count
+                    visited_spans[row].append((start, start + count))
+            positions = torch.arange(start, end, device=source_mask.device).unsqueeze(0).expand(batch, -1)
+            page_chars = (
+                lifted_chars[:, start:end]
+                + _sinusoidal_positions(positions, self.cfg.d_model, dtype=lifted_chars.dtype)
+                + source_dialect
+                + destination_dialect
+            )
+            valid = torch.cat((prefix_mask, page_mask), dim=1)
+            encoded = self.encoder(
+                torch.cat((query_states, page_chars), dim=1),
+                src_key_padding_mask=~valid,
+            )
+            encoded = self.encoder_norm(encoded)
+            updated_queries = encoded[:, : len(self.query_names)]
+            active_rows = page_mask.any(dim=1).view(batch, 1, 1)
+            query_states = torch.where(active_rows, updated_queries, query_states)
+            if collect_memory:
+                memory_pages.append(encoded[:, len(self.query_names) :])
+        memory = torch.cat(memory_pages, dim=1) if collect_memory else None
+        return (
+            query_states,
+            memory,
+            _HeartSourceSweepTrace(
+                visited_characters=tuple(visited_characters),
+                page_spans=tuple(tuple(row) for row in visited_spans),
+            ),
+        )
+
     def _encode(
         self,
         source_indices: torch.Tensor,
         source_mask: torch.Tensor,
         source_dialect_ids: torch.Tensor,
         destination_dialect_ids: torch.Tensor,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, HeartSourceCoverage]:
         if source_indices.ndim != 2 or source_mask.shape != source_indices.shape:
             raise ValueError("source_indices/source_mask must be matching rank-2 tensors")
-        if source_indices.shape[1] > self.cfg.max_source_chars:
-            raise ValueError("source exceeds configured Heart source character limit")
         if source_indices.shape[0] != source_dialect_ids.shape[0] or source_indices.shape[0] != destination_dialect_ids.shape[0]:
             raise ValueError("dialect ids must match source batch size")
         self._validate_dialects(source_dialect_ids, destination_dialect_ids)
         if not bool(source_mask.any(dim=1).all()):
             raise ValueError("every Heart translation source must contain at least one exact character")
 
-        batch, source_length = source_indices.shape
-        positions = torch.arange(source_length, device=source_indices.device).unsqueeze(0).expand(batch, source_length)
+        lengths = source_mask.sum(dim=1)
+        expected_mask = (
+            torch.arange(source_indices.shape[1], device=source_mask.device).unsqueeze(0)
+            < lengths.unsqueeze(1)
+        )
+        if not torch.equal(source_mask, expected_mask):
+            raise ValueError("Heart source masks must be contiguous exact-character prefixes")
+
+        batch = source_indices.shape[0]
         source_dialect = self.source_dialect_embedding(source_dialect_ids).unsqueeze(1)
         destination_dialect = self.destination_dialect_embedding(destination_dialect_ids).unsqueeze(1)
-        chars = (
-            self._source_lift(source_indices, source_mask)
-            + self.source_position_embedding(positions)
+        lifted_chars = self._source_lift(source_indices, source_mask)
+        query_states = (
+            self.query_tokens.unsqueeze(0).expand(batch, -1, -1)
             + source_dialect
             + destination_dialect
         )
-        queries = self.query_tokens.unsqueeze(0).expand(batch, -1, -1) + source_dialect + destination_dialect
-        tokens = torch.cat((queries, chars), dim=1)
-        prefix_mask = torch.ones(batch, len(self.query_names), dtype=torch.bool, device=source_mask.device)
-        valid = torch.cat((prefix_mask, source_mask), dim=1)
-        encoded = self.encoder(tokens, src_key_padding_mask=~valid)
-        encoded = self.encoder_norm(encoded)
-        query_states = encoded[:, : len(self.query_names)]
-        memory = encoded[:, len(self.query_names) :]
-        return query_states, memory
+        # Sweep one builds a complete-field recurrent state. Sweep two starts
+        # from that state so every addressable character representation is
+        # conditioned on a summary that has already visited the complete source.
+        query_states, _, first_trace = self._source_sweep(
+            query_states=query_states,
+            lifted_chars=lifted_chars,
+            source_mask=source_mask,
+            source_dialect=source_dialect,
+            destination_dialect=destination_dialect,
+            collect_memory=False,
+        )
+        query_states, memory, second_trace = self._source_sweep(
+            query_states=query_states,
+            lifted_chars=lifted_chars,
+            source_mask=source_mask,
+            source_dialect=source_dialect,
+            destination_dialect=destination_dialect,
+            collect_memory=True,
+        )
+        if memory is None:
+            raise RuntimeError("complete Heart source sweep produced no addressable memory")
+        coverage = self._source_coverage(
+            source_indices,
+            source_mask,
+            (first_trace, second_trace),
+        )
+        if not coverage.complete:
+            raise RuntimeError("Heart source sweep failed exact complete-field coverage")
+        return query_states, memory, coverage
 
     def _pointer_logits(
         self,
@@ -261,8 +431,6 @@ class HeartTranslationCore(nn.Module):
     ) -> torch.Tensor:
         if decoder_input_ids.ndim != 2:
             raise ValueError("decoder_input_ids must be rank-2")
-        if decoder_input_ids.shape[1] > self.cfg.max_target_chars + 1:
-            raise ValueError("decoder input exceeds configured Heart target character limit")
         batch, target_length = decoder_input_ids.shape
         if batch != source_indices.shape[0]:
             raise ValueError("decoder batch must match source batch")
@@ -270,7 +438,11 @@ class HeartTranslationCore(nn.Module):
         destination_dialect = self.destination_dialect_embedding(destination_dialect_ids)
         decoder_inputs = (
             self.decoder_embedding(decoder_input_ids)
-            + self.decoder_position_embedding(positions)
+            + _sinusoidal_positions(
+                positions,
+                self.cfg.d_model,
+                dtype=self.decoder_embedding.weight.dtype,
+            )
             + destination_dialect.unsqueeze(1)
         )
         global_state = query_states[:, self.query_to_index["global"]]
@@ -303,7 +475,7 @@ class HeartTranslationCore(nn.Module):
         destination_dialect_ids: torch.Tensor,
         decoder_input_ids: torch.Tensor,
     ) -> HeartTranslationOutput:
-        query_states, memory = self._encode(
+        query_states, memory, coverage = self._encode(
             source_indices,
             source_mask,
             source_dialect_ids,
@@ -337,6 +509,7 @@ class HeartTranslationCore(nn.Module):
             grounding_end_logits=self._pointer_logits(
                 grounding, memory, source_mask, self.grounding_end_query
             ),
+            source_coverage=coverage,
         )
 
     @torch.no_grad()
@@ -347,12 +520,12 @@ class HeartTranslationCore(nn.Module):
         source_dialect_ids: torch.Tensor,
         destination_dialect_ids: torch.Tensor,
         *,
-        max_chars: int | None = None,
-    ) -> tuple[str, ...]:
-        limit = self.cfg.max_target_chars if max_chars is None else min(int(max_chars), self.cfg.max_target_chars)
+        max_chars: int,
+    ) -> tuple[HeartGeneratedTranslation, ...]:
+        limit = int(max_chars)
         if limit < 1:
             raise ValueError("max_chars must be positive")
-        query_states, memory = self._encode(
+        query_states, memory, _ = self._encode(
             source_indices,
             source_mask,
             source_dialect_ids,
@@ -384,13 +557,22 @@ class HeartTranslationCore(nn.Module):
             decoder_next = next_ids.clone()
             decoder_next[finished] = self.decoder_pad_index
             generated = torch.cat((generated, decoder_next.unsqueeze(1)), dim=1)
-        return tuple("".join(self.characters[index] for index in row) for row in output_indices)
+        return tuple(
+            HeartGeneratedTranslation(
+                text="".join(self.characters[index] for index in row),
+                terminated=bool(finished[index]),
+                generated_characters=len(row),
+            )
+            for index, row in enumerate(output_indices)
+        )
 
 
 __all__ = [
     "HEART_TRANSLATION_ARCHITECTURE",
     "HEART_SEMANTIC_LABELS",
     "HeartTranslationCoreConfig",
+    "HeartSourceCoverage",
+    "HeartGeneratedTranslation",
     "HeartTranslationOutput",
     "HeartTranslationCore",
 ]

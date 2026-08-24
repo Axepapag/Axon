@@ -54,9 +54,8 @@ class ReaderConfig:
     ffn_dim: int = 192
     state_tokens: int = 4
     page_size: int = 256
-    max_pages: int = 4096
     dropout: float = 0.05
-    max_output_chars: int = 512
+    inference_budget_chars: int = 512
     lift_seed: int = 7
 
     def __post_init__(self) -> None:
@@ -66,8 +65,8 @@ class ReaderConfig:
             raise ValueError("d_model must be divisible by n_heads")
         if self.page_size < 1 or self.state_tokens < 1:
             raise ValueError("page_size and state_tokens must be positive")
-        if self.max_output_chars < 65:
-            raise ValueError("R0 output must not reproduce the obsolete 64-character cap")
+        if self.inference_budget_chars < 1:
+            raise ValueError("inference_budget_chars must be positive")
 
 
 
@@ -187,6 +186,28 @@ def frozen_orthogonal_lift(d_model: int = 64, seed: int = 7) -> torch.Tensor:
     return q.T.contiguous().to(torch.float32)
 
 
+def sinusoidal_positions(
+    positions: torch.Tensor,
+    d_model: int,
+    *,
+    dtype: torch.dtype,
+) -> torch.Tensor:
+    """Deterministic positions with no learned page or sequence ceiling."""
+
+    if positions.ndim != 1:
+        raise ValueError("positions must be rank-1")
+    work = positions.to(dtype=torch.float32).unsqueeze(-1)
+    frequencies = torch.exp(
+        torch.arange(0, d_model, 2, device=positions.device, dtype=torch.float32)
+        * (-math.log(10_000.0) / d_model)
+    )
+    angles = work * frequencies
+    encoded = torch.zeros(positions.shape[0], d_model, device=positions.device, dtype=torch.float32)
+    encoded[:, 0::2] = torch.sin(angles)
+    encoded[:, 1::2] = torch.cos(angles[:, : encoded[:, 1::2].shape[-1]])
+    return encoded.to(dtype=dtype)
+
+
 class CompleteField64D(nn.Module):
     """One shallow core that gains logical depth through complete-field ticks."""
 
@@ -203,8 +224,6 @@ class CompleteField64D(nn.Module):
         self.register_buffer("char_lift", frozen_orthogonal_lift(cfg.d_model, cfg.lift_seed))
 
         self.region_embedding = nn.Embedding(len(REGION_ORDER), cfg.d_model)
-        self.local_position = nn.Embedding(cfg.page_size + 1, cfg.d_model)
-        self.page_position = nn.Embedding(cfg.max_pages, cfg.d_model)
         self.global_position = nn.Linear(2, cfg.d_model, bias=False)
         self.empty_region_marker = nn.Parameter(torch.zeros(cfg.d_model))
         self.initial_state = nn.Parameter(torch.randn(cfg.state_tokens, cfg.d_model) * 0.02)
@@ -242,8 +261,6 @@ class CompleteField64D(nn.Module):
         self.copy_gate = nn.Linear(cfg.d_model * 2, 1)
 
         nn.init.normal_(self.region_embedding.weight, std=0.02)
-        nn.init.normal_(self.local_position.weight, std=0.02)
-        nn.init.normal_(self.page_position.weight, std=0.02)
         nn.init.zeros_(self.copy_gate.weight)
         nn.init.constant_(self.copy_gate.bias, 1.5)
 
@@ -276,13 +293,20 @@ class CompleteField64D(nn.Module):
         region = self.region_embedding(
             torch.full((length,), page.region_id, dtype=torch.long, device=self.device)
         )
-        page_pos = self.page_position(
+        local_pos = sinusoidal_positions(
+            local,
+            self.cfg.d_model,
+            dtype=chars.dtype,
+        )
+        page_pos = sinusoidal_positions(
             torch.full(
                 (length,),
-                page.logical_page_index % self.cfg.max_pages,
+                page.logical_page_index,
                 dtype=torch.long,
                 device=self.device,
-            )
+            ),
+            self.cfg.d_model,
+            dtype=chars.dtype,
         )
         denom = max(1.0, float(page.global_end + 1))
         start = math.log1p(page.global_start) / math.log1p(denom)
@@ -293,7 +317,7 @@ class CompleteField64D(nn.Module):
         return (
             chars
             + region
-            + self.local_position(local)
+            + local_pos
             + page_pos
             + self.global_position(global_features)
         )
@@ -377,11 +401,6 @@ class CompleteField64D(nn.Module):
 
     def _target_indices(self, text: str) -> torch.Tensor:
         assert_supported_text(text)
-        if len(text) > self.cfg.max_output_chars:
-            raise ValueError(
-                f"target has {len(text)} characters; configured maximum is "
-                f"{self.cfg.max_output_chars}; refusing silent truncation"
-            )
         return torch.tensor(
             [self.char_to_index[char] for char in text] + [self.eos_index],
             dtype=torch.long,
@@ -697,7 +716,9 @@ class CompleteField64D(nn.Module):
         max_chars: int | None = None,
         memory: AddressableMemory | None = None,
     ) -> tuple[str, bool]:
-        limit = self.cfg.max_output_chars if max_chars is None else min(max_chars, self.cfg.max_output_chars)
+        limit = self.cfg.inference_budget_chars if max_chars is None else int(max_chars)
+        if limit < 1:
+            raise ValueError("max_chars must be positive")
         summary = reader_state.mean(dim=1)
         head_vec = self.decoder_head_embedding(torch.tensor([head], device=self.device))
         hidden = torch.tanh(self.decoder_init(torch.cat((summary, head_vec), dim=-1))).unsqueeze(0)
@@ -879,7 +900,10 @@ class CompleteField64D(nn.Module):
         scratch, scratch_terminated = self.decode_greedy(
             state1, head=0, memory=memory1
         )
-        if snapshot.region(LogicalRegion.SCRATCH).text == scratch:
+        if (
+            not scratch_terminated
+            or snapshot.region(LogicalRegion.SCRATCH).text == scratch
+        ):
             scratch_delta = None
             second_snapshot = snapshot
         else:
@@ -898,7 +922,10 @@ class CompleteField64D(nn.Module):
         response, response_terminated = self.decode_greedy(
             state2, head=1, memory=memory2
         )
-        if second_snapshot.region(LogicalRegion.RESPONSE_DRAFT).text == response:
+        if (
+            not response_terminated
+            or second_snapshot.region(LogicalRegion.RESPONSE_DRAFT).text == response
+        ):
             response_delta = None
             final_snapshot = second_snapshot
         else:

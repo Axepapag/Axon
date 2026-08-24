@@ -22,6 +22,7 @@ from runtime.trainer import (
     inspect_trainer_state,
     parameter_value_sha256,
 )
+from tests._trainer_preflight import unit_preflight_receipt
 
 
 class TinyPolicyCore(nn.Module):
@@ -97,13 +98,13 @@ def test_learning_policy_is_content_addressed_and_plan_bound(tmp_path: Path) -> 
     )
     same = GovernedLearningPolicy(**{k: v for k, v in policy.to_canonical_dict(include_id=False).items() if k != "schema"})
     assert same.policy_id == policy.policy_id
-    session = control.begin_candidate(inventory, grant, plan, policy=policy)
+    session = control.begin_candidate(inventory, grant, plan, preflight_receipt=unit_preflight_receipt(inventory, plan), policy=policy)
     assert session.policy.policy_id == policy.policy_id
     assert (tmp_path / "training" / "trainer" / "learning_policies" / f"{policy.policy_id}.json").exists()
 
     wrong = GovernedLearningPolicy(optimizer="sgd", learning_rate=0.02)
     with pytest.raises(TrainerExecutionError, match="optimizer differs"):
-        control.begin_candidate(inventory, grant, plan, policy=wrong)
+        control.begin_candidate(inventory, grant, plan, preflight_receipt=unit_preflight_receipt(inventory, plan), policy=wrong)
     control.close()
 
 
@@ -115,7 +116,7 @@ def test_gradient_accumulation_updates_only_at_declared_boundary(tmp_path: Path)
         gradient_accumulation_steps=2,
         gradient_clip_norm=None,
     )
-    session = control.begin_candidate(inventory, grant, plan, policy=policy)
+    session = control.begin_candidate(inventory, grant, plan, preflight_receipt=unit_preflight_receipt(inventory, plan), policy=policy)
     x1 = torch.tensor([[1.0, -0.5, 0.25, 2.0]])
     x2 = torch.tensor([[-0.5, 1.5, 0.75, -1.0]])
     candidate_before = parameter_value_sha256(session.candidate_module.adapter.weight)
@@ -153,7 +154,7 @@ def test_mid_accumulation_checkpoint_restores_gradients_optimizer_and_loss_state
         gradient_accumulation_steps=2,
         gradient_clip_norm=1.0,
     )
-    session = control.begin_candidate(inventory, grant, plan, policy=policy)
+    session = control.begin_candidate(inventory, grant, plan, preflight_receipt=unit_preflight_receipt(inventory, plan), policy=policy)
     x1 = torch.tensor([[0.25, -1.0, 2.0, 0.5]])
     x2 = torch.tensor([[1.5, 0.25, -0.75, 1.0]])
     session.micro_step(_loss(x1))
@@ -193,7 +194,7 @@ def test_warmup_cosine_scheduler_and_weight_decay_are_receipted(tmp_path: Path) 
         min_lr_ratio=0.1,
         gradient_clip_norm=None,
     )
-    session = control.begin_candidate(inventory, grant, plan, policy=policy)
+    session = control.begin_candidate(inventory, grant, plan, preflight_receipt=unit_preflight_receipt(inventory, plan), policy=policy)
     x = torch.ones(1, 4)
     receipts = [session.step(_loss(x)) for _ in range(4)]
     expected = [policy.learning_rate_for_step(index, plan.max_steps) for index in range(4)]
@@ -211,7 +212,7 @@ def test_gradient_budget_rejects_before_parameter_update(tmp_path: Path) -> None
         max_gradient_l2=1e-12,
         gradient_clip_norm=None,
     )
-    session = control.begin_candidate(inventory, grant, plan, policy=policy)
+    session = control.begin_candidate(inventory, grant, plan, preflight_receipt=unit_preflight_receipt(inventory, plan), policy=policy)
     before = parameter_value_sha256(session.candidate_module.adapter.weight)
     with pytest.raises(ParameterAuthorityError, match="gradient L2"):
         session.step(_loss(torch.ones(1, 4) * 10.0))
@@ -228,7 +229,7 @@ def test_update_budget_restores_candidate_before_rejection(tmp_path: Path) -> No
         max_update_l2=1e-12,
         gradient_clip_norm=None,
     )
-    session = control.begin_candidate(inventory, grant, plan, policy=policy)
+    session = control.begin_candidate(inventory, grant, plan, preflight_receipt=unit_preflight_receipt(inventory, plan), policy=policy)
     before = parameter_value_sha256(session.candidate_module.adapter.weight)
     with pytest.raises(ParameterAuthorityError, match="update L2"):
         session.step(_loss(torch.ones(1, 4)))
@@ -240,12 +241,12 @@ def test_update_budget_restores_candidate_before_rejection(tmp_path: Path) -> No
 def test_checkpoint_policy_lineage_mismatch_fails_closed(tmp_path: Path) -> None:
     control, _live, inventory, grant, plan = _setup(tmp_path, optimizer="SGD", learning_rate=0.01)
     policy = GovernedLearningPolicy(optimizer="sgd", learning_rate=0.01, weight_decay=0.0)
-    session = control.begin_candidate(inventory, grant, plan, policy=policy)
+    session = control.begin_candidate(inventory, grant, plan, preflight_receipt=unit_preflight_receipt(inventory, plan), policy=policy)
     session.step(_loss(torch.ones(1, 4)))
     checkpoint = session.checkpoint(include_optimizer=True)
 
     other_policy = GovernedLearningPolicy(optimizer="sgd", learning_rate=0.01, weight_decay=0.1)
-    other_session = control.begin_candidate(inventory, grant, plan, policy=other_policy)
+    other_session = control.begin_candidate(inventory, grant, plan, preflight_receipt=unit_preflight_receipt(inventory, plan), policy=other_policy)
     with pytest.raises(TrainerExecutionError, match="learning-policy lineage"):
         other_session.restore_checkpoint(checkpoint)
     control.close()
@@ -259,7 +260,7 @@ def test_cpu_bf16_autocast_is_governed_and_inspectable(tmp_path: Path) -> None:
         precision="bf16",
         gradient_clip_norm=1.0,
     )
-    session = control.begin_candidate(inventory, grant, plan, policy=policy)
+    session = control.begin_candidate(inventory, grant, plan, preflight_receipt=unit_preflight_receipt(inventory, plan), policy=policy)
     receipt = session.step(_loss(torch.ones(1, 4)))
     assert receipt.precision_mode == "bf16"
     snapshot = inspect_trainer_state(state_root=tmp_path).to_canonical_dict()
@@ -283,7 +284,7 @@ def test_cuda_fp16_grad_scaler_path_executes_on_isolated_candidate(tmp_path: Pat
         precision="fp16",
         gradient_clip_norm=1.0,
     )
-    session = control.begin_candidate(inventory, grant, plan, policy=policy)
+    session = control.begin_candidate(inventory, grant, plan, preflight_receipt=unit_preflight_receipt(inventory, plan), policy=policy)
     live_before = parameter_value_sha256(live.adapter.weight)
     receipt = session.step(_loss(torch.ones(1, 4, device="cuda")))
     assert receipt.precision_mode == "fp16"

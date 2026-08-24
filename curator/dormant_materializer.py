@@ -89,7 +89,7 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def native_text(value: Any, *, max_chars: int | None = None) -> SanitizedText:
+def native_text(value: Any) -> SanitizedText:
     """Convert arbitrary text into conservative substrate-visible text.
 
     Letters, digits, and spaces are retained. Other whitespace and punctuation
@@ -117,8 +117,6 @@ def native_text(value: Any, *, max_chars: int | None = None) -> SanitizedText:
             if len(samples) < 12:
                 samples.append(repr(char))
     text = SPACE_RE.sub(" ", "".join(out)).strip()
-    if max_chars is not None and max_chars > 0 and len(text) > max_chars:
-        text = text[:max_chars].rstrip()
     return SanitizedText(text=text, changed_chars=changed, examples=tuple(samples))
 
 
@@ -213,8 +211,6 @@ def _query_source(container: Container) -> str:
 def build_surfacing_example(
     container: Container,
     edge: SemanticEdge,
-    *,
-    max_structured_chars: int | None = None,
 ) -> dict[str, Any] | None:
     """Build one trainable surfaced-memory example from one edge."""
 
@@ -225,10 +221,7 @@ def build_surfacing_example(
         return None
 
     query = SPACE_RE.sub(" ", f"{source} {edge_type}".strip()).strip()
-    structured = native_text(
-        render_container_visible(container),
-        max_chars=max_structured_chars,
-    ).text
+    structured = native_text(render_container_visible(container)).text
     if not structured:
         return None
 

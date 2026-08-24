@@ -89,7 +89,7 @@ TRIM_RE = re.compile(r"\s+")
 # ---------------------------------------------------------------------------
 
 
-def clean_text(value: Any, max_chars: int | None = None) -> str:
+def clean_text(value: Any) -> str:
     """Normalize arbitrary text to a conservative substrate-friendly string.
 
     Keeps alphanumerics and spaces. Other characters become spaces. Collapses
@@ -106,8 +106,6 @@ def clean_text(value: Any, max_chars: int | None = None) -> str:
         else:
             out.append(" ")
     text = TRIM_RE.sub(" ", "".join(out)).strip()
-    if max_chars is not None and max_chars > 0 and len(text) > max_chars:
-        text = text[:max_chars].rstrip()
     return text
 
 
@@ -218,14 +216,14 @@ def build_entity_container(
 ) -> Container:
     """Build a Container from an extracted_entities row."""
     text = clean_text(row_dict.get("name") or row_dict.get("entity") or row_dict.get("text") or row_dict.get("word"))
-    entity_type = clean_text(row_dict.get("type") or row_dict.get("entity_type"), max_chars=64)
+    entity_type = clean_text(row_dict.get("type") or row_dict.get("entity_type"))
     attributes = row_dict.get("attributes")
     definition = ""
     if isinstance(attributes, str):
         try:
             attrs = json.loads(attributes)
             if isinstance(attrs, dict):
-                definition = clean_text(attrs.get("description") or attrs.get("summary") or attrs.get("purpose"), max_chars=512)
+                definition = clean_text(attrs.get("description") or attrs.get("summary") or attrs.get("purpose"))
         except (json.JSONDecodeError, ValueError):
             pass
 
@@ -272,8 +270,8 @@ def build_fact_container(
     tick: int = -1,
 ) -> Tuple[Container, List[SemanticEdge]]:
     """Build a Container from an extracted_facts row."""
-    key = clean_text(row_dict.get("key"), max_chars=256)
-    value = clean_text(row_dict.get("value") or row_dict.get("text"), max_chars=1024)
+    key = clean_text(row_dict.get("key"))
+    value = clean_text(row_dict.get("value") or row_dict.get("text"))
 
     if key and value:
         text = f"{key}: {value}"
@@ -325,9 +323,9 @@ def build_relation_container(
     tick: int = -1,
 ) -> Tuple[Container, List[SemanticEdge]]:
     """Build a Container from an extracted_relations row."""
-    subject = clean_text(row_dict.get("subject"), max_chars=256)
-    predicate = clean_text(row_dict.get("predicate") or row_dict.get("relation"), max_chars=128)
-    obj = clean_text(row_dict.get("object") or row_dict.get("target"), max_chars=512)
+    subject = clean_text(row_dict.get("subject"))
+    predicate = clean_text(row_dict.get("predicate") or row_dict.get("relation"))
+    obj = clean_text(row_dict.get("object") or row_dict.get("target"))
 
     if subject and predicate and obj:
         text = f"{subject} {predicate} {obj}"
@@ -382,14 +380,14 @@ def build_procedure_container(
     tick: int = -1,
 ) -> Container:
     """Build a Container from an extracted_procedures row."""
-    name = clean_text(row_dict.get("name") or row_dict.get("procedure") or row_dict.get("title"), max_chars=256)
-    trigger = clean_text(row_dict.get("trigger"), max_chars=512)
+    name = clean_text(row_dict.get("name") or row_dict.get("procedure") or row_dict.get("title"))
+    trigger = clean_text(row_dict.get("trigger"))
     steps = safe_json(row_dict.get("steps_json") or row_dict.get("steps") or "[]")
     if not isinstance(steps, list):
         steps = []
-    outcome = clean_text(row_dict.get("outcome"), max_chars=512)
-    applicability = clean_text(row_dict.get("applicability"), max_chars=512)
-    description = clean_text(row_dict.get("description") or row_dict.get("summary"), max_chars=1024)
+    outcome = clean_text(row_dict.get("outcome"))
+    applicability = clean_text(row_dict.get("applicability"))
+    description = clean_text(row_dict.get("description") or row_dict.get("summary"))
 
     return Container(
         kind="procedure",
@@ -422,15 +420,14 @@ def build_episode_container(
     source_db: str,
     symbols: List[str],
     tick: int = -1,
-    max_summary_chars: int = 2048,
 ) -> Tuple[Container, List[SemanticEdge]]:
     """Build a Container from an episodes row.
 
-    Episodes are treated as potentially-sensitive. The full payload is kept in
-    metadata but the container text is a truncated summary.
+    Episodes are treated as potentially-sensitive and kept in their full
+    normalized form. Redaction policy controls access; it never destroys text.
     """
-    episode_type = clean_text(row_dict.get("episode_type"), max_chars=64)
-    summary = clean_text(row_dict.get("summary"), max_chars=max_summary_chars)
+    episode_type = clean_text(row_dict.get("episode_type"))
+    summary = clean_text(row_dict.get("summary"))
     text = summary or episode_type or f"episode-{row_dict.get('id')}"
 
     extracted = safe_json(row_dict.get("extracted_json"))
@@ -441,8 +438,8 @@ def build_episode_container(
     if isinstance(extracted, dict):
         for rel in extracted.get("relations") or []:
             if isinstance(rel, dict):
-                pred = clean_text(rel.get("predicate") or rel.get("relation"), max_chars=128)
-                tgt = clean_text(rel.get("object") or rel.get("target"), max_chars=512)
+                pred = clean_text(rel.get("predicate") or rel.get("relation"))
+                tgt = clean_text(rel.get("object") or rel.get("target"))
                 if pred and tgt:
                     edges.append(SemanticEdge(
                         edge_type=pred,
@@ -486,11 +483,11 @@ def build_backlog_container(
     tick: int = -1,
 ) -> Container:
     """Build a Container from a backlog_jobs row."""
-    operation = clean_text(row_dict.get("operation"), max_chars=128)
+    operation = clean_text(row_dict.get("operation"))
     payload = safe_json(row_dict.get("payload_json"))
     payload_summary = ""
     if isinstance(payload, dict):
-        payload_summary = clean_text(json.dumps(payload, ensure_ascii=False, sort_keys=True), max_chars=512)
+        payload_summary = clean_text(json.dumps(payload, ensure_ascii=False, sort_keys=True))
 
     text = operation or f"backlog-{row_dict.get('id')}"
 
@@ -522,7 +519,7 @@ def build_backlog_container(
             "budget": row_dict.get("budget"),
             "status": row_dict.get("status"),
             "attempts": row_dict.get("attempts"),
-            "last_error": clean_text(row_dict.get("last_error"), max_chars=256),
+            "last_error": clean_text(row_dict.get("last_error")),
             "source_table": table_source,
             "source_id": row_dict.get("id"),
             "origin_family": "memory_backlog",
@@ -538,9 +535,9 @@ def build_message_container(
     tick: int = -1,
 ) -> Container:
     """Build a dormant container from a legacy messages row."""
-    role = clean_text(row_dict.get("role"), max_chars=64)
-    content = clean_text(row_dict.get("content"), max_chars=2048)
-    timestamp = clean_text(row_dict.get("timestamp"), max_chars=64)
+    role = clean_text(row_dict.get("role"))
+    content = clean_text(row_dict.get("content"))
+    timestamp = clean_text(row_dict.get("timestamp"))
     metadata = safe_json(row_dict.get("metadata"))
 
     edges: List[SemanticEdge] = []
@@ -585,8 +582,8 @@ def build_mission_container(
     tick: int = -1,
 ) -> Container:
     """Build a dormant container from a legacy missions row."""
-    goal = clean_text(row_dict.get("goal"), max_chars=1024)
-    status = clean_text(row_dict.get("status"), max_chars=64)
+    goal = clean_text(row_dict.get("goal"))
+    status = clean_text(row_dict.get("status"))
 
     edges: List[SemanticEdge] = []
     if status:
@@ -612,8 +609,8 @@ def build_mission_container(
         symbols=list(symbols),
         metadata={
             "status": status,
-            "created_at": clean_text(row_dict.get("created_at"), max_chars=64),
-            "completed_at": clean_text(row_dict.get("completed_at"), max_chars=64),
+            "created_at": clean_text(row_dict.get("created_at")),
+            "completed_at": clean_text(row_dict.get("completed_at")),
             "source_table": table_source,
             "source_id": row_dict.get("id"),
             "origin_family": "old_memory_mission",
@@ -629,10 +626,10 @@ def build_objective_container(
     tick: int = -1,
 ) -> Container:
     """Build a dormant container from a legacy objectives row."""
-    description = clean_text(row_dict.get("description"), max_chars=1024)
-    status = clean_text(row_dict.get("status"), max_chars=64)
-    mission_id = clean_text(row_dict.get("mission_id"), max_chars=128)
-    reason = clean_text(row_dict.get("reason"), max_chars=1024)
+    description = clean_text(row_dict.get("description"))
+    status = clean_text(row_dict.get("status"))
+    mission_id = clean_text(row_dict.get("mission_id"))
+    reason = clean_text(row_dict.get("reason"))
 
     edges: List[SemanticEdge] = []
     if mission_id:
@@ -666,7 +663,7 @@ def build_objective_container(
         symbols=list(symbols),
         metadata={
             "mission_id": mission_id,
-            "parent_id": clean_text(row_dict.get("parent_id"), max_chars=128),
+            "parent_id": clean_text(row_dict.get("parent_id")),
             "status": status,
             "reason": reason,
             "order_index": row_dict.get("order_index"),
@@ -683,16 +680,15 @@ def build_diary_container(
     json_path: str,
     symbols: List[str],
     tick: int = -1,
-    max_diary_chars: int = 2048,
 ) -> Container:
     """Build a Container from a personal-log entry.
 
     Diary entries are the most sensitive source. They are isolated to the diary
     curriculum family and tagged with redaction metadata.
     """
-    entry_type = clean_text(entry.get("type"), max_chars=64)
-    content = clean_text(entry.get("content"), max_chars=max_diary_chars)
-    timestamp = clean_text(entry.get("timestamp"), max_chars=64)
+    entry_type = clean_text(entry.get("type"))
+    content = clean_text(entry.get("content"))
+    timestamp = clean_text(entry.get("timestamp"))
     text = content or entry_type or f"diary-{index}"
 
     return Container(
@@ -821,8 +817,6 @@ class RecoveredCorpusBuilder:
         max_items: int = -1,
         levels: int = 2,
         no_personal_log: bool = True,
-        max_diary_chars: int = 2048,
-        max_summary_chars: int = 2048,
         no_vectors: bool = False,
         seed: int = 42,
         dry_run: bool = False,
@@ -837,8 +831,6 @@ class RecoveredCorpusBuilder:
         self.max_items = max_items
         self.levels = max(1, levels)
         self.no_personal_log = no_personal_log
-        self.max_diary_chars = max_diary_chars
-        self.max_summary_chars = max_summary_chars
         self.no_vectors = no_vectors
         self.seed = seed
         self.dry_run = dry_run
@@ -947,7 +939,7 @@ class RecoveredCorpusBuilder:
                 self.stats.add_skip("entity_empty_text")
                 continue
 
-            entity_type = clean_text(row_dict.get("type"), max_chars=64)
+            entity_type = clean_text(row_dict.get("type"))
             broad_kind = classify_broad_kind(text, entity_type, table)
             layout_symbols = _assign_group_symbols(self.registry, broad_kind, text, self.levels)
 
@@ -1257,7 +1249,7 @@ class RecoveredCorpusBuilder:
             if self._check_max_items(item_count):
                 break
             row_dict = row_to_dict(row, select_cols)
-            summary = clean_text(row_dict.get("summary"), max_chars=self.max_summary_chars)
+            summary = clean_text(row_dict.get("summary"))
             if not summary:
                 self.stats.add_skip("episode_empty_summary")
                 continue
@@ -1265,7 +1257,7 @@ class RecoveredCorpusBuilder:
             broad_kind = "episode"
             layout_symbols = _assign_group_symbols(self.registry, broad_kind, summary, self.levels)
 
-            container, _ = build_episode_container(row_dict, table, db_path, symbols=[], max_summary_chars=self.max_summary_chars)
+            container, _ = build_episode_container(row_dict, table, db_path, symbols=[])
             container.metadata["layout_symbols"] = layout_symbols
             self._emit_container(container)
             for e in container.edges:
@@ -1348,7 +1340,7 @@ class RecoveredCorpusBuilder:
             if not isinstance(entry, dict):
                 self.stats.add_skip("diary_non_dict_entry")
                 continue
-            content = clean_text(entry.get("content"), max_chars=self.max_diary_chars)
+            content = clean_text(entry.get("content"))
             if not content:
                 self.stats.add_skip("diary_empty_content")
                 continue
@@ -1356,7 +1348,7 @@ class RecoveredCorpusBuilder:
             broad_kind = "diary"
             layout_symbols = _assign_group_symbols(self.registry, broad_kind, content, self.levels)
 
-            container = build_diary_container(entry, index, self.personal_log, symbols=[], max_diary_chars=self.max_diary_chars)
+            container = build_diary_container(entry, index, self.personal_log, symbols=[])
             container.metadata["layout_symbols"] = layout_symbols
             self._emit_container(container)
             item_count += 1
@@ -1467,8 +1459,6 @@ class RecoveredCorpusBuilder:
                 "max_items": self.max_items,
                 "levels": self.levels,
                 "no_personal_log": self.no_personal_log,
-                "max_diary_chars": self.max_diary_chars,
-                "max_summary_chars": self.max_summary_chars,
                 "no_vectors": self.no_vectors,
                 "seed": self.seed,
                 "dry_run": self.dry_run,
@@ -1499,8 +1489,6 @@ def _parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--levels", type=int, default=2, help="Layout grouping depth")
     ap.add_argument("--no-personal-log", action="store_true", help="Exclude personal log (default)")
     ap.add_argument("--include-personal-log", action="store_true", help="Include personal log")
-    ap.add_argument("--max-diary-chars", type=int, default=2048, help="Truncate diary entries")
-    ap.add_argument("--max-summary-chars", type=int, default=2048, help="Truncate episode summaries")
     ap.add_argument("--no-vectors", action="store_true", help="Skip vector table processing")
     ap.add_argument("--seed", type=int, default=42, help="Random seed")
     ap.add_argument("--dry-run", action="store_true", help="Count only, do not write")
@@ -1531,8 +1519,6 @@ def main(argv: List[str] | None = None) -> int:
         max_items=args.max_items,
         levels=args.levels,
         no_personal_log=no_personal_log,
-        max_diary_chars=args.max_diary_chars,
-        max_summary_chars=args.max_summary_chars,
         no_vectors=args.no_vectors,
         seed=args.seed,
         dry_run=args.dry_run,

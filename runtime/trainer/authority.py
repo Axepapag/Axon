@@ -12,8 +12,9 @@ from .contracts import (
     ParameterMutationPlan,
     ParameterMutationPolicy,
 )
+from .preflight import TrainingPreflightReceipt
 
-AUTHORIZED_MUTATION_SCHEMA = "axon-authorized-parameter-mutation-v1"
+AUTHORIZED_MUTATION_SCHEMA = "axon-authorized-parameter-mutation-v2"
 
 
 class ParameterAuthorityError(RuntimeError):
@@ -30,6 +31,7 @@ class AuthorizedParameterMutation:
     candidate_generation_id: str
     tensor_names: tuple[str, ...]
     parameter_count: int
+    preflight_receipt_id: str
     authorization_id: str
 
     def to_canonical_dict(self) -> dict[str, Any]:
@@ -43,6 +45,7 @@ class AuthorizedParameterMutation:
             "candidate_generation_id": self.candidate_generation_id,
             "tensor_names": list(self.tensor_names),
             "parameter_count": self.parameter_count,
+            "preflight_receipt_id": self.preflight_receipt_id,
             "authorization_id": self.authorization_id,
         }
 
@@ -51,6 +54,7 @@ def authorize_parameter_mutation(
     inventory: ParameterInventory,
     grant: ParameterMutationGrant,
     plan: ParameterMutationPlan,
+    preflight_receipt: TrainingPreflightReceipt,
 ) -> AuthorizedParameterMutation:
     """Validate one proposed training mutation against exact current lineage.
 
@@ -65,6 +69,12 @@ def authorize_parameter_mutation(
         raise TypeError("grant must be ParameterMutationGrant")
     if not isinstance(plan, ParameterMutationPlan):
         raise TypeError("plan must be ParameterMutationPlan")
+    if not isinstance(preflight_receipt, TrainingPreflightReceipt):
+        raise TypeError("parameter mutation authority requires a TrainingPreflightReceipt")
+    try:
+        preflight_receipt.assert_authorizes(inventory, plan)
+    except ValueError as exc:
+        raise ParameterAuthorityError(f"training preflight is stale or mismatched: {exc}") from exc
     if not inventory.complete:
         raise ParameterAuthorityError("incomplete parameter inventory cannot authorize mutation")
     if plan.base_inventory_id != inventory.inventory_id:
@@ -125,6 +135,7 @@ def authorize_parameter_mutation(
         "candidate_generation_id": plan.candidate_generation_id,
         "tensor_names": list(plan.tensor_names),
         "parameter_count": parameter_count,
+        "preflight_receipt_id": preflight_receipt.receipt_id,
     }
     return AuthorizedParameterMutation(
         grant_id=grant.grant_id,
@@ -135,6 +146,7 @@ def authorize_parameter_mutation(
         candidate_generation_id=plan.candidate_generation_id,
         tensor_names=plan.tensor_names,
         parameter_count=parameter_count,
+        preflight_receipt_id=preflight_receipt.receipt_id,
         authorization_id=canonical_sha256(core),
     )
 

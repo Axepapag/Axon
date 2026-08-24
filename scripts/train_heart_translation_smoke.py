@@ -60,9 +60,10 @@ from training.heart_translation import (
     evaluate_heart_translation_model,
     heart_translation_loss,
 )
+from training.heart_preflight import build_heart_training_preflight
 
 
-HEART_SMOKE_SCHEMA = "axon-heart-translation-smoke-v1"
+HEART_SMOKE_SCHEMA = "axon-heart-translation-smoke-v2"
 HEART_EVALUATION_SUITE = "heart-translation-heldout-v1"
 
 
@@ -83,6 +84,7 @@ class HeartSmokeResult:
     candidate_generation_id: str
     inventory_id: str
     learning_policy_id: str
+    preflight_receipt_id: str
     checkpoint_ids: tuple[str, ...]
     first_loss: float
     final_loss: float
@@ -117,6 +119,7 @@ class HeartSmokeResult:
             "candidate_generation_id": self.candidate_generation_id,
             "inventory_id": self.inventory_id,
             "learning_policy_id": self.learning_policy_id,
+            "preflight_receipt_id": self.preflight_receipt_id,
             "checkpoint_ids": list(self.checkpoint_ids),
             "first_loss": self.first_loss,
             "final_loss": self.final_loss,
@@ -178,6 +181,7 @@ def _heart_metrics(report: HeartTranslationEvaluationReport) -> dict[str, float]
         "counterfactual_use": 1.0 if report.evidence.counterfactual_use_proven else 0.0,
         "regression_failures": float(report.evidence.regression_failures),
         "translation_exact": report.translation_exact_rate,
+        "translation_termination": report.translation_termination_rate,
         "source_semantic_exact": report.source_semantic_exact_rate,
         "reverse_semantic_exact": report.reverse_semantic_exact_rate,
         "referent_pointer": report.referent_pointer_rate,
@@ -217,6 +221,13 @@ def _generic_heart_gate(module_id: str, candidate_generation_id: str, policy: He
             comparison=MetricComparison.LESS_OR_EQUAL,
             threshold=0.0,
             label="heart zero regression failures",
+        ),
+        EvaluationRequirement(
+            suite_id=HEART_EVALUATION_SUITE,
+            metric_name="translation_termination",
+            comparison=MetricComparison.GREATER_OR_EQUAL,
+            threshold=1.0,
+            label="heart complete translation termination",
         ),
     ]
     requirements.extend(
@@ -369,9 +380,24 @@ def run_heart_translation_smoke(
             source_manifest_ids=(curriculum.train_manifest_id, objective.objective_id),
             holdout_manifest_ids=(curriculum.heldout_manifest_id,),
         )
+        preflight = build_heart_training_preflight(
+            model=model,
+            curriculum=curriculum,
+            inventory=inventory,
+            plan=plan,
+            batch_size=batch_size,
+            state_root=root,
+            repo_root=Path(__file__).resolve().parent.parent,
+        )
         # learning_policy is constructed before generation identity so the
         # candidate generation is bound to its exact optimizer/schedule recipe.
-        session = control.begin_candidate(inventory, grant, plan, policy=learning_policy)
+        session = control.begin_candidate(
+            inventory,
+            grant,
+            plan,
+            preflight_receipt=preflight,
+            policy=learning_policy,
+        )
         # Baseline evaluation intentionally leaves the source model in eval mode;
         # the isolated candidate must explicitly enter training mode before any
         # cuDNN-backed recurrent/attention backward path is exercised.
@@ -438,6 +464,7 @@ def run_heart_translation_smoke(
             "candidate_generation_id": candidate_generation_id,
             "inventory_id": inventory.inventory_id,
             "learning_policy_id": learning_policy.policy_id,
+            "preflight_receipt_id": preflight.receipt_id,
             "steps": steps,
             "batch_size": batch_size,
             "seed": seed,
@@ -467,6 +494,7 @@ def run_heart_translation_smoke(
             candidate_generation_id=candidate_generation_id,
             inventory_id=inventory.inventory_id,
             learning_policy_id=learning_policy.policy_id,
+            preflight_receipt_id=preflight.receipt_id,
             checkpoint_ids=tuple(checkpoint_ids),
             first_loss=losses[0],
             final_loss=losses[-1],

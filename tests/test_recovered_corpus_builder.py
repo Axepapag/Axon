@@ -236,8 +236,26 @@ def test_clean_text_keeps_alnum_and_spaces():
     assert clean_text("dog->animal_42\n") == "dog animal 42"
 
 
-def test_clean_text_truncates():
-    assert clean_text("abcdef", max_chars=3) == "abc"
+def test_clean_text_never_truncates_source():
+    assert clean_text("abcdef") == "abcdef"
+
+
+def test_recovered_message_and_diary_keep_full_long_text():
+    long_text = "x" * 5000
+    message = build_message_container(
+        {"id": 1, "role": "user", "content": long_text},
+        "messages",
+        "memory.db",
+        [],
+    )
+    diary = build_diary_container(
+        {"type": "entry", "content": long_text},
+        0,
+        "personal_log.json",
+        [],
+    )
+    assert message.text == long_text
+    assert diary.text == long_text
 
 
 def test_source_pointer():

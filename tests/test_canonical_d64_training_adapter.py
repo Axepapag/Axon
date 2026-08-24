@@ -48,7 +48,7 @@ def _record() -> dict:
 
 def test_training_forward_uses_real_snapshots_and_field_deltas() -> None:
     model = CompleteField64D(
-        ReaderConfig(page_size=8, max_output_chars=128, dropout=0.0)
+        ReaderConfig(page_size=8, inference_budget_chars=128, dropout=0.0)
     )
     model.eval()
     record = _record()
@@ -67,7 +67,7 @@ def test_training_forward_uses_real_snapshots_and_field_deltas() -> None:
 
 def test_training_scratch_intervention_is_a_canonical_snapshot() -> None:
     model = CompleteField64D(
-        ReaderConfig(page_size=8, max_output_chars=128, dropout=0.0)
+        ReaderConfig(page_size=8, inference_budget_chars=128, dropout=0.0)
     )
     model.eval()
     state, memory, coverage = _read_record_with_scratch(
@@ -80,7 +80,7 @@ def test_training_scratch_intervention_is_a_canonical_snapshot() -> None:
 
 def test_canonical_greedy_path_survives_empty_noop_outputs() -> None:
     model = CompleteField64D(
-        ReaderConfig(page_size=8, max_output_chars=65, dropout=0.0)
+        ReaderConfig(page_size=8, inference_budget_chars=65, dropout=0.0)
     )
     model.eval()
     model.decode_greedy = lambda *args, **kwargs: ("", True)  # type: ignore[method-assign]

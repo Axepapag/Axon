@@ -856,39 +856,43 @@ class DormantEvidenceIndex:
         terms = _tokenize(query)
         if not terms:
             raise DormantQueryError("query produced no lexical terms")
-        if len(terms) > 128:
-            raise DormantQueryError("query produced more than 128 unique lexical terms")
 
         term_hashes = tuple(_term_key(term) for term in terms)
-        placeholders = ",".join("?" for _ in term_hashes)
         scores: dict[int, float] = {}
         lexical_hits: dict[int, int] = {}
         graph_hits: dict[int, int] = {}
         relation_hits: dict[int, int] = {}
         edge_refs: dict[int, set[str]] = {}
 
-        rows = self._connection.execute(
-            f"""
-            SELECT container_rowid, COUNT(*) AS hits
-            FROM container_terms
-            WHERE term_hash IN ({placeholders})
-            GROUP BY container_rowid
-            ORDER BY hits DESC, container_rowid ASC
-            LIMIT ?
-            """,
-            (*term_hashes, max(limit * 40, 200)),
-        )
-        for row in rows:
-            container_rowid = int(row["container_rowid"])
-            hits = int(row["hits"])
-            lexical_hits[container_rowid] = lexical_hits.get(container_rowid, 0) + hits
-            scores[container_rowid] = scores.get(container_rowid, 0.0) + hits * 10.0
+        # SQLite variable limits are a physical paging concern, not a query
+        # context limit. Every unique term is processed in ordered pages and
+        # its hits are accumulated before the caller's result-count policy is
+        # applied.
+        ranked_edge_hit_map: dict[int, int] = {}
+        for start in range(0, len(term_hashes), 128):
+            term_page = term_hashes[start : start + 128]
+            placeholders = ",".join("?" for _ in term_page)
+            rows = self._connection.execute(
+                f"""
+                SELECT container_rowid, COUNT(*) AS hits
+                FROM container_terms
+                WHERE term_hash IN ({placeholders})
+                GROUP BY container_rowid
+                ORDER BY hits DESC, container_rowid ASC
+                LIMIT ?
+                """,
+                (*term_page, max(limit * 40, 200)),
+            )
+            for row in rows:
+                container_rowid = int(row["container_rowid"])
+                hits = int(row["hits"])
+                lexical_hits[container_rowid] = lexical_hits.get(container_rowid, 0) + hits
+                scores[container_rowid] = scores.get(container_rowid, 0.0) + hits * 10.0
 
-        # Rank edge IDs from the compact postings table first. Joining source
-        # metadata during the aggregate is needlessly expensive on the live
-        # multi-GB index; hydrate only the bounded winners afterward.
-        ranked_edge_rows = tuple(
-            self._connection.execute(
+            # Rank edge IDs from the compact postings table first. Joining
+            # source metadata during the aggregate is needlessly expensive on
+            # the live multi-GB index; hydrate only bounded winners afterward.
+            ranked_edge_rows = self._connection.execute(
                 f"""
                 SELECT edge_rowid, COUNT(*) AS hits
                 FROM edge_terms
@@ -897,11 +901,19 @@ class DormantEvidenceIndex:
                 ORDER BY hits DESC, edge_rowid ASC
                 LIMIT ?
                 """,
-                (*term_hashes, max(limit * 60, 300)),
+                (*term_page, max(limit * 60, 300)),
             )
-        )
+            for row in ranked_edge_rows:
+                edge_rowid = int(row["edge_rowid"])
+                ranked_edge_hit_map[edge_rowid] = (
+                    ranked_edge_hit_map.get(edge_rowid, 0) + int(row["hits"])
+                )
+
         ranked_edge_hits = tuple(
-            (int(row["edge_rowid"]), int(row["hits"])) for row in ranked_edge_rows
+            sorted(
+                ranked_edge_hit_map.items(),
+                key=lambda item: (-item[1], item[0]),
+            )[: max(limit * 60, 300)]
         )
         edge_meta: dict[int, tuple[str, int, bytes]] = {}
         edge_rowids = [edge_rowid for edge_rowid, _ in ranked_edge_hits]

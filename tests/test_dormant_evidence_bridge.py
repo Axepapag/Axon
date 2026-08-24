@@ -133,6 +133,17 @@ def test_build_query_exact_dereference_graph_surface_and_d64_roundtrip(tmp_path:
         index.close()
 
 
+def test_query_pages_every_unique_term_instead_of_rejecting_after_128(tmp_path: Path) -> None:
+    state_root = _write_fixture_state(tmp_path)
+    index = DormantEvidenceIndex.build(state_root)
+    try:
+        query = " ".join([*(f"term{index}" for index in range(150)), "stateful"])
+        candidates = index.query_candidates(query, limit=4, include_graph=False)
+        assert candidates[0].container_id == "c-axon"
+    finally:
+        index.close()
+
+
 def test_index_schema_contains_lookup_metadata_not_authoritative_text_columns(tmp_path: Path) -> None:
     state_root = _write_fixture_state(tmp_path)
     index = DormantEvidenceIndex.build(state_root)

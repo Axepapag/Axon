@@ -22,6 +22,7 @@ from runtime.trainer import (
     authorize_parameter_mutation,
     capture_parameter_telemetry,
 )
+from tests._trainer_preflight import unit_preflight_receipt
 
 
 class TinyCore(nn.Module):
@@ -129,7 +130,12 @@ def test_parameter_authority_is_stale_and_scope_fail_closed() -> None:
         source_manifest_ids=("study-source",),
         holdout_manifest_ids=("heldout",),
     )
-    receipt = authorize_parameter_mutation(inventory, adapter_grant, allowed)
+    receipt = authorize_parameter_mutation(
+        inventory,
+        adapter_grant,
+        allowed,
+        unit_preflight_receipt(inventory, allowed),
+    )
     assert receipt.parameter_count == 64
 
     body_plan = ParameterMutationPlan(
@@ -145,14 +151,24 @@ def test_parameter_authority_is_stale_and_scope_fail_closed() -> None:
         holdout_manifest_ids=("heldout",),
     )
     with pytest.raises(ParameterAuthorityError, match="adapter-only"):
-        authorize_parameter_mutation(inventory, adapter_grant, body_plan)
+        authorize_parameter_mutation(
+            inventory,
+            adapter_grant,
+            body_plan,
+            unit_preflight_receipt(inventory, body_plan),
+        )
 
     with torch.no_grad():
         module.adapter.weight[0, 0] += 0.25
     newer = registry.capture_inventory(exact_value_hashes=True)
     assert newer.inventory_id != inventory.inventory_id
     with pytest.raises(ParameterAuthorityError, match="stale"):
-        authorize_parameter_mutation(newer, adapter_grant, allowed)
+        authorize_parameter_mutation(
+            newer,
+            adapter_grant,
+            allowed,
+            unit_preflight_receipt(inventory, allowed),
+        )
 
 
 def test_telemetry_covers_every_parameter_and_present_gradient() -> None:
@@ -203,11 +219,15 @@ def test_control_plane_persists_inventory_plan_authorization_and_telemetry(tmp_p
         policy=ParameterMutationPolicy.EXPLICIT_NAMES,
         allowed_names=("body.weight",),
     )
-    authorization = control.authorize(inventory, grant, plan)
+    preflight = unit_preflight_receipt(inventory, plan)
+    with pytest.raises(TypeError, match="TrainingPreflightReceipt"):
+        control.authorize(inventory, grant, plan, None)  # type: ignore[arg-type]
+    authorization = control.authorize(inventory, grant, plan, preflight)
     frame = control.record_telemetry("trainer-core", step=0, inventory_id=inventory.inventory_id)
 
     assert (tmp_path / "training" / "trainer" / "inventories" / f"{inventory.inventory_id}.json").exists()
     assert (tmp_path / "training" / "trainer" / "plans" / f"{plan.plan_id}.json").exists()
+    assert (tmp_path / "training" / "trainer" / "preflight_receipts" / f"{preflight.receipt_id}.json").exists()
     assert (tmp_path / "training" / "trainer" / "authorizations" / f"{authorization.authorization_id}.json").exists()
     latest = json.loads((tmp_path / "training" / "trainer" / "latest_telemetry.json").read_text(encoding="utf-8"))
     assert latest["frame_id"] == frame.frame_id

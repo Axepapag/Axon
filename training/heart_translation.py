@@ -28,9 +28,9 @@ from runtime.heart.intelligence import (
 from runtime.heart.translation_core import HEART_SEMANTIC_LABELS, HeartTranslationCore
 
 
-HEART_CURRICULUM_SCHEMA = "axon-heart-translation-curriculum-v1"
-HEART_CASE_SCHEMA = "axon-heart-translation-case-v1"
-HEART_EVALUATION_SCHEMA = "axon-heart-translation-evaluation-v1"
+HEART_CURRICULUM_SCHEMA = "axon-heart-translation-curriculum-v2"
+HEART_CASE_SCHEMA = "axon-heart-translation-case-v2"
+HEART_EVALUATION_SCHEMA = "axon-heart-translation-evaluation-v2"
 HEART_TRAINING_OBJECTIVE_SCHEMA = "axon-heart-translation-training-objective-v1"
 
 DIALECTS: tuple[str, ...] = (
@@ -349,6 +349,7 @@ class HeartTranslationEvaluationReport:
     evaluation_id: str
     heldout_case_count: int
     translation_exact_rate: float
+    translation_termination_rate: float
     source_semantic_exact_rate: float
     reverse_semantic_exact_rate: float
     referent_pointer_rate: float
@@ -363,6 +364,7 @@ class HeartTranslationEvaluationReport:
             "evaluation_id": self.evaluation_id,
             "heldout_case_count": self.heldout_case_count,
             "translation_exact_rate": self.translation_exact_rate,
+            "translation_termination_rate": self.translation_termination_rate,
             "source_semantic_exact_rate": self.source_semantic_exact_rate,
             "reverse_semantic_exact_rate": self.reverse_semantic_exact_rate,
             "referent_pointer_rate": self.referent_pointer_rate,
@@ -671,6 +673,44 @@ def _cases(specs: Iterable[_MeaningSpec], split: str, directions: Sequence[tuple
     )
 
 
+_COMPLETE_FIELD_CONTEXT = "Neutral context page carries filler words only. " * 7
+
+
+def _complete_field_variant(
+    case: HeartTranslationCase,
+    semantic_class: str,
+) -> HeartTranslationCase:
+    """Place the grounded clause beyond one page without changing its meaning."""
+
+    prefix = _COMPLETE_FIELD_CONTEXT
+    return HeartTranslationCase(
+        split=case.split,
+        source_dialect=case.source_dialect,
+        destination_dialect=case.destination_dialect,
+        source_text=prefix + case.source_text,
+        target_text=case.target_text,
+        referent_text=case.referent_text,
+        referent_start=len(prefix) + case.referent_start,
+        referent_end=len(prefix) + case.referent_end,
+        grounding_start=len(prefix) + case.grounding_start,
+        grounding_end=len(prefix) + case.grounding_end,
+        signature=case.signature,
+        critical_classes=case.critical_classes,
+        provenance=f"synthetic:heart-translation-v2:complete-field:{case.spec_id}",
+        spec_id=f"{case.spec_id}:complete-field:{semantic_class}",
+    )
+
+
+def _complete_field_coverage_cases(
+    cases: Sequence[HeartTranslationCase],
+) -> tuple[HeartTranslationCase, ...]:
+    variants: list[HeartTranslationCase] = []
+    for semantic_class in CRITICAL_SEMANTIC_CLASSES:
+        source = next(case for case in cases if semantic_class in case.critical_classes)
+        variants.append(_complete_field_variant(source, semantic_class))
+    return tuple(variants)
+
+
 def build_heart_translation_curriculum() -> HeartTranslationCurriculum:
     train_subjects = ("Mira", "Tessa", "Nolan", "Aria")
     train_verbs = ("run", "wait")
@@ -747,6 +787,8 @@ def build_heart_translation_curriculum() -> HeartTranslationCurriculum:
         CounterfactualPair("referent_identity", referent_left.case_id, referent_right.case_id),
         CounterfactualPair("grounding_provenance", grounding_left.case_id, grounding_right.case_id),
     )
+    train_cases = train_cases + _complete_field_coverage_cases(train_cases)
+    heldout_cases = heldout_cases + _complete_field_coverage_cases(heldout_cases)
     return HeartTranslationCurriculum(
         train_cases=train_cases,
         heldout_cases=heldout_cases,
@@ -768,8 +810,6 @@ def collate_heart_translation_cases(
         raise ValueError("cannot collate an empty Heart translation batch")
     max_source = max(len(case.source_text) for case in rows)
     max_target = max(len(case.target_text) for case in rows) + 1
-    if max_source > model.cfg.max_source_chars or max_target > model.cfg.max_target_chars + 1:
-        raise ValueError("Heart curriculum case exceeds model character budget")
     batch = len(rows)
     source_indices = torch.full((batch, max_source), model.source_pad_index, dtype=torch.long)
     source_mask = torch.zeros((batch, max_source), dtype=torch.bool)
@@ -907,13 +947,15 @@ def evaluate_heart_translation_model(
     batch = collate_heart_translation_cases(model, cases).to(device)
     with torch.no_grad():
         source_output = _analyze_batch(model, batch)
-        generated = model.greedy_translate(
+        generation_results = model.greedy_translate(
             batch.source_indices,
             batch.source_mask,
             batch.source_dialect_ids,
             batch.destination_dialect_ids,
             max_chars=max(len(case.target_text) for case in cases) + 12,
         )
+    generated = tuple(result.text for result in generation_results)
+    terminated = tuple(result.terminated for result in generation_results)
     source_predictions = _semantic_predictions(source_output)
     source_semantic_ok: list[bool] = []
     referent_pointer_ok: list[bool] = []
@@ -933,7 +975,7 @@ def evaluate_heart_translation_model(
 
     reverse_ok = [False] * len(cases)
     reverse_predictions: dict[str, dict[int, int]] = {name: {} for name in HEART_SEMANTIC_LABELS}
-    nonempty_indices = [index for index, text in enumerate(generated) if text]
+    nonempty_indices = [index for index, text in enumerate(generated) if terminated[index] and text]
     if nonempty_indices:
         reverse_cases: list[HeartTranslationCase] = []
         reverse_map: list[int] = []
@@ -980,8 +1022,14 @@ def evaluate_heart_translation_model(
                     ok = ok and preds[name][row] == expected
                 reverse_ok[original_index] = ok
 
-    target_exact = [generated[index] == case.target_text for index, case in enumerate(cases)]
-    referent_preserved = [case.referent_text in generated[index] for index, case in enumerate(cases)]
+    target_exact = [
+        terminated[index] and generated[index] == case.target_text
+        for index, case in enumerate(cases)
+    ]
+    referent_preserved = [
+        terminated[index] and case.referent_text in generated[index]
+        for index, case in enumerate(cases)
+    ]
     grounded_roundtrip = [
         source_semantic_ok[index]
         and reverse_ok[index]
@@ -1061,7 +1109,17 @@ def evaluate_heart_translation_model(
         "descriptor_id": descriptor_id,
         "curriculum_id": curriculum.curriculum_id,
         "heldout_case_ids": [case.case_id for case in cases],
-        "generated_sha256": canonical_sha256(list(generated)),
+        "generated_sha256": canonical_sha256(
+            [
+                {
+                    "text": result.text,
+                    "terminated": result.terminated,
+                    "generated_characters": result.generated_characters,
+                }
+                for result in generation_results
+            ]
+        ),
+        "translation_termination_rate": sum(terminated) / len(cases),
         "grounded_roundtrip_rate": sum(grounded_roundtrip) / len(cases),
         "aggregate_semantic_fidelity": sum(aggregate_semantic) / len(cases),
         "critical_class_rates": critical_rates,
@@ -1085,6 +1143,7 @@ def evaluate_heart_translation_model(
         evaluation_id=evaluation_id,
         heldout_case_count=len(cases),
         translation_exact_rate=sum(target_exact) / len(cases),
+        translation_termination_rate=metric_payload["translation_termination_rate"],
         source_semantic_exact_rate=sum(source_semantic_ok) / len(cases),
         reverse_semantic_exact_rate=sum(reverse_ok) / len(cases),
         referent_pointer_rate=sum(referent_pointer_ok) / len(cases),
