@@ -1,6 +1,6 @@
 # Axon Source Of Truth
 
-Last updated: 2026-08-23 (Trainer parameter-control plane + Cortex cadence/role doctrine ratified)
+Last updated: 2026-08-23 (lived-experience memory + continual Trainer curriculum doctrine ratified)
 
 ## Core Doctrine
 
@@ -78,6 +78,16 @@ Masking is not truncation. It is an explicit, auditable shared-to-dormant
 membership transition governed independently per region. A model window may
 never move this boundary implicitly.
 
+### Autobiographical continuity
+
+Axon's lived history is append-only at the evidence layer. Accepted user turns, Axon responses, tool invocations and results, advisor inputs, canonical state transitions, and governed learning/evaluation outcomes are not silently deleted when they leave active attention. They may become masked/cold, but their exact content, ordering, source identity, outcome, and provenance remain durably recoverable through Dormant State. Rejected or quarantined ingress is also preserved as evidence, but remains explicitly distinguished from accepted lived experience.
+
+The current bootstrap mask implementation may retain cold exact spans inside persisted Shared Field snapshots while deriving a narrower attended view. Mature storage may externalize sufficiently cold spans into exact Dormant containers and rematerialize them by stable identity when an older mask interval is reopened. That storage choice may change; the invariant does not: sliding the governed history mask backward must recover the same exact prior material rather than a summary or regenerated approximation.
+
+Dormant State therefore carries two inseparable forms of memory under one authority: exact episodic/autobiographical evidence and structured semantic knowledge derived from that evidence. Derived facts, procedures, summaries, and semantic edges must keep provenance back to the exact episodes that support them; semantic processing never replaces or erases the lived source record.
+
+**Current implementation gap:** the permanent Heart ingress spool is append-only and preserves admitted envelopes for replay/audit, but it is not yet the governed autobiographical Dormant deposit path. The current runtime therefore does **not yet** guarantee that every user/tool/advisor/response episode has been materialized into `State/dormant`. Building that exact provenance-preserving experience-deposit path is a prerequisite for claiming lifelong autobiographical memory or lived-experience continual training.
+
 ## Semantic Cortex Organ
 
 The Semantic Cortex gives Axon a continuously refreshed semantic understanding
@@ -85,6 +95,8 @@ of the universe represented by the current Shared Field and the knowledge and
 experience stored in Dormant State. It is not equivalent to vector search,
 embeddings retrieval, or the canonical `cortex` region alone. Dormant retrieval
 is one Cortex sense; semantic interpretation is the organ's larger job.
+
+The Cortex is also the semantic digestion layer for lived experience. Raw episodes remain exact in Dormant State; Cortex may continuously derive grounded entities, relationships, procedures, causal links, recurring patterns, confidence, and semantic edges from them. Those structures remain provenance-bound to their source episodes and may themselves be stored in Dormant State as structured knowledge. Cortex does not turn an episode into a lossy replacement and does not decide what becomes parametric memory; it supplies semantic organization that both reasoning and Trainer curriculum construction can consume.
 
 The Cortex runs on its own **cortical cadence**. A Cortex tick is distinct from
 both a heartbeat and a reasoning tick. The Cortex may inspect the exact current
@@ -308,7 +320,7 @@ Input does not enter the soul first. The shared field is the input interface.
 
 Soul state is private per core. It is not the canonical knowledge store.
 
-Soul writes move hot to warm to cold over time. The soul should learn experience, habits, and intuition from repeated episodes. Auditable knowledge belongs in dormant state.
+Soul writes move hot to warm to cold over time. The soul carries private per-core experiential state and short-to-medium-horizon habits/intuition. Slower generalized procedural intuition may also be distilled into governed core parameters by the Trainer from repeated lived episodes. Auditable factual/episodic knowledge belongs in Dormant State; neither soul state nor weights are allowed to become the only copy of evidence that should be recoverable exactly.
 
 ## Trainer Organ (Parameter Guardian)
 
@@ -331,6 +343,14 @@ LoRA/adapters are first-class governed parameter generations, not a loophole aro
 The Trainer may eventually contain its own ensemble of Transformer cores. Candidate advisory roles include curriculum construction, optimizer/gradient control, evaluation, catastrophic-forgetting audit, and promotion criticism. These Trainer cores may have different `d_model` widths and specialties, but their outputs are advisory proposals. A deterministic Trainer authority layer validates the exact parameter inventory and grant before any optimizer/backpropagation path is allowed to mutate tensors.
 
 Trainer cadence is distinct from heartbeat, Cortex tick, and reasoning tick. The Trainer may run sustained offline learning, bounded online adaptation, continuous parameter-health observation, or study campaigns such as "learn philosophy". Study acquisition enters Dormant State with provenance first; Cortex may semantically organize it; Trainer then constructs governed curricula/candidates and evaluates them before any learned generation can become active.
+
+The Trainer is also Axon's **lived-experience compiler**. It must not blindly stream the Dormant corpus into gradient descent. It selects provenance-complete episodes and constructs runtime-faithful curriculum examples from what Axon actually experienced: the pre-action Shared Field and Cortex context, available tools/advisors, proposals/deltas/actions, tool consequences, later corrections, test/evaluation evidence, and eventual outcome. Successful and failed episodes are both valuable. The Trainer may build paired corrections, replay tasks, counterfactuals, delayed-outcome examples, retrieval-use examples, and multi-episode curricula, but every derived training target remains linked to the exact source episodes that justify it.
+
+The purpose of lived-experience training is primarily **procedural compression**: reasoning habits, tool-use instincts, error avoidance, planning patterns, semantic discrimination, confidence calibration, and other generalized intuition that should become easier because Axon has encountered similar situations before. Parameters are not required to memorize every factual detail. Exact facts, versions, identities, conversations, source material, and auditable outcomes remain in Dormant State and can be surfaced by Cortex when needed. In mature operation, weights should answer roughly "how have situations like this tended to work?" while Dormant State + Cortex answer "what exactly happened, what is known now, and what evidence supports it?"
+
+Core diversity should emerge naturally from governed variation in lived-experience sampling, temporal windows, curriculum order, objectives, initialization, adapters, architecture/width, and replay/counterfactual emphasis. Multiple generalist reasoning or semantic cores may therefore learn overlapping life history through different lenses and acquire different useful intuitions without requiring every core to be narrowly labeled "coding", "math", or "science". Explicit specialist cores remain optional additions, not the only path to ensemble diversity.
+
+Steady-state Axon should normally keep at least one **isolated non-live candidate learning lane** active on admissible lived-experience or study curriculum while other cores serve the organism. "Always learning" never means forcing meaningless gradient steps: if no curriculum passes provenance/quality gates, that lane remains occupied with curation, replay construction, evaluation, or forgetting analysis until admissible learning material exists. The live accepted cores remain immutable until a candidate independently passes Trainer gates and activation.
 
 `runtime/trainer/` now implements the first governed candidate-generation lifecycle behind that control plane. A live registered organ is never handed to an optimizer: the Trainer creates an isolated candidate clone, freezes tensors outside the exact mutation grant, enforces the authorized step/parameter budget, rejects non-finite loss or gradients before contamination, hashes live and unauthorized state around each step, and records full per-parameter telemetry. `runtime/trainer/learning.py` defines an immutable content-addressed learning policy bound to every candidate checkpoint/step. Current first-form execution governs AdamW or SGD, weight decay, Adam betas/epsilon, SGD momentum, constant or warmup-cosine scheduling, gradient accumulation, gradient clipping, hard gradient/update L2 budgets, and explicit FP32/BF16/FP16 precision. FP16 requires CUDA and uses a governed GradScaler; non-finite gradients still fail closed before optimizer mutation. Persistent buffers are inventoried and any buffer mutation fails closed until a future explicit buffer-state grant is designed.
 
