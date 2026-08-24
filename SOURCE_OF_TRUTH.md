@@ -1,6 +1,6 @@
 # Axon Source Of Truth
 
-Last updated: 2026-08-23 (lived-experience memory + continual Trainer curriculum doctrine ratified)
+Last updated: 2026-08-23 (Heart intelligence ensemble + native rail dialect doctrine ratified)
 
 ## Core Doctrine
 
@@ -166,11 +166,62 @@ Required properties:
 The Field Compiler Organ is Axon's heart. It runs on its own cadence — the
 heartbeat — which is distinct from a cognitive tick. The heart pumps exact
 information: external input (users, tools, advisors) inward to the organs,
-and organ output outward, roundtrip. Only the heart may validate,
-materialize, and commit canonical shared-field state. Other organs and
-ingress paths may originate and submit proposed mutations; they never mutate
-canonical state directly. Cores, consolidators, ingress paths, and the
-dormant valve all cross the heart's typed validation/transaction boundary.
+and organ output outward, roundtrip. The **canonical Shared Field is the truth
+body**; the Heart is its sovereign guardian, compiler, translator, and sole
+canonical writer. Learned Heart tissue may become extremely capable, but no
+neural Heart model is itself canonical truth and no learned output gains
+unchecked commit authority. Other organs and ingress paths may originate and
+submit proposed mutations; they never mutate canonical state directly. Cores,
+consolidators, ingress paths, and the dormant valve all cross the heart's typed
+validation/transaction boundary.
+
+### Heart intelligence and semantic conduction
+
+The mature Heart is not merely a deterministic router. It may contain a
+Trainer-governed ensemble of learned translation/conduction cores that help it
+preserve meaning across many human languages, tool/advisor dialects, Cortex
+representations, and heterogeneous neural rail dialects. The deterministic
+Heart authority remains wrapped around those learned senses: learned tissue
+proposes interpretation/translation; deterministic code binds it to the exact
+field, checks freshness/provenance/semantic-fidelity receipts, exposes
+uncertainty or disagreement, and alone decides whether a proposed canonical
+mutation is admissible.
+
+Heart translation is hub-and-spoke rather than every dialect translating
+directly into every other dialect. Each source dialect is decoded toward one
+grounded Heart semantic interlingua and each destination is encoded from that
+interlingua. The original native message is always preserved beside the Heart's
+interpretation. Translation may be classified as exact, semantically equivalent,
+approximate, ambiguous, or rejected; approximate/ambiguous meaning is never
+silently relabeled exact. Material distinctions such as referent identity,
+polarity/negation, modality, quantification, temporal relation, causal relation,
+speech act, confidence/ambiguity, and grounding/provenance remain first-class
+translation obligations.
+
+Every learned Heart translation is expected to be roundtrip-testable: source
+meaning -> destination dialect -> recovered meaning. Semantic roundtrip is not
+accepted merely because embeddings are close. Critical semantic distinctions
+must survive explicitly, and every transported claim remains anchored to exact
+canonical characters/spans or provenance-bearing dormant/Cortex evidence. If a
+destination dialect cannot preserve a distinction, the Heart carries the loss
+or ambiguity explicitly rather than inventing equivalence.
+
+Mature Heart intelligence uses **at least three accepted serving translation
+cores plus at least one isolated candidate-learning lane**. Serving cores may
+have heterogeneous architecture, `d_model`, depth, head structure, FFN width,
+and training history. Their native interpretations are independent evidence;
+disagreement is observable and deterministic Heart policy arbitrates/fails
+closed rather than averaging away a material contradiction. Candidate Heart
+tissue may train continuously, but it cannot participate in live translation or
+canonical commit until it independently passes Trainer promotion and activation.
+
+Heart promotion is intentionally much stricter than a coarse 60/40 capability
+score. The current first-form policy contract requires at least 0.9999 grounded
+roundtrip, at least 0.999 aggregate held-out semantic fidelity, **1.0 on every
+critical semantic class**, explicit counterfactual input-use proof, and zero
+regression failures before a candidate can pass the Heart-specific promotion
+floor. These are policy floors, not a claim that the present runtime already
+possesses such a model. The policy may become stricter as evaluation matures.
 
 A heartbeat is event-driven: durable ingress or other governed work is the
 primary doorbell. While input or commit work exists, the heart beats promptly.
@@ -273,7 +324,11 @@ authority model.
 
 ## Cores
 
-Cores are transformer reasoners with private souls. Axon's mature reasoning ensemble is heterogeneous: cores may have different architectures, specialties, parameter counts, and `d_model` widths while still reasoning against the same frozen canonical Shared Field. Each active width receives its own derived rail/lens from the Heart, bound to the same exact field/tick identity and provenance. No core's larger or smaller rail becomes a competing truth body.
+Cores are transformer reasoners with private souls. Axon's mature reasoning ensemble is heterogeneous: cores may have different architectures, specialties, parameter counts, and `d_model` widths while still reasoning against the same frozen canonical Shared Field. Each active width has a **home rail** supplied by the Heart, bound to the same exact field/tick identity and provenance. A core inhales from, attends through, and exhales its native proposal back onto its own home rail; it is not required to speak another width's tensor dialect or directly author canonical serialization. The Heart translates/grounds native rail proposals into the shared proposal/interlingua surface and re-renders other organs' proposals back into each destination home-rail dialect. No core's larger or smaller rail becomes a competing truth body.
+
+A home rail must be roundtrip-capable with respect to its exact canonical scaffold. Different widths may require different physical slot counts for the same story: smaller `d_model` rails can use more slots while larger rails can carry more exact substrate cells and richer derived semantic structure per slot. Larger width is therefore additional representational bandwidth, not permission to discard characters or provenance. A 4096D core may bind broad entity/event/context relationships more compactly than a 64D core while both remain grounded to the same exact field evidence.
+
+Native rail proposals are preserved exactly as emitted. Heart translation may render a proposal very closely into another rail's dialect, but any semantic looseness is receipted rather than erased. Thus cores may genuinely develop different dialects while communication still converges on one grounded meaning space and one canonical body.
 
 The present 64D core is a developmental proving width, not a final architecture limit. Development may prove new widths deliberately and independently, but mature Axon may run 64D, 128D, 256D, 512D, 1024D, or other explicitly governed widths together in one ensemble once each rail/compiler/core contract is proven. A tick is one full
 deliberation round against a frozen canonical base:
@@ -351,6 +406,8 @@ The purpose of lived-experience training is primarily **procedural compression**
 Core diversity should emerge naturally from governed variation in lived-experience sampling, temporal windows, curriculum order, objectives, initialization, adapters, architecture/width, and replay/counterfactual emphasis. Multiple generalist reasoning or semantic cores may therefore learn overlapping life history through different lenses and acquire different useful intuitions without requiring every core to be narrowly labeled "coding", "math", or "science". Explicit specialist cores remain optional additions, not the only path to ensemble diversity.
 
 Steady-state Axon should normally keep at least one **isolated non-live candidate learning lane** active on admissible lived-experience or study curriculum while other cores serve the organism. "Always learning" never means forcing meaningless gradient steps: if no curriculum passes provenance/quality gates, that lane remains occupied with curation, replay construction, evaluation, or forgetting analysis until admissible learning material exists. The live accepted cores remain immutable until a candidate independently passes Trainer gates and activation.
+
+**Current first learned-organ priority is the Heart translation/conduction ensemble.** Reasoning and Semantic Cortex training remain behind it. The Trainer now recognizes Heart translation cores/adapters as explicit parameter-bearing organ kinds. Initial Heart curriculum must teach grounded semantic transport rather than conversational imitation: exact field anchoring, source/destination dialect conversion, semantic roundtrip, referent preservation, negation/modality/quantity/time/causality/speech-act preservation, ambiguity retention, and destination-aware re-expression. Autobiographical experience capture remains required and may be built in parallel because the Heart's own lived translations, corrections, disagreements and outcomes become future Heart curriculum. No real Heart campaign begins until a concrete model, curriculum manifest, disjoint holdout/counterfactual suites, and Heart-specific promotion plan are registered through the existing Trainer authority.
 
 `runtime/trainer/` now implements the first governed candidate-generation lifecycle behind that control plane. A live registered organ is never handed to an optimizer: the Trainer creates an isolated candidate clone, freezes tensors outside the exact mutation grant, enforces the authorized step/parameter budget, rejects non-finite loss or gradients before contamination, hashes live and unauthorized state around each step, and records full per-parameter telemetry. `runtime/trainer/learning.py` defines an immutable content-addressed learning policy bound to every candidate checkpoint/step. Current first-form execution governs AdamW or SGD, weight decay, Adam betas/epsilon, SGD momentum, constant or warmup-cosine scheduling, gradient accumulation, gradient clipping, hard gradient/update L2 budgets, and explicit FP32/BF16/FP16 precision. FP16 requires CUDA and uses a governed GradScaler; non-finite gradients still fail closed before optimizer mutation. Persistent buffers are inventoried and any buffer mutation fails closed until a future explicit buffer-state grant is designed.
 
@@ -641,7 +698,7 @@ The active implementation surface is intentionally narrow:
 - `runtime/axon_runtime/d64_adapter.py` ? runtime-facing exact and dual-surface D64 adapter,
 - `runtime/dormant/evidence_bridge.py`, `runtime/dormant/relevance.py`, `runtime/dormant/generations.py`, `runtime/dormant/incremental.py`, and `runtime/dormant/evaluation.py` ? read-only manifest/hash-bound dormant retrieval, exact dereference, bounded graph/relation relevance, verified derived-index generations, transactional append/layout-preserving update maintenance, and held-out evaluation,
 - `Cortext/contracts.py` ? grounded Semantic Cortex service contract only; no active specialist/training authority and the `semantic_cortex` valve remains CLOSED,
-- `runtime/heart/` ? heart anatomy: authority/core control plane, canonical transaction boundary, beat coordinator, sovereign 20-slot valve plane, OS single-writer lease, restart-safe cardiac identity, durable ingress/replay/quarantine spool, health observability, explicit derived-view identity, relevance-gated dormant recall, and the permanent Heart host;
+- `runtime/heart/` ? heart anatomy: authority/core control plane, canonical transaction boundary, beat coordinator, sovereign 20-slot valve plane, OS single-writer lease, restart-safe cardiac identity, durable ingress/replay/quarantine spool, health observability, explicit derived-view identity, relevance-gated dormant recall, permanent Heart host, and `runtime/heart/intelligence.py` for first-class learned Heart translator identities, ensemble topology, semantic-fidelity evidence and fail-closed promotion floors; no Heart neural model is active yet;
 - `runtime/trainer/` ? permanent Trainer parameter-authority anatomy: heterogeneous parameter+buffer inventory, OS single-writer lease, scoped mutation grants, immutable content-addressed learning policies, isolated candidate optimizer execution with governed accumulation/scheduling/precision/budgets, per-parameter telemetry, exact mid-accumulation checkpoint/restore, deterministic promotion gates, atomic active-generation pointers, exact activation/rollback snapshots and receipts, restart hydration, immutable lifecycle records, and read-only inspection; no model is trained or activated without an explicit governed plan/policy/gate/activation path;
 - `scripts/run_axon_heart.py`, `scripts/evaluate_dormant_relevance.py`, `scripts/maintain_dormant_index.py`, and `scripts/verify_d64_dual_surface.py` ? permanent Heart runtime, deterministic dormant semantic/relevance evaluation, explicit derived-index maintenance/recovery, and read-only live D64 dual-surface verification entry points;
 - `training/canonical_d64.py`, `training/complete_field_64d.py`, and `training/train_complete_field_64d.py` ? current developmental canonical D64 training path only; future campaigns must execute behind Trainer parameter authority,

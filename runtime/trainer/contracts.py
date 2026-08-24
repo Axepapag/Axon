@@ -29,9 +29,11 @@ class OrganKind(str, Enum):
     REASONING_CORE = "reasoning_core"
     SEMANTIC_CORE = "semantic_core"
     TRAINER_CORE = "trainer_core"
+    HEART_TRANSLATION_CORE = "heart_translation_core"
     REASONING_ADAPTER = "reasoning_adapter"
     SEMANTIC_ADAPTER = "semantic_adapter"
     TRAINER_ADAPTER = "trainer_adapter"
+    HEART_TRANSLATION_ADAPTER = "heart_translation_adapter"
     OTHER = "other"
 
 

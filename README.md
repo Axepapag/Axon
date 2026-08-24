@@ -23,6 +23,7 @@ Canonical field/runtime boundary:
 - `runtime/field/state_branch.py`
 - `runtime/axon_runtime/d64_adapter.py`
 - `runtime/dormant/evidence_bridge.py`
+- `runtime/heart/intelligence.py` — first-class governed Heart translator/ensemble/fidelity contracts; no learned Heart model is active yet
 
 The dormant evidence bridge keeps exact memory authoritative in `State/dormant/*.jsonl`. Its local SQLite index is disposable lookup metadata only; lexical postings use SHA256 term keys plus integer row references rather than copied text/IDs, and selected stable IDs are dereferenced and hash/provenance-verified from the JSONL before surfacing into `cortex` and D64.
 
@@ -102,4 +103,4 @@ python -m pytest -q -p no:cacheprovider
 
 ## Next build target
 
-Continue the Trainer organ before new core training: add governed **activation/rollback of promoted generations**, richer optimizer/scheduler/AMP/accumulation policy, explicit LoRA/adapter construction and ancestry, study/curriculum ingestion, and eventually the Trainer-core advisory ensemble. The candidate-generation executor, writer lease, telemetry/checkpoint lineage, deterministic promotion gates, and read-only inspector now exist. Keep Semantic Cortex parked behind its CLOSED valve while preserving its independent cortical cadence doctrine and future Dormant-State sense ownership.
+Train the **Heart translation/conduction ensemble first**. The immediate implementation target is a real Heart model + provenance-bound multilingual/native-rail curriculum and disjoint heldout/counterfactual evaluation harness operating behind Trainer authority and the new `runtime/heart/intelligence.py` promotion floor. Mature topology requires at least three accepted serving Heart translators plus one isolated candidate-learning lane. Build exact autobiographical experience capture in parallel so Heart translations/corrections become future curriculum. Do not launch reasoning or Semantic Cortex training before Heart communication tissue earns promotion; `semantic_cortex` remains CLOSED.

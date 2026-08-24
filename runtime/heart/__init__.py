@@ -69,6 +69,20 @@ from .durable_ingress import DurableIngressSpool, IngressRecord
 from .health import HeartHealth, HealthJournal
 from .host import HeartHost, HeartHostBeatResult, HeartHostConfig, HostBeatState
 from .identity import HeartIdentity, HeartIdentityStore
+from .intelligence import (
+    CRITICAL_SEMANTIC_CLASSES,
+    HEART_ENSEMBLE_POLICY_SCHEMA,
+    HEART_FIDELITY_EVIDENCE_SCHEMA,
+    HEART_PROMOTION_DECISION_SCHEMA,
+    HEART_TRANSLATOR_SCHEMA,
+    HeartEnsemblePolicy,
+    HeartSemanticFidelityEvidence,
+    HeartTranslationPromotionDecision,
+    HeartTranslatorDescriptor,
+    HeartTranslatorRole,
+    HeartTranslatorState,
+    evaluate_heart_translator_promotion,
+)
 from .ingress_queue import IngressItem, IngressQueue
 from .lease import SingleWriterLease
 from .registry import CoreDescriptor, CoreRegistry, CoreStatus
@@ -121,6 +135,18 @@ __all__ = [
     "DurableIngressSpool",
     "HeartIdentity",
     "HeartIdentityStore",
+    "HEART_TRANSLATOR_SCHEMA",
+    "HEART_ENSEMBLE_POLICY_SCHEMA",
+    "HEART_FIDELITY_EVIDENCE_SCHEMA",
+    "HEART_PROMOTION_DECISION_SCHEMA",
+    "CRITICAL_SEMANTIC_CLASSES",
+    "HeartTranslatorRole",
+    "HeartTranslatorState",
+    "HeartTranslatorDescriptor",
+    "HeartEnsemblePolicy",
+    "HeartSemanticFidelityEvidence",
+    "HeartTranslationPromotionDecision",
+    "evaluate_heart_translator_promotion",
     "HeartHealth",
     "HealthJournal",
     "SingleWriterLease",

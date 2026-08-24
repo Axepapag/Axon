@@ -43,6 +43,12 @@ No production neural runtime driver exists yet. That absence is explicit; no arc
 
 The active developmental trainer has no detached-record/legacy-anatomy switch. Curriculum JSON is source material only; the core receives canonical snapshots through the D64 compiler. Archived Bible checkpoints remain historical evidence and are not an active initialization path.
 
+### Heart intelligence boundary
+
+- `runtime/heart/intelligence.py`
+
+Heart learned tissue is now a first-class governed target but no neural Heart model is active yet. Mature policy requires at least three accepted serving translators plus one isolated candidate lane. Promotion requires >=0.9999 grounded roundtrip, >=0.999 aggregate semantic fidelity, perfect heldout preservation for every critical semantic class, counterfactual input-use proof, and zero regression failures. The canonical Shared Field remains truth; learned Heart translators only propose interpretations/transport and never gain direct canonical-write authority.
+
 ### Trainer organ control plane
 
 - `runtime/trainer/contracts.py`

@@ -66,6 +66,7 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "health.py",
         "host.py",
         "identity.py",
+        "intelligence.py",
         "lease.py",
         "valve.py",
     }
