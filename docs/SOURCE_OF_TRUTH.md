@@ -1,6 +1,6 @@
 # Axon Source Of Truth
 
-Last updated: 2026-08-25 (Heart identity-generalization evidence and objective v2 recorded)
+Last updated: 2026-08-25 (Heart long-position curriculum and governed evidence recorded)
 
 ## Core Doctrine
 
@@ -574,6 +574,52 @@ source dependence explicitly while protecting EOS and full long replay; blind
 step doubling is not warranted. Only after identity conduction passes should
 training return to semantic translations and their counterfactual/roundtrip
 floors. These results still do not justify discarding the permanent D64 tissue.
+
+Long-position curriculum
+`ed83bb3669898e950fab44af43187506d8f1ee6a2fe041299e80e21acfc4387f`
+extends rather than replaces that identity curriculum. It retains all 37 prior
+training cases as replay, adds complete train sources through 640 characters and
+disjoint held-out extrapolation through 769, and probes exact positions 0, 254,
+255, 256, 257, 510, 511, 512, 513, 699, and 768. Those finite lengths and
+positions are evidence points around physical page boundaries and late tails,
+not model limits. No source is sliced or truncated. Evaluation may batch
+independent complete examples to fit physical memory; every example still
+undergoes both ordered sweeps over all of its characters.
+
+The first 64-step long-position candidate
+`d51a6047c6a51401633cb38033d767eb150877a2c7c2a68068d9e04138c7fa11`
+raised held-out character accuracy from 0.0824 to 0.1077 and diagonal top-one
+alignment from 0.0870 to 0.1034, but replay EOS fell from 0.2432 to 0.1351.
+It was rejected and never activated. The Trainer was then given an explicit
+protective cadence and configurable EOS-route weight. Independent-case
+evaluation batching reduced observed GTX 1650 use from approximately 3.88 GiB
+with an allocator OOM warning to approximately 1.57 GiB without changing any
+case's complete-field coverage.
+
+Protected continuation
+`3e12b8a642fde98c3c6feaf39baf3dd4fdb058af903cf19eb599eedddbcb69f9`
+resumed the rejected checkpoint for 192 bounded steps: 64 long-position updates,
+128 replay updates, EOS-route weight 1.0, and durable checkpoints at steps 64,
+128, and 192. Fixed audit loss fell from 8.7739 to 7.2936. Held-out character
+accuracy rose from 0.1077 to 0.1479, diagonal mass from 0.0586 to 0.0786,
+diagonal top-one from 0.1034 to 0.1497, counterfactual exactness from 2/14 to
+3/14, replay character accuracy from 0.2533 to 0.2992, and replay EOS from
+0.1351 to 0.3243. Free-running exactness remained fixed at 1/46 and the worst
+counterfactual margin remained negative. Read-only intermediate evaluation
+showed held-out character accuracy 0.1163 at step 64 and 0.1404 at step 128;
+the slope flattened by step 192 while sequence exactness did not move. The
+candidate failed twelve gate requirements, remained rejected/non-serving, and
+created no promotion or activation.
+
+Therefore further identical step doubling is not authorized by this evidence.
+The next bounded mechanism investigation should compare staged whole-case
+length exposure with an additive explicit positional-copy facility that exposes
+same-address structure to the decoder while retaining learned content attention,
+old D64 tissue, exact source evidence, and semantic translation paths. It must
+be an architecture-migration/ablation experiment, not a hard-coded claim that
+identity copying proves learned semantic Heart function. Wider or peer Heart
+cores may be added later; the D64 specialist and its checkpoints remain useful
+historical and initialization tissue.
 
 `runtime/trainer/` now implements the first governed candidate-generation lifecycle behind that control plane. A live registered organ is never handed to an optimizer: the Trainer creates an isolated candidate clone, freezes tensors outside the exact mutation grant, enforces the authorized step/parameter budget, rejects non-finite loss or gradients before contamination, hashes live and unauthorized state around each step, and records full per-parameter telemetry. `runtime/trainer/learning.py` defines an immutable content-addressed learning policy bound to every candidate checkpoint/step. Current first-form execution governs AdamW or SGD, weight decay, Adam betas/epsilon, SGD momentum, constant or warmup-cosine scheduling, gradient accumulation, gradient clipping, hard gradient/update L2 budgets, and explicit FP32/BF16/FP16 precision. FP16 requires CUDA and uses a governed GradScaler; non-finite gradients still fail closed before optimizer mutation. Persistent buffers are inventoried and any buffer mutation fails closed until a future explicit buffer-state grant is designed.
 
