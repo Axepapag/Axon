@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-25T18:47:15-05:00
-Current through event: `evt-20260825T234715350159Z-codex-heart-long-position`
+Updated: 2026-08-25T18:56:56-05:00
+Current through event: `evt-20260825T2356567050170Z-codex-reality-assessment`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -23,6 +23,36 @@ probes exact page-boundary and late-tail positions through held-out length 769.
 Protective replay/EOS training improved all principal teacher-forced alignment
 metrics, but free-running exactness remained fixed at 1/46 and the learning
 slope flattened. Further identical step doubling is not evidence-supported.
+
+## Reality boundary and success claim
+
+Axon's central engineering vision is grounded: exact persistent state, a shared
+workspace, heterogeneous specialist cores, complete-field ordered processing,
+proposal/refinement/consolidation, governed offline learning, and CPU-capable
+inference can be built with existing techniques. The repository has already
+proved meaningful pieces of that anatomy. It has **not** proved the central
+learned-organism loop or a serving learned Heart, so success is not guaranteed.
+
+The credible claim is a durable cognitive system whose exact memories remain in
+Dormant State, whose learned organs develop procedural skill and semantic
+compression, and whose changes are evidence-gated and reversible. Unsupported
+claims include a tiny randomly initialized D64 core becoming broad general
+intelligence by itself, learned weights serving as exact episodic memory,
+fixed-cost dense all-pairs attention over an arbitrarily growing field, or an
+engineering test proving subjective consciousness or metaphysical identity.
+Complete-field attention means every active character is preserved,
+addressable, and actually visited through ordered/sparse/hierarchical work with
+coverage evidence; it does not promise constant-cost simultaneous all-pairs
+attention.
+
+The principal strategic risk is now over-serializing infrastructure and
+training work before proving one useful end-to-end living loop. After the next
+bounded Heart identity ablation earns its gate, the project should table a
+minimum-living-Axon milestone: accepted input, exact field circulation,
+evidence-bound Dormant recall, one competent grounded proposal, Heart-validated
+response/diary commit, and automatic outcome deposit. Broader reasoning may
+eventually use pretrained or distilled cores; D64 can remain permanent
+specialist tissue rather than being forced to become the whole mind.
 
 ## Binding decisions and invariants
 
@@ -185,6 +215,12 @@ consolidator services do not.
    or learned native-proposal translator exists.
 6. **TOOLING BACKLOG:** Ruff 0.16.4 is installed/configured and changed files
    pass; 211 pre-existing findings remain across the active repository.
+7. **STRATEGIC RISK:** infrastructure and Heart work may become over-serialized
+   unless a bounded useful end-to-end cognition loop follows the next earned
+   Heart gate.
+8. **CLAIM BOUNDARY:** persistent private state and behavioral identity are
+   engineerable; subjective consciousness or continuity of a metaphysical soul
+   is not currently testable or guaranteeable.
 
 ## Recommended next actions
 
@@ -200,6 +236,12 @@ consolidator services do not.
    provenance-aware lived-experience loaders.
 5. Implement native proposal envelopes/translation receipts before connecting
    reasoning runners to the existing proposal board.
+6. Adopt explicit falsification checkpoints: retire or revise an approach when
+   an additive positional/staged ablation cannot move unseen sequence exactness,
+   when a competent reasoning core cannot circulate with acceptable CPU
+   latency, or when lived-experience training cannot improve held-out outcomes.
+7. After Heart earns its next gate, table the minimum-living-Axon end-to-end
+   milestone before expanding the control plane further.
 
 ## Important paths and commands
 
