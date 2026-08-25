@@ -1,40 +1,35 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-24T17:57:49-05:00
-Current through event: `evt-20260824T225749627974Z-codex-chatgpt-audit-monitor`
+Updated: 2026-08-24T21:04:58-05:00
+Current through event: `evt-20260825T020458609447Z-codex-heart-decoder-mechanism`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
 ## Executive state
 
-Axon now has a functional permanent mechanism for exact recovered memory,
-crash-safe accepted-ingress autobiography, real-D64 Heart input, governed
-candidate training, deterministic lived-experience session compilation and
-inspectable failure evidence. It does **not** yet have a serving-capable learned
-Heart, Semantic Cortex or reasoning core. Every current Heart candidate is
-rejected and no promotion proposal, activation receipt or active learned
-generation pointer exists.
+Axon now has a proven permanent D64 decoder mechanism across a physical-page
+boundary, in addition to exact recovered memory, crash-safe accepted-ingress
+autobiography, governed candidate training, deterministic lived-experience
+session compilation and inspectable failure evidence. It does **not** yet have
+a serving-capable learned Heart, Semantic Cortex or reasoning core. No Heart
+promotion proposal, activation receipt or active learned generation pointer
+exists.
 
-The project remains on the ratified Heart-first sequence. The next work is not a
-wider model or unrelated organ: repair the D64 translator's free-running
-decoder/curriculum, prove exact grounded conduction, complete autobiographical
-event capture, then turn exact lived-experience sessions into organ loaders.
+The project remains on the ratified Heart-first sequence. The D64 translator's
+anatomy can learn exact teacher-forced and greedy copy for a 374-character
+multi-page sequence; its current blocker is generalization to distinct content,
+not a 192/256-character ceiling or insufficient width. The next shot is a
+larger deterministic, length-bucketed copy/identity curriculum with source-use
+and anti-memorization probes. Semantic translation resumes only after that gate.
 
-An independent ChatGPT audit is in progress through the custom `D:\extension`
-browser bridge. Its completed verification block agrees that the repository was
-clean and synchronized at `f784e78`, the focused new surface passed 22/22 and
-the full collection reached 354 tests without visible failure/error output.
-ChatGPT's turn then stalled before substantive findings while still exposing
-the active generation control, so no technical dialogue has yet been claimed.
-A five-minute heartbeat named `Monitor ChatGPT Axon audit` is attached to the
-current Codex task; it will read the final report, challenge it against durable
-evidence and continue the exchange when the composer actually returns.
+The prior ChatGPT audit automation was deleted at Jeff's request. No external
+audit or scheduled ChatGPT collaboration remains active work.
 
 ## Binding decisions and invariants
 
 - Jeff is project convener and final authority.
 - `docs/SOURCE_OF_TRUTH.md` and root `SOURCE_OF_TRUTH.md` are byte-identical at
-  SHA256 `C590179ED0B37E65337D4F8CD4FB406B2D1CA013DE846384DF59A63CD552DA63`.
+  SHA256 `6B53F9A26F06398E254062039A98E76B478B199F9C6EB2E78FDB78E27EEA1EEA`.
 - No trained anatomy may contain a fixed character/context ceiling, finite
   learned position table, wrapping page index, destructive truncation or
   silent long-item exclusion. Pages/batches/steps are compute controls only.
@@ -88,10 +83,18 @@ sessions that reference exact experience IDs and complete context ranges:
   14,205 examples; explicitly non-promotional.
 - Split policy: stable SHA-based 80/10/10 train/heldout/regression.
 
-The Heart training recipe now uses deterministic shuffled epochs: all 590
-synthetic mechanism cases are visited once before reshuffling. Recipe ID
+The semantic Heart training recipe uses deterministic shuffled epochs: all 590
+synthetic semantic train cases are visited once before reshuffling. Recipe ID
 `a7f293f9762f86a68cecdd93cd9b0a96f304a4e4a62a0f14cf2dd18eafbfac25`
 is bound into candidate generation and source lineage.
+
+Decoder mechanism curriculum
+`fad90e9a44cd81cb1e41e830d86f79ccee04fefffdde4013b8a5a0ddcda9ce35`
+is deliberately separate: exact-copy cases range from five characters through
+multi-page strings, and both train and heldout contain referents beyond one
+physical page. The preflight firewall validates this separate purpose without
+weakening architecture, boundary, counterfactual-dependence or checkpoint
+checks.
 
 Session manifests are not yet organ-specific dataset loaders. Outcome-derived
 target quality, replay, counterfactual construction and Cortex/reasoning loader
@@ -109,7 +112,7 @@ through exact and semantic D64, verifies exact roundtrip/grounding, and supplies
 literal raw 16D lane cells plus canonical positions. Earlier masked text cannot
 renumber later active text; substituted cells or stale identities fail closed.
 
-The strongest governed diagnostic is the 512-step batch-8 v4 run:
+The 512-step batch-8 v4 semantic run remains the strongest semantic candidate:
 
 - Run ID: `9257422e04d5f23b80ccfb0550742212d47f1fa84f9c0278696ed69784010fc6`
 - Loss: 4.9441 -> 2.6819
@@ -127,26 +130,45 @@ Evaluation v4 stores every generated string and its exact per-case decisions.
 Strict checkpoint re-evaluation artifact
 `State/training/heart/evaluations/f28e035c07c644c92b440d48d87835b0d200fef9be15d00032eca630ec52ea9f.json`
 shows repetitive free-running text despite improving teacher-forced loss and
-pointer accuracy. The next defect is decoder exposure/curriculum, not field
-visibility. Do not spend another long campaign or increase width until this is
-addressed.
+pointer accuracy. Checkpoint-bound decoder diagnostic
+`b75409895073862643225e72e25c4c104be9b6bec87f77c8495842985edb473c`
+localized the problem before exposure bias: teacher-forced character accuracy
+was 0.2289, sequence and greedy exactness were 0.0, correct greedy prefix was
+0.0202 and target-character attention mass was 0.0959.
+
+Four staged, isolated decoder-mechanism continuations then established the
+actual architecture boundary:
+
+- One-case run `e24ca23...` passed exact copy/alignment.
+- Five-case run `7843b66...` passed all short training cases and improved
+  distinct short heldout cases.
+- First six-case run `1b1964d...` was correctly rejected after the 374-character
+  case missed one character (373/374).
+- Bounded continuation `c6393e28539da07bc40a0b62488099ec6592400cd7fcd9e466017c9e01e74482`
+  passed all six sequences exactly under teacher forcing and greedy decoding,
+  with perfect EOS/termination, 0.9489 copy-route probability and 0.9767
+  matching-character attention mass. It was not activated.
+
+This is mechanism proof, not learned-Heart function. Distinct heldout aggregate
+character accuracy is 0.2256; the unseen 379-character case reaches 0.17 and
+diverges immediately. Do not widen or redesign the core based on this result;
+build diversity and generalization evidence next.
 
 ## Verification and Git
 
-- Final full suite: 354/354 passed.
+- Final full suite: 358/358 passed.
 - Known non-failing warnings: PyTorch nested-tensor warning and unwritable local
   `D:\Axon\.pytest_cache`.
 - `D:\00` source sizes/mtimes remained unchanged; archive was not modified.
-- D: retained about 140.3 GB free at closeout.
-- Implementation commits pushed during this turn:
-  `1904cd5`, `65cfe4d`, `ee861da`, `3934af0`, `e8b40c2`.
-- Implementation authority before ledger-only closeout:
-  `origin/main == e8b40c2b149b003a0e85be9372edc000413ec489`.
+- D: retained 130.64 GB free at closeout.
+- Current implementation commit: `b8a64cdec5d35d52450f0ad21b5bee5a5daed05f`.
+- Local `main` and `origin/main` matched at `b8a64cd` before ledger closeout.
 
 ## Active flags
 
-1. **CAPABILITY BLOCKER:** no learned Heart translator is usable; best candidate
-   has zero exact translation and grounded roundtrip.
+1. **CAPABILITY BLOCKER:** D64 exact copy works on trained complete-field
+   sequences, but distinct long-field copy and semantic translation do not yet
+   generalize; no learned Heart translator is usable.
 2. **AUTOBIOGRAPHY GAP:** accepted ingress is covered, but response/tool-request/
    consolidator/learning-outcome event classes need deposits.
 3. **TRAINER INTEGRATION GAP:** lived sessions are governed artifacts, not yet
@@ -155,29 +177,27 @@ addressed.
    evidence bridge/Cortex.
 5. **RESOURCE NOTE:** exact snapshots plus logical records consume about 4.30 GB;
    first full session compilation is RAM-heavy but completed.
-6. **INDEPENDENT AUDIT PENDING:** ChatGPT's audit has verified repository/test
-   boundaries but has not completed its substantive findings. No collaboration
-   result exists yet.
-7. **BROWSER-HUB LEASE PITFALL:** this extension's `context` operation creates a
-   five-minute control lease. Routine monitoring must use lease-free tab
-   metadata, and any necessary context lease must be released immediately.
+6. **TOOLING NOTE:** Ruff is not installed. Compileall, diff hygiene and all 358
+   tests pass; no Ruff result is claimed.
 
 ## Recommended next actions
 
-1. Add explicit identity/copy/autoencoding curriculum stages and free-running or
-   scheduled-sampling diagnostics for the current D64 Heart.
-2. Add teacher-forced token/EOS accuracy and a tiny train-set overfit gate so
-   optimization is distinguished from greedy generalization before GPU spend.
-3. Turn v4 repetitive outputs into failure-driven decoder tests; run one small
-   overfit diagnostic before another balanced campaign.
+1. Build a deterministic copy-generalization curriculum with diverse content,
+   character coverage and length buckets through multiple physical pages.
+2. Add heldout monotonic alignment, source-dependence counterfactual,
+   length-extrapolation and anti-memorization gates while replaying the six
+   already-proven mechanism cases.
+3. Resume only from verified checkpoint
+   `b0a29150293aa0d8ab04669faed72467cbe74d93daa18256558cc2c95527c7d1`
+   in an isolated non-serving candidate. After copy generalizes, blend semantic
+   translation gradually under the unchanged roundtrip/grounding floors.
 4. Deposit Heart responses, tool requests/results, consolidator commits and
    Trainer evaluation outcomes into exact autobiography.
 5. Add verified `experience_v1` retrieval/Cortex projection without normalizing
    or replacing source evidence.
 6. Convert lived-experience session manifests into provenance-aware loaders with
    target-quality, replay and counterfactual gates.
-7. After decoder repair, run one bounded D64 candidate under unchanged serving
-   floors. Only after exact grounded conduction should wider rails or
+7. Only after exact grounded semantic conduction should wider rails or
    Cortex/reasoning training begin.
 
 ## Important commands and paths
@@ -187,6 +207,8 @@ addressed.
 - Import: `python curator/import_d00_memories.py`
 - Sessions: `python scripts/compile_lived_experience_sessions.py`
 - Heart smoke: `python scripts/train_heart_translation_smoke.py --steps N --batch-size N --device cuda`
+- Decoder checkpoint diagnostic: `python scripts/diagnose_heart_decoder.py --checkpoint-record PATH --run-summary PATH --device cuda`
+- Governed decoder mechanism stage: `python scripts/train_heart_decoder_mechanism_smoke.py --checkpoint-record PATH --run-summary PATH --steps N --train-case-count N --device cuda`
 - Trainer inspection: `python scripts/inspect_trainer.py --state-root State`
 - Tests: `python -m pytest -q`
 - Canonical ledger append helper: `scripts/append_engineers_ledger_event.py`
