@@ -90,6 +90,7 @@ from .intelligence import (
 from .translation_core import (
     HEART_SEMANTIC_LABELS,
     HEART_TRANSLATION_ARCHITECTURE,
+    HeartDecoderTrace,
     HeartGeneratedTranslation,
     HeartTranslationCore,
     HeartTranslationCoreConfig,
@@ -175,6 +176,7 @@ __all__ = [
     "HeartTranslationPromotionDecision",
     "evaluate_heart_translator_promotion",
     "HEART_TRANSLATION_ARCHITECTURE",
+    "HeartDecoderTrace",
     "HeartGeneratedTranslation",
     "HEART_SEMANTIC_LABELS",
     "HeartTranslationCoreConfig",

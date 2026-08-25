@@ -30,7 +30,7 @@ from runtime.trainer import (
     build_training_preflight_receipt,
 )
 
-from .heart_translation import HeartTranslationCurriculum
+from .heart_translation import HeartDecoderMechanismCurriculum, HeartTranslationCurriculum
 
 
 HEART_PREFLIGHT_EVIDENCE_SCHEMA = "axon-heart-complete-field-preflight-evidence-v1"
@@ -321,7 +321,47 @@ def _split_distribution(cases, page_chars: int) -> dict[str, Any]:
     }
 
 
-def _curriculum_distribution(curriculum: HeartTranslationCurriculum, page_chars: int) -> dict[str, Any]:
+def _curriculum_distribution(
+    curriculum: HeartTranslationCurriculum | HeartDecoderMechanismCurriculum,
+    page_chars: int,
+) -> dict[str, Any]:
+    if isinstance(curriculum, HeartDecoderMechanismCurriculum):
+        split_cases = {
+            "train": curriculum.train_cases,
+            "heldout": curriculum.heldout_cases,
+        }
+        distributions = {
+            name: _split_distribution(cases, page_chars) for name, cases in split_cases.items()
+        }
+        exact_copy = {
+            name: sum(case.source_text == case.target_text for case in cases)
+            for name, cases in split_cases.items()
+        }
+        complete_field = {
+            name: sum(
+                len(case.source_text) > page_chars and case.referent_start >= page_chars
+                for case in cases
+            )
+            for name, cases in split_cases.items()
+        }
+        passed = all(
+            exact_copy[name] == len(split_cases[name]) and complete_field[name] > 0
+            for name in split_cases
+        )
+        return {
+            "schema": HEART_PREFLIGHT_EVIDENCE_SCHEMA,
+            "check": PreflightEvidenceKind.CURRICULUM_DISTRIBUTION.value,
+            "curriculum_kind": "decoder_mechanism_exact_copy",
+            "curriculum_id": curriculum.curriculum_id,
+            "train_manifest_id": curriculum.train_manifest_id,
+            "heldout_manifest_id": curriculum.heldout_manifest_id,
+            "page_chars": page_chars,
+            "distributions": distributions,
+            "exact_copy_cases": exact_copy,
+            "complete_field_referents_beyond_page": complete_field,
+            "passed": passed,
+        }
+
     split_cases = {
         "train": curriculum.train_cases,
         "heldout": curriculum.heldout_cases,
@@ -501,7 +541,7 @@ def _write_immutable_evidence(state_root: Path, kind: PreflightEvidenceKind, pay
 def build_heart_training_preflight(
     *,
     model: HeartTranslationCore,
-    curriculum: HeartTranslationCurriculum,
+    curriculum: HeartTranslationCurriculum | HeartDecoderMechanismCurriculum,
     inventory: ParameterInventory,
     plan: ParameterMutationPlan,
     batch_size: int,
@@ -513,6 +553,7 @@ def build_heart_training_preflight(
     if batch_size < 1:
         raise HeartTrainingPreflightError("batch_size must be positive")
 
+    is_decoder_mechanism = isinstance(curriculum, HeartDecoderMechanismCurriculum)
     was_training = model.training
     model.eval()
     try:
@@ -551,7 +592,11 @@ def build_heart_training_preflight(
                 summary={
                     PreflightEvidenceKind.STATIC_CAPACITY_SCAN: "Active Python/config capacity scan passed",
                     PreflightEvidenceKind.ARCHITECTURE_CAPACITY: "Heart architecture has dynamic positions and no declared character ceiling",
-                    PreflightEvidenceKind.CURRICULUM_DISTRIBUTION: "Train and holdout cover every critical class beyond one physical page",
+                    PreflightEvidenceKind.CURRICULUM_DISTRIBUTION: (
+                        "Exact-copy train and holdout include complete-field referents beyond one physical page"
+                        if is_decoder_mechanism
+                        else "Train and holdout cover every critical class beyond one physical page"
+                    ),
                     PreflightEvidenceKind.BOUNDARY_COVERAGE: "Exact two-sweep coverage passed across physical-page boundaries",
                     PreflightEvidenceKind.COUNTERFACTUAL_DEPENDENCE: "Head, middle, and tail source changes alter observable model output",
                     PreflightEvidenceKind.CHECKPOINT_COMPATIBILITY: "Exact config loads and incompatible anatomy fails strict restore",

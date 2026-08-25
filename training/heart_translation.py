@@ -32,6 +32,9 @@ from runtime.heart.translation_core import HEART_SEMANTIC_LABELS, HeartTranslati
 HEART_CURRICULUM_SCHEMA = "axon-heart-translation-curriculum-v3"
 HEART_CASE_SCHEMA = "axon-heart-translation-case-v3"
 HEART_EVALUATION_SCHEMA = "axon-heart-translation-evaluation-v4"
+HEART_DECODER_DIAGNOSTIC_SCHEMA = "axon-heart-decoder-diagnostic-v2"
+HEART_DECODER_CASE_DIAGNOSTIC_SCHEMA = "axon-heart-decoder-case-diagnostic-v1"
+HEART_DECODER_MECHANISM_CURRICULUM_SCHEMA = "axon-heart-decoder-mechanism-curriculum-v1"
 HEART_TRAINING_OBJECTIVE_SCHEMA = "axon-heart-translation-training-objective-v1"
 HEART_TRAINING_RECIPE_SCHEMA = "axon-heart-translation-training-recipe-v1"
 
@@ -349,6 +352,90 @@ class HeartTranslationCurriculum:
         return path
 
 
+@dataclass(frozen=True, slots=True)
+class HeartDecoderMechanismCurriculum:
+    """Small, separate copy/alignment gate; never substitutes for semantic curriculum."""
+
+    train_cases: tuple[HeartTranslationCase, ...]
+    heldout_cases: tuple[HeartTranslationCase, ...]
+    curriculum_id: str = field(init=False)
+    train_manifest_id: str = field(init=False)
+    heldout_manifest_id: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        if not self.train_cases or not self.heldout_cases:
+            raise ValueError("decoder mechanism curriculum requires train and heldout cases")
+        all_cases = self.train_cases + self.heldout_cases
+        if len({case.case_id for case in all_cases}) != len(all_cases):
+            raise ValueError("decoder mechanism curriculum contains duplicate cases")
+        if any(case.source_text != case.target_text for case in all_cases):
+            raise ValueError("decoder mechanism cases must be exact copy targets")
+        train_specs = {case.spec_id for case in self.train_cases}
+        heldout_specs = {case.spec_id for case in self.heldout_cases}
+        if train_specs & heldout_specs:
+            raise ValueError("decoder mechanism train and heldout specs must be disjoint")
+        object.__setattr__(
+            self,
+            "train_manifest_id",
+            canonical_sha256(
+                {
+                    "schema": HEART_DECODER_MECHANISM_CURRICULUM_SCHEMA,
+                    "split": "train",
+                    "case_ids": sorted(case.case_id for case in self.train_cases),
+                }
+            ),
+        )
+        object.__setattr__(
+            self,
+            "heldout_manifest_id",
+            canonical_sha256(
+                {
+                    "schema": HEART_DECODER_MECHANISM_CURRICULUM_SCHEMA,
+                    "split": "heldout",
+                    "case_ids": sorted(case.case_id for case in self.heldout_cases),
+                }
+            ),
+        )
+        object.__setattr__(
+            self,
+            "curriculum_id",
+            canonical_sha256(self.to_canonical_dict(include_id=False)),
+        )
+
+    def to_canonical_dict(self, *, include_id: bool = True) -> dict[str, Any]:
+        value: dict[str, Any] = {
+            "schema": HEART_DECODER_MECHANISM_CURRICULUM_SCHEMA,
+            "train_manifest_id": self.train_manifest_id,
+            "heldout_manifest_id": self.heldout_manifest_id,
+            "train_cases": [case.to_canonical_dict() for case in self.train_cases],
+            "heldout_cases": [case.to_canonical_dict() for case in self.heldout_cases],
+        }
+        if include_id:
+            value["curriculum_id"] = self.curriculum_id
+        return value
+
+    def write(self, state_root: Path | str) -> Path:
+        root = Path(state_root) / "training" / "heart" / "decoder_curricula"
+        root.mkdir(parents=True, exist_ok=True)
+        path = root / f"{self.curriculum_id}.json"
+        payload = json.dumps(self.to_canonical_dict(), ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+        if path.exists():
+            if path.read_text(encoding="utf-8") != payload:
+                raise RuntimeError("existing decoder mechanism curriculum disagrees with immutable content")
+            return path
+        fd, temp_name = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=root)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temp_name, path)
+        finally:
+            if os.path.exists(temp_name):
+                os.unlink(temp_name)
+        return path
+
+
 @dataclass(slots=True)
 class HeartTranslationBatch:
     source_indices: torch.Tensor
@@ -481,6 +568,158 @@ class HeartTranslationEvaluationReport:
             "evidence": self.evidence.to_canonical_dict(),
             "case_results": [item.to_canonical_dict() for item in self.case_results],
         }
+
+
+@dataclass(frozen=True, slots=True)
+class HeartDecoderCaseDiagnostic:
+    case_id: str
+    target_characters: int
+    teacher_forced_characters_correct: int
+    teacher_forced_character_accuracy: float
+    teacher_forced_eos_correct: bool
+    teacher_forced_sequence_exact: bool
+    greedy_text: str
+    greedy_terminated: bool
+    greedy_exact: bool
+    greedy_first_divergence: int | None
+    greedy_correct_prefix_characters: int
+    mean_generation_gate: float
+    mean_copyable_generation_gate: float | None
+    mean_noncopyable_generation_gate: float | None
+    mean_target_character_attention_mass: float | None
+    mean_attention_peak: float
+    diagnostic_id: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        if not self.case_id:
+            raise ValueError("case_id must be non-empty")
+        if self.target_characters < 1:
+            raise ValueError("decoder diagnostics require a non-empty target")
+        if not 0 <= self.teacher_forced_characters_correct <= self.target_characters:
+            raise ValueError("teacher-forced correct count is outside the target")
+        if not 0 <= self.greedy_correct_prefix_characters <= self.target_characters:
+            raise ValueError("greedy correct-prefix count is outside the target")
+        if self.greedy_first_divergence is not None and not (
+            0 <= self.greedy_first_divergence <= self.target_characters
+        ):
+            raise ValueError("greedy first divergence is outside the target")
+        object.__setattr__(
+            self,
+            "diagnostic_id",
+            canonical_sha256(self.to_canonical_dict(include_id=False)),
+        )
+
+    def to_canonical_dict(self, *, include_id: bool = True) -> dict[str, Any]:
+        value: dict[str, Any] = {
+            "schema": HEART_DECODER_CASE_DIAGNOSTIC_SCHEMA,
+            "case_id": self.case_id,
+            "target_characters": self.target_characters,
+            "teacher_forced_characters_correct": self.teacher_forced_characters_correct,
+            "teacher_forced_character_accuracy": self.teacher_forced_character_accuracy,
+            "teacher_forced_eos_correct": self.teacher_forced_eos_correct,
+            "teacher_forced_sequence_exact": self.teacher_forced_sequence_exact,
+            "greedy_text": self.greedy_text,
+            "greedy_terminated": self.greedy_terminated,
+            "greedy_exact": self.greedy_exact,
+            "greedy_first_divergence": self.greedy_first_divergence,
+            "greedy_correct_prefix_characters": self.greedy_correct_prefix_characters,
+            "mean_generation_gate": self.mean_generation_gate,
+            "mean_copyable_generation_gate": self.mean_copyable_generation_gate,
+            "mean_noncopyable_generation_gate": self.mean_noncopyable_generation_gate,
+            "mean_target_character_attention_mass": self.mean_target_character_attention_mass,
+            "mean_attention_peak": self.mean_attention_peak,
+        }
+        if include_id:
+            value["diagnostic_id"] = self.diagnostic_id
+        return value
+
+
+@dataclass(frozen=True, slots=True)
+class HeartDecoderDiagnosticReport:
+    descriptor_id: str
+    checkpoint_id: str
+    curriculum_id: str
+    split: str
+    execution_device: str
+    case_count: int
+    teacher_forced_character_accuracy: float
+    teacher_forced_eos_accuracy: float
+    teacher_forced_sequence_exact_rate: float
+    greedy_exact_rate: float
+    greedy_termination_rate: float
+    mean_greedy_correct_prefix_fraction: float
+    mean_generation_gate: float
+    mean_copyable_generation_gate: float | None
+    mean_noncopyable_generation_gate: float | None
+    mean_target_character_attention_mass: float | None
+    mean_attention_peak: float
+    position_accuracy: tuple[tuple[int, int, float], ...]
+    case_diagnostics: tuple[HeartDecoderCaseDiagnostic, ...]
+    diagnostic_id: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        if not all(
+            (self.descriptor_id, self.checkpoint_id, self.curriculum_id, self.split, self.execution_device)
+        ):
+            raise ValueError("decoder diagnostic identity must be non-empty")
+        if self.case_count != len(self.case_diagnostics) or self.case_count < 1:
+            raise ValueError("decoder diagnostic case count disagrees with evidence")
+        object.__setattr__(
+            self,
+            "diagnostic_id",
+            canonical_sha256(self.to_canonical_dict(include_id=False)),
+        )
+
+    def to_canonical_dict(self, *, include_id: bool = True) -> dict[str, Any]:
+        value: dict[str, Any] = {
+            "schema": HEART_DECODER_DIAGNOSTIC_SCHEMA,
+            "descriptor_id": self.descriptor_id,
+            "checkpoint_id": self.checkpoint_id,
+            "curriculum_id": self.curriculum_id,
+            "split": self.split,
+            "execution_device": self.execution_device,
+            "case_count": self.case_count,
+            "teacher_forced_character_accuracy": self.teacher_forced_character_accuracy,
+            "teacher_forced_eos_accuracy": self.teacher_forced_eos_accuracy,
+            "teacher_forced_sequence_exact_rate": self.teacher_forced_sequence_exact_rate,
+            "greedy_exact_rate": self.greedy_exact_rate,
+            "greedy_termination_rate": self.greedy_termination_rate,
+            "mean_greedy_correct_prefix_fraction": self.mean_greedy_correct_prefix_fraction,
+            "mean_generation_gate": self.mean_generation_gate,
+            "mean_copyable_generation_gate": self.mean_copyable_generation_gate,
+            "mean_noncopyable_generation_gate": self.mean_noncopyable_generation_gate,
+            "mean_target_character_attention_mass": self.mean_target_character_attention_mass,
+            "mean_attention_peak": self.mean_attention_peak,
+            "position_accuracy": [
+                {"position": position, "support": support, "accuracy": accuracy}
+                for position, support, accuracy in self.position_accuracy
+            ],
+            "case_diagnostics": [item.to_canonical_dict() for item in self.case_diagnostics],
+        }
+        if include_id:
+            value["diagnostic_id"] = self.diagnostic_id
+        return value
+
+    def write(self, state_root: Path | str) -> Path:
+        root = Path(state_root) / "training" / "heart" / "decoder_diagnostics"
+        root.mkdir(parents=True, exist_ok=True)
+        path = root / f"{self.diagnostic_id}.json"
+        payload = json.dumps(self.to_canonical_dict(), ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+        if path.exists():
+            if path.read_text(encoding="utf-8") != payload:
+                raise RuntimeError("existing Heart decoder diagnostic disagrees with immutable content")
+            return path
+        fd, temp_name = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=root)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temp_name, path)
+        finally:
+            if os.path.exists(temp_name):
+                os.unlink(temp_name)
+        return path
 
 
 def _spec(
@@ -907,6 +1146,89 @@ def build_heart_translation_curriculum() -> HeartTranslationCurriculum:
     )
 
 
+def _decoder_copy_case(
+    *,
+    split: str,
+    name: str,
+    text: str,
+    referent_text: str,
+    source_dialect: str,
+    destination_dialect: str,
+) -> HeartTranslationCase:
+    referent_start = text.index(referent_text)
+    return HeartTranslationCase(
+        split=split,
+        source_dialect=source_dialect,
+        destination_dialect=destination_dialect,
+        source_text=text,
+        target_text=text,
+        referent_text=referent_text,
+        referent_start=referent_start,
+        referent_end=referent_start + len(referent_text),
+        grounding_start=0,
+        grounding_end=len(text),
+        signature=HeartMeaningSignature(),
+        critical_classes=("grounding_provenance", "referent_identity"),
+        provenance=f"synthetic:heart-decoder-mechanism-v1:{split}:{name}",
+        spec_id=f"decoder-mechanism:{split}:{name}",
+    )
+
+
+def build_heart_decoder_mechanism_curriculum() -> HeartDecoderMechanismCurriculum:
+    """Build exact-copy cases from tiny through beyond-page complete-field spans."""
+
+    train_rows = (
+        ("minimal", "Mira.", "Mira", DIALECTS[0], DIALECTS[1]),
+        ("capability", "Mira can run.", "Mira", DIALECTS[1], DIALECTS[2]),
+        ("negation", "Tessa cannot wait.", "Tessa", DIALECTS[2], DIALECTS[0]),
+        ("temporal", "Nolan will run tomorrow.", "Nolan", DIALECTS[0], DIALECTS[2]),
+        ("causal", "Aria waits because Mira rests.", "Aria", DIALECTS[2], DIALECTS[1]),
+        (
+            "complete-field",
+            "preserved context remains addressable. " * 9 + "Mira closes the record.",
+            "Mira",
+            DIALECTS[1],
+            DIALECTS[0],
+        ),
+    )
+    heldout_rows = (
+        ("minimal", "Lena.", "Lena", DIALECTS[0], DIALECTS[2]),
+        ("negation", "Omar cannot jump.", "Omar", DIALECTS[2], DIALECTS[1]),
+        ("causal", "Rhea waits because Lena runs.", "Rhea", DIALECTS[1], DIALECTS[0]),
+        (
+            "complete-field",
+            "dormant evidence remains preserved and restorable. " * 7 + "Lena opens the record.",
+            "Lena",
+            DIALECTS[0],
+            DIALECTS[1],
+        ),
+    )
+    return HeartDecoderMechanismCurriculum(
+        train_cases=tuple(
+            _decoder_copy_case(
+                split="train",
+                name=name,
+                text=text,
+                referent_text=referent,
+                source_dialect=source,
+                destination_dialect=destination,
+            )
+            for name, text, referent, source, destination in train_rows
+        ),
+        heldout_cases=tuple(
+            _decoder_copy_case(
+                split="heldout",
+                name=name,
+                text=text,
+                referent_text=referent,
+                source_dialect=source,
+                destination_dialect=destination,
+            )
+            for name, text, referent, source, destination in heldout_rows
+        ),
+    )
+
+
 def _label_index(name: str, value: str) -> int:
     return HEART_SEMANTIC_LABELS[name].index(value)
 
@@ -1048,6 +1370,166 @@ def deterministic_training_batches(
 
 def _semantic_predictions(output) -> dict[str, list[int]]:
     return {name: output.semantic_logits[name].argmax(dim=-1).tolist() for name in HEART_SEMANTIC_LABELS}
+
+
+def _masked_mean(values: torch.Tensor, mask: torch.Tensor) -> float | None:
+    support = int(mask.sum().item())
+    if support == 0:
+        return None
+    return float(values[mask].mean().item())
+
+
+def _greedy_divergence(
+    generated_text: str,
+    target_text: str,
+    terminated: bool,
+) -> tuple[int | None, int]:
+    for index, (generated_char, target_char) in enumerate(zip(generated_text, target_text)):
+        if generated_char != target_char:
+            return index, index
+    shared = min(len(generated_text), len(target_text))
+    if generated_text == target_text and terminated:
+        return None, len(target_text)
+    return shared, shared
+
+
+def evaluate_heart_decoder_diagnostics(
+    model: HeartTranslationCore,
+    cases: Sequence[HeartTranslationCase],
+    *,
+    descriptor_id: str,
+    checkpoint_id: str,
+    curriculum_id: str,
+    split: str,
+) -> HeartDecoderDiagnosticReport:
+    """Localize optimization, EOS, exposure, copy-gate, and alignment failure."""
+
+    rows = tuple(cases)
+    if not rows:
+        raise ValueError("decoder diagnostics require at least one case")
+    if not descriptor_id or not checkpoint_id or not curriculum_id or not split:
+        raise ValueError("decoder diagnostic identity must be non-empty")
+    model.eval()
+    batch = collate_heart_translation_cases(model, rows).to(model.device)
+    with torch.no_grad():
+        output = model(
+            batch.source_indices,
+            batch.source_mask,
+            batch.source_dialect_ids,
+            batch.destination_dialect_ids,
+            batch.decoder_input_ids,
+            source_cells16=batch.source_cells16,
+            source_positions=batch.source_positions,
+        )
+        generated = model.greedy_translate(
+            batch.source_indices,
+            batch.source_mask,
+            batch.source_dialect_ids,
+            batch.destination_dialect_ids,
+            max_chars=max(len(case.target_text) for case in rows) + 12,
+            source_cells16=batch.source_cells16,
+            source_positions=batch.source_positions,
+        )
+
+    predictions = output.target_log_probs.argmax(dim=-1)
+    character_mask = batch.target_mask & batch.target_ids.ne(model.eos_index)
+    token_correct = predictions.eq(batch.target_ids)
+    character_correct = token_correct & character_mask
+    sequence_exact = (token_correct | ~batch.target_mask).all(dim=1)
+    eos_correct = torch.tensor(
+        [
+            bool(predictions[row, len(case.target_text)].item() == model.eos_index)
+            for row, case in enumerate(rows)
+        ],
+        dtype=torch.bool,
+        device=predictions.device,
+    )
+
+    attention = output.decoder_trace.memory_attention
+    generation_gate = output.decoder_trace.generation_gate.squeeze(-1)
+    source_matches_target = (
+        batch.source_indices.unsqueeze(1).eq(batch.target_ids.unsqueeze(-1))
+        & batch.source_mask.unsqueeze(1)
+    )
+    copyable = source_matches_target.any(dim=-1) & character_mask
+    noncopyable = ~source_matches_target.any(dim=-1) & character_mask
+    target_attention_mass = (
+        attention * source_matches_target.to(attention.dtype)
+    ).sum(dim=-1)
+    attention_peak = attention.max(dim=-1).values
+
+    case_diagnostics: list[HeartDecoderCaseDiagnostic] = []
+    greedy_exact: list[bool] = []
+    prefix_fractions: list[float] = []
+    for row, (case, generated_result) in enumerate(zip(rows, generated)):
+        target_characters = len(case.target_text)
+        correct_characters = int(character_correct[row].sum().item())
+        divergence, correct_prefix = _greedy_divergence(
+            generated_result.text,
+            case.target_text,
+            generated_result.terminated,
+        )
+        exact = generated_result.terminated and generated_result.text == case.target_text
+        greedy_exact.append(exact)
+        prefix_fractions.append(correct_prefix / target_characters)
+        row_target_mask = batch.target_mask[row]
+        row_character_mask = character_mask[row]
+        mean_gate = _masked_mean(generation_gate[row], row_target_mask)
+        mean_peak = _masked_mean(attention_peak[row], row_character_mask)
+        if mean_gate is None or mean_peak is None:
+            raise RuntimeError("decoder diagnostic target unexpectedly has no characters")
+        case_diagnostics.append(
+            HeartDecoderCaseDiagnostic(
+                case_id=case.case_id,
+                target_characters=target_characters,
+                teacher_forced_characters_correct=correct_characters,
+                teacher_forced_character_accuracy=correct_characters / target_characters,
+                teacher_forced_eos_correct=bool(eos_correct[row].item()),
+                teacher_forced_sequence_exact=bool(sequence_exact[row].item()),
+                greedy_text=generated_result.text,
+                greedy_terminated=generated_result.terminated,
+                greedy_exact=exact,
+                greedy_first_divergence=divergence,
+                greedy_correct_prefix_characters=correct_prefix,
+                mean_generation_gate=mean_gate,
+                mean_copyable_generation_gate=_masked_mean(generation_gate[row], copyable[row]),
+                mean_noncopyable_generation_gate=_masked_mean(generation_gate[row], noncopyable[row]),
+                mean_target_character_attention_mass=_masked_mean(
+                    target_attention_mass[row], copyable[row]
+                ),
+                mean_attention_peak=mean_peak,
+            )
+        )
+
+    position_accuracy: list[tuple[int, int, float]] = []
+    for position in range(character_mask.shape[1]):
+        support = int(character_mask[:, position].sum().item())
+        if support:
+            correct = int(character_correct[:, position].sum().item())
+            position_accuracy.append((position, support, correct / support))
+
+    total_characters = int(character_mask.sum().item())
+    return HeartDecoderDiagnosticReport(
+        descriptor_id=descriptor_id,
+        checkpoint_id=checkpoint_id,
+        curriculum_id=curriculum_id,
+        split=split,
+        execution_device=str(model.device),
+        case_count=len(rows),
+        teacher_forced_character_accuracy=int(character_correct.sum().item()) / total_characters,
+        teacher_forced_eos_accuracy=float(eos_correct.float().mean().item()),
+        teacher_forced_sequence_exact_rate=float(sequence_exact.float().mean().item()),
+        greedy_exact_rate=sum(greedy_exact) / len(rows),
+        greedy_termination_rate=sum(item.terminated for item in generated) / len(rows),
+        mean_greedy_correct_prefix_fraction=sum(prefix_fractions) / len(prefix_fractions),
+        mean_generation_gate=_masked_mean(generation_gate, batch.target_mask) or 0.0,
+        mean_copyable_generation_gate=_masked_mean(generation_gate, copyable),
+        mean_noncopyable_generation_gate=_masked_mean(generation_gate, noncopyable),
+        mean_target_character_attention_mass=_masked_mean(target_attention_mass, copyable),
+        mean_attention_peak=_masked_mean(attention_peak, character_mask) or 0.0,
+        position_accuracy=tuple(position_accuracy),
+        case_diagnostics=tuple(case_diagnostics),
+    )
 
 
 def _analyze_batch(model: HeartTranslationCore, batch: HeartTranslationBatch):
@@ -1312,6 +1794,9 @@ __all__ = [
     "HEART_CURRICULUM_SCHEMA",
     "HEART_CASE_SCHEMA",
     "HEART_EVALUATION_SCHEMA",
+    "HEART_DECODER_DIAGNOSTIC_SCHEMA",
+    "HEART_DECODER_CASE_DIAGNOSTIC_SCHEMA",
+    "HEART_DECODER_MECHANISM_CURRICULUM_SCHEMA",
     "HEART_TRAINING_RECIPE_SCHEMA",
     "DIALECTS",
     "DIALECT_TO_ID",
@@ -1319,15 +1804,20 @@ __all__ = [
     "HeartTranslationCase",
     "CounterfactualPair",
     "HeartTranslationCurriculum",
+    "HeartDecoderMechanismCurriculum",
     "HeartTranslationTrainingObjective",
     "HeartTranslationTrainingRecipe",
     "HeartTranslationBatch",
     "HeartTranslationLoss",
     "HeartTranslationEvaluationReport",
     "HeartTranslationCaseResult",
+    "HeartDecoderCaseDiagnostic",
+    "HeartDecoderDiagnosticReport",
     "build_heart_translation_curriculum",
+    "build_heart_decoder_mechanism_curriculum",
     "collate_heart_translation_cases",
     "heart_translation_loss",
     "deterministic_training_batches",
+    "evaluate_heart_decoder_diagnostics",
     "evaluate_heart_translation_model",
 ]

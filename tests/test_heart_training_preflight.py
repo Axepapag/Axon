@@ -15,7 +15,11 @@ from runtime.trainer import (
     PreflightEvidenceKind,
 )
 from training.heart_preflight import build_heart_training_preflight, scan_active_capacity_poison
-from training.heart_translation import HeartTranslationTrainingObjective, build_heart_translation_curriculum
+from training.heart_translation import (
+    HeartTranslationTrainingObjective,
+    build_heart_decoder_mechanism_curriculum,
+    build_heart_translation_curriculum,
+)
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -83,6 +87,40 @@ def test_heart_preflight_binds_all_required_evidence_before_training(tmp_path: P
     }
     evidence_dir = tmp_path / "training" / "heart" / "preflight_evidence"
     assert len(tuple(evidence_dir.glob("*.json"))) == len(PreflightEvidenceKind)
+
+
+def test_heart_preflight_accepts_separate_complete_field_decoder_mechanism_curriculum(
+    tmp_path: Path,
+) -> None:
+    model, _semantic_curriculum, inventory, original_plan = _preflight_inputs()
+    curriculum = build_heart_decoder_mechanism_curriculum()
+    plan = ParameterMutationPlan(
+        base_inventory_id=original_plan.base_inventory_id,
+        module_id=original_plan.module_id,
+        base_generation_id=original_plan.base_generation_id,
+        candidate_generation_id="heart-decoder-mechanism-candidate-v1",
+        tensor_names=original_plan.tensor_names,
+        optimizer_name=original_plan.optimizer_name,
+        learning_rate=original_plan.learning_rate,
+        max_steps=original_plan.max_steps,
+        source_manifest_ids=(curriculum.train_manifest_id,),
+        holdout_manifest_ids=(curriculum.heldout_manifest_id,),
+    )
+    receipt = build_heart_training_preflight(
+        model=model,
+        curriculum=curriculum,
+        inventory=inventory,
+        plan=plan,
+        batch_size=2,
+        state_root=tmp_path,
+        repo_root=ROOT,
+    )
+
+    assert receipt.passed
+    curriculum_evidence = next(
+        item for item in receipt.evidence if item.kind is PreflightEvidenceKind.CURRICULUM_DISTRIBUTION
+    )
+    assert "Exact-copy" in curriculum_evidence.summary
 
 
 def test_semantic_capacity_scanner_detects_finite_learned_position_table(tmp_path: Path) -> None:

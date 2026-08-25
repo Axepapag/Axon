@@ -16,9 +16,11 @@ from runtime.trainer import OrganKind, ParameterModuleDescriptor, TrainerControl
 from scripts.train_heart_translation_smoke import run_heart_translation_smoke
 from training.heart_translation import (
     HeartTranslationTrainingObjective,
+    build_heart_decoder_mechanism_curriculum,
     build_heart_translation_curriculum,
     collate_heart_translation_cases,
     deterministic_training_batches,
+    evaluate_heart_decoder_diagnostics,
     evaluate_heart_translation_model,
     heart_translation_loss,
 )
@@ -74,6 +76,28 @@ def test_heart_curriculum_is_content_addressed_disjoint_and_counterfactual_compl
     assert {case.spec_id for case in first.train_cases}.isdisjoint(
         {case.spec_id for case in first.heldout_cases + first.regression_cases}
     )
+    artifact = first.write(tmp_path)
+    assert artifact.exists()
+    assert first.write(tmp_path) == artifact
+
+
+def test_decoder_mechanism_curriculum_is_separate_exact_and_complete_field(tmp_path: Path) -> None:
+    first = build_heart_decoder_mechanism_curriculum()
+    second = build_heart_decoder_mechanism_curriculum()
+    assert first.curriculum_id == second.curriculum_id
+    assert first.train_manifest_id == second.train_manifest_id
+    assert first.heldout_manifest_id == second.heldout_manifest_id
+    assert all(
+        case.source_text == case.target_text
+        for case in first.train_cases + first.heldout_cases
+    )
+    complete_field = [
+        case
+        for case in first.train_cases + first.heldout_cases
+        if case.spec_id.endswith(":complete-field")
+    ]
+    assert len(complete_field) == 2
+    assert all(len(case.source_text) > 256 and case.referent_start > 256 for case in complete_field)
     artifact = first.write(tmp_path)
     assert artifact.exists()
     assert first.write(tmp_path) == artifact
@@ -135,6 +159,72 @@ def test_heart_translation_loss_uses_text_semantics_and_grounding() -> None:
     assert model.semantic_heads["modality"].weight.grad is not None
     assert model.referent_start_query.weight.grad is not None
     assert model.decoder_output.weight.grad is not None
+
+
+def test_heart_decoder_trace_exposes_normalized_alignment_and_copy_gate() -> None:
+    model = _small_model()
+    curriculum = build_heart_translation_curriculum()
+    batch = collate_heart_translation_cases(model, curriculum.train_cases[:3])
+    output = model(
+        batch.source_indices,
+        batch.source_mask,
+        batch.source_dialect_ids,
+        batch.destination_dialect_ids,
+        batch.decoder_input_ids,
+        source_cells16=batch.source_cells16,
+        source_positions=batch.source_positions,
+    )
+
+    trace = output.decoder_trace
+    assert trace.target_log_probs is output.target_log_probs
+    assert trace.memory_attention.shape == (
+        batch.source_indices.shape[0],
+        batch.target_ids.shape[1],
+        batch.source_indices.shape[1],
+    )
+    assert trace.generation_gate.shape == (*batch.target_ids.shape, 1)
+    assert torch.all((trace.generation_gate >= 0.0) & (trace.generation_gate <= 1.0))
+    assert torch.allclose(
+        trace.memory_attention.sum(dim=-1),
+        torch.ones_like(trace.memory_attention[..., 0]),
+        atol=1e-6,
+    )
+
+
+def test_decoder_diagnostic_is_content_addressed_and_localizes_failure() -> None:
+    model = _small_model()
+    curriculum = build_heart_translation_curriculum()
+    cases = curriculum.heldout_cases[:4]
+    first = evaluate_heart_decoder_diagnostics(
+        model,
+        cases,
+        descriptor_id="untrained-heart",
+        checkpoint_id="untrained-heart-checkpoint",
+        curriculum_id=curriculum.curriculum_id,
+        split="heldout:first-4",
+    )
+    second = evaluate_heart_decoder_diagnostics(
+        model,
+        cases,
+        descriptor_id="untrained-heart",
+        checkpoint_id="untrained-heart-checkpoint",
+        curriculum_id=curriculum.curriculum_id,
+        split="heldout:first-4",
+    )
+
+    assert first.diagnostic_id == second.diagnostic_id
+    assert first.case_count == 4
+    assert len(first.case_diagnostics) == 4
+    assert first.position_accuracy
+    assert 0.0 <= first.teacher_forced_character_accuracy <= 1.0
+    assert 0.0 <= first.teacher_forced_eos_accuracy <= 1.0
+    assert 0.0 <= first.greedy_termination_rate <= 1.0
+    assert all(item.diagnostic_id for item in first.case_diagnostics)
+    assert all(
+        item.greedy_first_divergence is None
+        or 0 <= item.greedy_first_divergence <= item.target_characters
+        for item in first.case_diagnostics
+    )
 
 
 def test_untrained_heart_model_produces_real_fidelity_evidence_and_fails_promotion() -> None:

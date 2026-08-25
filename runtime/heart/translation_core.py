@@ -95,8 +95,18 @@ def _frozen_orthogonal_lift(d_model: int, seed: int) -> torch.Tensor:
 
 
 @dataclass(slots=True)
+class HeartDecoderTrace:
+    """Inspectable decoder evidence; the gate is generation probability."""
+
+    target_log_probs: torch.Tensor
+    memory_attention: torch.Tensor
+    generation_gate: torch.Tensor
+
+
+@dataclass(slots=True)
 class HeartTranslationOutput:
     target_log_probs: torch.Tensor
+    decoder_trace: HeartDecoderTrace
     semantic_logits: dict[str, torch.Tensor]
     referent_start_logits: torch.Tensor
     referent_end_logits: torch.Tensor
@@ -466,7 +476,7 @@ class HeartTranslationCore(nn.Module):
         source_mask: torch.Tensor,
         destination_dialect_ids: torch.Tensor,
         decoder_input_ids: torch.Tensor,
-    ) -> torch.Tensor:
+    ) -> HeartDecoderTrace:
         if decoder_input_ids.ndim != 2:
             raise ValueError("decoder_input_ids must be rank-2")
         batch, target_length = decoder_input_ids.shape
@@ -503,7 +513,11 @@ class HeartTranslationCore(nn.Module):
         copy.scatter_add_(2, copy_indices, attention * source_mask.unsqueeze(1).to(attention.dtype))
         gate = torch.sigmoid(self.copy_gate(torch.cat((hidden, attended), dim=-1)))
         probs = gate * generation + (1.0 - gate) * copy
-        return probs.clamp_min(torch.finfo(probs.dtype).tiny).log()
+        return HeartDecoderTrace(
+            target_log_probs=probs.clamp_min(torch.finfo(probs.dtype).tiny).log(),
+            memory_attention=attention,
+            generation_gate=gate,
+        )
 
     def forward(
         self,
@@ -530,15 +544,17 @@ class HeartTranslationCore(nn.Module):
         }
         referent = query_states[:, self.query_to_index["referent_identity"]]
         grounding = query_states[:, self.query_to_index["grounding_provenance"]]
+        decoder_trace = self._decode(
+            query_states,
+            memory,
+            source_indices,
+            source_mask,
+            destination_dialect_ids,
+            decoder_input_ids,
+        )
         return HeartTranslationOutput(
-            target_log_probs=self._decode(
-                query_states,
-                memory,
-                source_indices,
-                source_mask,
-                destination_dialect_ids,
-                decoder_input_ids,
-            ),
+            target_log_probs=decoder_trace.target_log_probs,
+            decoder_trace=decoder_trace,
             semantic_logits=semantic_logits,
             referent_start_logits=self._pointer_logits(
                 referent, memory, source_mask, self.referent_start_query
@@ -583,7 +599,7 @@ class HeartTranslationCore(nn.Module):
         finished = torch.zeros(batch, dtype=torch.bool, device=source_indices.device)
         output_indices: list[list[int]] = [[] for _ in range(batch)]
         for _ in range(limit):
-            log_probs = self._decode(
+            decoder_trace = self._decode(
                 query_states,
                 memory,
                 source_indices,
@@ -591,7 +607,7 @@ class HeartTranslationCore(nn.Module):
                 destination_dialect_ids,
                 generated,
             )
-            next_ids = log_probs[:, -1].argmax(dim=-1)
+            next_ids = decoder_trace.target_log_probs[:, -1].argmax(dim=-1)
             for row, value in enumerate(next_ids.tolist()):
                 if finished[row]:
                     continue
@@ -620,6 +636,7 @@ __all__ = [
     "HeartTranslationCoreConfig",
     "HeartSourceCoverage",
     "HeartGeneratedTranslation",
+    "HeartDecoderTrace",
     "HeartTranslationOutput",
     "HeartTranslationCore",
 ]

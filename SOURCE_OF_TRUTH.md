@@ -496,12 +496,52 @@ generated held-out string and its per-case decisions rather than only a digest.
 The verified re-evaluation artifact
 `f28e035c07c644c92b440d48d87835b0d200fef9be15d00032eca630ec52ea9f`
 shows repetitive free-running character sequences despite improving
-teacher-forced loss and pointer accuracy. This proves the real D64/Trainer
-mechanism is functional but the learned translator is not yet serving-capable.
-Next Heart work should address copy/autoencoding curriculum and the
-teacher-forced-to-free-running decoder gap before increasing width or launching
-another long campaign. Autobiographical capture continues in parallel because
-Heart translations, corrections, disagreements, and outcomes become future
+teacher-forced loss and pointer accuracy. Checkpoint-bound decoder diagnostic
+`b75409895073862643225e72e25c4c104be9b6bec87f77c8495842985edb473c`
+then localized the failure: teacher-forced character accuracy was only 0.2289,
+teacher-forced sequence exactness and greedy exactness were both 0.0, mean
+correct greedy-prefix fraction was 0.0202, and target-character attention mass
+was 0.0959. The problem therefore began before free-running exposure collapse;
+the supervised decoder mapping and copy alignment themselves were weak.
+
+The separate content-addressed decoder-mechanism curriculum now supplies exact
+copy/alignment cases from five characters through multi-page strings, with
+complete-field train and holdout referents beyond character 256. It is a
+mechanism gate and never substitutes for the semantic/counterfactual Heart
+curriculum. `scripts/train_heart_decoder_mechanism_smoke.py` resumes only from a
+verified checkpoint, passes the exact curriculum through the complete-field
+preflight firewall, trains only an isolated Trainer candidate, records
+checkpoint-bound teacher-forced/greedy/copy-gate/alignment diagnostics, and can
+never activate a Heart generation.
+
+The staged governed campaign proved the permanent D64 anatomy can learn exact
+copy across a physical-page boundary. One-case run
+`e24ca23af9dc57e4ab500c61def327cd2c6cbdc7f0b5e3503c49e90387afc560`
+and five-case run
+`7843b66c315e5fd31b7094a952b8ba9e4e31bda9eebebf724571c3ec16ac39c2`
+passed their strict mechanism gates. The first six-case run
+`1b1964d0a47757af2ff0e5a4b3adf6267c84e2ba79e7312e18d5a7be7f341861`
+was correctly rejected because the 374-character case missed one of 374
+teacher-forced characters and therefore was not free-running exact. A bounded
+64-step continuation,
+`c6393e28539da07bc40a0b62488099ec6592400cd7fcd9e466017c9e01e74482`,
+passed: all six training sequences were exact under teacher forcing and greedy
+decoding, EOS and termination were perfect, mean copy-route probability was
+0.9489, and mean matching-character attention mass was 0.9767. No serving
+activation occurred. This is learned complete-field mechanism evidence, not a
+claim of learned Heart function.
+
+Generalization is the current boundary. On the distinct held-out curriculum,
+the passed candidate copied the five-character case exactly but achieved only
+0.2256 aggregate teacher-forced character accuracy; the unseen 379-character
+case achieved 0.17 and diverged at its first greedy character. Next Heart work
+is therefore a larger deterministic, length-bucketed exact-copy/identity
+curriculum with diverse content and multi-page lengths, plus held-out source
+dependence and anti-memorization probes. Only after that gate generalizes should
+training return to semantic translations and their counterfactual/roundtrip
+floors. These results do not justify increasing width or redesigning the
+architecture. Autobiographical capture continues in parallel because Heart
+translations, corrections, disagreements, and outcomes become future
 curriculum.
 
 `runtime/trainer/` now implements the first governed candidate-generation lifecycle behind that control plane. A live registered organ is never handed to an optimizer: the Trainer creates an isolated candidate clone, freezes tensors outside the exact mutation grant, enforces the authorized step/parameter budget, rejects non-finite loss or gradients before contamination, hashes live and unauthorized state around each step, and records full per-parameter telemetry. `runtime/trainer/learning.py` defines an immutable content-addressed learning policy bound to every candidate checkpoint/step. Current first-form execution governs AdamW or SGD, weight decay, Adam betas/epsilon, SGD momentum, constant or warmup-cosine scheduling, gradient accumulation, gradient clipping, hard gradient/update L2 budgets, and explicit FP32/BF16/FP16 precision. FP16 requires CUDA and uses a governed GradScaler; non-finite gradients still fail closed before optimizer mutation. Persistent buffers are inventoried and any buffer mutation fails closed until a future explicit buffer-state grant is designed.
