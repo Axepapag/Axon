@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-24T21:04:58-05:00
-Current through event: `evt-20260825T020458609447Z-codex-heart-decoder-mechanism`
+Updated: 2026-08-24T21:17:21-05:00
+Current through event: `evt-20260825T021721603212Z-codex-roundtrip-trainer-audit`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -72,6 +72,14 @@ authority and is not yet indexed/surfaced by Cortex.
 The Trainer's parameter authority, preflight firewall, isolated candidates,
 telemetry, checkpoints, gates and rejection behavior remain healthy.
 
+Read-only inspection after the decoder mechanism campaign reports ten governed
+authorizations/plans/evaluations/gate decisions, nine capacity contracts and
+preflight receipts, and verified checkpoints through candidate
+`h64m-03cacded9a38`. There are still zero promotion proposals, activation
+receipts, rollback receipts or active-generation pointers. The Trainer is a
+working parameter constitution and experiment control plane; it is not yet an
+autonomous teacher or continuous curriculum service.
+
 `runtime/trainer/sessions.py` now compiles deterministic content-addressed
 sessions that reference exact experience IDs and complete context ranges:
 
@@ -106,6 +114,18 @@ Architecture v3 is permanent 64D tissue: two Transformer layers, four heads,
 4096 FFN, grounded from frozen 16D character cells. A 256-character page is a
 processing unit, not a context limit. Two ordered sweeps visit every active
 character with unbounded deterministic positions.
+
+"16D to 64D roundtrip" has three distinct meanings. Frozen substrate
+character lookup roundtrips all 95 supported characters exactly. The exact D64
+field rail losslessly packs four separately addressed 16D character lanes per
+64-wide row and verifies region text against the source snapshot. For learned
+Heart computation, each unpacked 16D character is independently lifted through
+a frozen orthonormal 16x64 matrix; a direct numerical audit recovered the bank
+through its transpose with maximum absolute error `7.152557e-07`. This inverse
+is a mathematical property of the initial lift, not a published runtime receipt,
+and post-position/dialect/Transformer 64D hidden states are not claimed to be
+invertible. Exact cells, indices and canonical addresses remain bound beside
+the learned path, so fidelity never depends on inverting a mixed neural state.
 
 `runtime/heart/d64_codec.py` compiles actual `SharedFieldSnapshot` instances
 through exact and semantic D64, verifies exact roundtrip/grounding, and supplies
