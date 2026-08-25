@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-24T21:17:21-05:00
-Current through event: `evt-20260825T021721603212Z-codex-roundtrip-trainer-audit`
+Updated: 2026-08-24T22:12:02-05:00
+Current through event: `evt-20260825T031202508120Z-codex-reasoning-rail-boundary`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -174,6 +174,20 @@ character accuracy is 0.2256; the unseen 379-character case reaches 0.17 and
 diverges immediately. Do not widen or redesign the core based on this result;
 build diversity and generalization evidence next.
 
+The ratified reasoning boundary does not require cores to emit raw substrate
+vectors. Heart renders each frozen field into a core's native grounded home
+rail; the core may reason entirely in that representation and emit a native
+proposal. Heart must preserve that emission, translate it into discrete text,
+canonical addresses and a typed sparse `FieldDelta`, and receipt any semantic
+looseness. The rotating consolidator remains final reasoning authority but
+still only proposes; Heart validation and atomic commit are what make its
+accepted delta canonical. Current code already proves frozen D64 tick binding,
+typed proposal barriers and the consolidator transaction path, but it has no
+running reasoning-core/consolidator service or learned native-proposal
+translator yet. `ProposalBoard` currently carries already-translated
+`FieldDelta` values, so exact native-emission preservation remains future
+anatomy.
+
 ## Verification and Git
 
 - Final full suite: 358/358 passed.
@@ -195,9 +209,12 @@ build diversity and generalization evidence next.
    Heart/Cortex/reasoning loaders.
 4. **RETRIEVAL GAP:** `experience_v1` is not yet available through the Dormant
    evidence bridge/Cortex.
-5. **RESOURCE NOTE:** exact snapshots plus logical records consume about 4.30 GB;
+5. **REASONING CIRCULATION GAP:** the D64 tick image, proposal board, barriers
+   and final transaction path exist, but core execution, native proposal
+   translation, refinement circulation and consolidator service are not wired.
+6. **RESOURCE NOTE:** exact snapshots plus logical records consume about 4.30 GB;
    first full session compilation is RAM-heavy but completed.
-6. **TOOLING NOTE:** Ruff is not installed. Compileall, diff hygiene and all 358
+7. **TOOLING NOTE:** Ruff is not installed. Compileall, diff hygiene and all 358
    tests pass; no Ruff result is claimed.
 
 ## Recommended next actions
