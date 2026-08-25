@@ -178,6 +178,22 @@ def _generalization_metrics(diagnostic, evidence, replay_diagnostic) -> dict[str
     }
 
 
+def _training_roles(
+    *,
+    steps: int,
+    replay_every: int,
+    replay_steps_per_novel: int,
+) -> tuple[str, ...]:
+    if replay_steps_per_novel < 1:
+        raise ValueError("replay_steps_per_novel must be positive")
+    if replay_steps_per_novel == 1:
+        return tuple("replay" if step % replay_every == 0 else "novel" for step in range(1, steps + 1))
+    if replay_every != 2:
+        raise ValueError("protective replay cadence requires replay_every=2")
+    cycle = replay_steps_per_novel + 1
+    return tuple("novel" if (step - 1) % cycle == 0 else "replay" for step in range(1, steps + 1))
+
+
 def run_generalization_smoke(
     *,
     state_root: Path,
@@ -191,6 +207,9 @@ def run_generalization_smoke(
     seed: int,
     device: str,
     curriculum_kind: str = GENERALIZATION_CURRICULUM,
+    replay_steps_per_novel: int = 1,
+    eos_route_weight: float | None = None,
+    evaluation_batch_size: int | None = None,
 ) -> tuple[dict[str, Any], Path]:
     if steps < replay_every or batch_size < 1 or checkpoint_every < 1 or replay_every < 2:
         raise ValueError("steps>=replay_every, positive batch/checkpoint, and replay_every>=2 are required")
@@ -228,7 +247,9 @@ def run_generalization_smoke(
     else:
         raise ValueError(f"unsupported source run summary schema {source_schema!r}")
     curriculum.write(root)
-    objective = HeartDecoderGeneralizationObjective()
+    objective = HeartDecoderGeneralizationObjective(
+        eos_route_weight=0.25 if eos_route_weight is None else eos_route_weight
+    )
     objective.write(root)
     learning_policy = GovernedLearningPolicy(
         optimizer="adamw",
@@ -267,8 +288,13 @@ def run_generalization_smoke(
         for target_length in audit_target_lengths
     )
     audit_cases = tuple(dict.fromkeys((*audit_novel, replay_cases[0], replay_cases[-1])))
-    replay_step_count = steps // replay_every
-    novel_step_count = steps - replay_step_count
+    training_roles = _training_roles(
+        steps=steps,
+        replay_every=replay_every,
+        replay_steps_per_novel=replay_steps_per_novel,
+    )
+    replay_step_count = training_roles.count("replay")
+    novel_step_count = training_roles.count("novel")
     novel_batches = iter(deterministic_length_bucketed_batches(
         novel_cases,
         batch_size=batch_size,
@@ -284,8 +310,8 @@ def run_generalization_smoke(
         page_chars=model.cfg.source_page_chars,
     ))
     training_batches = tuple(
-        next(replay_batches) if step_index % replay_every == 0 else next(novel_batches)
-        for step_index in range(1, steps + 1)
+        next(replay_batches) if role == "replay" else next(novel_batches)
+        for role in training_roles
     )
     module_id = record.module_id
     base_generation_id = record.candidate_generation_id
@@ -299,8 +325,10 @@ def run_generalization_smoke(
         "batch_size": batch_size,
         "checkpoint_every": checkpoint_every,
         "replay_every": replay_every,
+        "replay_steps_per_novel": replay_steps_per_novel,
         "seed": seed,
         "curriculum_kind": curriculum_kind,
+        "evaluation_batch_size": evaluation_batch_size,
     }
     candidate_generation_id = "h64g-" + canonical_sha256(experiment_identity)[:12]
     base_descriptor = ParameterModuleDescriptor(
@@ -361,6 +389,7 @@ def run_generalization_smoke(
             descriptor_id=record.parameter_manifest_id,
             checkpoint_id=record.checkpoint_id,
             split="decoder-generalization:heldout:baseline",
+            evaluation_batch_size=evaluation_batch_size,
         )
         baseline_diagnostic.write(root)
         baseline_evidence.write(root)
@@ -371,6 +400,7 @@ def run_generalization_smoke(
             checkpoint_id=record.checkpoint_id,
             curriculum_id=curriculum.curriculum_id,
             split="decoder-generalization:replay:baseline",
+            evaluation_batch_size=evaluation_batch_size,
         )
         baseline_replay.write(root)
         baseline_audit_loss = _fixed_audit_loss(model, audit_cases, objective, resolved_device)
@@ -420,6 +450,7 @@ def run_generalization_smoke(
             descriptor_id=checkpoint.parameter_manifest_id,
             checkpoint_id=checkpoint.checkpoint_id,
             split="decoder-generalization:heldout:final",
+            evaluation_batch_size=evaluation_batch_size,
         )
         final_diagnostic.write(root)
         final_evidence.write(root)
@@ -430,6 +461,7 @@ def run_generalization_smoke(
             checkpoint_id=checkpoint.checkpoint_id,
             curriculum_id=curriculum.curriculum_id,
             split="decoder-generalization:replay:final",
+            evaluation_batch_size=evaluation_batch_size,
         )
         final_replay.write(root)
         final_audit_loss = _fixed_audit_loss(
@@ -528,6 +560,9 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--checkpoint-every", type=int, default=64)
     parser.add_argument("--replay-every", type=int, default=2)
+    parser.add_argument("--replay-steps-per-novel", type=int, default=1)
+    parser.add_argument("--eos-route-weight", type=float)
+    parser.add_argument("--evaluation-batch-size", type=int)
     parser.add_argument("--seed", type=int, default=20260825)
     parser.add_argument("--device", default="cpu")
     parser.add_argument(
@@ -552,6 +587,9 @@ def main() -> None:
         seed=args.seed,
         device=args.device,
         curriculum_kind=args.curriculum_kind,
+        replay_steps_per_novel=args.replay_steps_per_novel,
+        eos_route_weight=args.eos_route_weight,
+        evaluation_batch_size=args.evaluation_batch_size,
     )
     print(
         json.dumps(

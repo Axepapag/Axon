@@ -346,8 +346,24 @@ def test_decoder_diagnostic_is_content_addressed_and_localizes_failure() -> None
         curriculum_id=curriculum.curriculum_id,
         split="heldout:first-4",
     )
+    batched = evaluate_heart_decoder_diagnostics(
+        model,
+        cases,
+        descriptor_id="untrained-heart",
+        checkpoint_id="untrained-heart-checkpoint",
+        curriculum_id=curriculum.curriculum_id,
+        split="heldout:first-4",
+        evaluation_batch_size=2,
+    )
 
     assert first.diagnostic_id == second.diagnostic_id
+    assert batched.case_diagnostics == first.case_diagnostics
+    assert batched.teacher_forced_character_accuracy == pytest.approx(
+        first.teacher_forced_character_accuracy
+    )
+    assert batched.mean_target_character_attention_mass == pytest.approx(
+        first.mean_target_character_attention_mass
+    )
     assert first.case_count == 4
     assert len(first.case_diagnostics) == 4
     assert first.position_accuracy

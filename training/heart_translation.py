@@ -2131,6 +2131,24 @@ def _masked_mean(values: torch.Tensor, mask: torch.Tensor) -> float | None:
     return float(values[mask].mean().item())
 
 
+def _masked_total(values: torch.Tensor, mask: torch.Tensor) -> tuple[float, int]:
+    support = int(mask.sum().item())
+    if support == 0:
+        return 0.0, 0
+    return float(values[mask].sum().item()), support
+
+
+def _evaluation_slices(case_count: int, evaluation_batch_size: int | None) -> tuple[slice, ...]:
+    if evaluation_batch_size is None:
+        return (slice(0, case_count),)
+    if isinstance(evaluation_batch_size, bool) or evaluation_batch_size < 1:
+        raise ValueError("evaluation_batch_size must be a positive integer when provided")
+    return tuple(
+        slice(start, min(start + evaluation_batch_size, case_count))
+        for start in range(0, case_count, evaluation_batch_size)
+    )
+
+
 def _greedy_divergence(
     generated_text: str,
     target_text: str,
@@ -2155,114 +2173,155 @@ def evaluate_heart_decoder_diagnostics(
     checkpoint_id: str,
     curriculum_id: str,
     split: str,
+    evaluation_batch_size: int | None = None,
 ) -> HeartDecoderDiagnosticReport:
-    """Localize optimization, EOS, exposure, copy-gate, and alignment failure."""
+    """Localize decoder failures while keeping each complete source intact."""
 
     rows = tuple(cases)
     if not rows:
         raise ValueError("decoder diagnostics require at least one case")
     if not descriptor_id or not checkpoint_id or not curriculum_id or not split:
         raise ValueError("decoder diagnostic identity must be non-empty")
-    model.eval()
-    batch = collate_heart_translation_cases(model, rows).to(model.device)
-    with torch.no_grad():
-        output = model(
-            batch.source_indices,
-            batch.source_mask,
-            batch.source_dialect_ids,
-            batch.destination_dialect_ids,
-            batch.decoder_input_ids,
-            source_cells16=batch.source_cells16,
-            source_positions=batch.source_positions,
-        )
-        generated = model.greedy_translate(
-            batch.source_indices,
-            batch.source_mask,
-            batch.source_dialect_ids,
-            batch.destination_dialect_ids,
-            max_chars=max(len(case.target_text) for case in rows) + 12,
-            source_cells16=batch.source_cells16,
-            source_positions=batch.source_positions,
-        )
-
-    predictions = output.target_log_probs.argmax(dim=-1)
-    character_mask = batch.target_mask & batch.target_ids.ne(model.eos_index)
-    token_correct = predictions.eq(batch.target_ids)
-    character_correct = token_correct & character_mask
-    sequence_exact = (token_correct | ~batch.target_mask).all(dim=1)
-    eos_correct = torch.tensor(
-        [
-            bool(predictions[row, len(case.target_text)].item() == model.eos_index)
-            for row, case in enumerate(rows)
-        ],
-        dtype=torch.bool,
-        device=predictions.device,
-    )
-
-    attention = output.decoder_trace.memory_attention
-    generation_gate = output.decoder_trace.generation_gate.squeeze(-1)
-    source_matches_target = (
-        batch.source_indices.unsqueeze(1).eq(batch.target_ids.unsqueeze(-1))
-        & batch.source_mask.unsqueeze(1)
-    )
-    copyable = source_matches_target.any(dim=-1) & character_mask
-    noncopyable = ~source_matches_target.any(dim=-1) & character_mask
-    target_attention_mass = (
-        attention * source_matches_target.to(attention.dtype)
-    ).sum(dim=-1)
-    attention_peak = attention.max(dim=-1).values
-
     case_diagnostics: list[HeartDecoderCaseDiagnostic] = []
     greedy_exact: list[bool] = []
     prefix_fractions: list[float] = []
-    for row, (case, generated_result) in enumerate(zip(rows, generated, strict=True)):
-        target_characters = len(case.target_text)
-        correct_characters = int(character_correct[row].sum().item())
-        divergence, correct_prefix = _greedy_divergence(
-            generated_result.text,
-            case.target_text,
-            generated_result.terminated,
-        )
-        exact = generated_result.terminated and generated_result.text == case.target_text
-        greedy_exact.append(exact)
-        prefix_fractions.append(correct_prefix / target_characters)
-        row_target_mask = batch.target_mask[row]
-        row_character_mask = character_mask[row]
-        mean_gate = _masked_mean(generation_gate[row], row_target_mask)
-        mean_peak = _masked_mean(attention_peak[row], row_character_mask)
-        if mean_gate is None or mean_peak is None:
-            raise RuntimeError("decoder diagnostic target unexpectedly has no characters")
-        case_diagnostics.append(
-            HeartDecoderCaseDiagnostic(
-                case_id=case.case_id,
-                target_characters=target_characters,
-                teacher_forced_characters_correct=correct_characters,
-                teacher_forced_character_accuracy=correct_characters / target_characters,
-                teacher_forced_eos_correct=bool(eos_correct[row].item()),
-                teacher_forced_sequence_exact=bool(sequence_exact[row].item()),
-                greedy_text=generated_result.text,
-                greedy_terminated=generated_result.terminated,
-                greedy_exact=exact,
-                greedy_first_divergence=divergence,
-                greedy_correct_prefix_characters=correct_prefix,
-                mean_generation_gate=mean_gate,
-                mean_copyable_generation_gate=_masked_mean(generation_gate[row], copyable[row]),
-                mean_noncopyable_generation_gate=_masked_mean(generation_gate[row], noncopyable[row]),
-                mean_target_character_attention_mass=_masked_mean(
-                    target_attention_mass[row], copyable[row]
-                ),
-                mean_attention_peak=mean_peak,
+    greedy_terminations = 0
+    total_characters = 0
+    correct_characters_total = 0
+    eos_correct_total = 0
+    sequence_exact_total = 0
+    position_support: dict[int, int] = {}
+    position_correct: dict[int, int] = {}
+    aggregate_totals = {
+        "generation": [0.0, 0],
+        "copyable_generation": [0.0, 0],
+        "noncopyable_generation": [0.0, 0],
+        "target_attention": [0.0, 0],
+        "attention_peak": [0.0, 0],
+    }
+    max_chars = max(len(case.target_text) for case in rows) + 12
+    model.eval()
+    for batch_slice in _evaluation_slices(len(rows), evaluation_batch_size):
+        batch_rows = rows[batch_slice]
+        batch = collate_heart_translation_cases(model, batch_rows).to(model.device)
+        with torch.no_grad():
+            output = model(
+                batch.source_indices,
+                batch.source_mask,
+                batch.source_dialect_ids,
+                batch.destination_dialect_ids,
+                batch.decoder_input_ids,
+                source_cells16=batch.source_cells16,
+                source_positions=batch.source_positions,
             )
+            generated = model.greedy_translate(
+                batch.source_indices,
+                batch.source_mask,
+                batch.source_dialect_ids,
+                batch.destination_dialect_ids,
+                max_chars=max_chars,
+                source_cells16=batch.source_cells16,
+                source_positions=batch.source_positions,
+            )
+
+        predictions = output.target_log_probs.argmax(dim=-1)
+        character_mask = batch.target_mask & batch.target_ids.ne(model.eos_index)
+        token_correct = predictions.eq(batch.target_ids)
+        character_correct = token_correct & character_mask
+        sequence_exact = (token_correct | ~batch.target_mask).all(dim=1)
+        eos_correct = torch.tensor(
+            [
+                bool(predictions[row, len(case.target_text)].item() == model.eos_index)
+                for row, case in enumerate(batch_rows)
+            ],
+            dtype=torch.bool,
+            device=predictions.device,
         )
+        attention = output.decoder_trace.memory_attention
+        generation_gate = output.decoder_trace.generation_gate.squeeze(-1)
+        source_matches_target = (
+            batch.source_indices.unsqueeze(1).eq(batch.target_ids.unsqueeze(-1))
+            & batch.source_mask.unsqueeze(1)
+        )
+        copyable = source_matches_target.any(dim=-1) & character_mask
+        noncopyable = ~source_matches_target.any(dim=-1) & character_mask
+        target_attention_mass = (
+            attention * source_matches_target.to(attention.dtype)
+        ).sum(dim=-1)
+        attention_peak = attention.max(dim=-1).values
 
-    position_accuracy: list[tuple[int, int, float]] = []
-    for position in range(character_mask.shape[1]):
-        support = int(character_mask[:, position].sum().item())
-        if support:
-            correct = int(character_correct[:, position].sum().item())
-            position_accuracy.append((position, support, correct / support))
+        for name, values, mask in (
+            ("generation", generation_gate, batch.target_mask),
+            ("copyable_generation", generation_gate, copyable),
+            ("noncopyable_generation", generation_gate, noncopyable),
+            ("target_attention", target_attention_mass, copyable),
+            ("attention_peak", attention_peak, character_mask),
+        ):
+            total, support = _masked_total(values, mask)
+            aggregate_totals[name][0] += total
+            aggregate_totals[name][1] += support
 
-    total_characters = int(character_mask.sum().item())
+        for position in range(character_mask.shape[1]):
+            support = int(character_mask[:, position].sum().item())
+            if support:
+                position_support[position] = position_support.get(position, 0) + support
+                position_correct[position] = position_correct.get(position, 0) + int(
+                    character_correct[:, position].sum().item()
+                )
+
+        total_characters += int(character_mask.sum().item())
+        correct_characters_total += int(character_correct.sum().item())
+        eos_correct_total += int(eos_correct.sum().item())
+        sequence_exact_total += int(sequence_exact.sum().item())
+        greedy_terminations += sum(item.terminated for item in generated)
+        for row, (case, generated_result) in enumerate(zip(batch_rows, generated, strict=True)):
+            target_characters = len(case.target_text)
+            correct_characters = int(character_correct[row].sum().item())
+            divergence, correct_prefix = _greedy_divergence(
+                generated_result.text,
+                case.target_text,
+                generated_result.terminated,
+            )
+            exact = generated_result.terminated and generated_result.text == case.target_text
+            greedy_exact.append(exact)
+            prefix_fractions.append(correct_prefix / target_characters)
+            row_target_mask = batch.target_mask[row]
+            row_character_mask = character_mask[row]
+            mean_gate = _masked_mean(generation_gate[row], row_target_mask)
+            mean_peak = _masked_mean(attention_peak[row], row_character_mask)
+            if mean_gate is None or mean_peak is None:
+                raise RuntimeError("decoder diagnostic target unexpectedly has no characters")
+            case_diagnostics.append(
+                HeartDecoderCaseDiagnostic(
+                    case_id=case.case_id,
+                    target_characters=target_characters,
+                    teacher_forced_characters_correct=correct_characters,
+                    teacher_forced_character_accuracy=correct_characters / target_characters,
+                    teacher_forced_eos_correct=bool(eos_correct[row].item()),
+                    teacher_forced_sequence_exact=bool(sequence_exact[row].item()),
+                    greedy_text=generated_result.text,
+                    greedy_terminated=generated_result.terminated,
+                    greedy_exact=exact,
+                    greedy_first_divergence=divergence,
+                    greedy_correct_prefix_characters=correct_prefix,
+                    mean_generation_gate=mean_gate,
+                    mean_copyable_generation_gate=_masked_mean(generation_gate[row], copyable[row]),
+                    mean_noncopyable_generation_gate=_masked_mean(generation_gate[row], noncopyable[row]),
+                    mean_target_character_attention_mass=_masked_mean(
+                        target_attention_mass[row], copyable[row]
+                    ),
+                    mean_attention_peak=mean_peak,
+                )
+            )
+
+    def aggregate_mean(name: str) -> float | None:
+        total, support = aggregate_totals[name]
+        return total / support if support else None
+
+    position_accuracy = tuple(
+        (position, position_support[position], position_correct[position] / position_support[position])
+        for position in sorted(position_support)
+    )
     return HeartDecoderDiagnosticReport(
         descriptor_id=descriptor_id,
         checkpoint_id=checkpoint_id,
@@ -2270,18 +2329,18 @@ def evaluate_heart_decoder_diagnostics(
         split=split,
         execution_device=str(model.device),
         case_count=len(rows),
-        teacher_forced_character_accuracy=int(character_correct.sum().item()) / total_characters,
-        teacher_forced_eos_accuracy=float(eos_correct.float().mean().item()),
-        teacher_forced_sequence_exact_rate=float(sequence_exact.float().mean().item()),
+        teacher_forced_character_accuracy=correct_characters_total / total_characters,
+        teacher_forced_eos_accuracy=eos_correct_total / len(rows),
+        teacher_forced_sequence_exact_rate=sequence_exact_total / len(rows),
         greedy_exact_rate=sum(greedy_exact) / len(rows),
-        greedy_termination_rate=sum(item.terminated for item in generated) / len(rows),
+        greedy_termination_rate=greedy_terminations / len(rows),
         mean_greedy_correct_prefix_fraction=sum(prefix_fractions) / len(prefix_fractions),
-        mean_generation_gate=_masked_mean(generation_gate, batch.target_mask) or 0.0,
-        mean_copyable_generation_gate=_masked_mean(generation_gate, copyable),
-        mean_noncopyable_generation_gate=_masked_mean(generation_gate, noncopyable),
-        mean_target_character_attention_mass=_masked_mean(target_attention_mass, copyable),
-        mean_attention_peak=_masked_mean(attention_peak, character_mask) or 0.0,
-        position_accuracy=tuple(position_accuracy),
+        mean_generation_gate=aggregate_mean("generation") or 0.0,
+        mean_copyable_generation_gate=aggregate_mean("copyable_generation"),
+        mean_noncopyable_generation_gate=aggregate_mean("noncopyable_generation"),
+        mean_target_character_attention_mass=aggregate_mean("target_attention"),
+        mean_attention_peak=aggregate_mean("attention_peak") or 0.0,
+        position_accuracy=position_accuracy,
         case_diagnostics=tuple(case_diagnostics),
     )
 
@@ -2293,6 +2352,7 @@ def evaluate_heart_decoder_generalization(
     descriptor_id: str,
     checkpoint_id: str,
     split: str,
+    evaluation_batch_size: int | None = None,
 ) -> tuple[HeartDecoderDiagnosticReport, HeartDecoderGeneralizationEvidence]:
     """Measure unseen identity copying, diagonal alignment, and source dependence."""
 
@@ -2304,62 +2364,73 @@ def evaluate_heart_decoder_generalization(
         checkpoint_id=checkpoint_id,
         curriculum_id=curriculum.curriculum_id,
         split=split,
+        evaluation_batch_size=evaluation_batch_size,
     )
-    batch = collate_heart_translation_cases(model, cases).to(model.device)
-    with torch.no_grad():
-        output = model(
-            batch.source_indices,
-            batch.source_mask,
-            batch.source_dialect_ids,
-            batch.destination_dialect_ids,
-            batch.decoder_input_ids,
-            source_cells16=batch.source_cells16,
-            source_positions=batch.source_positions,
+    pair_positions = {
+        case_id: pair.changed_position
+        for pair in curriculum.counterfactual_pairs
+        for case_id in (pair.left_case_id, pair.right_case_id)
+    }
+    pair_log_probs: dict[str, torch.Tensor] = {}
+    diagonal_total = 0.0
+    diagonal_support = 0
+    diagonal_top1_total = 0
+    for batch_slice in _evaluation_slices(len(cases), evaluation_batch_size):
+        batch_cases = cases[batch_slice]
+        batch = collate_heart_translation_cases(model, batch_cases).to(model.device)
+        with torch.no_grad():
+            output = model(
+                batch.source_indices,
+                batch.source_mask,
+                batch.source_dialect_ids,
+                batch.destination_dialect_ids,
+                batch.decoder_input_ids,
+                source_cells16=batch.source_cells16,
+                source_positions=batch.source_positions,
+            )
+        attention = output.decoder_trace.memory_attention
+        character_mask = batch.target_mask & batch.target_ids.ne(model.eos_index)
+        positions = torch.arange(batch.target_ids.shape[1], device=batch.target_ids.device)
+        diagonal_indices = positions.clamp(max=max(0, batch.source_indices.shape[1] - 1)).view(1, -1, 1).expand(
+            batch.target_ids.shape[0], -1, 1
         )
-    attention = output.decoder_trace.memory_attention
-    character_mask = batch.target_mask & batch.target_ids.ne(model.eos_index)
-    positions = torch.arange(batch.target_ids.shape[1], device=batch.target_ids.device)
-    diagonal_indices = positions.clamp(max=max(0, batch.source_indices.shape[1] - 1)).view(1, -1, 1).expand(
-        batch.target_ids.shape[0], -1, 1
-    )
-    diagonal_mass = attention.gather(2, diagonal_indices).squeeze(-1)
-    mean_diagonal = _masked_mean(diagonal_mass, character_mask)
-    if mean_diagonal is None:
-        raise RuntimeError("decoder generalization evidence has no identity characters")
-    diagonal_top1 = attention.argmax(dim=-1).eq(positions.view(1, -1)) & character_mask
-    diagonal_top1_rate = float(diagonal_top1.sum().item()) / int(character_mask.sum().item())
+        diagonal_mass = attention.gather(2, diagonal_indices).squeeze(-1)
+        total, support = _masked_total(diagonal_mass, character_mask)
+        diagonal_total += total
+        diagonal_support += support
+        diagonal_top1_total += int(
+            (attention.argmax(dim=-1).eq(positions.view(1, -1)) & character_mask).sum().item()
+        )
+        for row, case in enumerate(batch_cases):
+            if case.case_id in pair_positions:
+                pair_log_probs[case.case_id] = output.target_log_probs[
+                    row, pair_positions[case.case_id]
+                ].detach().cpu()
 
-    case_index = {case.case_id: index for index, case in enumerate(cases)}
-    predictions = output.target_log_probs.argmax(dim=-1)
+    if diagonal_support == 0:
+        raise RuntimeError("decoder generalization evidence has no identity characters")
+    mean_diagonal = diagonal_total / diagonal_support
+    diagonal_top1_rate = diagonal_top1_total / diagonal_support
+
     counterfactual_results: list[dict[str, Any]] = []
     pair_passes: list[bool] = []
     margins: list[float] = []
     for pair in curriculum.counterfactual_pairs:
-        left_row = case_index[pair.left_case_id]
-        right_row = case_index[pair.right_case_id]
-        position = pair.changed_position
         left_index = model.char_to_index[pair.left_character]
         right_index = model.char_to_index[pair.right_character]
+        left_log_probs = pair_log_probs[pair.left_case_id]
+        right_log_probs = pair_log_probs[pair.right_case_id]
         left_margin = float(
-            (
-                output.target_log_probs[left_row, position, left_index]
-                - output.target_log_probs[left_row, position, right_index]
-            ).item()
+            (left_log_probs[left_index] - left_log_probs[right_index]).item()
         )
         right_margin = float(
-            (
-                output.target_log_probs[right_row, position, right_index]
-                - output.target_log_probs[right_row, position, left_index]
-            ).item()
+            (right_log_probs[right_index] - right_log_probs[left_index]).item()
         )
         distribution_delta = float(
-            (
-                output.target_log_probs[left_row, position]
-                - output.target_log_probs[right_row, position]
-            ).abs().max().item()
+            (left_log_probs - right_log_probs).abs().max().item()
         )
-        left_correct = int(predictions[left_row, position].item()) == left_index
-        right_correct = int(predictions[right_row, position].item()) == right_index
+        left_correct = int(left_log_probs.argmax().item()) == left_index
+        right_correct = int(right_log_probs.argmax().item()) == right_index
         passed = left_correct and right_correct and left_margin > 0.0 and right_margin > 0.0 and distribution_delta > 0.0
         pair_passes.append(passed)
         margins.extend((left_margin, right_margin))
