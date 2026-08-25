@@ -19,7 +19,6 @@ from typing import Any, Iterable, Sequence
 import torch
 import torch.nn.functional as F
 
-from substrate import assert_supported_text, default_alphabet
 from runtime.field import LogicalRegion, SharedFieldSnapshot, canonical_sha256
 from runtime.heart.d64_codec import D64HeartCodec
 from runtime.heart.intelligence import (
@@ -27,7 +26,7 @@ from runtime.heart.intelligence import (
     HeartSemanticFidelityEvidence,
 )
 from runtime.heart.translation_core import HEART_SEMANTIC_LABELS, HeartTranslationCore
-
+from substrate import assert_supported_text, default_alphabet
 
 HEART_CURRICULUM_SCHEMA = "axon-heart-translation-curriculum-v3"
 HEART_CASE_SCHEMA = "axon-heart-translation-case-v3"
@@ -185,6 +184,7 @@ class HeartDecoderCounterfactualPair:
     changed_position: int
     left_character: str
     right_character: str
+    probe_label: str | None = None
 
     def __post_init__(self) -> None:
         if self.position_kind not in {"head", "middle", "tail"}:
@@ -197,10 +197,15 @@ class HeartDecoderCounterfactualPair:
             raise ValueError("identity counterfactual characters must be single characters")
         if self.left_character == self.right_character:
             raise ValueError("identity counterfactual characters must differ")
+        if self.probe_label is not None:
+            label = self.probe_label.strip()
+            if not label:
+                raise ValueError("identity counterfactual probe_label must be non-empty when present")
+            object.__setattr__(self, "probe_label", label)
         assert_supported_text(self.left_character + self.right_character)
 
     def to_canonical_dict(self) -> dict[str, Any]:
-        return {
+        value = {
             "schema": HEART_DECODER_COUNTERFACTUAL_SCHEMA,
             "position_kind": self.position_kind,
             "left_case_id": self.left_case_id,
@@ -209,6 +214,9 @@ class HeartDecoderCounterfactualPair:
             "left_character": self.left_character,
             "right_character": self.right_character,
         }
+        if self.probe_label is not None:
+            value["probe_label"] = self.probe_label
+        return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -592,7 +600,9 @@ class HeartDecoderGeneralizationCurriculum:
                 raise ValueError("identity counterfactual sources must have equal length")
             differences = [
                 index
-                for index, (left_char, right_char) in enumerate(zip(left.source_text, right.source_text))
+                for index, (left_char, right_char) in enumerate(
+                    zip(left.source_text, right.source_text, strict=True)
+                )
                 if left_char != right_char
             ]
             if differences != [pair.changed_position]:
@@ -1445,10 +1455,6 @@ def build_heart_translation_curriculum() -> HeartTranslationCurriculum:
     heldout_cases = _cases(heldout_specs, "heldout", EVAL_DIRECTIONS)
     regression_cases = _cases(regression_specs, "regression", EVAL_DIRECTIONS)
 
-    by_spec_and_direction = {
-        (case.spec_id, case.source_dialect, case.destination_dialect): case
-        for case in heldout_cases
-    }
     direction = EVAL_DIRECTIONS[0]
 
     def pick(fragment: str) -> HeartTranslationCase:
@@ -1620,6 +1626,8 @@ def _generated_identity_case(
     name: str,
     text: str,
     dialect_index: int,
+    provenance_family: str = "heart-decoder-generalization-v1",
+    spec_family: str = "decoder-generalization",
 ) -> HeartTranslationCase:
     referent_start = min(max(0, len(text) // 2), max(0, len(text) - 4))
     referent_end = min(len(text), referent_start + 4)
@@ -1632,8 +1640,8 @@ def _generated_identity_case(
         referent_start=referent_start,
         source_dialect=DIALECTS[dialect_index % len(DIALECTS)],
         destination_dialect=DIALECTS[(dialect_index + 1) % len(DIALECTS)],
-        provenance_family="heart-decoder-generalization-v1",
-        spec_family="decoder-generalization",
+        provenance_family=provenance_family,
+        spec_family=spec_family,
     )
 
 
@@ -1722,6 +1730,147 @@ def build_heart_decoder_generalization_curriculum() -> HeartDecoderGeneralizatio
     )
 
 
+def _position_mutation_cases(
+    *,
+    split: str,
+    name: str,
+    length: int,
+    position: int,
+    seed: int,
+    dialect_index: int,
+    probe_label: str,
+) -> tuple[HeartTranslationCase, HeartTranslationCase, HeartDecoderCounterfactualPair]:
+    if position >= length:
+        raise ValueError("position mutation must address a character inside its complete source")
+    left_text = _deterministic_identity_text(length, seed)
+    alphabet = default_alphabet()
+    left_character = left_text[position]
+    right_character = alphabet[(alphabet.index(left_character) + 1) % len(alphabet)]
+    right_characters = list(left_text)
+    right_characters[position] = right_character
+    right_text = "".join(right_characters)
+    left = _generated_identity_case(
+        split=split,
+        name=f"{name}-left",
+        text=left_text,
+        dialect_index=dialect_index,
+        provenance_family="heart-decoder-long-position-v1",
+        spec_family="decoder-long-position",
+    )
+    right = _generated_identity_case(
+        split=split,
+        name=f"{name}-right",
+        text=right_text,
+        dialect_index=dialect_index,
+        provenance_family="heart-decoder-long-position-v1",
+        spec_family="decoder-long-position",
+    )
+    relative_position = position / max(1, length - 1)
+    position_kind = "head" if relative_position < 0.25 else "tail" if relative_position >= 0.75 else "middle"
+    return (
+        left,
+        right,
+        HeartDecoderCounterfactualPair(
+            position_kind=position_kind,
+            left_case_id=left.case_id,
+            right_case_id=right.case_id,
+            changed_position=position,
+            left_character=left_character,
+            right_character=right_character,
+            probe_label=probe_label,
+        ),
+    )
+
+
+def build_heart_decoder_long_position_curriculum() -> HeartDecoderGeneralizationCurriculum:
+    """Add page-boundary and late-tail identity work without creating a model ceiling."""
+
+    base = build_heart_decoder_generalization_curriculum()
+    train_cases = list(base.train_cases)
+    heldout_cases = list(base.heldout_cases)
+    heldout_pairs = list(base.counterfactual_pairs)
+
+    for index, length in enumerate((255, 256, 257, 384, 511, 512, 513, 576, 640)):
+        train_cases.append(
+            _generated_identity_case(
+                split="train",
+                name=f"long-position-n{length}",
+                text=_deterministic_identity_text(length, 2026082800 + index),
+                dialect_index=index,
+                provenance_family="heart-decoder-long-position-v1",
+                spec_family="decoder-long-position",
+            )
+        )
+
+    train_probes = (
+        (320, 254, "before-first-page-end"),
+        (320, 255, "first-page-last"),
+        (320, 256, "second-page-first"),
+        (320, 257, "after-second-page-start"),
+        (640, 510, "before-second-page-end"),
+        (640, 511, "second-page-last"),
+        (640, 512, "third-page-first"),
+        (640, 513, "after-third-page-start"),
+        (640, 639, "late-train-tail"),
+    )
+    for index, (length, position, label) in enumerate(train_probes):
+        left, right, _ = _position_mutation_cases(
+            split="train",
+            name=f"train-probe-{label}",
+            length=length,
+            position=position,
+            seed=2026082900 + index,
+            dialect_index=index,
+            probe_label=label,
+        )
+        train_cases.extend((left, right))
+
+    for index, length in enumerate((641, 700, 769)):
+        heldout_cases.append(
+            _generated_identity_case(
+                split="heldout",
+                name=f"unseen-long-position-n{length}",
+                text=_deterministic_identity_text(length, 2026083000 + index),
+                dialect_index=index + 1,
+                provenance_family="heart-decoder-long-position-v1",
+                spec_family="decoder-long-position",
+            )
+        )
+
+    heldout_probes = (
+        (641, 0, "long-head"),
+        (385, 254, "heldout-before-first-page-end"),
+        (385, 255, "heldout-first-page-last"),
+        (385, 256, "heldout-second-page-first"),
+        (385, 257, "heldout-after-second-page-start"),
+        (641, 510, "heldout-before-second-page-end"),
+        (641, 511, "heldout-second-page-last"),
+        (641, 512, "heldout-third-page-first"),
+        (641, 513, "heldout-after-third-page-start"),
+        (700, 699, "heldout-late-tail"),
+        (769, 768, "heldout-extrapolated-tail"),
+    )
+    for index, (length, position, label) in enumerate(heldout_probes):
+        left, right, pair = _position_mutation_cases(
+            split="heldout",
+            name=label,
+            length=length,
+            position=position,
+            seed=2026083100 + index,
+            dialect_index=index + 2,
+            probe_label=label,
+        )
+        heldout_cases.extend((left, right))
+        heldout_pairs.append(pair)
+
+    return HeartDecoderGeneralizationCurriculum(
+        train_cases=tuple(train_cases),
+        heldout_cases=tuple(heldout_cases),
+        replay_case_ids=tuple(case.case_id for case in base.train_cases),
+        counterfactual_pairs=tuple(heldout_pairs),
+    )
+
+
 def _label_index(name: str, value: str) -> int:
     return HEART_SEMANTIC_LABELS[name].index(value)
 
@@ -1802,8 +1951,9 @@ def collate_heart_translation_cases(
 def heart_translation_loss(
     model: HeartTranslationCore,
     batch: HeartTranslationBatch,
-    objective: HeartTranslationTrainingObjective = HeartTranslationTrainingObjective(),
+    objective: HeartTranslationTrainingObjective | None = None,
 ) -> HeartTranslationLoss:
+    resolved_objective = objective or HeartTranslationTrainingObjective()
     output = model(
         batch.source_indices,
         batch.source_mask,
@@ -1828,9 +1978,9 @@ def heart_translation_loss(
     )
     pointers = torch.stack(pointer_terms).mean()
     total = (
-        objective.translation_weight * translation
-        + objective.semantic_weight * semantic
-        + objective.pointer_weight * pointers
+        resolved_objective.translation_weight * translation
+        + resolved_objective.semantic_weight * semantic
+        + resolved_objective.pointer_weight * pointers
     )
     return HeartTranslationLoss(total=total, translation=translation, semantic=semantic, pointers=pointers)
 
@@ -1838,8 +1988,9 @@ def heart_translation_loss(
 def heart_decoder_generalization_loss(
     model: HeartTranslationCore,
     batch: HeartTranslationBatch,
-    objective: HeartDecoderGeneralizationObjective = HeartDecoderGeneralizationObjective(),
+    objective: HeartDecoderGeneralizationObjective | None = None,
 ) -> HeartDecoderGeneralizationLoss:
+    resolved_objective = objective or HeartDecoderGeneralizationObjective()
     if any(case.source_text != case.target_text for case in batch.cases):
         raise ValueError("decoder generalization loss requires exact identity cases")
     output = model(
@@ -1890,12 +2041,12 @@ def heart_decoder_generalization_loss(
     )
     pointers = torch.stack(pointer_terms).mean()
     total = (
-        objective.translation_weight * translation
-        + objective.diagonal_alignment_weight * diagonal_alignment
-        + objective.copy_route_weight * copy_route
-        + objective.eos_route_weight * eos_route
-        + objective.semantic_weight * semantic
-        + objective.pointer_weight * pointers
+        resolved_objective.translation_weight * translation
+        + resolved_objective.diagonal_alignment_weight * diagonal_alignment
+        + resolved_objective.copy_route_weight * copy_route
+        + resolved_objective.eos_route_weight * eos_route
+        + resolved_objective.semantic_weight * semantic
+        + resolved_objective.pointer_weight * pointers
     )
     return HeartDecoderGeneralizationLoss(
         total=total,
@@ -1985,7 +2136,9 @@ def _greedy_divergence(
     target_text: str,
     terminated: bool,
 ) -> tuple[int | None, int]:
-    for index, (generated_char, target_char) in enumerate(zip(generated_text, target_text)):
+    for index, (generated_char, target_char) in enumerate(
+        zip(generated_text, target_text, strict=False)
+    ):
         if generated_char != target_char:
             return index, index
     shared = min(len(generated_text), len(target_text))
@@ -2062,7 +2215,7 @@ def evaluate_heart_decoder_diagnostics(
     case_diagnostics: list[HeartDecoderCaseDiagnostic] = []
     greedy_exact: list[bool] = []
     prefix_fractions: list[float] = []
-    for row, (case, generated_result) in enumerate(zip(rows, generated)):
+    for row, (case, generated_result) in enumerate(zip(rows, generated, strict=True)):
         target_characters = len(case.target_text)
         correct_characters = int(character_correct[row].sum().item())
         divergence, correct_prefix = _greedy_divergence(
@@ -2521,46 +2674,47 @@ def evaluate_heart_translation_model(
 
 
 __all__ = [
-    "HEART_CURRICULUM_SCHEMA",
-    "HEART_CASE_SCHEMA",
-    "HEART_EVALUATION_SCHEMA",
-    "HEART_DECODER_DIAGNOSTIC_SCHEMA",
-    "HEART_DECODER_CASE_DIAGNOSTIC_SCHEMA",
-    "HEART_DECODER_MECHANISM_CURRICULUM_SCHEMA",
-    "HEART_DECODER_GENERALIZATION_CURRICULUM_SCHEMA",
-    "HEART_DECODER_GENERALIZATION_OBJECTIVE_SCHEMA",
-    "HEART_DECODER_GENERALIZATION_EVIDENCE_SCHEMA",
-    "HEART_DECODER_COUNTERFACTUAL_SCHEMA",
-    "HEART_TRAINING_RECIPE_SCHEMA",
     "DIALECTS",
     "DIALECT_TO_ID",
-    "HeartMeaningSignature",
-    "HeartTranslationCase",
+    "HEART_CASE_SCHEMA",
+    "HEART_CURRICULUM_SCHEMA",
+    "HEART_DECODER_CASE_DIAGNOSTIC_SCHEMA",
+    "HEART_DECODER_COUNTERFACTUAL_SCHEMA",
+    "HEART_DECODER_DIAGNOSTIC_SCHEMA",
+    "HEART_DECODER_GENERALIZATION_CURRICULUM_SCHEMA",
+    "HEART_DECODER_GENERALIZATION_EVIDENCE_SCHEMA",
+    "HEART_DECODER_GENERALIZATION_OBJECTIVE_SCHEMA",
+    "HEART_DECODER_MECHANISM_CURRICULUM_SCHEMA",
+    "HEART_EVALUATION_SCHEMA",
+    "HEART_TRAINING_RECIPE_SCHEMA",
     "CounterfactualPair",
-    "HeartDecoderCounterfactualPair",
-    "HeartTranslationCurriculum",
-    "HeartDecoderMechanismCurriculum",
-    "HeartDecoderGeneralizationCurriculum",
-    "HeartTranslationTrainingObjective",
-    "HeartDecoderGeneralizationObjective",
-    "HeartTranslationTrainingRecipe",
-    "HeartTranslationBatch",
-    "HeartTranslationLoss",
-    "HeartDecoderGeneralizationLoss",
-    "HeartTranslationEvaluationReport",
-    "HeartTranslationCaseResult",
     "HeartDecoderCaseDiagnostic",
+    "HeartDecoderCounterfactualPair",
     "HeartDecoderDiagnosticReport",
+    "HeartDecoderGeneralizationCurriculum",
     "HeartDecoderGeneralizationEvidence",
-    "build_heart_translation_curriculum",
-    "build_heart_decoder_mechanism_curriculum",
+    "HeartDecoderGeneralizationLoss",
+    "HeartDecoderGeneralizationObjective",
+    "HeartDecoderMechanismCurriculum",
+    "HeartMeaningSignature",
+    "HeartTranslationBatch",
+    "HeartTranslationCase",
+    "HeartTranslationCaseResult",
+    "HeartTranslationCurriculum",
+    "HeartTranslationEvaluationReport",
+    "HeartTranslationLoss",
+    "HeartTranslationTrainingObjective",
+    "HeartTranslationTrainingRecipe",
     "build_heart_decoder_generalization_curriculum",
+    "build_heart_decoder_long_position_curriculum",
+    "build_heart_decoder_mechanism_curriculum",
+    "build_heart_translation_curriculum",
     "collate_heart_translation_cases",
-    "heart_translation_loss",
-    "heart_decoder_generalization_loss",
-    "deterministic_training_batches",
     "deterministic_length_bucketed_batches",
+    "deterministic_training_batches",
     "evaluate_heart_decoder_diagnostics",
     "evaluate_heart_decoder_generalization",
     "evaluate_heart_translation_model",
+    "heart_decoder_generalization_loss",
+    "heart_translation_loss",
 ]

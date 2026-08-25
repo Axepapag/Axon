@@ -45,6 +45,7 @@ from training.heart_preflight import build_heart_training_preflight
 from training.heart_translation import (
     HeartDecoderGeneralizationObjective,
     build_heart_decoder_generalization_curriculum,
+    build_heart_decoder_long_position_curriculum,
     collate_heart_translation_cases,
     deterministic_length_bucketed_batches,
     evaluate_heart_decoder_diagnostics,
@@ -52,11 +53,12 @@ from training.heart_translation import (
     heart_decoder_generalization_loss,
 )
 
-
 HEART_DECODER_GENERALIZATION_SMOKE_SCHEMA = "axon-heart-decoder-generalization-smoke-v1"
 HEART_DECODER_MECHANISM_SMOKE_SCHEMA = "axon-heart-decoder-mechanism-smoke-v1"
 HEART_DECODER_GENERALIZATION_RECOVERY_SCHEMA = "axon-heart-decoder-generalization-recovery-v1"
 HEART_DECODER_GENERALIZATION_SUITE = "heart-decoder-generalization-v1"
+GENERALIZATION_CURRICULUM = "generalization"
+LONG_POSITION_CURRICULUM = "long-position"
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -188,6 +190,7 @@ def run_generalization_smoke(
     replay_every: int,
     seed: int,
     device: str,
+    curriculum_kind: str = GENERALIZATION_CURRICULUM,
 ) -> tuple[dict[str, Any], Path]:
     if steps < replay_every or batch_size < 1 or checkpoint_every < 1 or replay_every < 2:
         raise ValueError("steps>=replay_every, positive batch/checkpoint, and replay_every>=2 are required")
@@ -200,7 +203,13 @@ def run_generalization_smoke(
     if not isinstance(architecture_value, dict):
         raise ValueError("source run summary has no architecture_config")
 
-    curriculum = build_heart_decoder_generalization_curriculum()
+    base_curriculum = build_heart_decoder_generalization_curriculum()
+    if curriculum_kind == GENERALIZATION_CURRICULUM:
+        curriculum = base_curriculum
+    elif curriculum_kind == LONG_POSITION_CURRICULUM:
+        curriculum = build_heart_decoder_long_position_curriculum()
+    else:
+        raise ValueError(f"unsupported decoder curriculum kind {curriculum_kind!r}")
     source_schema = source_summary.get("schema")
     if source_schema == HEART_DECODER_MECHANISM_SMOKE_SCHEMA:
         # The checkpoint record itself supplies exact parameter lineage. The
@@ -210,7 +219,11 @@ def run_generalization_smoke(
         HEART_DECODER_GENERALIZATION_SMOKE_SCHEMA,
         HEART_DECODER_GENERALIZATION_RECOVERY_SCHEMA,
     ):
-        if source_summary.get("curriculum_id") != curriculum.curriculum_id:
+        source_curriculum_id = source_summary.get("curriculum_id")
+        allowed_source_ids = {curriculum.curriculum_id}
+        if curriculum_kind == LONG_POSITION_CURRICULUM:
+            allowed_source_ids.add(base_curriculum.curriculum_id)
+        if source_curriculum_id not in allowed_source_ids:
             raise ValueError("source checkpoint used another generalization curriculum")
     else:
         raise ValueError(f"unsupported source run summary schema {source_schema!r}")
@@ -244,9 +257,14 @@ def run_generalization_smoke(
     replay_ids = set(curriculum.replay_case_ids)
     replay_cases = tuple(case for case in curriculum.train_cases if case.case_id in replay_ids)
     novel_cases = tuple(case for case in curriculum.train_cases if case.case_id not in replay_ids)
+    audit_target_lengths = (
+        (255, 256, 257, 511, 512, 513, 640)
+        if curriculum_kind == LONG_POSITION_CURRICULUM
+        else (32, 128, 257, 448)
+    )
     audit_novel = tuple(
         min(novel_cases, key=lambda case: abs(len(case.source_text) - target_length))
-        for target_length in (32, 128, 257, 448)
+        for target_length in audit_target_lengths
     )
     audit_cases = tuple(dict.fromkeys((*audit_novel, replay_cases[0], replay_cases[-1])))
     replay_step_count = steps // replay_every
@@ -282,6 +300,7 @@ def run_generalization_smoke(
         "checkpoint_every": checkpoint_every,
         "replay_every": replay_every,
         "seed": seed,
+        "curriculum_kind": curriculum_kind,
     }
     candidate_generation_id = "h64g-" + canonical_sha256(experiment_identity)[:12]
     base_descriptor = ParameterModuleDescriptor(
@@ -361,13 +380,11 @@ def run_generalization_smoke(
         final_components: dict[str, float] | None = None
         checkpoints: list[CandidateCheckpointRecord] = []
         session.candidate_module.train()
-        for step_index, cases in enumerate(training_batches, start=1):
-            batch = collate_heart_translation_cases(session.candidate_module, cases).to(resolved_device)
-            components: dict[str, float] = {}
 
+        def make_closure(current_batch, current_components):
             def closure(candidate: HeartTranslationCore) -> torch.Tensor:
-                loss = heart_decoder_generalization_loss(candidate, batch, objective)
-                components.update(
+                loss = heart_decoder_generalization_loss(candidate, current_batch, objective)
+                current_components.update(
                     {
                         "total": float(loss.total.detach().item()),
                         "translation": float(loss.translation.detach().item()),
@@ -380,7 +397,12 @@ def run_generalization_smoke(
                 )
                 return loss.total
 
-            receipt = session.step(closure)
+            return closure
+
+        for step_index, cases in enumerate(training_batches, start=1):
+            batch = collate_heart_translation_cases(session.candidate_module, cases).to(resolved_device)
+            components: dict[str, float] = {}
+            receipt = session.step(make_closure(batch, components))
             losses.append(receipt.loss)
             if first_components is None:
                 first_components = dict(components)
@@ -508,6 +530,11 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--replay-every", type=int, default=2)
     parser.add_argument("--seed", type=int, default=20260825)
     parser.add_argument("--device", default="cpu")
+    parser.add_argument(
+        "--curriculum-kind",
+        choices=(GENERALIZATION_CURRICULUM, LONG_POSITION_CURRICULUM),
+        default=GENERALIZATION_CURRICULUM,
+    )
     return parser.parse_args()
 
 
@@ -524,6 +551,7 @@ def main() -> None:
         replay_every=args.replay_every,
         seed=args.seed,
         device=args.device,
+        curriculum_kind=args.curriculum_kind,
     )
     print(
         json.dumps(

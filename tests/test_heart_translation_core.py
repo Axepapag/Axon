@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from pathlib import Path
 import math
+from pathlib import Path
 
 import pytest
 import torch
-from substrate import default_alphabet
 
 from runtime.heart import HeartEnsemblePolicy, evaluate_heart_translator_promotion
 from runtime.heart.translation_core import (
@@ -16,10 +15,12 @@ from runtime.heart.translation_core import (
 )
 from runtime.trainer import OrganKind, ParameterModuleDescriptor, TrainerControlPlane, inspect_trainer_state
 from scripts.train_heart_translation_smoke import run_heart_translation_smoke
+from substrate import default_alphabet
 from training.heart_translation import (
     HeartDecoderGeneralizationObjective,
     HeartTranslationTrainingObjective,
     build_heart_decoder_generalization_curriculum,
+    build_heart_decoder_long_position_curriculum,
     build_heart_decoder_mechanism_curriculum,
     build_heart_translation_curriculum,
     collate_heart_translation_cases,
@@ -113,6 +114,7 @@ def test_decoder_generalization_curriculum_is_unseen_diverse_and_counterfactual(
     first = build_heart_decoder_generalization_curriculum()
     second = build_heart_decoder_generalization_curriculum()
     assert first.curriculum_id == second.curriculum_id
+    assert first.curriculum_id == "00d000ce720eb8be5f43bbbb30fd2a672dee11f807a369a6c71e43ab15113f88"
     assert len(first.train_cases) == 37
     assert len(first.heldout_cases) == 21
     assert len(first.replay_case_ids) == 6
@@ -130,9 +132,45 @@ def test_decoder_generalization_curriculum_is_unseen_diverse_and_counterfactual(
     for pair in first.counterfactual_pairs:
         left = heldout[pair.left_case_id].source_text
         right = heldout[pair.right_case_id].source_text
-        assert [index for index, chars in enumerate(zip(left, right)) if chars[0] != chars[1]] == [
+        assert [
+            index
+            for index, chars in enumerate(zip(left, right, strict=True))
+            if chars[0] != chars[1]
+        ] == [
             pair.changed_position
         ]
+    artifact = first.write(tmp_path)
+    assert artifact.exists()
+    assert first.write(tmp_path) == artifact
+
+
+def test_decoder_long_position_curriculum_adds_boundaries_tails_and_full_replay(tmp_path: Path) -> None:
+    base = build_heart_decoder_generalization_curriculum()
+    first = build_heart_decoder_long_position_curriculum()
+    second = build_heart_decoder_long_position_curriculum()
+
+    assert first.curriculum_id == second.curriculum_id
+    assert first.curriculum_id != base.curriculum_id
+    assert len(first.train_cases) == 64
+    assert len(first.heldout_cases) == 46
+    assert len(first.replay_case_ids) == len(base.train_cases) == 37
+    assert set(first.replay_case_ids) == {case.case_id for case in base.train_cases}
+    assert max(len(case.source_text) for case in first.train_cases) == 640
+    assert max(len(case.source_text) for case in first.heldout_cases) == 769
+    labels = {pair.probe_label for pair in first.counterfactual_pairs if pair.probe_label}
+    assert {
+        "heldout-first-page-last",
+        "heldout-second-page-first",
+        "heldout-second-page-last",
+        "heldout-third-page-first",
+        "heldout-late-tail",
+        "heldout-extrapolated-tail",
+    } <= labels
+    changed_positions = {pair.changed_position for pair in first.counterfactual_pairs}
+    assert {0, 254, 255, 256, 257, 510, 511, 512, 513, 699, 768} <= changed_positions
+    assert {case.source_text for case in first.train_cases}.isdisjoint(
+        {case.source_text for case in first.heldout_cases}
+    )
     artifact = first.write(tmp_path)
     assert artifact.exists()
     assert first.write(tmp_path) == artifact
