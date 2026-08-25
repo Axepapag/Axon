@@ -1,251 +1,178 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-24T22:12:02-05:00
-Current through event: `evt-20260825T031202508120Z-codex-reasoning-rail-boundary`
+Updated: 2026-08-25T16:52:08-05:00
+Current through event: `evt-20260825T215208751311Z-codex-heart-generalization`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
 ## Executive state
 
-Axon now has a proven permanent D64 decoder mechanism across a physical-page
-boundary, in addition to exact recovered memory, crash-safe accepted-ingress
-autobiography, governed candidate training, deterministic lived-experience
-session compilation and inspectable failure evidence. It does **not** yet have
-a serving-capable learned Heart, Semantic Cortex or reasoning core. No Heart
-promotion proposal, activation receipt or active learned generation pointer
-exists.
+Axon has exact recovered autobiography, crash-safe accepted-ingress deposits,
+complete-field Heart rails, a governed Trainer control plane, and a permanent
+D64 Heart tissue whose decoder mechanism can copy a trained 374-character
+multi-page sequence exactly. It still does **not** have a serving learned Heart,
+Semantic Cortex, reasoning-core runner, or consolidator service. No learned
+generation is active.
 
-The project remains on the ratified Heart-first sequence. The D64 translator's
-anatomy can learn exact teacher-forced and greedy copy for a 374-character
-multi-page sequence; its current blocker is generalization to distinct content,
-not a 192/256-character ceiling or insufficient width. The next shot is a
-larger deterministic, length-bucketed copy/identity curriculum with source-use
-and anti-memorization probes. Semantic translation resumes only after that gate.
-
-The prior ChatGPT audit automation was deleted at Jeff's request. No external
-audit or scheduled ChatGPT collaboration remains active work.
+The first diverse Heart identity-generalization curriculum and strict evidence
+gate now exist. Bounded local-GPU candidates improved unseen character and
+long-position alignment metrics, exposed an EOS-route defect, and validated its
+objective-v2 correction. Every candidate still failed the capability gate and
+was rejected without activation. Current evidence says to target long-position
+alignment/tail source dependence next; falling loss alone is not sufficient.
 
 ## Binding decisions and invariants
 
 - Jeff is project convener and final authority.
 - `docs/SOURCE_OF_TRUTH.md` and root `SOURCE_OF_TRUTH.md` are byte-identical at
-  SHA256 `6B53F9A26F06398E254062039A98E76B478B199F9C6EB2E78FDB78E27EEA1EEA`.
+  SHA256 `40B1CFC651355519DF1DAD106601B02510710FC2989B27BB80F2153FE672E9FE`.
 - No trained anatomy may contain a fixed character/context ceiling, finite
-  learned position table, wrapping page index, destructive truncation or
-  silent long-item exclusion. Pages/batches/steps are compute controls only.
-- Developmental anatomy must have an honest permanent specialist or additive
-  upgrade/composition path. D64 may remain useful when wider peers arrive.
-- The Heart alone validates/materializes canonical Shared Field commits.
-- The Trainer alone governs parameter mutation, candidate lineage and
-  activation. Falling loss never authorizes serving.
-- `D:\00` is protected read-only autobiographical source evidence. Never modify
-  or delete its databases.
-- Exact autobiographical evidence and derived semantic knowledge coexist in
-  Dormant State; derivation never replaces exact source records.
-- Observed assistant responses are evidence, not automatically correct targets.
-- Reasoning and Semantic Cortex learning remain behind a functional Heart.
+  learned position table, wrapping page index, destructive truncation, or silent
+  long-item exclusion. Pages, buckets, batches, and steps are compute controls.
+- Developmental anatomy needs a permanent specialist or additive upgrade path.
+  D64 remains useful tissue when wider peers arrive.
+- Heart alone validates/materializes canonical Shared Field commits. Trainer
+  alone governs parameter mutation, lineage, gates, promotion, and activation.
+- Discrete content uses discrete loss. Counterfactual/source-use evidence and
+  regression/replay floors outrank decreasing training loss.
+- `D:\00` is protected read-only source evidence. Exact lived evidence is never
+  replaced by a summary or semantic derivative.
+- Reasoning and Cortex activation remain behind a functional grounded Heart.
 
-## Exact memory and autobiography
+## Memory, autobiography, and Trainer
 
-Seven durable `D:\00` sources totaling 3,529,335,677 bytes are preserved
-byte-for-byte under `State/dormant/experience_v1/source_snapshots/`.
+Seven `D:\00` sources totaling 3,529,335,677 bytes are preserved under
+`State/dormant/experience_v1/source_snapshots/` as 59,875 hash-bound logical
+records. Accepted external user/tool/advisor ingress is deposited before spool
+acknowledgement. Automatic response, tool request/result, consolidator, and
+Trainer outcome hooks remain missing.
 
-- Snapshot ID: `ed94773707e0b60876b75b8410adf34d1748d3eb4cf1c7e70c1095010f05394f`
-- Exact import ID: `718f33bf470b90f3f1b2375de3aeb8bf4f47f48c5440b21395f9a2d0b3933ba6`
-- Exact logical records: 59,875
-- Counts: 28,410 messages; 248 missions; 1,452 objectives; 20,407
-  episodes; 8,567 backlog jobs; 33 diary entries; 758 runtime conversation
-  messages.
+The Trainer provides leased parameter authority, preflight, isolated candidate
+clones, exact mutation grants, telemetry, immutable checkpoints, deterministic
+gates, activation, and rollback machinery. Current inspection snapshot
+`0deb8220b9a82d51a1fbdd941e88d905b871d1328feaf3857d193780e9a8eaee`
+reports 16 authorizations/plans/gate decisions, 17 evaluations, 15 preflight
+receipts, zero promotion proposals, zero activation/rollback receipts, zero
+active-generation pointers, and no writer lease. It is a working experiment
+constitution, not yet an autonomous teacher.
 
-`runtime/heart/autobiography.py` now deposits every canonically accepted
-external user/tool/advisor ingress event before the durable spool acknowledges
-it. Commit-before-deposit and deposit-before-ack failures recover idempotently.
-Future Axon responses, tool invocation requests, consolidator decisions and
-Trainer outcomes still need automatic deposit hooks.
+## Heart identity-generalization evidence
 
-The old recovered container/edge JSONL corpus remains the exact authority used
-by the current Dormant evidence bridge. `experience_v1` is a separate exact
-authority and is not yet indexed/surfaced by Cortex.
+Architecture v3 remains permanent 64D tissue: two Transformer layers, four
+heads, 4096 FFN, exact frozen 16D cells, a frozen orthonormal per-character
+16-to-64 lift, unbounded deterministic positions, and two ordered complete-field
+page sweeps. A 256-character page is not an attention limit.
 
-## Trainer state
+Generalization curriculum
+`00d000ce720eb8be5f43bbbb30fd2a672dee11f807a369a6c71e43ab15113f88`
+contains:
 
-The Trainer's parameter authority, preflight firewall, isolated candidates,
-telemetry, checkpoints, gates and rejection behavior remain healthy.
+- 37 deterministic train cases and 21 content-disjoint held-out cases;
+- all 95 supported substrate characters in training;
+- lengths from 5 through 521 characters, including multi-page train/heldout and
+  held-out length extrapolation;
+- six exact replay cases preserving the prior mechanism proof; and
+- paired single-character head, middle, and tail counterfactuals.
 
-Read-only inspection after the decoder mechanism campaign reports ten governed
-authorizations/plans/evaluations/gate decisions, nine capacity contracts and
-preflight receipts, and verified checkpoints through candidate
-`h64m-03cacded9a38`. There are still zero promotion proposals, activation
-receipts, rollback receipts or active-generation pointers. The Trainer is a
-working parameter constitution and experiment control plane; it is not yet an
-autonomous teacher or continuous curriculum service.
+Length-bucketed scheduling visits every case before repeating and never pads
+across buckets. Evaluation records unseen teacher-forced/free-running metrics,
+diagonal alignment, length buckets, all source-change pairs, train-output
+collisions, and replay. The strict gate now also requires replay character,
+EOS, and termination fidelity so short exact cases cannot conceal long replay
+damage.
 
-`runtime/trainer/sessions.py` now compiles deterministic content-addressed
-sessions that reference exact experience IDs and complete context ranges:
+Candidate history from this turn:
 
-- Heart grounding session
-  `1d781c2768ca51a0203260f98611223dfe249b14c9eb20469da9f75ee7277e29`:
-  59,858 examples.
-- Observed conversation session
-  `9ee2747132fa2a70aceacfa777023ebb2c51d116ecece7a62e7dc6bbfaa5733f`:
-  14,205 examples; explicitly non-promotional.
-- Split policy: stable SHA-based 80/10/10 train/heldout/regression.
+- Initial 8-step and 16-step smokes were rejected. They exposed forgetting and
+  motivated 50% dedicated replay at learning rate `1e-4`.
+- Candidate `h64g-1b219088d306` completed 128 steps, then a post-training
+  control-flow bug made `_generalization_gate` return `None`. Its checkpoint
+  remained immutable and its lifecycle correctly ended rejected. Recovery
+  evaluation `99cbe965...` did not rewrite history or activate it: audit loss
+  was 20.5432 -> 9.6707, held-out character accuracy 0.0729, diagonal mass
+  0.0477, one of three counterfactual pairs, and five of six replay cases.
+- Objective-v1 continuation `f7f29500...` improved character accuracy to
+  0.1249 and diagonal top-one alignment to 0.1000 but reduced termination to
+  0.6667. The loss lacked a separately balanced EOS generation-route target.
+- Objective v2 keeps per-character NLL, raises identity diagonal weight, adds a
+  separately balanced EOS route loss, and strengthens replay gates. A 64-step
+  smoke restored held-out termination from 0.6667 to 1.0 and reduced EOS-route
+  loss from 2.1079 to 0.4970.
+- Final bounded v2 run
+  `f05e47fcc2d16a747514eb2b7976159abb9f85777397e12996a47b07c6112d7d`
+  reduced fixed audit loss 7.7983 -> 6.6192; raised held-out character accuracy
+  0.1179 -> 0.1544, diagonal mass 0.0780 -> 0.1015, and diagonal top-one
+  0.1076 -> 0.1510; termination remained 0.9524. It still produced only 0.0476
+  greedy exactness, passed one of three counterfactual pairs, and preserved five
+  of six exact replay cases; long replay character accuracy was 0.6013. It was
+  rejected and not activated.
 
-The semantic Heart training recipe uses deterministic shuffled epochs: all 590
-synthetic semantic train cases are visited once before reshuffling. Recipe ID
-`a7f293f9762f86a68cecdd93cd9b0a96f304a4e4a62a0f14cf2dd18eafbfac25`
-is bound into candidate generation and source lineage.
+The D64 tissue is learning but is not a learned Heart. Do not resume blind step
+doubling. Next curriculum work must directly exercise address/position alignment
+at many long distances, both sides of page boundaries, and late-tail changes,
+while protecting EOS and the complete 374-character replay.
 
-Decoder mechanism curriculum
-`fad90e9a44cd81cb1e41e830d86f79ccee04fefffdde4013b8a5a0ddcda9ce35`
-is deliberately separate: exact-copy cases range from five characters through
-multi-page strings, and both train and heldout contain referents beyond one
-physical page. The preflight firewall validates this separate purpose without
-weakening architecture, boundary, counterfactual-dependence or checkpoint
-checks.
+## Reasoning and Cortex boundary
 
-Session manifests are not yet organ-specific dataset loaders. Outcome-derived
-target quality, replay, counterfactual construction and Cortex/reasoning loader
-integration remain open.
-
-## Heart state and capability truth
-
-Architecture v3 is permanent 64D tissue: two Transformer layers, four heads,
-4096 FFN, grounded from frozen 16D character cells. A 256-character page is a
-processing unit, not a context limit. Two ordered sweeps visit every active
-character with unbounded deterministic positions.
-
-"16D to 64D roundtrip" has three distinct meanings. Frozen substrate
-character lookup roundtrips all 95 supported characters exactly. The exact D64
-field rail losslessly packs four separately addressed 16D character lanes per
-64-wide row and verifies region text against the source snapshot. For learned
-Heart computation, each unpacked 16D character is independently lifted through
-a frozen orthonormal 16x64 matrix; a direct numerical audit recovered the bank
-through its transpose with maximum absolute error `7.152557e-07`. This inverse
-is a mathematical property of the initial lift, not a published runtime receipt,
-and post-position/dialect/Transformer 64D hidden states are not claimed to be
-invertible. Exact cells, indices and canonical addresses remain bound beside
-the learned path, so fidelity never depends on inverting a mixed neural state.
-
-`runtime/heart/d64_codec.py` compiles actual `SharedFieldSnapshot` instances
-through exact and semantic D64, verifies exact roundtrip/grounding, and supplies
-literal raw 16D lane cells plus canonical positions. Earlier masked text cannot
-renumber later active text; substituted cells or stale identities fail closed.
-
-The 512-step batch-8 v4 semantic run remains the strongest semantic candidate:
-
-- Run ID: `9257422e04d5f23b80ccfb0550742212d47f1fa84f9c0278696ed69784010fc6`
-- Loss: 4.9441 -> 2.6819
-- Held-out termination: 0.8182
-- Source-semantic exactness: 0.2857
-- Referent-pointer exactness: 0.5844
-- Grounding-pointer exactness: 0.6753
-- Regression failures: 14
-- Exact translation: 0.0
-- Grounded roundtrip: 0.0
-- Aggregate semantic fidelity: 0.0
-- Outcome: rejected, not activated.
-
-Evaluation v4 stores every generated string and its exact per-case decisions.
-Strict checkpoint re-evaluation artifact
-`State/training/heart/evaluations/f28e035c07c644c92b440d48d87835b0d200fef9be15d00032eca630ec52ea9f.json`
-shows repetitive free-running text despite improving teacher-forced loss and
-pointer accuracy. Checkpoint-bound decoder diagnostic
-`b75409895073862643225e72e25c4c104be9b6bec87f77c8495842985edb473c`
-localized the problem before exposure bias: teacher-forced character accuracy
-was 0.2289, sequence and greedy exactness were 0.0, correct greedy prefix was
-0.0202 and target-character attention mass was 0.0959.
-
-Four staged, isolated decoder-mechanism continuations then established the
-actual architecture boundary:
-
-- One-case run `e24ca23...` passed exact copy/alignment.
-- Five-case run `7843b66...` passed all short training cases and improved
-  distinct short heldout cases.
-- First six-case run `1b1964d...` was correctly rejected after the 374-character
-  case missed one character (373/374).
-- Bounded continuation `c6393e28539da07bc40a0b62488099ec6592400cd7fcd9e466017c9e01e74482`
-  passed all six sequences exactly under teacher forcing and greedy decoding,
-  with perfect EOS/termination, 0.9489 copy-route probability and 0.9767
-  matching-character attention mass. It was not activated.
-
-This is mechanism proof, not learned-Heart function. Distinct heldout aggregate
-character accuracy is 0.2256; the unseen 379-character case reaches 0.17 and
-diverges immediately. Do not widen or redesign the core based on this result;
-build diversity and generalization evidence next.
-
-The ratified reasoning boundary does not require cores to emit raw substrate
-vectors. Heart renders each frozen field into a core's native grounded home
-rail; the core may reason entirely in that representation and emit a native
-proposal. Heart must preserve that emission, translate it into discrete text,
-canonical addresses and a typed sparse `FieldDelta`, and receipt any semantic
-looseness. The rotating consolidator remains final reasoning authority but
-still only proposes; Heart validation and atomic commit are what make its
-accepted delta canonical. Current code already proves frozen D64 tick binding,
-typed proposal barriers and the consolidator transaction path, but it has no
-running reasoning-core/consolidator service or learned native-proposal
-translator yet. `ProposalBoard` currently carries already-translated
-`FieldDelta` values, so exact native-emission preservation remains future
-anatomy.
+Reasoning cores may work in their native grounded home rails; they do not need
+to emit raw substrate vectors. Heart must preserve each native emission,
+translate it into registered discrete text plus canonical addresses and a typed
+`FieldDelta`, and provide roundtrip/grounding evidence. A rotating consolidator
+selects a final proposal, but only Heart validation and atomic commit make it
+canonical. Frozen D64 tick binding, proposal barriers, and final transaction
+mechanics exist. Core execution, native-proposal translation, refinement, and
+consolidator services do not.
 
 ## Verification and Git
 
-- Final full suite: 358/358 passed.
+- Full repository suite: 363/363 passed.
+- Fixed-character poison scanner: passed with zero violations.
+- Python compileall and `git diff --check`: passed.
 - Known non-failing warnings: PyTorch nested-tensor warning and unwritable local
-  `D:\Axon\.pytest_cache`.
-- `D:\00` source sizes/mtimes remained unchanged; archive was not modified.
-- D: retained 130.64 GB free at closeout.
-- Current implementation commit: `b8a64cdec5d35d52450f0ad21b5bee5a5daed05f`.
-- Local `main` and `origin/main` matched at `b8a64cd` before ledger closeout.
+  `.pytest_cache`.
+- Implementation/SOT commit `8f782b595b6a688dffa520f6e53045eb006987b3`
+  was pushed to `origin/main`.
+- No Heart training/evaluation process or Trainer writer lease remained.
+- D: retained 139,985,031,168 bytes free after artifacts. All training used the
+  local GTX 1650; cloud spend was $0.
 
 ## Active flags
 
-1. **CAPABILITY BLOCKER:** D64 exact copy works on trained complete-field
-   sequences, but distinct long-field copy and semantic translation do not yet
-   generalize; no learned Heart translator is usable.
-2. **AUTOBIOGRAPHY GAP:** accepted ingress is covered, but response/tool-request/
-   consolidator/learning-outcome event classes need deposits.
-3. **TRAINER INTEGRATION GAP:** lived sessions are governed artifacts, not yet
-   Heart/Cortex/reasoning loaders.
-4. **RETRIEVAL GAP:** `experience_v1` is not yet available through the Dormant
-   evidence bridge/Cortex.
-5. **REASONING CIRCULATION GAP:** the D64 tick image, proposal board, barriers
-   and final transaction path exist, but core execution, native proposal
-   translation, refinement circulation and consolidator service are not wired.
-6. **RESOURCE NOTE:** exact snapshots plus logical records consume about 4.30 GB;
-   first full session compilation is RAM-heavy but completed.
-7. **TOOLING NOTE:** Ruff is not installed. Compileall, diff hygiene and all 358
-   tests pass; no Ruff result is claimed.
+1. **CAPABILITY BLOCKER:** unseen complete-field identity conduction remains far
+   below gate, especially middle/tail alignment and the long replay.
+2. **AUTOBIOGRAPHY GAP:** response, tool request/result, consolidator, and
+   learning-outcome deposits remain unwired.
+3. **TRAINER INTEGRATION GAP:** lived-experience manifests are not organ loaders,
+   and observed outputs are not automatically trustworthy targets.
+4. **RETRIEVAL GAP:** `experience_v1` is not indexed through the Cortex/Dormant
+   evidence bridge.
+5. **REASONING CIRCULATION GAP:** no running core/refinement/consolidator service
+   or learned native-proposal translator exists.
+6. **TOOLING NOTE:** Ruff is unavailable; compileall, poison scan, diff hygiene,
+   and all 363 tests pass.
 
 ## Recommended next actions
 
-1. Build a deterministic copy-generalization curriculum with diverse content,
-   character coverage and length buckets through multiple physical pages.
-2. Add heldout monotonic alignment, source-dependence counterfactual,
-   length-extrapolation and anti-memorization gates while replaying the six
-   already-proven mechanism cases.
-3. Resume only from verified checkpoint
-   `b0a29150293aa0d8ab04669faed72467cbe74d93daa18256558cc2c95527c7d1`
-   in an isolated non-serving candidate. After copy generalizes, blend semantic
-   translation gradually under the unchanged roundtrip/grounding floors.
-4. Deposit Heart responses, tool requests/results, consolidator commits and
-   Trainer evaluation outcomes into exact autobiography.
-5. Add verified `experience_v1` retrieval/Cortex projection without normalizing
-   or replacing source evidence.
-6. Convert lived-experience session manifests into provenance-aware loaders with
-   target-quality, replay and counterfactual gates.
-7. Only after exact grounded semantic conduction should wider rails or
-   Cortex/reasoning training begin.
+1. Build a deterministic long-position alignment curriculum with balanced
+   probes around page boundaries and head/middle/tail positions across multiple
+   lengths; retain complete-field coverage and no fixed ceilings.
+2. Add targeted long-replay sampling and position/source-dependence diagnostics,
+   then run a short objective-v2 smoke before any longer candidate.
+3. Continue identity conduction until unseen exactness, all counterfactuals,
+   EOS/termination, and full replay pass together. Only then blend semantic
+   translation and its roundtrip/grounding gates.
+4. Wire response/tool/consolidator/Trainer outcome autobiography deposits and
+   provenance-aware lived-experience loaders.
+5. Implement native proposal envelopes/translation receipts before connecting
+   reasoning runners to the existing proposal board.
 
-## Important commands and paths
+## Important paths and commands
 
 - SOT: `docs/SOURCE_OF_TRUTH.md`
-- Exact autobiography: `State/dormant/experience_v1/`
-- Import: `python curator/import_d00_memories.py`
-- Sessions: `python scripts/compile_lived_experience_sessions.py`
-- Heart smoke: `python scripts/train_heart_translation_smoke.py --steps N --batch-size N --device cuda`
-- Decoder checkpoint diagnostic: `python scripts/diagnose_heart_decoder.py --checkpoint-record PATH --run-summary PATH --device cuda`
-- Governed decoder mechanism stage: `python scripts/train_heart_decoder_mechanism_smoke.py --checkpoint-record PATH --run-summary PATH --steps N --train-case-count N --device cuda`
+- Generalization curriculum/loss/evidence: `training/heart_translation.py`
+- Governed run: `scripts/train_heart_decoder_generalization_smoke.py`
+- Checkpoint recovery: `scripts/evaluate_heart_decoder_generalization_checkpoint.py`
 - Trainer inspection: `python scripts/inspect_trainer.py --state-root State`
-- Tests: `python -m pytest -q`
-- Canonical ledger append helper: `scripts/append_engineers_ledger_event.py`
+- Poison scanner: `python -m pytest -q tests/test_no_fixed_character_poison.py`
+- Full tests: `python -m pytest -q`
+- Canonical append helper: `scripts/append_engineers_ledger_event.py`
