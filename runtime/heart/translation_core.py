@@ -495,6 +495,10 @@ class HeartTranslationCore(nn.Module):
         )
         global_state = query_states[:, self.query_to_index["global"]]
         hidden0 = torch.tanh(self.decoder_init(torch.cat((global_state, destination_dialect), dim=-1))).unsqueeze(0)
+        # Deep-copied Trainer candidates can lose cuDNN's contiguous GRU
+        # packing. Re-flattening is value-preserving and avoids repeated
+        # internal repacks during long autoregressive diagnostics.
+        self.decoder.flatten_parameters()
         recurrent, _ = self.decoder(decoder_inputs, hidden0)
         attended, attention = self.decoder_memory_attention(
             recurrent,

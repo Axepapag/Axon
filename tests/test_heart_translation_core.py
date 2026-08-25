@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+import math
 
 import pytest
 import torch
+from substrate import default_alphabet
 
 from runtime.heart import HeartEnsemblePolicy, evaluate_heart_translator_promotion
 from runtime.heart.translation_core import (
@@ -15,13 +17,17 @@ from runtime.heart.translation_core import (
 from runtime.trainer import OrganKind, ParameterModuleDescriptor, TrainerControlPlane, inspect_trainer_state
 from scripts.train_heart_translation_smoke import run_heart_translation_smoke
 from training.heart_translation import (
+    HeartDecoderGeneralizationObjective,
     HeartTranslationTrainingObjective,
+    build_heart_decoder_generalization_curriculum,
     build_heart_decoder_mechanism_curriculum,
     build_heart_translation_curriculum,
     collate_heart_translation_cases,
+    deterministic_length_bucketed_batches,
     deterministic_training_batches,
     evaluate_heart_decoder_diagnostics,
     evaluate_heart_translation_model,
+    heart_decoder_generalization_loss,
     heart_translation_loss,
 )
 
@@ -101,6 +107,97 @@ def test_decoder_mechanism_curriculum_is_separate_exact_and_complete_field(tmp_p
     artifact = first.write(tmp_path)
     assert artifact.exists()
     assert first.write(tmp_path) == artifact
+
+
+def test_decoder_generalization_curriculum_is_unseen_diverse_and_counterfactual(tmp_path: Path) -> None:
+    first = build_heart_decoder_generalization_curriculum()
+    second = build_heart_decoder_generalization_curriculum()
+    assert first.curriculum_id == second.curriculum_id
+    assert len(first.train_cases) == 37
+    assert len(first.heldout_cases) == 21
+    assert len(first.replay_case_ids) == 6
+    assert {pair.position_kind for pair in first.counterfactual_pairs} == {"head", "middle", "tail"}
+    assert {case.source_text for case in first.train_cases}.isdisjoint(
+        {case.source_text for case in first.heldout_cases}
+    )
+    assert {character for case in first.train_cases for character in case.source_text} == set(
+        default_alphabet()
+    )
+    assert max(map(lambda case: len(case.source_text), first.heldout_cases)) > max(
+        map(lambda case: len(case.source_text), first.train_cases)
+    )
+    heldout = {case.case_id: case for case in first.heldout_cases}
+    for pair in first.counterfactual_pairs:
+        left = heldout[pair.left_case_id].source_text
+        right = heldout[pair.right_case_id].source_text
+        assert [index for index, chars in enumerate(zip(left, right)) if chars[0] != chars[1]] == [
+            pair.changed_position
+        ]
+    artifact = first.write(tmp_path)
+    assert artifact.exists()
+    assert first.write(tmp_path) == artifact
+
+
+def test_decoder_generalization_batches_cover_one_bucketed_epoch_without_omission() -> None:
+    curriculum = build_heart_decoder_generalization_curriculum()
+    batch_size = 4
+    def bucket_for(length: int) -> str:
+        if length <= 32:
+            return "a"
+        if length <= 64:
+            return "b"
+        if length <= 128:
+            return "c"
+        if length < 256:
+            return "d"
+        if length == 256:
+            return "e"
+        if length <= 512:
+            return "f"
+        return "g"
+
+    bucket_counts: dict[str, int] = {}
+    for case in curriculum.train_cases:
+        bucket = bucket_for(len(case.source_text))
+        bucket_counts[bucket] = bucket_counts.get(bucket, 0) + 1
+    epoch_steps = sum(math.ceil(count / batch_size) for count in bucket_counts.values())
+    batches = deterministic_length_bucketed_batches(
+        curriculum.train_cases,
+        batch_size=batch_size,
+        steps=epoch_steps,
+        seed=91,
+    )
+    ids = [case.case_id for batch in batches for case in batch]
+    assert len(ids) == len(curriculum.train_cases)
+    assert len(ids) == len(set(ids))
+    assert set(ids) == {case.case_id for case in curriculum.train_cases}
+    assert all(len({bucket_for(len(case.source_text)) for case in batch}) == 1 for batch in batches)
+
+
+def test_decoder_generalization_loss_trains_discrete_copy_and_diagonal_alignment() -> None:
+    model = _small_model()
+    curriculum = build_heart_decoder_generalization_curriculum()
+    batch = collate_heart_translation_cases(model, curriculum.train_cases[:3])
+    loss = heart_decoder_generalization_loss(
+        model,
+        batch,
+        HeartDecoderGeneralizationObjective(),
+    )
+    assert all(
+        torch.isfinite(value)
+        for value in (
+            loss.total,
+            loss.translation,
+            loss.diagonal_alignment,
+            loss.copy_route,
+            loss.eos_route,
+            loss.semantic,
+            loss.pointers,
+        )
+    )
+    loss.total.backward()
+    assert model.decoder_memory_attention.in_proj_weight.grad is not None
+    assert model.copy_gate.weight.grad is not None
 
 
 def test_heart_training_objective_is_content_addressed_and_changes_loss_recipe(tmp_path: Path) -> None:

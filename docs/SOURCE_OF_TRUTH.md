@@ -1,6 +1,6 @@
 # Axon Source Of Truth
 
-Last updated: 2026-08-24 (non-disposable training capacity law ratified)
+Last updated: 2026-08-25 (Heart identity-generalization evidence and objective v2 recorded)
 
 ## Core Doctrine
 
@@ -531,18 +531,49 @@ decoding, EOS and termination were perfect, mean copy-route probability was
 activation occurred. This is learned complete-field mechanism evidence, not a
 claim of learned Heart function.
 
-Generalization is the current boundary. On the distinct held-out curriculum,
-the passed candidate copied the five-character case exactly but achieved only
-0.2256 aggregate teacher-forced character accuracy; the unseen 379-character
-case achieved 0.17 and diverged at its first greedy character. Next Heart work
-is therefore a larger deterministic, length-bucketed exact-copy/identity
-curriculum with diverse content and multi-page lengths, plus held-out source
-dependence and anti-memorization probes. Only after that gate generalizes should
+Generalization remains the current boundary. The content-addressed identity
+curriculum now contains 37 deterministic training cases, 21 disjoint held-out
+cases, six replay cases preserving the proven mechanism, all 95 registered
+characters, lengths through 521 characters, multi-page train/held-out material,
+and paired head/middle/tail single-character counterfactuals. Training is
+length-bucketed without cross-bucket padding; every case is visited before an
+epoch repeats. Its strict non-serving gate requires unseen character/EOS/free-
+running/termination performance, diagonal alignment, all three source-change
+counterfactuals, no train-output collision, and exact replay retention.
+
+The first governed identity candidates were all correctly rejected and never
+activated. The 128-step candidate `h64g-1b219088d306` completed optimization
+but its post-training gate call failed due an orchestration control-flow defect;
+the immutable step-128 checkpoint remained valid, its lifecycle remained
+rejected, and recovery evaluation
+`99cbe9653905b6b5ca7ad9bc99b157af4efbe1d968f6bf7aed938b58a5c7f931`
+recorded 0.0729 held-out character accuracy, 0.0477 diagonal mass, one of three
+counterfactual pairs and five of six replay cases. Recovery did not rewrite the
+lifecycle or create an activation path.
+
+A later 256-step objective-v1 continuation raised held-out character accuracy
+to 0.1249 and diagonal top-one alignment to 0.1000, but termination fell to
+0.6667. The cause was explicit in the loss: copyable characters were taught to
+use the copy route, while EOS had no separately balanced route target. Objective
+v2 therefore preserves discrete per-character NLL, strengthens identity-only
+diagonal alignment, and separately teaches EOS to return to the generation
+route. Replay gates now also require character accuracy, EOS and termination,
+so one short exact case cannot hide damage to the 374-character replay.
+
+The final bounded objective-v2 run
+`f05e47fcc2d16a747514eb2b7976159abb9f85777397e12996a47b07c6112d7d`
+reduced the fixed audit loss from 7.7983 to 6.6192, raised held-out character
+accuracy from 0.1179 to 0.1544, diagonal mass from 0.0780 to 0.1015, diagonal
+top-one rate from 0.1076 to 0.1510, and retained 0.9524 termination. It still
+achieved only 0.0476 held-out greedy exactness, one of three counterfactual
+pairs, and five of six exact replay cases; the long replay character accuracy
+was only 0.6013. The candidate was rejected and not activated. Falling audit
+loss and improving partial metrics are learning signal, not learned-Heart
+function. The next experiment must target long-position alignment and tail
+source dependence explicitly while protecting EOS and full long replay; blind
+step doubling is not warranted. Only after identity conduction passes should
 training return to semantic translations and their counterfactual/roundtrip
-floors. These results do not justify increasing width or redesigning the
-architecture. Autobiographical capture continues in parallel because Heart
-translations, corrections, disagreements, and outcomes become future
-curriculum.
+floors. These results still do not justify discarding the permanent D64 tissue.
 
 `runtime/trainer/` now implements the first governed candidate-generation lifecycle behind that control plane. A live registered organ is never handed to an optimizer: the Trainer creates an isolated candidate clone, freezes tensors outside the exact mutation grant, enforces the authorized step/parameter budget, rejects non-finite loss or gradients before contamination, hashes live and unauthorized state around each step, and records full per-parameter telemetry. `runtime/trainer/learning.py` defines an immutable content-addressed learning policy bound to every candidate checkpoint/step. Current first-form execution governs AdamW or SGD, weight decay, Adam betas/epsilon, SGD momentum, constant or warmup-cosine scheduling, gradient accumulation, gradient clipping, hard gradient/update L2 budgets, and explicit FP32/BF16/FP16 precision. FP16 requires CUDA and uses a governed GradScaler; non-finite gradients still fail closed before optimizer mutation. Persistent buffers are inventoried and any buffer mutation fails closed until a future explicit buffer-state grant is designed.
 

@@ -17,6 +17,7 @@ from runtime.trainer import (
 from training.heart_preflight import build_heart_training_preflight, scan_active_capacity_poison
 from training.heart_translation import (
     HeartTranslationTrainingObjective,
+    build_heart_decoder_generalization_curriculum,
     build_heart_decoder_mechanism_curriculum,
     build_heart_translation_curriculum,
 )
@@ -121,6 +122,35 @@ def test_heart_preflight_accepts_separate_complete_field_decoder_mechanism_curri
         item for item in receipt.evidence if item.kind is PreflightEvidenceKind.CURRICULUM_DISTRIBUTION
     )
     assert "Exact-copy" in curriculum_evidence.summary
+
+
+def test_heart_preflight_accepts_unseen_length_extrapolating_decoder_curriculum(
+    tmp_path: Path,
+) -> None:
+    model, _semantic_curriculum, inventory, original_plan = _preflight_inputs()
+    curriculum = build_heart_decoder_generalization_curriculum()
+    plan = ParameterMutationPlan(
+        base_inventory_id=original_plan.base_inventory_id,
+        module_id=original_plan.module_id,
+        base_generation_id=original_plan.base_generation_id,
+        candidate_generation_id="heart-decoder-generalization-candidate-v1",
+        tensor_names=original_plan.tensor_names,
+        optimizer_name=original_plan.optimizer_name,
+        learning_rate=original_plan.learning_rate,
+        max_steps=original_plan.max_steps,
+        source_manifest_ids=(curriculum.train_manifest_id,),
+        holdout_manifest_ids=(curriculum.heldout_manifest_id,),
+    )
+    receipt = build_heart_training_preflight(
+        model=model,
+        curriculum=curriculum,
+        inventory=inventory,
+        plan=plan,
+        batch_size=4,
+        state_root=tmp_path,
+        repo_root=ROOT,
+    )
+    assert receipt.passed
 
 
 def test_semantic_capacity_scanner_detects_finite_learned_position_table(tmp_path: Path) -> None:

@@ -30,7 +30,11 @@ from runtime.trainer import (
     build_training_preflight_receipt,
 )
 
-from .heart_translation import HeartDecoderMechanismCurriculum, HeartTranslationCurriculum
+from .heart_translation import (
+    HeartDecoderGeneralizationCurriculum,
+    HeartDecoderMechanismCurriculum,
+    HeartTranslationCurriculum,
+)
 
 
 HEART_PREFLIGHT_EVIDENCE_SCHEMA = "axon-heart-complete-field-preflight-evidence-v1"
@@ -322,10 +326,10 @@ def _split_distribution(cases, page_chars: int) -> dict[str, Any]:
 
 
 def _curriculum_distribution(
-    curriculum: HeartTranslationCurriculum | HeartDecoderMechanismCurriculum,
+    curriculum: HeartTranslationCurriculum | HeartDecoderMechanismCurriculum | HeartDecoderGeneralizationCurriculum,
     page_chars: int,
 ) -> dict[str, Any]:
-    if isinstance(curriculum, HeartDecoderMechanismCurriculum):
+    if isinstance(curriculum, (HeartDecoderMechanismCurriculum, HeartDecoderGeneralizationCurriculum)):
         split_cases = {
             "train": curriculum.train_cases,
             "heldout": curriculum.heldout_cases,
@@ -348,10 +352,25 @@ def _curriculum_distribution(
             exact_copy[name] == len(split_cases[name]) and complete_field[name] > 0
             for name in split_cases
         )
+        curriculum_kind = "decoder_mechanism_exact_copy"
+        additional: dict[str, Any] = {}
+        if isinstance(curriculum, HeartDecoderGeneralizationCurriculum):
+            train_max = max(len(case.source_text) for case in curriculum.train_cases)
+            heldout_max = max(len(case.source_text) for case in curriculum.heldout_cases)
+            kinds = sorted(pair.position_kind for pair in curriculum.counterfactual_pairs)
+            passed = passed and heldout_max > train_max and set(kinds) == {"head", "middle", "tail"}
+            curriculum_kind = "decoder_generalization_exact_identity"
+            additional = {
+                "replay_case_count": len(curriculum.replay_case_ids),
+                "counterfactual_position_kinds": kinds,
+                "longest_observed_train_source_length": train_max,
+                "longest_observed_heldout_source_length": heldout_max,
+                "heldout_length_extrapolation": heldout_max > train_max,
+            }
         return {
             "schema": HEART_PREFLIGHT_EVIDENCE_SCHEMA,
             "check": PreflightEvidenceKind.CURRICULUM_DISTRIBUTION.value,
-            "curriculum_kind": "decoder_mechanism_exact_copy",
+            "curriculum_kind": curriculum_kind,
             "curriculum_id": curriculum.curriculum_id,
             "train_manifest_id": curriculum.train_manifest_id,
             "heldout_manifest_id": curriculum.heldout_manifest_id,
@@ -359,6 +378,7 @@ def _curriculum_distribution(
             "distributions": distributions,
             "exact_copy_cases": exact_copy,
             "complete_field_referents_beyond_page": complete_field,
+            **additional,
             "passed": passed,
         }
 
@@ -541,7 +561,7 @@ def _write_immutable_evidence(state_root: Path, kind: PreflightEvidenceKind, pay
 def build_heart_training_preflight(
     *,
     model: HeartTranslationCore,
-    curriculum: HeartTranslationCurriculum | HeartDecoderMechanismCurriculum,
+    curriculum: HeartTranslationCurriculum | HeartDecoderMechanismCurriculum | HeartDecoderGeneralizationCurriculum,
     inventory: ParameterInventory,
     plan: ParameterMutationPlan,
     batch_size: int,
@@ -553,7 +573,10 @@ def build_heart_training_preflight(
     if batch_size < 1:
         raise HeartTrainingPreflightError("batch_size must be positive")
 
-    is_decoder_mechanism = isinstance(curriculum, HeartDecoderMechanismCurriculum)
+    is_decoder_mechanism = isinstance(
+        curriculum,
+        (HeartDecoderMechanismCurriculum, HeartDecoderGeneralizationCurriculum),
+    )
     was_training = model.training
     model.eval()
     try:
