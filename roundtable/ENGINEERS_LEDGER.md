@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-25T16:52:08-05:00
-Current through event: `evt-20260825T215208751311Z-codex-heart-generalization`
+Updated: 2026-08-25T18:47:15-05:00
+Current through event: `evt-20260825T234715350159Z-codex-heart-long-position`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -18,14 +18,17 @@ The first diverse Heart identity-generalization curriculum and strict evidence
 gate now exist. Bounded local-GPU candidates improved unseen character and
 long-position alignment metrics, exposed an EOS-route defect, and validated its
 objective-v2 correction. Every candidate still failed the capability gate and
-was rejected without activation. Current evidence says to target long-position
-alignment/tail source dependence next; falling loss alone is not sufficient.
+was rejected without activation. A new additive long-position curriculum now
+probes exact page-boundary and late-tail positions through held-out length 769.
+Protective replay/EOS training improved all principal teacher-forced alignment
+metrics, but free-running exactness remained fixed at 1/46 and the learning
+slope flattened. Further identical step doubling is not evidence-supported.
 
 ## Binding decisions and invariants
 
 - Jeff is project convener and final authority.
 - `docs/SOURCE_OF_TRUTH.md` and root `SOURCE_OF_TRUTH.md` are byte-identical at
-  SHA256 `40B1CFC651355519DF1DAD106601B02510710FC2989B27BB80F2153FE672E9FE`.
+  SHA256 `F2FEA9E40433E191E9B2084E25AC120D1DF8063F4F123E8ECFF652D89E5680A7`.
 - No trained anatomy may contain a fixed character/context ceiling, finite
   learned position table, wrapping page index, destructive truncation, or silent
   long-item exclusion. Pages, buckets, batches, and steps are compute controls.
@@ -50,8 +53,8 @@ Trainer outcome hooks remain missing.
 The Trainer provides leased parameter authority, preflight, isolated candidate
 clones, exact mutation grants, telemetry, immutable checkpoints, deterministic
 gates, activation, and rollback machinery. Current inspection snapshot
-`0deb8220b9a82d51a1fbdd941e88d905b871d1328feaf3857d193780e9a8eaee`
-reports 16 authorizations/plans/gate decisions, 17 evaluations, 15 preflight
+`15d74aa6f4aea1eda93c3c21379fd3aaa4f6363bba1b6b82b12df38d20ada8e2`
+reports 18 authorizations, 19 evaluations, 18 gate decisions, 17 preflight
 receipts, zero promotion proposals, zero activation/rollback receipts, zero
 active-generation pointers, and no writer lease. It is a working experiment
 constitution, not yet an autonomous teacher.
@@ -107,10 +110,38 @@ Candidate history from this turn:
   of six exact replay cases; long replay character accuracy was 0.6013. It was
   rejected and not activated.
 
-The D64 tissue is learning but is not a learned Heart. Do not resume blind step
-doubling. Next curriculum work must directly exercise address/position alignment
-at many long distances, both sides of page boundaries, and late-tail changes,
-while protecting EOS and the complete 374-character replay.
+Long-position curriculum
+`ed83bb3669898e950fab44af43187506d8f1ee6a2fe041299e80e21acfc4387f`
+is additive: 64 train cases, 46 held-out cases, all 37 earlier train cases as
+replay, 14 source-change pairs, train lengths through 640 and held-out
+extrapolation through 769. It probes positions 0, 254-257, 510-513, 699 and
+768. These are complete-case evidence points, not limits; nothing is truncated.
+
+The first 64-step run
+`d51a6047c6a51401633cb38033d767eb150877a2c7c2a68068d9e04138c7fa11`
+raised held-out character accuracy 0.0824 -> 0.1077 and diagonal top-one
+0.0870 -> 0.1034, but replay EOS fell 0.2432 -> 0.1351. It was rejected.
+Trainer controls were then extended with protective replay cadence,
+configurable EOS weight, and memory-safe batching of independent complete
+evaluation cases. The latter reduced observed VRAM from about 3.88 GiB plus an
+allocator OOM warning to about 1.57 GiB without changing field coverage.
+
+Protected 192-step continuation
+`3e12b8a642fde98c3c6feaf39baf3dd4fdb058af903cf19eb599eedddbcb69f9`
+used 64 novel and 128 replay steps with EOS-route weight 1.0. Audit loss fell
+8.7739 -> 7.2936; held-out character rose 0.1077 -> 0.1479, diagonal mass
+0.0586 -> 0.0786, diagonal top-one 0.1034 -> 0.1497, source-change pairs 2/14
+-> 3/14, replay character 0.2533 -> 0.2992 and replay EOS 0.1351 -> 0.3243.
+Free-running exactness stayed 1/46. Read-only step-64/128 evaluations measured
+held-out character 0.1163/0.1404 and diagonal top-one 0.1233/0.1446; gains
+flattened by step 192 and sequence exactness never moved. All checkpoints are
+durable, the candidate failed twelve requirements, and it remains rejected.
+
+The D64 tissue is learning but is not a learned Heart. The next bounded shot is
+an ablation between staged whole-case exposure and an additive explicit
+positional-copy facility that preserves content attention, semantic paths,
+old parameter tissue and exact evidence. It must not hard-code a claim of
+semantic Heart function.
 
 ## Reasoning and Cortex boundary
 
@@ -125,15 +156,19 @@ consolidator services do not.
 
 ## Verification and Git
 
-- Full repository suite: 363/363 passed.
+- Full repository suite: 365/365 passed.
 - Fixed-character poison scanner: passed with zero violations.
 - Python compileall and `git diff --check`: passed.
 - Known non-failing warnings: PyTorch nested-tensor warning and unwritable local
   `.pytest_cache`.
-- Implementation/SOT commit `8f782b595b6a688dffa520f6e53045eb006987b3`
-  was pushed to `origin/main`.
+- Changed-file Ruff, compileall, poison scan, SOT mirror, and diff hygiene pass.
+  Global Ruff 0.16.4 is installed; whole-active-repo baseline currently reports
+  211 findings, intentionally not mass-fixed in this training turn.
+- Implementation commits `25a620bb39b85f966b76c4d8397d9250da7d3e15`,
+  `83b48fce8c943f409b741bc002684d79c86aac68`, and SOT commit
+  `00b56b7a9cdac88c91896f926fd9213037c64410` were pushed to `origin/main`.
 - No Heart training/evaluation process or Trainer writer lease remained.
-- D: retained 139,985,031,168 bytes free after artifacts. All training used the
+- D: retained 139,902,599,168 bytes free after artifacts. All training used the
   local GTX 1650; cloud spend was $0.
 
 ## Active flags
@@ -148,17 +183,17 @@ consolidator services do not.
    evidence bridge.
 5. **REASONING CIRCULATION GAP:** no running core/refinement/consolidator service
    or learned native-proposal translator exists.
-6. **TOOLING NOTE:** Ruff is unavailable; compileall, poison scan, diff hygiene,
-   and all 363 tests pass.
+6. **TOOLING BACKLOG:** Ruff 0.16.4 is installed/configured and changed files
+   pass; 211 pre-existing findings remain across the active repository.
 
 ## Recommended next actions
 
-1. Build a deterministic long-position alignment curriculum with balanced
-   probes around page boundaries and head/middle/tail positions across multiple
-   lengths; retain complete-field coverage and no fixed ceilings.
-2. Add targeted long-replay sampling and position/source-dependence diagnostics,
-   then run a short objective-v2 smoke before any longer candidate.
-3. Continue identity conduction until unseen exactness, all counterfactuals,
+1. Specify an additive positional-copy facility and strict v3-checkpoint
+   parameter migration; preserve content attention and require ablation evidence.
+2. Add staged whole-case exposure bands as pedagogy only—never source slicing,
+   truncation, model ceilings, or permanent exclusion—and compare against v3.
+3. Continue identity conduction only when the new mechanism moves sequence-level
+   exactness as well as characters; require unseen exactness, all counterfactuals,
    EOS/termination, and full replay pass together. Only then blend semantic
    translation and its roundtrip/grounding gates.
 4. Wire response/tool/consolidator/Trainer outcome autobiography deposits and
@@ -171,8 +206,11 @@ consolidator services do not.
 - SOT: `docs/SOURCE_OF_TRUTH.md`
 - Generalization curriculum/loss/evidence: `training/heart_translation.py`
 - Governed run: `scripts/train_heart_decoder_generalization_smoke.py`
+- Latest long-position evidence:
+  `State/training/heart/generalization_runs/3e12b8a642fde98c3c6feaf39baf3dd4fdb058af903cf19eb599eedddbcb69f9/summary.json`
 - Checkpoint recovery: `scripts/evaluate_heart_decoder_generalization_checkpoint.py`
 - Trainer inspection: `python scripts/inspect_trainer.py --state-root State`
 - Poison scanner: `python -m pytest -q tests/test_no_fixed_character_poison.py`
 - Full tests: `python -m pytest -q`
+- Changed-file lint: `python -m ruff check <changed files>`
 - Canonical append helper: `scripts/append_engineers_ledger_event.py`
