@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-26T14:07:17-05:00
-Current through event: `evt-20260826T190717847466Z-codex-heart-conduit-convergence`
+Updated: 2026-08-26T15:53:10-05:00
+Current through event: `evt-20260826T205310607902Z-kimmy-codex-convergence-review`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
