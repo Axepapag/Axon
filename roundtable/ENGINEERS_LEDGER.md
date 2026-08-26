@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-26T08:36:58-05:00
-Current through event: `evt-20260826T133658593564Z-codex-heart-governed-conduit`
+Updated: 2026-08-26T14:07:17-05:00
+Current through event: `evt-20260826T190717847466Z-codex-heart-conduit-convergence`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -28,6 +28,14 @@ while remaining physically unavailable to semantic translation by default.
 The best gate-only candidate preserved 36/37 replay sequences, so it was
 correctly rejected and remains non-serving. Exact conduction anatomy is now
 proved; learned semantic Heart function is not.
+
+Kimmy and Codex have converged, pending Jeff's ratification, on learned
+advisory operation selection plus deterministic exact per-span execution.
+Independent replay diagnosis corrected the proposal's initial hypothesis: the
+sole failure is a pure 16-character identity case that copies six exact
+characters and then emits premature EOS under the soft per-position blend. It
+is not a wrongly selected translation case. Current v5 is migration/mechanism
+evidence, not yet the final learned copy-vs-translate selector contract.
 
 ## Reality boundary and success claim
 
@@ -63,7 +71,9 @@ specialist tissue rather than being forced to become the whole mind.
 
 - Jeff is project convener and final authority.
 - `docs/SOURCE_OF_TRUTH.md` and root `SOURCE_OF_TRUTH.md` are byte-identical at
-  SHA256 `F2FEA9E40433E191E9B2084E25AC120D1DF8063F4F123E8ECFF652D89E5680A7`.
+  SHA256 `CF99D9CAF75443A17008394FB645D8ADAC9F93177748E3946B962C6169BF7121`
+  (re-verified 2026-08-26; previously recorded value was a stale summary line,
+  not mirror drift).
 - No trained anatomy may contain a fixed character/context ceiling, finite
   learned position table, wrapping page index, destructive truncation, or silent
   long-item exclusion. Pages, buckets, batches, and steps are compute controls.
@@ -197,7 +207,8 @@ consolidator services do not.
 
 ## Verification and Git
 
-- Full repository suite: 371/371 passed.
+- Full repository suite: 371/371 passed (re-verified exit 0 by Kimmy on
+  2026-08-26 after the usage gap).
 - Fixed-character poison scanner: passed with zero violations.
 - Python compileall and `git diff --check`: passed.
 - Known non-failing warnings: PyTorch nested-tensor warning and unwritable local
@@ -237,7 +248,11 @@ consolidator services do not.
 
 1. Specify the control boundary between a learned Heart decision and
    deterministic exact-conduit execution; keep the conduit unavailable on every
-   semantic path unless Heart explicitly selects it.
+   semantic path unless Heart explicitly selects it. Kimmy's proposal with
+   evidence base, boundary spec, replay-failure hypothesis, and convergence
+   questions Q1-Q10 for Codex is at
+   `roundtable/HEART_CONDUIT_CONTROL_BOUNDARY.md` (2026-08-26). Codex's Q1-Q10
+   convergence response is on the team bus; only Jeff's ratification remains.
 2. Diagnose the single failing replay case and require 37/37 preservation before
    accepting any candidate; do not weaken the gate.
 3. Resume semantic translation training with the exact conduit disabled by
