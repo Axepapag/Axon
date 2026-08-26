@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-25T18:56:56-05:00
-Current through event: `evt-20260825T2356567050170Z-codex-reality-assessment`
+Updated: 2026-08-26T08:36:58-05:00
+Current through event: `evt-20260826T133658593564Z-codex-heart-governed-conduit`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -22,7 +22,12 @@ was rejected without activation. A new additive long-position curriculum now
 probes exact page-boundary and late-tail positions through held-out length 769.
 Protective replay/EOS training improved all principal teacher-forced alignment
 metrics, but free-running exactness remained fixed at 1/46 and the learning
-slope flattened. Further identical step doubling is not evidence-supported.
+slope flattened. An additive governed positional conduit now achieves exact
+free-running identity on all 46 unseen fields and all source-change probes,
+while remaining physically unavailable to semantic translation by default.
+The best gate-only candidate preserved 36/37 replay sequences, so it was
+correctly rejected and remains non-serving. Exact conduction anatomy is now
+proved; learned semantic Heart function is not.
 
 ## Reality boundary and success claim
 
@@ -167,11 +172,17 @@ held-out character 0.1163/0.1404 and diagonal top-one 0.1233/0.1446; gains
 flattened by step 192 and sequence exactness never moved. All checkpoints are
 durable, the candidate failed twelve requirements, and it remains rejected.
 
-The D64 tissue is learning but is not a learned Heart. The next bounded shot is
-an ablation between staged whole-case exposure and an additive explicit
-positional-copy facility that preserves content attention, semantic paths,
-old parameter tissue and exact evidence. It must not hard-code a claim of
-semantic Heart function.
+The staged v3 control reached only 0.1632 held-out character accuracy and stayed
+at 1/46 exact. Additive v4 reached 0.9533 character accuracy and 14/14
+source-change probes, but its always-exposed route could override semantic
+translation. Governed v5 fixes that hazard: exact same-address transport is
+unavailable unless explicitly opted in, while v3 state and default outputs
+migrate exactly. A 144-step candidate changed only the 129 new gate parameters
+and reached 46/46 exact unseen sequences, perfect unseen EOS/termination, and
+14/14 source-change probes. It preserved 36/37 replay sequences; the one miss
+kept the candidate rejected and non-serving. The remaining architecture
+question is whether the learned Heart should choose an exact conduit whose
+execution is deterministic, instead of learning probabilistic byte transport.
 
 ## Reasoning and Cortex boundary
 
@@ -186,7 +197,7 @@ consolidator services do not.
 
 ## Verification and Git
 
-- Full repository suite: 365/365 passed.
+- Full repository suite: 371/371 passed.
 - Fixed-character poison scanner: passed with zero violations.
 - Python compileall and `git diff --check`: passed.
 - Known non-failing warnings: PyTorch nested-tensor warning and unwritable local
@@ -203,8 +214,8 @@ consolidator services do not.
 
 ## Active flags
 
-1. **CAPABILITY BLOCKER:** unseen complete-field identity conduction remains far
-   below gate, especially middle/tail alignment and the long replay.
+1. **CAPABILITY BLOCKER:** governed exact conduction passes every unseen field,
+   but one of 37 replay sequences still fails and no semantic Heart serves.
 2. **AUTOBIOGRAPHY GAP:** response, tool request/result, consolidator, and
    learning-outcome deposits remain unwired.
 3. **TRAINER INTEGRATION GAP:** lived-experience manifests are not organ loaders,
@@ -224,14 +235,14 @@ consolidator services do not.
 
 ## Recommended next actions
 
-1. Specify an additive positional-copy facility and strict v3-checkpoint
-   parameter migration; preserve content attention and require ablation evidence.
-2. Add staged whole-case exposure bands as pedagogy only—never source slicing,
-   truncation, model ceilings, or permanent exclusion—and compare against v3.
-3. Continue identity conduction only when the new mechanism moves sequence-level
-   exactness as well as characters; require unseen exactness, all counterfactuals,
-   EOS/termination, and full replay pass together. Only then blend semantic
-   translation and its roundtrip/grounding gates.
+1. Specify the control boundary between a learned Heart decision and
+   deterministic exact-conduit execution; keep the conduit unavailable on every
+   semantic path unless Heart explicitly selects it.
+2. Diagnose the single failing replay case and require 37/37 preservation before
+   accepting any candidate; do not weaken the gate.
+3. Resume semantic translation training with the exact conduit disabled by
+   default and retain independent roundtrip, grounding, source-use and replay
+   gates.
 4. Wire response/tool/consolidator/Trainer outcome autobiography deposits and
    provenance-aware lived-experience loaders.
 5. Implement native proposal envelopes/translation receipts before connecting
@@ -248,8 +259,8 @@ consolidator services do not.
 - SOT: `docs/SOURCE_OF_TRUTH.md`
 - Generalization curriculum/loss/evidence: `training/heart_translation.py`
 - Governed run: `scripts/train_heart_decoder_generalization_smoke.py`
-- Latest long-position evidence:
-  `State/training/heart/generalization_runs/3e12b8a642fde98c3c6feaf39baf3dd4fdb058af903cf19eb599eedddbcb69f9/summary.json`
+- Latest governed-conduit evidence:
+  `State/training/heart/generalization_runs/9ec9bcfa568ae2aa0a43e6dcb88e857aab48122f9f201c62e64cd5f5cb8ee3fc/summary.json`
 - Checkpoint recovery: `scripts/evaluate_heart_decoder_generalization_checkpoint.py`
 - Trainer inspection: `python scripts/inspect_trainer.py --state-root State`
 - Poison scanner: `python -m pytest -q tests/test_no_fixed_character_poison.py`
