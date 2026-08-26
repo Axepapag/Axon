@@ -621,6 +621,25 @@ identity copying proves learned semantic Heart function. Wider or peer Heart
 cores may be added later; the D64 specialist and its checkpoints remain useful
 historical and initialization tissue.
 
+That ablation is now complete. A staged-whole-case v3 control moved held-out
+character accuracy only from 0.1479 to 0.1632 and left exact generation at
+1/46. The additive v4 positional route moved held-out character accuracy to
+0.9533 and all 14 source-change pairs to exact, but exposed a semantic hazard:
+an always-available identity route could override a requested translation.
+Governed v5 therefore makes the route physically unavailable unless Heart
+explicitly requests exact same-address conduction. Its v3 migration preserves
+every old tensor and produces bit-exact CPU outputs with the new route at exact
+zero. A 144-step gate-only candidate mutated only 129 new control parameters;
+all unseen held-out fields then passed at 1.0000 teacher-forced and free-running
+sequence exactness, with 1.0000 EOS/termination and all source-change probes.
+Replay reached 36/37 exact sequences (0.9730), so the candidate failed the
+strict gate, remained rejected/non-serving, and created no activation. This is
+verified exact-conduction anatomy under explicit opt-in, not learned semantic
+Heart function. The next design decision is whether exact conduit execution
+should be deterministic after a learned Heart control decision, rather than
+making exact byte transport itself probabilistic; semantic translation must
+continue to run with the conduit unavailable by default.
+
 `runtime/trainer/` now implements the first governed candidate-generation lifecycle behind that control plane. A live registered organ is never handed to an optimizer: the Trainer creates an isolated candidate clone, freezes tensors outside the exact mutation grant, enforces the authorized step/parameter budget, rejects non-finite loss or gradients before contamination, hashes live and unauthorized state around each step, and records full per-parameter telemetry. `runtime/trainer/learning.py` defines an immutable content-addressed learning policy bound to every candidate checkpoint/step. Current first-form execution governs AdamW or SGD, weight decay, Adam betas/epsilon, SGD momentum, constant or warmup-cosine scheduling, gradient accumulation, gradient clipping, hard gradient/update L2 budgets, and explicit FP32/BF16/FP16 precision. FP16 requires CUDA and uses a governed GradScaler; non-finite gradients still fail closed before optimizer mutation. Persistent buffers are inventoried and any buffer mutation fails closed until a future explicit buffer-state grant is designed.
 
 Candidate checkpoints are atomic, SHA256-bound, generation/plan/authorization/learning-policy-bound, and exactly restorable inside the candidate branch. A mid-accumulation checkpoint preserves optimizer state, pending authorized gradients, AMP scaler state when present, optimizer/microstep counters, accumulation index, current learning rate, and accumulated loss sum so resume does not silently discard or misreport learning state. Scheduler state is deterministic from the immutable policy plus optimizer-step count rather than hidden mutable scheduler objects. Deterministic promotion gates require predeclared evaluation suites and metric thresholds; missing capability, counterfactual, regression, or forgetting evidence blocks promotion. A passed gate may create a promotion proposal, but only the leased deterministic Trainer authority may activate it. Activation requires an exact current inventory, passed gate/proposal/checkpoint lineage agreement, architecture-compatible generation transition, exact candidate tensor/buffer verification, a durable pre-activation rollback snapshot, and atomic active-pointer publication. Runtime trainability flags are preserved independently from temporary candidate freeze policy. Rollback restores the exact previous generation and snapshots the displaced generation so rollback itself remains reversible. `hydrate_active_generation()` rehydrates a freshly registered organ from the durable pointer after restart. `scripts/inspect_trainer.py` provides read-only visibility into current lease ownership, lifecycle, optimizer-step receipts, per-parameter telemetry, checkpoints, active-generation pointers, activation/rollback evidence, evaluations, gates, and promotion proposals. These mechanisms are proven with unit-scale synthetic candidates only; no semantic-core or reasoning-core training campaign is launched by this milestone.

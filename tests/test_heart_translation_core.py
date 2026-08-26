@@ -12,6 +12,9 @@ from runtime.heart.translation_core import (
     HEART_TRANSLATION_ARCHITECTURE,
     HeartTranslationCore,
     HeartTranslationCoreConfig,
+    heart_translation_architecture_id,
+    migrate_heart_translation_v3_to_v4,
+    migrate_heart_translation_v3_to_v5,
 )
 from runtime.trainer import OrganKind, ParameterModuleDescriptor, TrainerControlPlane, inspect_trainer_state
 from scripts.train_heart_translation_smoke import run_heart_translation_smoke
@@ -25,6 +28,7 @@ from training.heart_translation import (
     build_heart_translation_curriculum,
     collate_heart_translation_cases,
     deterministic_length_bucketed_batches,
+    deterministic_staged_whole_case_batches,
     deterministic_training_batches,
     evaluate_heart_decoder_diagnostics,
     evaluate_heart_translation_model,
@@ -33,7 +37,7 @@ from training.heart_translation import (
 )
 
 
-def _small_model() -> HeartTranslationCore:
+def _small_model(*, positional_copy: bool = False) -> HeartTranslationCore:
     torch.manual_seed(17)
     return HeartTranslationCore(
         HeartTranslationCoreConfig(
@@ -43,6 +47,7 @@ def _small_model() -> HeartTranslationCore:
             ffn_dim=128,
             dropout=0.0,
             source_page_chars=32,
+            positional_copy=positional_copy,
         )
     )
 
@@ -60,6 +65,118 @@ def test_first_heart_translation_core_is_shallow_ffn_heavy_and_16d_grounded() ->
     assert not model.bank16.requires_grad
     assert not model.char_lift.requires_grad
     assert sum(parameter.numel() for parameter in model.parameters()) > 1_000_000
+
+
+def test_v3_to_v4_positional_copy_migration_is_exact_and_additive() -> None:
+    source = _small_model()
+    destination_config, migrated_state = migrate_heart_translation_v3_to_v4(
+        source.state_dict(),
+        source.cfg,
+    )
+    destination = HeartTranslationCore(destination_config)
+    destination.load_state_dict(migrated_state, strict=True)
+    source.eval()
+    destination.eval()
+    case = build_heart_decoder_mechanism_curriculum().train_cases[-1]
+    batch = collate_heart_translation_cases(source, (case,))
+    arguments = (
+        batch.source_indices,
+        batch.source_mask,
+        batch.source_dialect_ids,
+        batch.destination_dialect_ids,
+        batch.decoder_input_ids,
+    )
+    keywords = {
+        "source_cells16": batch.source_cells16,
+        "source_positions": batch.source_positions,
+    }
+    with torch.no_grad():
+        before = source(*arguments, **keywords)
+        after = destination(*arguments, **keywords)
+
+    assert "positional-copy" not in heart_translation_architecture_id(source.cfg)
+    assert "positional-copy" in heart_translation_architecture_id(destination.cfg)
+    assert set(migrated_state) - set(source.state_dict()) == {
+        "positional_copy_gate.bias",
+        "positional_copy_gate.weight",
+    }
+    assert torch.equal(before.target_log_probs, after.target_log_probs)
+    assert torch.equal(before.decoder_trace.memory_attention, after.decoder_trace.memory_attention)
+    assert torch.equal(before.decoder_trace.generation_gate, after.decoder_trace.generation_gate)
+    assert after.decoder_trace.positional_copy_gate is not None
+    assert bool(after.decoder_trace.positional_copy_gate.eq(0).all())
+    assert before.source_coverage == after.source_coverage
+
+
+def test_positional_copy_route_can_roundtrip_unseen_complete_identity_cases() -> None:
+    model = _small_model(positional_copy=True)
+    assert model.positional_copy_gate is not None
+    with torch.no_grad():
+        model.positional_copy_gate.weight.zero_()
+        model.positional_copy_gate.bias.fill_(1.0)
+    curriculum = build_heart_decoder_generalization_curriculum()
+    cases = (curriculum.heldout_cases[0], curriculum.heldout_cases[-1])
+    diagnostic = evaluate_heart_decoder_diagnostics(
+        model,
+        cases,
+        descriptor_id="v4-test",
+        checkpoint_id="forced-route-test",
+        curriculum_id=curriculum.curriculum_id,
+        split="heldout",
+        evaluation_batch_size=1,
+    )
+
+    assert diagnostic.teacher_forced_character_accuracy == 1.0
+    assert diagnostic.teacher_forced_eos_accuracy == 1.0
+    assert diagnostic.greedy_exact_rate == 1.0
+    assert diagnostic.greedy_termination_rate == 1.0
+    assert diagnostic.mean_character_positional_copy_gate == 1.0
+    assert diagnostic.mean_eos_positional_copy_gate == 1.0
+    assert diagnostic.positional_copy_available_rate == 1.0
+
+
+def test_v5_positional_route_is_unavailable_without_governed_opt_in() -> None:
+    source = _small_model()
+    destination_config, migrated_state = migrate_heart_translation_v3_to_v5(
+        source.state_dict(),
+        source.cfg,
+    )
+    destination = HeartTranslationCore(destination_config)
+    destination.load_state_dict(migrated_state, strict=True)
+    assert destination.positional_copy_gate is not None
+    with torch.no_grad():
+        destination.positional_copy_gate.weight.zero_()
+        destination.positional_copy_gate.bias.fill_(1.0)
+    case = build_heart_decoder_generalization_curriculum().heldout_cases[0]
+    batch = collate_heart_translation_cases(destination, (case,))
+    arguments = (
+        batch.source_indices,
+        batch.source_mask,
+        batch.source_dialect_ids,
+        batch.destination_dialect_ids,
+        batch.decoder_input_ids,
+    )
+    keywords = {
+        "source_cells16": batch.source_cells16,
+        "source_positions": batch.source_positions,
+    }
+    with torch.no_grad():
+        blocked = destination(*arguments, **keywords)
+        allowed = destination(
+            *arguments,
+            **keywords,
+            allow_positional_copy_route=True,
+        )
+
+    assert destination.cfg.positional_copy_requires_opt_in
+    assert "governed-opt-in" in heart_translation_architecture_id(destination.cfg)
+    assert blocked.decoder_trace.positional_copy_available is not None
+    assert not bool(blocked.decoder_trace.positional_copy_available.any())
+    assert blocked.decoder_trace.positional_copy_gate is not None
+    assert bool(blocked.decoder_trace.positional_copy_gate.eq(0).all())
+    assert allowed.decoder_trace.positional_copy_available is not None
+    assert bool(allowed.decoder_trace.positional_copy_available[batch.target_mask].all())
+    assert allowed.target_log_probs.argmax(dim=-1).eq(batch.target_ids).all()
 
 
 def test_heart_curriculum_is_content_addressed_disjoint_and_counterfactual_complete(tmp_path: Path) -> None:
@@ -212,6 +329,44 @@ def test_decoder_generalization_batches_cover_one_bucketed_epoch_without_omissio
     assert all(len({bucket_for(len(case.source_text)) for case in batch}) == 1 for batch in batches)
 
 
+def test_staged_whole_case_schedule_reaches_every_case_without_slicing() -> None:
+    curriculum = build_heart_decoder_long_position_curriculum()
+    replay = set(curriculum.replay_case_ids)
+    novel = tuple(case for case in curriculum.train_cases if case.case_id not in replay)
+    def stage_bucket(length: int) -> str:
+        if length <= 32:
+            return "a"
+        if length <= 64:
+            return "b"
+        if length <= 128:
+            return "c"
+        if length < 256:
+            return "d"
+        if length == 256:
+            return "e"
+        if length <= 512:
+            return "f"
+        return "g"
+
+    with pytest.raises(ValueError, match="requires at least"):
+        deterministic_staged_whole_case_batches(
+            novel,
+            batch_size=4,
+            steps=1,
+            seed=42,
+        )
+    batches = deterministic_staged_whole_case_batches(
+        novel,
+        batch_size=4,
+        steps=64,
+        seed=42,
+    )
+    observed = {case.case_id for batch in batches for case in batch}
+    assert observed == {case.case_id for case in novel}
+    assert all(case.source_text == case.target_text for batch in batches for case in batch)
+    assert all(len({stage_bucket(len(case.source_text)) for case in batch}) == 1 for batch in batches)
+
+
 def test_decoder_generalization_loss_trains_discrete_copy_and_diagonal_alignment() -> None:
     model = _small_model()
     curriculum = build_heart_decoder_generalization_curriculum()
@@ -229,6 +384,7 @@ def test_decoder_generalization_loss_trains_discrete_copy_and_diagonal_alignment
             loss.diagonal_alignment,
             loss.copy_route,
             loss.eos_route,
+            loss.positional_copy_route,
             loss.semantic,
             loss.pointers,
         )
@@ -236,6 +392,18 @@ def test_decoder_generalization_loss_trains_discrete_copy_and_diagonal_alignment
     loss.total.backward()
     assert model.decoder_memory_attention.in_proj_weight.grad is not None
     assert model.copy_gate.weight.grad is not None
+
+
+def test_zero_initialized_positional_route_receives_identity_gradient() -> None:
+    model = _small_model(positional_copy=True)
+    curriculum = build_heart_decoder_generalization_curriculum()
+    batch = collate_heart_translation_cases(model, curriculum.train_cases[:3])
+    loss = heart_decoder_generalization_loss(model, batch)
+    assert float(loss.positional_copy_route.detach()) == 1.0
+    loss.total.backward()
+    assert model.positional_copy_gate is not None
+    assert model.positional_copy_gate.bias.grad is not None
+    assert float(model.positional_copy_gate.bias.grad.abs().item()) > 0.0
 
 
 def test_heart_training_objective_is_content_addressed_and_changes_loss_recipe(tmp_path: Path) -> None:

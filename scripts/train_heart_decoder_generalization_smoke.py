@@ -21,8 +21,13 @@ import torch
 from runtime.field import canonical_sha256
 from runtime.heart.translation_core import (
     HEART_TRANSLATION_ARCHITECTURE,
+    HEART_TRANSLATION_ARCHITECTURE_V4,
+    HEART_TRANSLATION_ARCHITECTURE_V5,
     HeartTranslationCore,
     HeartTranslationCoreConfig,
+    heart_translation_architecture_id,
+    migrate_heart_translation_v3_to_v4,
+    migrate_heart_translation_v3_to_v5,
 )
 from runtime.trainer import (
     CandidateCheckpointRecord,
@@ -48,6 +53,7 @@ from training.heart_translation import (
     build_heart_decoder_long_position_curriculum,
     collate_heart_translation_cases,
     deterministic_length_bucketed_batches,
+    deterministic_staged_whole_case_batches,
     evaluate_heart_decoder_diagnostics,
     evaluate_heart_decoder_generalization,
     heart_decoder_generalization_loss,
@@ -59,6 +65,13 @@ HEART_DECODER_GENERALIZATION_RECOVERY_SCHEMA = "axon-heart-decoder-generalizatio
 HEART_DECODER_GENERALIZATION_SUITE = "heart-decoder-generalization-v1"
 GENERALIZATION_CURRICULUM = "generalization"
 LONG_POSITION_CURRICULUM = "long-position"
+BUCKETED_SCHEDULE = "bucketed"
+STAGED_WHOLE_CASE_SCHEDULE = "staged-whole-case"
+V3_ARCHITECTURE = "v3"
+V4_POSITIONAL_COPY_ARCHITECTURE = "v4-positional-copy"
+V5_GOVERNED_POSITIONAL_COPY_ARCHITECTURE = "v5-governed-positional-copy"
+FULL_MUTATION_SCOPE = "full"
+POSITIONAL_ONLY_MUTATION_SCOPE = "positional-only"
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -98,15 +111,18 @@ def _atomic_json(path: Path, value: dict[str, Any]) -> Path:
     return path
 
 
-def _generalization_gate(module_id: str, candidate_generation_id: str) -> PromotionGate:
-    specs = (
+def _generalization_gate(
+    module_id: str,
+    candidate_generation_id: str,
+    *,
+    positional_copy: bool = False,
+) -> PromotionGate:
+    common_specs = (
         ("teacher_forced_character_accuracy", MetricComparison.GREATER_OR_EQUAL, 0.90, "unseen character accuracy"),
         ("teacher_forced_eos_accuracy", MetricComparison.GREATER_OR_EQUAL, 0.90, "unseen EOS accuracy"),
         ("greedy_exact_rate", MetricComparison.GREATER_OR_EQUAL, 0.50, "unseen free-running exactness"),
         ("greedy_termination_rate", MetricComparison.GREATER_OR_EQUAL, 0.90, "unseen termination"),
         ("greedy_correct_prefix_fraction", MetricComparison.GREATER_OR_EQUAL, 0.75, "unseen correct-prefix fraction"),
-        ("diagonal_attention_mass", MetricComparison.GREATER_OR_EQUAL, 0.65, "same-position attention mass"),
-        ("diagonal_attention_top1_rate", MetricComparison.GREATER_OR_EQUAL, 0.80, "same-position attention top-one rate"),
         ("counterfactual_pair_exact_rate", MetricComparison.GREATER_OR_EQUAL, 1.0, "head middle tail source dependence"),
         ("minimum_counterfactual_target_margin", MetricComparison.GREATER_OR_EQUAL, 0.10, "counterfactual target margin"),
         ("memorized_train_output_count", MetricComparison.LESS_OR_EQUAL, 0.0, "no heldout output copied from a train target"),
@@ -115,6 +131,30 @@ def _generalization_gate(module_id: str, candidate_generation_id: str) -> Promot
         ("replay_teacher_forced_eos_accuracy", MetricComparison.GREATER_OR_EQUAL, 1.0, "preserve replay EOS"),
         ("replay_greedy_termination_rate", MetricComparison.GREATER_OR_EQUAL, 1.0, "preserve replay termination"),
     )
+    route_specs = (
+        (
+            "positional_copy_available_rate",
+            MetricComparison.GREATER_OR_EQUAL,
+            1.0,
+            "same-address route available for every identity target",
+        ),
+        (
+            "mean_character_positional_copy_gate",
+            MetricComparison.GREATER_OR_EQUAL,
+            0.95,
+            "learned character selection of same-address route",
+        ),
+        (
+            "mean_eos_positional_copy_gate",
+            MetricComparison.GREATER_OR_EQUAL,
+            0.95,
+            "learned EOS selection of same-address route",
+        ),
+    ) if positional_copy else (
+        ("diagonal_attention_mass", MetricComparison.GREATER_OR_EQUAL, 0.65, "same-position attention mass"),
+        ("diagonal_attention_top1_rate", MetricComparison.GREATER_OR_EQUAL, 0.80, "same-position attention top-one rate"),
+    )
+    specs = (*common_specs, *route_specs)
     requirements = tuple(
         EvaluationRequirement(
             suite_id=HEART_DECODER_GENERALIZATION_SUITE,
@@ -152,6 +192,7 @@ def _fixed_audit_loss(
             "diagonal_alignment": float(loss.diagonal_alignment.item()),
             "copy_route": float(loss.copy_route.item()),
             "eos_route": float(loss.eos_route.item()),
+            "positional_copy_route": float(loss.positional_copy_route.item()),
             "semantic": float(loss.semantic.item()),
             "pointers": float(loss.pointers.item()),
         }
@@ -159,8 +200,83 @@ def _fixed_audit_loss(
         model.train(was_training)
 
 
-def _generalization_metrics(diagnostic, evidence, replay_diagnostic) -> dict[str, float]:
+@torch.no_grad()
+def _migration_equivalence(
+    source_model: HeartTranslationCore,
+    destination_model: HeartTranslationCore,
+    cases,
+    device: torch.device,
+) -> dict[str, Any]:
+    """Prove that the exact-zero v4 route preserves representative v3 output."""
+
+    source_model.eval()
+    destination_model.eval()
+    tensor_names = (
+        "target_log_probs",
+        "referent_start_logits",
+        "referent_end_logits",
+        "grounding_start_logits",
+        "grounding_end_logits",
+    )
+    exact = True
+    route_zero = True
+    coverage_equal = True
+    maximum_delta = 0.0
+    case_ids: list[str] = []
+    for case in cases:
+        batch = collate_heart_translation_cases(source_model, (case,)).to(device)
+        arguments = (
+            batch.source_indices,
+            batch.source_mask,
+            batch.source_dialect_ids,
+            batch.destination_dialect_ids,
+            batch.decoder_input_ids,
+        )
+        keyword_arguments = {
+            "source_cells16": batch.source_cells16,
+            "source_positions": batch.source_positions,
+        }
+        source = source_model(*arguments, **keyword_arguments)
+        destination = destination_model(*arguments, **keyword_arguments)
+        compared = [
+            (getattr(source, name), getattr(destination, name))
+            for name in tensor_names
+        ]
+        compared.extend(
+            (source.semantic_logits[name], destination.semantic_logits[name])
+            for name in sorted(source.semantic_logits)
+        )
+        compared.append(
+            (
+                source.decoder_trace.memory_attention,
+                destination.decoder_trace.memory_attention,
+            )
+        )
+        compared.append(
+            (
+                source.decoder_trace.generation_gate,
+                destination.decoder_trace.generation_gate,
+            )
+        )
+        for left, right in compared:
+            exact = exact and torch.equal(left, right)
+            maximum_delta = max(maximum_delta, float((left - right).abs().max().item()))
+        positional_gate = destination.decoder_trace.positional_copy_gate
+        route_zero = route_zero and positional_gate is not None and bool(positional_gate.eq(0).all())
+        coverage_equal = coverage_equal and source.source_coverage == destination.source_coverage
+        case_ids.append(case.case_id)
     return {
+        "case_ids": case_ids,
+        "exact_tensor_equality": exact,
+        "maximum_absolute_delta": maximum_delta,
+        "new_route_exact_zero": route_zero,
+        "coverage_equal": coverage_equal,
+        "passed": exact and route_zero and coverage_equal and maximum_delta == 0.0,
+    }
+
+
+def _generalization_metrics(diagnostic, evidence, replay_diagnostic) -> dict[str, float]:
+    metrics = {
         "teacher_forced_character_accuracy": diagnostic.teacher_forced_character_accuracy,
         "teacher_forced_eos_accuracy": diagnostic.teacher_forced_eos_accuracy,
         "greedy_exact_rate": diagnostic.greedy_exact_rate,
@@ -176,6 +292,15 @@ def _generalization_metrics(diagnostic, evidence, replay_diagnostic) -> dict[str
         "replay_teacher_forced_eos_accuracy": replay_diagnostic.teacher_forced_eos_accuracy,
         "replay_greedy_termination_rate": replay_diagnostic.greedy_termination_rate,
     }
+    if diagnostic.positional_copy_available_rate is not None:
+        metrics.update(
+            {
+                "positional_copy_available_rate": diagnostic.positional_copy_available_rate,
+                "mean_character_positional_copy_gate": diagnostic.mean_character_positional_copy_gate or 0.0,
+                "mean_eos_positional_copy_gate": diagnostic.mean_eos_positional_copy_gate or 0.0,
+            }
+        )
+    return metrics
 
 
 def _training_roles(
@@ -210,6 +335,10 @@ def run_generalization_smoke(
     replay_steps_per_novel: int = 1,
     eos_route_weight: float | None = None,
     evaluation_batch_size: int | None = None,
+    training_schedule: str = BUCKETED_SCHEDULE,
+    architecture_variant: str = V3_ARCHITECTURE,
+    mutation_scope: str = FULL_MUTATION_SCOPE,
+    learning_rate: float = 1e-4,
 ) -> tuple[dict[str, Any], Path]:
     if steps < replay_every or batch_size < 1 or checkpoint_every < 1 or replay_every < 2:
         raise ValueError("steps>=replay_every, positive batch/checkpoint, and replay_every>=2 are required")
@@ -253,7 +382,7 @@ def run_generalization_smoke(
     objective.write(root)
     learning_policy = GovernedLearningPolicy(
         optimizer="adamw",
-        learning_rate=1e-4,
+        learning_rate=learning_rate,
         weight_decay=0.0,
         scheduler=SchedulerKind.WARMUP_COSINE,
         warmup_steps=min(8, steps),
@@ -267,13 +396,43 @@ def run_generalization_smoke(
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
+    if training_schedule not in {BUCKETED_SCHEDULE, STAGED_WHOLE_CASE_SCHEDULE}:
+        raise ValueError(f"unsupported training schedule {training_schedule!r}")
+    positional_variants = {
+        V4_POSITIONAL_COPY_ARCHITECTURE,
+        V5_GOVERNED_POSITIONAL_COPY_ARCHITECTURE,
+    }
+    if architecture_variant not in {V3_ARCHITECTURE, *positional_variants}:
+        raise ValueError(f"unsupported Heart architecture variant {architecture_variant!r}")
+    if mutation_scope not in {FULL_MUTATION_SCOPE, POSITIONAL_ONLY_MUTATION_SCOPE}:
+        raise ValueError(f"unsupported mutation scope {mutation_scope!r}")
+    if mutation_scope == POSITIONAL_ONLY_MUTATION_SCOPE and architecture_variant not in positional_variants:
+        raise ValueError("positional-only mutation requires positional-copy anatomy")
     resolved_device = torch.device(device)
-    model = HeartTranslationCore(HeartTranslationCoreConfig(**architecture_value)).to(resolved_device)
+    source_config = HeartTranslationCoreConfig(**architecture_value)
+    if source_config.positional_copy:
+        raise ValueError("ablation source must be permanent v3 Heart tissue")
+    source_model = HeartTranslationCore(source_config)
     store = TrainerStateStore.active(state_root=root)
     source_checkpoint = store.load_verified_candidate_checkpoint(record)
     if source_checkpoint.get("descriptor", {}).get("architecture") != HEART_TRANSLATION_ARCHITECTURE:
         raise ValueError("source checkpoint is not the permanent governed D64 Heart architecture")
-    model.load_state_dict(source_checkpoint["module_state_dict"], strict=True)
+    source_model.load_state_dict(source_checkpoint["module_state_dict"], strict=True)
+    migration_evidence: dict[str, Any] | None = None
+    if architecture_variant in positional_variants:
+        migration = (
+            migrate_heart_translation_v3_to_v5
+            if architecture_variant == V5_GOVERNED_POSITIONAL_COPY_ARCHITECTURE
+            else migrate_heart_translation_v3_to_v4
+        )
+        destination_config, migrated_state = migration(
+            source_checkpoint["module_state_dict"],
+            source_config,
+        )
+        model = HeartTranslationCore(destination_config)
+        model.load_state_dict(migrated_state, strict=True)
+    else:
+        model = source_model
 
     replay_ids = set(curriculum.replay_case_ids)
     replay_cases = tuple(case for case in curriculum.train_cases if case.case_id in replay_ids)
@@ -288,6 +447,16 @@ def run_generalization_smoke(
         for target_length in audit_target_lengths
     )
     audit_cases = tuple(dict.fromkeys((*audit_novel, replay_cases[0], replay_cases[-1])))
+    migration_equivalence: dict[str, Any] | None = None
+    if architecture_variant in positional_variants:
+        migration_equivalence = _migration_equivalence(
+            source_model,
+            model,
+            audit_cases,
+            torch.device("cpu"),
+        )
+        if not migration_equivalence["passed"]:
+            raise RuntimeError("v3-to-v4 positional-copy migration changed existing Heart output")
     training_roles = _training_roles(
         steps=steps,
         replay_every=replay_every,
@@ -295,7 +464,12 @@ def run_generalization_smoke(
     )
     replay_step_count = training_roles.count("replay")
     novel_step_count = training_roles.count("novel")
-    novel_batches = iter(deterministic_length_bucketed_batches(
+    novel_batch_builder = (
+        deterministic_staged_whole_case_batches
+        if training_schedule == STAGED_WHOLE_CASE_SCHEDULE
+        else deterministic_length_bucketed_batches
+    )
+    novel_batches = iter(novel_batch_builder(
         novel_cases,
         batch_size=batch_size,
         steps=novel_step_count,
@@ -329,15 +503,66 @@ def run_generalization_smoke(
         "seed": seed,
         "curriculum_kind": curriculum_kind,
         "evaluation_batch_size": evaluation_batch_size,
+        "training_schedule": training_schedule,
+        "architecture_variant": architecture_variant,
+        "mutation_scope": mutation_scope,
+        "learning_rate": learning_rate,
     }
+    resolved_architecture = heart_translation_architecture_id(model.cfg)
+    if architecture_variant in positional_variants:
+        expected_architecture = (
+            HEART_TRANSLATION_ARCHITECTURE_V5
+            if architecture_variant == V5_GOVERNED_POSITIONAL_COPY_ARCHITECTURE
+            else HEART_TRANSLATION_ARCHITECTURE_V4
+        )
+        if resolved_architecture != expected_architecture:
+            raise RuntimeError("positional-copy variant resolved to the wrong anatomy")
+        migration_core = {
+            "schema": (
+                "axon-heart-v3-to-v5-governed-positional-copy-migration-v1"
+                if architecture_variant == V5_GOVERNED_POSITIONAL_COPY_ARCHITECTURE
+                else "axon-heart-v3-to-v4-positional-copy-migration-v1"
+            ),
+            "source_checkpoint_id": record.checkpoint_id,
+            "source_generation_id": record.candidate_generation_id,
+            "source_architecture": HEART_TRANSLATION_ARCHITECTURE,
+            "destination_architecture": resolved_architecture,
+            "source_config": source_config.to_canonical_dict(),
+            "destination_config": model.cfg.to_canonical_dict(),
+            "preserved_state_keys": sorted(source_checkpoint["module_state_dict"]),
+            "new_zero_state_keys": [
+                "positional_copy_gate.bias",
+                "positional_copy_gate.weight",
+            ],
+            "output_equivalence": migration_equivalence,
+        }
+        migration_id = canonical_sha256(migration_core)
+        migration_evidence = {**migration_core, "migration_id": migration_id}
+        _atomic_json(
+            root / "training" / "heart" / "migrations" / f"{migration_id}.json",
+            migration_evidence,
+        )
+        del source_model
+        base_generation_id = "h64m-" + migration_id[:12]
+    else:
+        migration_id = None
+        base_generation_id = record.candidate_generation_id
+    model = model.to(resolved_device)
+    experiment_identity["migration_id"] = migration_id
     candidate_generation_id = "h64g-" + canonical_sha256(experiment_identity)[:12]
     base_descriptor = ParameterModuleDescriptor(
         module_id=module_id,
         organ_kind=OrganKind.HEART_TRANSLATION_CORE,
         generation_id=base_generation_id,
-        architecture=HEART_TRANSLATION_ARCHITECTURE,
+        architecture=resolved_architecture,
         d_model=model.cfg.d_model,
-        tags=("heart", "translator", "decoder-generalization-source", "non-serving"),
+        tags=(
+            "heart",
+            "translator",
+            "decoder-generalization-source",
+            architecture_variant,
+            "non-serving",
+        ),
     )
 
     control = TrainerControlPlane.active(state_root=root)
@@ -347,23 +572,44 @@ def run_generalization_smoke(
         control.register(base_descriptor, model)
         inventory = control.snapshot_inventory(exact_value_hashes=True)
         manifest = inventory.module(module_id)
-        grant = ParameterMutationGrant(
-            grant_id="heart-decoder-generalization-full-v1",
-            module_id=module_id,
-            generation_id=base_generation_id,
-            policy=ParameterMutationPolicy.FULL,
-            max_trainable_parameters=manifest.trainable_parameter_count,
-        )
+        if mutation_scope == POSITIONAL_ONLY_MUTATION_SCOPE:
+            selected_names = (
+                "positional_copy_gate.bias",
+                "positional_copy_gate.weight",
+            )
+            records = {item.name: item for item in manifest.tensors}
+            selected_count = sum(records[name].numel for name in selected_names)
+            grant = ParameterMutationGrant(
+                grant_id="heart-decoder-positional-copy-only-v1",
+                module_id=module_id,
+                generation_id=base_generation_id,
+                policy=ParameterMutationPolicy.EXPLICIT_NAMES,
+                allowed_names=selected_names,
+                max_trainable_parameters=selected_count,
+            )
+        else:
+            selected_names = tuple(item.name for item in manifest.tensors if item.requires_grad)
+            grant = ParameterMutationGrant(
+                grant_id="heart-decoder-generalization-full-v1",
+                module_id=module_id,
+                generation_id=base_generation_id,
+                policy=ParameterMutationPolicy.FULL,
+                max_trainable_parameters=manifest.trainable_parameter_count,
+            )
         plan = ParameterMutationPlan(
             base_inventory_id=inventory.inventory_id,
             module_id=module_id,
             base_generation_id=base_generation_id,
             candidate_generation_id=candidate_generation_id,
-            tensor_names=tuple(item.name for item in manifest.tensors if item.requires_grad),
+            tensor_names=selected_names,
             optimizer_name="AdamW",
             learning_rate=learning_policy.learning_rate,
             max_steps=steps,
-            source_manifest_ids=(curriculum.train_manifest_id, objective.objective_id),
+            source_manifest_ids=tuple(
+                item
+                for item in (curriculum.train_manifest_id, objective.objective_id, migration_id)
+                if item is not None
+            ),
             holdout_manifest_ids=(curriculum.heldout_manifest_id,),
         )
         preflight = build_heart_training_preflight(
@@ -383,11 +629,14 @@ def run_generalization_smoke(
             policy=learning_policy,
         )
 
+        baseline_checkpoint_id = migration_id or record.checkpoint_id
+        baseline_descriptor_id = manifest.manifest_id
+
         baseline_diagnostic, baseline_evidence = evaluate_heart_decoder_generalization(
             model,
             curriculum,
-            descriptor_id=record.parameter_manifest_id,
-            checkpoint_id=record.checkpoint_id,
+            descriptor_id=baseline_descriptor_id,
+            checkpoint_id=baseline_checkpoint_id,
             split="decoder-generalization:heldout:baseline",
             evaluation_batch_size=evaluation_batch_size,
         )
@@ -396,8 +645,8 @@ def run_generalization_smoke(
         baseline_replay = evaluate_heart_decoder_diagnostics(
             model,
             replay_cases,
-            descriptor_id=record.parameter_manifest_id,
-            checkpoint_id=record.checkpoint_id,
+            descriptor_id=baseline_descriptor_id,
+            checkpoint_id=baseline_checkpoint_id,
             curriculum_id=curriculum.curriculum_id,
             split="decoder-generalization:replay:baseline",
             evaluation_batch_size=evaluation_batch_size,
@@ -421,6 +670,9 @@ def run_generalization_smoke(
                         "diagonal_alignment": float(loss.diagonal_alignment.detach().item()),
                         "copy_route": float(loss.copy_route.detach().item()),
                         "eos_route": float(loss.eos_route.detach().item()),
+                        "positional_copy_route": float(
+                            loss.positional_copy_route.detach().item()
+                        ),
                         "semantic": float(loss.semantic.detach().item()),
                         "pointers": float(loss.pointers.detach().item()),
                     }
@@ -480,7 +732,11 @@ def run_generalization_smoke(
             artifact_id=final_evidence.evidence_id,
         )
         decision = control.evaluate_gate(
-            _generalization_gate(module_id, candidate_generation_id),
+            _generalization_gate(
+                module_id,
+                candidate_generation_id,
+                positional_copy=model.cfg.positional_copy,
+            ),
             (observation,),
         )
         if decision.passed:
@@ -509,12 +765,14 @@ def run_generalization_smoke(
             "gate_decision_id": decision.decision_id,
             "candidate_status": candidate_status,
             "device": str(resolved_device),
+            "architecture": resolved_architecture,
         }
         run_id = canonical_sha256(run_core)
         summary = {
             **run_core,
             "run_id": run_id,
             "architecture_config": model.cfg.to_canonical_dict(),
+            "migration_evidence": migration_evidence,
             "curriculum": curriculum.to_canonical_dict(),
             "training_objective": objective.to_canonical_dict(),
             "learning_policy": learning_policy.to_canonical_dict(),
@@ -563,6 +821,26 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--replay-steps-per-novel", type=int, default=1)
     parser.add_argument("--eos-route-weight", type=float)
     parser.add_argument("--evaluation-batch-size", type=int)
+    parser.add_argument(
+        "--training-schedule",
+        choices=(BUCKETED_SCHEDULE, STAGED_WHOLE_CASE_SCHEDULE),
+        default=BUCKETED_SCHEDULE,
+    )
+    parser.add_argument(
+        "--architecture-variant",
+        choices=(
+            V3_ARCHITECTURE,
+            V4_POSITIONAL_COPY_ARCHITECTURE,
+            V5_GOVERNED_POSITIONAL_COPY_ARCHITECTURE,
+        ),
+        default=V3_ARCHITECTURE,
+    )
+    parser.add_argument(
+        "--mutation-scope",
+        choices=(FULL_MUTATION_SCOPE, POSITIONAL_ONLY_MUTATION_SCOPE),
+        default=FULL_MUTATION_SCOPE,
+    )
+    parser.add_argument("--learning-rate", type=float, default=1e-4)
     parser.add_argument("--seed", type=int, default=20260825)
     parser.add_argument("--device", default="cpu")
     parser.add_argument(
@@ -590,6 +868,10 @@ def main() -> None:
         replay_steps_per_novel=args.replay_steps_per_novel,
         eos_route_weight=args.eos_route_weight,
         evaluation_batch_size=args.evaluation_batch_size,
+        training_schedule=args.training_schedule,
+        architecture_variant=args.architecture_variant,
+        mutation_scope=args.mutation_scope,
+        learning_rate=args.learning_rate,
     )
     print(
         json.dumps(

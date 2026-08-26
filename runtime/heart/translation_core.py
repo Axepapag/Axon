@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import hashlib
 import math
-from dataclasses import dataclass
+from collections import OrderedDict
+from dataclasses import dataclass, replace
 from typing import Mapping
 
 import torch
@@ -18,8 +19,16 @@ from torch import nn
 
 from substrate import get_letter_bank
 
-
-HEART_TRANSLATION_ARCHITECTURE = "heart-translation-64d-real-d64-paged-complete-field-v3"
+HEART_TRANSLATION_ARCHITECTURE_V3 = "heart-translation-64d-real-d64-paged-complete-field-v3"
+HEART_TRANSLATION_ARCHITECTURE_V4 = (
+    "heart-translation-64d-real-d64-paged-complete-field-positional-copy-v4"
+)
+HEART_TRANSLATION_ARCHITECTURE_V5 = (
+    "heart-translation-64d-real-d64-paged-complete-field-governed-positional-copy-v5"
+)
+# Compatibility name for the accepted permanent v3 tissue. New anatomy must use
+# heart_translation_architecture_id(cfg) rather than silently relabeling v3.
+HEART_TRANSLATION_ARCHITECTURE = HEART_TRANSLATION_ARCHITECTURE_V3
 
 HEART_SEMANTIC_LABELS: Mapping[str, tuple[str, ...]] = {
     "polarity_negation": ("positive", "negative"),
@@ -41,6 +50,8 @@ class HeartTranslationCoreConfig:
     source_page_chars: int = 256
     max_dialects: int = 16
     lift_seed: int = 41
+    positional_copy: bool = False
+    positional_copy_requires_opt_in: bool = False
 
     def __post_init__(self) -> None:
         if isinstance(self.d_model, bool) or not isinstance(self.d_model, int) or self.d_model < 64:
@@ -63,6 +74,12 @@ class HeartTranslationCoreConfig:
             raise ValueError("source_page_chars must be a positive processing-unit size")
         if self.max_dialects < 2:
             raise ValueError("max_dialects must be at least two")
+        if not isinstance(self.positional_copy, bool):
+            raise ValueError("positional_copy must be boolean")
+        if not isinstance(self.positional_copy_requires_opt_in, bool):
+            raise ValueError("positional_copy_requires_opt_in must be boolean")
+        if self.positional_copy_requires_opt_in and not self.positional_copy:
+            raise ValueError("positional-copy opt-in requires positional-copy anatomy")
 
     def to_canonical_dict(self) -> dict[str, int | float]:
         return {
@@ -74,16 +91,37 @@ class HeartTranslationCoreConfig:
             "source_page_chars": self.source_page_chars,
             "max_dialects": self.max_dialects,
             "lift_seed": self.lift_seed,
+            "positional_copy": self.positional_copy,
+            "positional_copy_requires_opt_in": self.positional_copy_requires_opt_in,
         }
 
 
 def heart_translation_architecture_id(cfg: HeartTranslationCoreConfig) -> str:
     default = HeartTranslationCoreConfig()
     if cfg == default:
-        return HEART_TRANSLATION_ARCHITECTURE
+        return HEART_TRANSLATION_ARCHITECTURE_V3
+    if (
+        cfg.positional_copy
+        and cfg.positional_copy_requires_opt_in
+        and replace(
+            cfg,
+            positional_copy=False,
+            positional_copy_requires_opt_in=False,
+        )
+        == default
+    ):
+        return HEART_TRANSLATION_ARCHITECTURE_V5
+    if (
+        cfg.positional_copy
+        and not cfg.positional_copy_requires_opt_in
+        and replace(cfg, positional_copy=False) == default
+    ):
+        return HEART_TRANSLATION_ARCHITECTURE_V4
     return (
         f"heart-translation-{cfg.d_model}d-{cfg.n_layers}l-"
-        f"{cfg.n_heads}h-{cfg.ffn_dim}ffn-paged-v2"
+        f"{cfg.n_heads}h-{cfg.ffn_dim}ffn-paged-v3"
+        + ("-positional-copy" if cfg.positional_copy else "")
+        + ("-governed-opt-in" if cfg.positional_copy_requires_opt_in else "")
     )
 
 
@@ -101,6 +139,8 @@ class HeartDecoderTrace:
     target_log_probs: torch.Tensor
     memory_attention: torch.Tensor
     generation_gate: torch.Tensor
+    positional_copy_gate: torch.Tensor | None
+    positional_copy_available: torch.Tensor | None
 
 
 @dataclass(slots=True)
@@ -171,8 +211,9 @@ class HeartTranslationCore(nn.Module):
     than hidden claims that surface text reconstruction alone preserved meaning.
     """
 
-    def __init__(self, cfg: HeartTranslationCoreConfig = HeartTranslationCoreConfig()) -> None:
+    def __init__(self, cfg: HeartTranslationCoreConfig | None = None) -> None:
         super().__init__()
+        cfg = cfg or HeartTranslationCoreConfig()
         self.cfg = cfg
         bank = get_letter_bank()
         self.characters = tuple(bank.chars[:-1])
@@ -236,12 +277,20 @@ class HeartTranslationCore(nn.Module):
         self.decoder_norm = nn.LayerNorm(cfg.d_model)
         self.decoder_output = nn.Linear(cfg.d_model, self.vocab_size + 1)
         self.copy_gate = nn.Linear(cfg.d_model * 2, 1)
+        self.positional_copy_gate = (
+            nn.Linear(cfg.d_model * 2, 1) if cfg.positional_copy else None
+        )
 
         nn.init.normal_(self.source_dialect_embedding.weight, std=0.02)
         nn.init.normal_(self.destination_dialect_embedding.weight, std=0.02)
         nn.init.normal_(self.decoder_embedding.weight, std=0.02)
         nn.init.zeros_(self.copy_gate.weight)
         nn.init.constant_(self.copy_gate.bias, 0.5)
+        if self.positional_copy_gate is not None:
+            # Exact-zero preserves every v3 output at the migration boundary.
+            # clamp() retains a useful gradient at zero for the identity route.
+            nn.init.zeros_(self.positional_copy_gate.weight)
+            nn.init.zeros_(self.positional_copy_gate.bias)
 
     @property
     def device(self) -> torch.device:
@@ -476,12 +525,16 @@ class HeartTranslationCore(nn.Module):
         source_mask: torch.Tensor,
         destination_dialect_ids: torch.Tensor,
         decoder_input_ids: torch.Tensor,
+        *,
+        allow_positional_copy_route: bool = False,
     ) -> HeartDecoderTrace:
         if decoder_input_ids.ndim != 2:
             raise ValueError("decoder_input_ids must be rank-2")
         batch, target_length = decoder_input_ids.shape
         if batch != source_indices.shape[0]:
             raise ValueError("decoder batch must match source batch")
+        if not isinstance(allow_positional_copy_route, bool):
+            raise ValueError("allow_positional_copy_route must be boolean")
         positions = torch.arange(target_length, device=decoder_input_ids.device).unsqueeze(0).expand(batch, target_length)
         destination_dialect = self.destination_dialect_embedding(destination_dialect_ids)
         decoder_inputs = (
@@ -517,10 +570,39 @@ class HeartTranslationCore(nn.Module):
         copy.scatter_add_(2, copy_indices, attention * source_mask.unsqueeze(1).to(attention.dtype))
         gate = torch.sigmoid(self.copy_gate(torch.cat((hidden, attended), dim=-1)))
         probs = gate * generation + (1.0 - gate) * copy
+        positional_gate: torch.Tensor | None = None
+        positional_available: torch.Tensor | None = None
+        route_exposed = self.positional_copy_gate is not None and (
+            not self.cfg.positional_copy_requires_opt_in or allow_positional_copy_route
+        )
+        if self.positional_copy_gate is not None:
+            source_lengths = source_mask.sum(dim=1)
+            target_positions = torch.arange(target_length, device=source_indices.device).view(1, -1)
+            character_available = target_positions < source_lengths.view(-1, 1)
+            eos_available = target_positions.eq(source_lengths.view(-1, 1))
+            positional_available = (character_available | eos_available) & route_exposed
+            positional = torch.zeros_like(generation)
+            safe_positions = target_positions.clamp(max=max(0, source_indices.shape[1] - 1)).expand(
+                batch, -1
+            )
+            same_address_ids = source_indices.gather(1, safe_positions).clamp(
+                min=0, max=max(0, self.vocab_size - 1)
+            )
+            positional.scatter_(2, same_address_ids.unsqueeze(-1), character_available.unsqueeze(-1).to(positional.dtype))
+            positional[:, :, self.eos_index] += eos_available.to(positional.dtype)
+            raw_positional_gate = self.positional_copy_gate(torch.cat((hidden, attended), dim=-1))
+            positional_gate = raw_positional_gate.clamp(min=0.0, max=1.0)
+            positional_gate = positional_gate * positional_available.unsqueeze(-1).to(positional_gate.dtype)
+            # At the initialized exact-zero gate this is bit-preserving v3
+            # behavior. Training may add same-address conduction without
+            # removing the learned generation or content-attention routes.
+            probs = probs + positional_gate * (positional - probs)
         return HeartDecoderTrace(
             target_log_probs=probs.clamp_min(torch.finfo(probs.dtype).tiny).log(),
             memory_attention=attention,
             generation_gate=gate,
+            positional_copy_gate=positional_gate,
+            positional_copy_available=positional_available,
         )
 
     def forward(
@@ -533,6 +615,7 @@ class HeartTranslationCore(nn.Module):
         *,
         source_cells16: torch.Tensor | None = None,
         source_positions: torch.Tensor | None = None,
+        allow_positional_copy_route: bool = False,
     ) -> HeartTranslationOutput:
         query_states, memory, coverage = self._encode(
             source_indices,
@@ -555,6 +638,7 @@ class HeartTranslationCore(nn.Module):
             source_mask,
             destination_dialect_ids,
             decoder_input_ids,
+            allow_positional_copy_route=allow_positional_copy_route,
         )
         return HeartTranslationOutput(
             target_log_probs=decoder_trace.target_log_probs,
@@ -586,6 +670,7 @@ class HeartTranslationCore(nn.Module):
         max_chars: int,
         source_cells16: torch.Tensor | None = None,
         source_positions: torch.Tensor | None = None,
+        allow_positional_copy_route: bool = False,
     ) -> tuple[HeartGeneratedTranslation, ...]:
         limit = int(max_chars)
         if limit < 1:
@@ -610,6 +695,7 @@ class HeartTranslationCore(nn.Module):
                 source_mask,
                 destination_dialect_ids,
                 generated,
+                allow_positional_copy_route=allow_positional_copy_route,
             )
             next_ids = decoder_trace.target_log_probs[:, -1].argmax(dim=-1)
             for row, value in enumerate(next_ids.tolist()):
@@ -634,13 +720,66 @@ class HeartTranslationCore(nn.Module):
         )
 
 
+def migrate_heart_translation_v3_to_v4(
+    source_state_dict: Mapping[str, torch.Tensor],
+    source_config: HeartTranslationCoreConfig,
+) -> tuple[HeartTranslationCoreConfig, OrderedDict[str, torch.Tensor]]:
+    """Add exact-zero positional-copy tissue without altering v3 parameters."""
+
+    if source_config.positional_copy:
+        raise ValueError("source config is already positional-copy anatomy")
+    source_model = HeartTranslationCore(source_config)
+    source_model.load_state_dict(source_state_dict, strict=True)
+    destination_config = replace(source_config, positional_copy=True)
+    destination_model = HeartTranslationCore(destination_config)
+    destination_state = destination_model.state_dict()
+    source_keys = set(source_model.state_dict())
+    destination_keys = set(destination_state)
+    new_keys = destination_keys - source_keys
+    expected_new_keys = {
+        "positional_copy_gate.weight",
+        "positional_copy_gate.bias",
+    }
+    if new_keys != expected_new_keys or source_keys - destination_keys:
+        raise RuntimeError("unexpected v3-to-v4 Heart state topology")
+    migrated: OrderedDict[str, torch.Tensor] = OrderedDict()
+    for name, destination_value in destination_state.items():
+        if name in source_state_dict:
+            source_value = source_state_dict[name]
+            if source_value.shape != destination_value.shape or source_value.dtype != destination_value.dtype:
+                raise RuntimeError(f"incompatible v3 Heart tensor {name}")
+            migrated[name] = source_value.detach().clone()
+        else:
+            migrated[name] = torch.zeros_like(destination_value)
+    return destination_config, migrated
+
+
+def migrate_heart_translation_v3_to_v5(
+    source_state_dict: Mapping[str, torch.Tensor],
+    source_config: HeartTranslationCoreConfig,
+) -> tuple[HeartTranslationCoreConfig, OrderedDict[str, torch.Tensor]]:
+    """Add exact-zero same-address tissue behind a governed opt-in boundary."""
+
+    destination_config, migrated = migrate_heart_translation_v3_to_v4(
+        source_state_dict,
+        source_config,
+    )
+    return replace(destination_config, positional_copy_requires_opt_in=True), migrated
+
+
 __all__ = [
-    "HEART_TRANSLATION_ARCHITECTURE",
     "HEART_SEMANTIC_LABELS",
-    "HeartTranslationCoreConfig",
-    "HeartSourceCoverage",
-    "HeartGeneratedTranslation",
+    "HEART_TRANSLATION_ARCHITECTURE",
+    "HEART_TRANSLATION_ARCHITECTURE_V3",
+    "HEART_TRANSLATION_ARCHITECTURE_V4",
+    "HEART_TRANSLATION_ARCHITECTURE_V5",
     "HeartDecoderTrace",
-    "HeartTranslationOutput",
+    "HeartGeneratedTranslation",
+    "HeartSourceCoverage",
     "HeartTranslationCore",
+    "HeartTranslationCoreConfig",
+    "HeartTranslationOutput",
+    "heart_translation_architecture_id",
+    "migrate_heart_translation_v3_to_v4",
+    "migrate_heart_translation_v3_to_v5",
 ]

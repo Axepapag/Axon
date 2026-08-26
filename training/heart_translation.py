@@ -9,6 +9,7 @@ measurable.  Every case is content-addressed and labeled synthetic in provenance
 from __future__ import annotations
 
 import json
+import math
 import os
 import random
 import tempfile
@@ -31,11 +32,11 @@ from substrate import assert_supported_text, default_alphabet
 HEART_CURRICULUM_SCHEMA = "axon-heart-translation-curriculum-v3"
 HEART_CASE_SCHEMA = "axon-heart-translation-case-v3"
 HEART_EVALUATION_SCHEMA = "axon-heart-translation-evaluation-v4"
-HEART_DECODER_DIAGNOSTIC_SCHEMA = "axon-heart-decoder-diagnostic-v2"
-HEART_DECODER_CASE_DIAGNOSTIC_SCHEMA = "axon-heart-decoder-case-diagnostic-v1"
+HEART_DECODER_DIAGNOSTIC_SCHEMA = "axon-heart-decoder-diagnostic-v3"
+HEART_DECODER_CASE_DIAGNOSTIC_SCHEMA = "axon-heart-decoder-case-diagnostic-v2"
 HEART_DECODER_MECHANISM_CURRICULUM_SCHEMA = "axon-heart-decoder-mechanism-curriculum-v1"
 HEART_DECODER_GENERALIZATION_CURRICULUM_SCHEMA = "axon-heart-decoder-generalization-curriculum-v1"
-HEART_DECODER_GENERALIZATION_OBJECTIVE_SCHEMA = "axon-heart-decoder-generalization-objective-v2"
+HEART_DECODER_GENERALIZATION_OBJECTIVE_SCHEMA = "axon-heart-decoder-generalization-objective-v3"
 HEART_DECODER_GENERALIZATION_EVIDENCE_SCHEMA = "axon-heart-decoder-generalization-evidence-v1"
 HEART_DECODER_COUNTERFACTUAL_SCHEMA = "axon-heart-decoder-counterfactual-pair-v1"
 HEART_TRAINING_OBJECTIVE_SCHEMA = "axon-heart-translation-training-objective-v1"
@@ -227,6 +228,7 @@ class HeartDecoderGeneralizationObjective:
     diagonal_alignment_weight: float = 1.0
     copy_route_weight: float = 0.1
     eos_route_weight: float = 0.25
+    positional_copy_route_weight: float = 1.0
     semantic_weight: float = 0.01
     pointer_weight: float = 0.01
     objective_id: str = field(init=False)
@@ -237,6 +239,7 @@ class HeartDecoderGeneralizationObjective:
             "diagonal_alignment_weight",
             "copy_route_weight",
             "eos_route_weight",
+            "positional_copy_route_weight",
             "semantic_weight",
             "pointer_weight",
         ):
@@ -257,6 +260,7 @@ class HeartDecoderGeneralizationObjective:
             "diagonal_alignment_weight": self.diagonal_alignment_weight,
             "copy_route_weight": self.copy_route_weight,
             "eos_route_weight": self.eos_route_weight,
+            "positional_copy_route_weight": self.positional_copy_route_weight,
             "semantic_weight": self.semantic_weight,
             "pointer_weight": self.pointer_weight,
         }
@@ -750,6 +754,7 @@ class HeartDecoderGeneralizationLoss:
     diagonal_alignment: torch.Tensor
     copy_route: torch.Tensor
     eos_route: torch.Tensor
+    positional_copy_route: torch.Tensor
     semantic: torch.Tensor
     pointers: torch.Tensor
 
@@ -854,6 +859,9 @@ class HeartDecoderCaseDiagnostic:
     mean_noncopyable_generation_gate: float | None
     mean_target_character_attention_mass: float | None
     mean_attention_peak: float
+    mean_positional_copy_gate: float | None
+    mean_character_positional_copy_gate: float | None
+    eos_positional_copy_gate: float | None
     diagnostic_id: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -894,6 +902,9 @@ class HeartDecoderCaseDiagnostic:
             "mean_noncopyable_generation_gate": self.mean_noncopyable_generation_gate,
             "mean_target_character_attention_mass": self.mean_target_character_attention_mass,
             "mean_attention_peak": self.mean_attention_peak,
+            "mean_positional_copy_gate": self.mean_positional_copy_gate,
+            "mean_character_positional_copy_gate": self.mean_character_positional_copy_gate,
+            "eos_positional_copy_gate": self.eos_positional_copy_gate,
         }
         if include_id:
             value["diagnostic_id"] = self.diagnostic_id
@@ -919,6 +930,10 @@ class HeartDecoderDiagnosticReport:
     mean_noncopyable_generation_gate: float | None
     mean_target_character_attention_mass: float | None
     mean_attention_peak: float
+    mean_positional_copy_gate: float | None
+    mean_character_positional_copy_gate: float | None
+    mean_eos_positional_copy_gate: float | None
+    positional_copy_available_rate: float | None
     position_accuracy: tuple[tuple[int, int, float], ...]
     case_diagnostics: tuple[HeartDecoderCaseDiagnostic, ...]
     diagnostic_id: str = field(init=False)
@@ -956,6 +971,10 @@ class HeartDecoderDiagnosticReport:
             "mean_noncopyable_generation_gate": self.mean_noncopyable_generation_gate,
             "mean_target_character_attention_mass": self.mean_target_character_attention_mass,
             "mean_attention_peak": self.mean_attention_peak,
+            "mean_positional_copy_gate": self.mean_positional_copy_gate,
+            "mean_character_positional_copy_gate": self.mean_character_positional_copy_gate,
+            "mean_eos_positional_copy_gate": self.mean_eos_positional_copy_gate,
+            "positional_copy_available_rate": self.positional_copy_available_rate,
             "position_accuracy": [
                 {"position": position, "support": support, "accuracy": accuracy}
                 for position, support, accuracy in self.position_accuracy
@@ -2001,6 +2020,7 @@ def heart_decoder_generalization_loss(
         batch.decoder_input_ids,
         source_cells16=batch.source_cells16,
         source_positions=batch.source_positions,
+        allow_positional_copy_route=True,
     )
     gathered = output.target_log_probs.gather(2, batch.target_ids.unsqueeze(-1)).squeeze(-1)
     translation = -(gathered * batch.target_mask.to(gathered.dtype)).sum() / batch.target_mask.sum().clamp_min(1)
@@ -2027,6 +2047,19 @@ def heart_decoder_generalization_loss(
         generation_gate.clamp_min(torch.finfo(generation_gate.dtype).tiny).log()
         * eos_mask.to(generation_gate.dtype)
     ).sum() / eos_mask.sum().clamp_min(1)
+    positional_gate = output.decoder_trace.positional_copy_gate
+    positional_available = output.decoder_trace.positional_copy_available
+    if positional_gate is None or positional_available is None:
+        positional_copy_route = translation.new_zeros(())
+    else:
+        positional_values = positional_gate.squeeze(-1)
+        positional_mask = batch.target_mask & positional_available
+        # A squared route target gives the exact-zero migrated gate a useful
+        # gradient while retaining exact v3 behavior before the first update.
+        positional_copy_route = (
+            (1.0 - positional_values).square()
+            * positional_mask.to(positional_values.dtype)
+        ).sum() / positional_mask.sum().clamp_min(1)
 
     semantic_terms = [
         F.cross_entropy(output.semantic_logits[name], batch.semantic_targets[name])
@@ -2045,6 +2078,7 @@ def heart_decoder_generalization_loss(
         + resolved_objective.diagonal_alignment_weight * diagonal_alignment
         + resolved_objective.copy_route_weight * copy_route
         + resolved_objective.eos_route_weight * eos_route
+        + resolved_objective.positional_copy_route_weight * positional_copy_route
         + resolved_objective.semantic_weight * semantic
         + resolved_objective.pointer_weight * pointers
     )
@@ -2054,6 +2088,7 @@ def heart_decoder_generalization_loss(
         diagonal_alignment=diagonal_alignment,
         copy_route=copy_route,
         eos_route=eos_route,
+        positional_copy_route=positional_copy_route,
         semantic=semantic,
         pointers=pointers,
     )
@@ -2091,6 +2126,69 @@ def deterministic_length_bucketed_batches(
             for bucket in bucket_names:
                 if epoch_chunks[bucket] and len(batches) < steps:
                     batches.append(epoch_chunks[bucket].pop(0))
+    return tuple(batches)
+
+
+def deterministic_staged_whole_case_batches(
+    cases: Sequence[HeartTranslationCase],
+    *,
+    batch_size: int,
+    steps: int,
+    seed: int,
+    page_chars: int = 256,
+) -> tuple[tuple[HeartTranslationCase, ...], ...]:
+    """Grow length exposure by complete cases, then train full-corpus epochs.
+
+    Every stage is completed before the next begins. No source is sliced and a
+    requested run too short to reach the full corpus fails closed.
+    """
+
+    rows = tuple(cases)
+    if not rows or batch_size < 1 or steps < 1:
+        raise ValueError("staged whole-case batches require cases and positive batch/step counts")
+    bucketed: dict[str, list[HeartTranslationCase]] = {}
+    for case in rows:
+        bucketed.setdefault(_identity_length_bucket(len(case.source_text), page_chars), []).append(case)
+    bucket_names = tuple(
+        sorted(bucketed, key=lambda name: min(len(case.source_text) for case in bucketed[name]))
+    )
+    boundaries = tuple(
+        sorted(
+            {
+                max(1, math.ceil(len(bucket_names) / 3)),
+                max(1, math.ceil(2 * len(bucket_names) / 3)),
+                len(bucket_names),
+            }
+        )
+    )
+    rng = random.Random(seed)
+
+    def one_epoch(active_names: Sequence[str]) -> list[tuple[HeartTranslationCase, ...]]:
+        chunks: dict[str, list[tuple[HeartTranslationCase, ...]]] = {}
+        for name in active_names:
+            shuffled = list(bucketed[name])
+            rng.shuffle(shuffled)
+            chunks[name] = [
+                tuple(shuffled[start : start + batch_size])
+                for start in range(0, len(shuffled), batch_size)
+            ]
+        epoch: list[tuple[HeartTranslationCase, ...]] = []
+        while any(chunks.values()):
+            for name in active_names:
+                if chunks[name]:
+                    epoch.append(chunks[name].pop(0))
+        return epoch
+
+    batches: list[tuple[HeartTranslationCase, ...]] = []
+    for boundary in boundaries:
+        batches.extend(one_epoch(bucket_names[:boundary]))
+    if len(batches) > steps:
+        raise ValueError(
+            f"staged whole-case schedule requires at least {len(batches)} steps to reach every case"
+        )
+    while len(batches) < steps:
+        epoch = one_epoch(bucket_names)
+        batches.extend(epoch[: steps - len(batches)])
     return tuple(batches)
 
 
@@ -2198,6 +2296,10 @@ def evaluate_heart_decoder_diagnostics(
         "noncopyable_generation": [0.0, 0],
         "target_attention": [0.0, 0],
         "attention_peak": [0.0, 0],
+        "positional_copy": [0.0, 0],
+        "character_positional_copy": [0.0, 0],
+        "eos_positional_copy": [0.0, 0],
+        "positional_available": [0.0, 0],
     }
     max_chars = max(len(case.target_text) for case in rows) + 12
     model.eval()
@@ -2213,6 +2315,7 @@ def evaluate_heart_decoder_diagnostics(
                 batch.decoder_input_ids,
                 source_cells16=batch.source_cells16,
                 source_positions=batch.source_positions,
+                allow_positional_copy_route=True,
             )
             generated = model.greedy_translate(
                 batch.source_indices,
@@ -2222,6 +2325,7 @@ def evaluate_heart_decoder_diagnostics(
                 max_chars=max_chars,
                 source_cells16=batch.source_cells16,
                 source_positions=batch.source_positions,
+                allow_positional_copy_route=True,
             )
 
         predictions = output.target_log_probs.argmax(dim=-1)
@@ -2249,6 +2353,8 @@ def evaluate_heart_decoder_diagnostics(
             attention * source_matches_target.to(attention.dtype)
         ).sum(dim=-1)
         attention_peak = attention.max(dim=-1).values
+        positional_gate = output.decoder_trace.positional_copy_gate
+        positional_available = output.decoder_trace.positional_copy_available
 
         for name, values, mask in (
             ("generation", generation_gate, batch.target_mask),
@@ -2260,6 +2366,17 @@ def evaluate_heart_decoder_diagnostics(
             total, support = _masked_total(values, mask)
             aggregate_totals[name][0] += total
             aggregate_totals[name][1] += support
+        if positional_gate is not None and positional_available is not None:
+            positional_values = positional_gate.squeeze(-1)
+            for name, values, mask in (
+                ("positional_copy", positional_values, batch.target_mask),
+                ("character_positional_copy", positional_values, character_mask),
+                ("eos_positional_copy", positional_values, batch.target_mask & batch.target_ids.eq(model.eos_index)),
+                ("positional_available", positional_available.to(positional_values.dtype), batch.target_mask),
+            ):
+                total, support = _masked_total(values, mask)
+                aggregate_totals[name][0] += total
+                aggregate_totals[name][1] += support
 
         for position in range(character_mask.shape[1]):
             support = int(character_mask[:, position].sum().item())
@@ -2311,6 +2428,21 @@ def evaluate_heart_decoder_diagnostics(
                         target_attention_mass[row], copyable[row]
                     ),
                     mean_attention_peak=mean_peak,
+                    mean_positional_copy_gate=(
+                        _masked_mean(positional_gate[row].squeeze(-1), row_target_mask)
+                        if positional_gate is not None
+                        else None
+                    ),
+                    mean_character_positional_copy_gate=(
+                        _masked_mean(positional_gate[row].squeeze(-1), row_character_mask)
+                        if positional_gate is not None
+                        else None
+                    ),
+                    eos_positional_copy_gate=(
+                        float(positional_gate[row, target_characters, 0].item())
+                        if positional_gate is not None
+                        else None
+                    ),
                 )
             )
 
@@ -2340,6 +2472,10 @@ def evaluate_heart_decoder_diagnostics(
         mean_noncopyable_generation_gate=aggregate_mean("noncopyable_generation"),
         mean_target_character_attention_mass=aggregate_mean("target_attention"),
         mean_attention_peak=aggregate_mean("attention_peak") or 0.0,
+        mean_positional_copy_gate=aggregate_mean("positional_copy"),
+        mean_character_positional_copy_gate=aggregate_mean("character_positional_copy"),
+        mean_eos_positional_copy_gate=aggregate_mean("eos_positional_copy"),
+        positional_copy_available_rate=aggregate_mean("positional_available"),
         position_accuracy=position_accuracy,
         case_diagnostics=tuple(case_diagnostics),
     )
@@ -2387,6 +2523,7 @@ def evaluate_heart_decoder_generalization(
                 batch.decoder_input_ids,
                 source_cells16=batch.source_cells16,
                 source_positions=batch.source_positions,
+                allow_positional_copy_route=True,
             )
         attention = output.decoder_trace.memory_attention
         character_mask = batch.target_mask & batch.target_ids.ne(model.eos_index)
@@ -2782,6 +2919,7 @@ __all__ = [
     "build_heart_translation_curriculum",
     "collate_heart_translation_cases",
     "deterministic_length_bucketed_batches",
+    "deterministic_staged_whole_case_batches",
     "deterministic_training_batches",
     "evaluate_heart_decoder_diagnostics",
     "evaluate_heart_decoder_generalization",
