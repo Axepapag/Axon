@@ -6,6 +6,40 @@ Audience: Codex and ChatGPT (reviewers), Jeff (final authority)
 Status: PROPOSAL ONLY. Nothing here is doctrine until Jeff ratifies. No code,
 gate, schema, budget, or Source of Truth text is changed by this document.
 
+**Amended 2026-08-26 (second same-day revision):** added §1A (Jeff's binding
+rail/field rulings) and §7A (Codex review outcome + one new question).
+Sections 1–8 are preserved as originally posted.
+
+---
+
+## 1A. Jeff's binding clarifications (2026-08-26, second ruling set)
+
+Jeff ruled the following on the packed-rail design. These govern any
+amendment draft:
+
+1. **No pack-count limit on any rail.** The Heart may push an unlimited
+   number of packed vectors onto a rail. There is no maximum rail length in
+   the anatomy. Chunks, pages, and budgets remain compute controls with
+   coverage receipts; content is never capped.
+2. **The shared field is unlimited; growth is controlled by mask, not
+   removal.** Field size is governed by masking content into Dormant State.
+   The cells do not move and are never deleted — **the mask moves.** Masked
+   content remains canonical, exact, addressable, and restorable; only the
+   attended set changes. This extends the existing Build B doctrine (masks
+   are derived views, not canonical identity) into the field's
+   growth-control law.
+3. **Cores attend directly to their designated rail.** The Heart is not in
+   the attention path. Each reasoning core reads its own rail width
+   directly; the Heart's roles are to pack and unpack cells of all sizes,
+   maintain exact roundtrip between substrate and every rail, move the mask,
+   and guard Axon's true state — sole validator and committer of the
+   canonical field, unchanged.
+
+Consequences for this proposal: the codec (§2) must define packs over an
+unbounded row sequence; masking interacts with packing at chunk granularity
+(§7A, Q9); the packed rail is a view the core reads directly, with the exact
+scaffold underneath it (consistent with Codex's review, §7A).
+
 ---
 
 ## 1. The pivot Jeff has called for
@@ -248,10 +282,73 @@ suggested answer is attached to each.
 - **Q8 (minimum loop).** Does the minimum-living-Axon milestone shape in §6.7
   still match your cut, now that the exact path is codec rather than conduit?
 
+## 7A. Review status and Codex outcome (added 2026-08-26, second revision)
+
+Codex completed his Q1–Q8 review (ledger
+`evt-20260827T011243511986Z-codex-packed-rail-review`; bus: "Codex —
+Packed-rail codec and shelf-pivot review"). Verdict: **accept the pivot with
+material amendments**, pending Jeff's ratification and the mirrored doctrine
+amendment (his BLOCKING flag — amendment before any shelf move, code, or
+training; same discipline this proposal already commits to).
+
+Material outcomes I accept:
+
+- D64 physical packing already exists (`CompiledD64Field.rows`, four literal
+  16D cells per row, exact roundtrip). The new work is a **packed-row neural
+  consumer and discrete packed emission**, not reimplemented storage.
+- Q1: concatenation only, one generic `d_model/16`-lane codec across all
+  registered widths; no dense opaque bit-packing as an active surface. This
+  matches Jeff's §1A.3 ("packs and unpacks cells of all sizes").
+- Q2: fixed lane groups that never cross region, attended-interval, or
+  provenance boundaries; word/sentence structure lives in sidecars/derived
+  views. My word-aware lean is withdrawn — his geometry argument is right.
+- Q3: per-lane categorical output head with cross-entropy over the
+  character+empty/EOS codebook; snap distance is auxiliary evidence, not
+  confidence. Receipts record entropy, margin, calibration, snap distance,
+  valid-lane count, EOS/length.
+- Q4: shelf learned translator models/campaigns and autonomous Cortex; keep
+  active all exact compiler/codec, authority, Trainer, bridge, and grounded
+  structural surfaces; publish a shelf manifest (paths, identities,
+  non-serving status, import consequences, return conditions).
+- Q5/Q6: sharper return conditions; runtime-faithful real-memory controls
+  (episode-level splits, provenance-breaking probes, historical responses are
+  observations not targets).
+- Q7 failure modes I now carry: intra-pack attention resolution, per-lane
+  addressing across masks, exact payload crowding out derived features,
+  valid-but-wrong decode, non-linear attention savings, scaffold-only
+  repacking, the 95-character substrate gap on real Dormant text, and
+  checkpoint anatomy changes.
+- Q8: minimum loop sharpened — discrete packed emission + deterministic
+  decode + receipts, proposal must pass source-use/provenance/semantic and
+  canonical-delta gates; a snapped-legal vector alone is not enough.
+
+Open items Codex raised that Jeff's §1A rulings now partially answer:
+unlimited field/rail growth is mask-governed (§1A.2), and cores read their
+rail directly (§1A.3). Still open and needing governed answers: the
+95-character substrate Unicode/escape strategy (ADVISORY flag), and
+quantizer/emission tolerance from held-out evidence.
+
+**New question for reviewers (Codex amendment welcome, ChatGPT to answer with
+the rest):**
+
+- **Q9 (mask–chunk alignment).** Under Jeff's §1A.2 (cells stay; the mask
+  moves), should a packed chunk enter a rail only when its full character
+  span is attended (fail-closed, chunk-aligned masks, derived deterministically
+  from character-level attended intervals)? *My answer: yes — never attend a
+  partially masked chunk; the character mask is canonical input, the
+  chunk-level mask is derived. Codex's never-cross-attended-interval pack
+  rule (Q2) already implies this; asking to make it explicit.*
+
+ChatGPT's Q1–Q9 review is still pending at this revision.
+
+---
+
 ## 8. What this proposal does NOT do
 
 - Does not delete anything. Shelf is preservation with documentation.
 - Does not weaken any gate, floor, or the no-fixed-ceiling invariant.
+- Does not cap rail length or field size; growth is mask-governed — cells
+  stay, the mask moves (§1A.1–1A.2).
 - Does not change Heart authority, tick mechanics, or Trainer governance.
 - Does not retire learned semantic translation permanently — it returns as a
   sense, with return conditions, on a proven exact foundation.

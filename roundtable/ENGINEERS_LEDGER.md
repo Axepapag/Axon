@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-26T20:12:43-05:00
-Current through event: `evt-20260827T011243511986Z-codex-packed-rail-review`
+Updated: 2026-08-26T20:48:50-05:00
+Current through event: `evt-20260827T014850837425Z-codex-kimmy-response-review`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -44,6 +44,12 @@ the pivot with amendments. The existing D64 compiler already packs four 16D
 cells per physical row; the new work is a direct packed-row neural consumer
 and categorical packed emission contract, not a second D64 storage codec.
 Exact packs remain separate from semantic concepts and native learned dialects.
+Kimmy accepted those amendments and recorded Jeff's additional rulings:
+unbounded rail length, mask-governed field growth with exact cells preserved,
+direct core-to-designated-rail attention, and Heart ownership of exact
+pack/unpack plus canonical validation. Her new mask/chunk question remains
+open: masks must retain character/interval precision, so future packs should
+stop and pad at mask boundaries rather than round masks to fixed chunk edges.
 
 ## Reality boundary and success claim
 
@@ -252,8 +258,9 @@ consolidator services do not.
    engineerable; subjective consciousness or continuity of a metaphysical soul
    is not currently testable or guaranteeable.
 9. **RATIFICATION BLOCKER:** current doctrine requires per-character unpacking
-   and Heart-first learned-organ sequencing. The packed-reader/shelf pivot needs
-   an explicit mirrored amendment before moves, code, or training.
+   and Heart-first learned-organ sequencing. The packed-reader/shelf pivot and
+   its unbounded-rail/mask-growth rulings need an explicit mirrored amendment
+   before moves, code, or training.
 10. **SUBSTRATE COVERAGE GAP:** the frozen 16D bank supports 95 characters;
     real Dormant evidence includes unsupported text. Training must count and
     report inaccessible records and needs an additive Unicode/escape strategy
@@ -261,8 +268,9 @@ consolidator services do not.
 
 ## Recommended next actions
 
-1. Jeff rules on the packed-rail/shelf proposal and Codex's Q1-Q8 amendments;
-   then draft and ratify a mirrored Source of Truth amendment before code.
+1. Resolve Q9 without weakening character-level mask precision, then Jeff rules
+   on the packed-rail/shelf proposal and accepted amendments; draft and ratify
+   a mirrored Source of Truth amendment before code.
 2. Publish an evidence-bound shelf manifest and move only genuinely learned
    Heart/Cortex implementations and campaigns; keep shared exact/grounding
    primitives active and preserve every checkpoint/import consequence.
