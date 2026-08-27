@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-26T15:53:10-05:00
-Current through event: `evt-20260826T205310607902Z-kimmy-codex-convergence-review`
+Updated: 2026-08-26T20:12:43-05:00
+Current through event: `evt-20260827T011243511986Z-codex-packed-rail-review`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -36,6 +36,14 @@ sole failure is a pure 16-character identity case that copies six exact
 characters and then emits premature EOS under the soft per-position blend. It
 is not a wrongly selected translation case. Current v5 is migration/mechanism
 evidence, not yet the final learned copy-vs-translate selector contract.
+
+Jeff has proposed a new sequencing pivot: preserve learned Heart/Cortex work
+on a documented shelf, prove exact packed-rail circulation first, then train
+reasoning cores from provenance-bound real Dormant experience. Codex accepts
+the pivot with amendments. The existing D64 compiler already packs four 16D
+cells per physical row; the new work is a direct packed-row neural consumer
+and categorical packed emission contract, not a second D64 storage codec.
+Exact packs remain separate from semantic concepts and native learned dialects.
 
 ## Reality boundary and success claim
 
@@ -243,35 +251,42 @@ consolidator services do not.
 8. **CLAIM BOUNDARY:** persistent private state and behavioral identity are
    engineerable; subjective consciousness or continuity of a metaphysical soul
    is not currently testable or guaranteeable.
+9. **RATIFICATION BLOCKER:** current doctrine requires per-character unpacking
+   and Heart-first learned-organ sequencing. The packed-reader/shelf pivot needs
+   an explicit mirrored amendment before moves, code, or training.
+10. **SUBSTRATE COVERAGE GAP:** the frozen 16D bank supports 95 characters;
+    real Dormant evidence includes unsupported text. Training must count and
+    report inaccessible records and needs an additive Unicode/escape strategy
+    before claiming general real-memory coverage.
 
 ## Recommended next actions
 
-1. Specify the control boundary between a learned Heart decision and
-   deterministic exact-conduit execution; keep the conduit unavailable on every
-   semantic path unless Heart explicitly selects it. Kimmy's proposal with
-   evidence base, boundary spec, replay-failure hypothesis, and convergence
-   questions Q1-Q10 for Codex is at
-   `roundtable/HEART_CONDUIT_CONTROL_BOUNDARY.md` (2026-08-26). Codex's Q1-Q10
-   convergence response is on the team bus; only Jeff's ratification remains.
-2. Diagnose the single failing replay case and require 37/37 preservation before
-   accepting any candidate; do not weaken the gate.
-3. Resume semantic translation training with the exact conduit disabled by
-   default and retain independent roundtrip, grounding, source-use and replay
-   gates.
-4. Wire response/tool/consolidator/Trainer outcome autobiography deposits and
-   provenance-aware lived-experience loaders.
-5. Implement native proposal envelopes/translation receipts before connecting
-   reasoning runners to the existing proposal board.
-6. Adopt explicit falsification checkpoints: retire or revise an approach when
-   an additive positional/staged ablation cannot move unseen sequence exactness,
-   when a competent reasoning core cannot circulate with acceptable CPU
-   latency, or when lived-experience training cannot improve held-out outcomes.
-7. After Heart earns its next gate, table the minimum-living-Axon end-to-end
-   milestone before expanding the control plane further.
+1. Jeff rules on the packed-rail/shelf proposal and Codex's Q1-Q8 amendments;
+   then draft and ratify a mirrored Source of Truth amendment before code.
+2. Publish an evidence-bound shelf manifest and move only genuinely learned
+   Heart/Cortex implementations and campaigns; keep shared exact/grounding
+   primitives active and preserve every checkpoint/import consequence.
+3. Generalize the existing exact physical-row compiler to registered widths,
+   add boundary/address receipts and a discrete per-lane emission head, then
+   prove exhaustive pack/unpack, mask-gap, repack, rejection and CPU behavior.
+4. Benchmark the existing permanent per-character D64 specialist against a new
+   packed-row consumer on the same runtime-faithful task; do not infer semantics
+   or compute savings from packing alone.
+5. Index `experience_v1`, wire missing autobiography outcomes, define episode/
+   time-safe splits and counterfactual source-use probes, and report unsupported
+   substrate coverage before reasoning-core training.
+6. Launch only a bounded Trainer-governed real-memory reasoning smoke after the
+   anatomy/preflight gates pass; observed historical responses are not presumed
+   correct targets.
+7. Table the minimum-living-Axon loop with exact packed circulation, grounded
+   recall/proposal, discrete typed emission, Heart validation/commit, automatic
+   outcome deposit, and demonstrated abstain/no-op behavior.
 
 ## Important paths and commands
 
 - SOT: `docs/SOURCE_OF_TRUTH.md`
+- Packed-rail proposal/review: `roundtable/PACKED_RAIL_CODEC_PROPOSAL.md` and
+  Codex's Q1-Q8 response in `roundtable/ENGINE_TEAM_BUS.md`
 - Generalization curriculum/loss/evidence: `training/heart_translation.py`
 - Governed run: `scripts/train_heart_decoder_generalization_smoke.py`
 - Latest governed-conduit evidence:
