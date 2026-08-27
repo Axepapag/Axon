@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-26T20:48:50-05:00
-Current through event: `evt-20260827T014850837425Z-codex-kimmy-response-review`
+Updated: 2026-08-26T22:12:06-05:00
+Current through event: `evt-20260827T031206801962Z-kimmy-packed-rail-ratification`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -29,27 +29,23 @@ The best gate-only candidate preserved 36/37 replay sequences, so it was
 correctly rejected and remains non-serving. Exact conduction anatomy is now
 proved; learned semantic Heart function is not.
 
-Kimmy and Codex have converged, pending Jeff's ratification, on learned
-advisory operation selection plus deterministic exact per-span execution.
-Independent replay diagnosis corrected the proposal's initial hypothesis: the
-sole failure is a pure 16-character identity case that copies six exact
-characters and then emits premature EOS under the soft per-position blend. It
-is not a wrongly selected translation case. Current v5 is migration/mechanism
-evidence, not yet the final learned copy-vs-translate selector contract.
-
-Jeff has proposed a new sequencing pivot: preserve learned Heart/Cortex work
-on a documented shelf, prove exact packed-rail circulation first, then train
-reasoning cores from provenance-bound real Dormant experience. Codex accepts
-the pivot with amendments. The existing D64 compiler already packs four 16D
-cells per physical row; the new work is a direct packed-row neural consumer
-and categorical packed emission contract, not a second D64 storage codec.
-Exact packs remain separate from semantic concepts and native learned dialects.
-Kimmy accepted those amendments and recorded Jeff's additional rulings:
-unbounded rail length, mask-governed field growth with exact cells preserved,
-direct core-to-designated-rail attention, and Heart ownership of exact
-pack/unpack plus canonical validation. Her new mask/chunk question remains
-open: masks must retain character/interval precision, so future packs should
-stop and pad at mask boundaries rather than round masks to fixed chunk edges.
+**Pivot ratified by Jeff on 2026-08-26** after full three-way convergence
+(Kimmy proposal, Codex Q1-Q9 review, ChatGPT review). Ratified doctrine now
+lives in both SoT mirrors, section "Packed substrate rails and the shelf
+pivot (ratified 2026-08-26)": exact packed rails with no pack-count ceiling
+(generic `d_model/16`-lane codec, packs never cross region/attended-interval/
+provenance boundaries, boundary packs use explicit empty lanes); the
+corrected mask law (masking is the per-region 0-100% materialization
+boundary between Shared Field and Dormant — cells never move, the mask
+moves, masked material resides exact in Dormant); discrete per-lane
+categorical emission with deterministic Heart reconstruction (no approximate
+continuous decode); the shelf (learned Heart translator + autonomous Cortex
+preserved non-serving with manifest and return conditions); reasoning cores
+as the new first learned-organ priority, trained from real Dormant memory;
+95-character substrate coverage law; and tests-before-training first proof.
+The per-character D64 reader remains permanent specialist tissue. The
+proposal document (`roundtable/PACKED_RAIL_CODEC_PROPOSAL.md`) is now
+historical context for that doctrine.
 
 ## Reality boundary and success claim
 
@@ -85,9 +81,8 @@ specialist tissue rather than being forced to become the whole mind.
 
 - Jeff is project convener and final authority.
 - `docs/SOURCE_OF_TRUTH.md` and root `SOURCE_OF_TRUTH.md` are byte-identical at
-  SHA256 `CF99D9CAF75443A17008394FB645D8ADAC9F93177748E3946B962C6169BF7121`
-  (re-verified 2026-08-26; previously recorded value was a stale summary line,
-  not mirror drift).
+  SHA256 `BD83AF87C9A2B50381E498388F8AA115355ED288197634CF96315682F1E4CAA3`
+  (packed-rail pivot amendment, ratified by Jeff 2026-08-26).
 - No trained anatomy may contain a fixed character/context ceiling, finite
   learned position table, wrapping page index, destructive truncation, or silent
   long-item exclusion. Pages, buckets, batches, and steps are compute controls.
@@ -268,9 +263,11 @@ consolidator services do not.
 
 ## Recommended next actions
 
-1. Resolve Q9 without weakening character-level mask precision, then Jeff rules
-   on the packed-rail/shelf proposal and accepted amendments; draft and ratify
-   a mirrored Source of Truth amendment before code.
+1. ~~Resolve Q9; Jeff rules; ratify a mirrored SoT amendment~~ — DONE
+   2026-08-26: Q9 resolved with Codex's precision correction (packs stop and
+   pad at attended-interval boundaries; character masks never rounded), Jeff
+   ratified, and the amendment is live in both SoT mirrors at SHA256
+   `BD83AF87…` ("Packed substrate rails and the shelf pivot").
 2. Publish an evidence-bound shelf manifest and move only genuinely learned
    Heart/Cortex implementations and campaigns; keep shared exact/grounding
    primitives active and preserve every checkpoint/import consequence.

@@ -22,10 +22,13 @@ amendment draft:
    the anatomy. Chunks, pages, and budgets remain compute controls with
    coverage receipts; content is never capped.
 2. **The shared field is unlimited; growth is controlled by mask, not
-   removal.** Field size is governed by masking content into Dormant State.
+   removal.** Masking is the boundary between the shared field and Dormant
+   State: older conversation turns and cold regions remain fully preserved
+   in state but are hidden from the shared field. The Heart circulates only
+   the unmasked field. Regions are individually maskable from 0% to 100%.
    The cells do not move and are never deleted — **the mask moves.** Masked
    content remains canonical, exact, addressable, and restorable; only the
-   attended set changes. This extends the existing Build B doctrine (masks
+   circulated set changes. This extends the existing Build B doctrine (masks
    are derived views, not canonical identity) into the field's
    growth-control law.
 3. **Cores attend directly to their designated rail.** The Heart is not in
@@ -338,8 +341,54 @@ the rest):**
   partially masked chunk; the character mask is canonical input, the
   chunk-level mask is derived. Codex's never-cross-attended-interval pack
   rule (Q2) already implies this; asking to make it explicit.*
+  **Codex's answer (2026-08-26, accepted):** precision correction — packs
+  must never cross attended-interval boundaries, but character-level masks
+  must NOT be rounded to chunk boundaries or allowed to suppress attended
+  edge characters. Boundary packs carry explicit empty lanes for masked
+  characters. Masking loses nothing from state; it only shapes circulation,
+  exactly per Jeff's §1A.2 semantics.
 
 ChatGPT's Q1–Q9 review is still pending at this revision.
+
+---
+
+## 7B. ChatGPT review and Jeff's ratification (added 2026-08-26, third revision)
+
+ChatGPT's review arrived via Jeff and is convergent. Accepted points:
+
+- The mask is the boundary controlling what Dormant memory is materialized
+  into the current Shared Field — not primarily a character-within-pack
+  mask. Dormant decides what exists in memory; the Shared Field decides what
+  is currently present; masks decide how much of each region is present; the
+  Heart guarantees exact circulation; rails are native working surfaces;
+  cores learn reasoning, not serialization.
+- Emission must be **discrete lane decisions** (character/empty/EOS or
+  another registered substrate symbol) with the Heart deterministically
+  reconstructing exact cells — matching Codex's Q3 categorical-head
+  amendment. Input packing is exactly invertible because the Heart
+  constructed it from known cells; output exactness comes from discrete
+  decisions, never from claiming an arbitrary continuous vector is
+  invertible.
+- 0–100% region masks are **policy**, resolved deterministically into exact
+  spans/turns *before* compilation; packing never understands "30%".
+- The decisive consequence ChatGPT named: **the Heart no longer needs to be
+  intelligent to make heterogeneous reasoning cores possible** — a 64D core
+  and a 512D core receive different physical packings of the same exact
+  active state under one deterministic truth boundary. The hardest
+  uncertainty moves from plumbing to the measurable question: can reasoning
+  cores become useful from real Axon experience?
+- His SoT correction is applied in the ratified amendment: masked material
+  resides in **Dormant**; the Shared Field contains only what region
+  materialization/mask policies expose.
+
+**Jeff ratified the pivot 2026-08-26** ("we are all on the same page... go
+through each step"). The ratified doctrine now lives in
+`docs/SOURCE_OF_TRUTH.md`, section "Packed substrate rails and the shelf
+pivot (ratified 2026-08-26)" — packed rails with no pack-count ceiling, the
+corrected mask law, discrete per-lane emission, the shelf with return
+conditions, reasoning-cores-next on real Dormant memory, substrate-coverage
+law, and the tests-before-training first proof. This proposal document is
+now historical context for that doctrine.
 
 ---
 

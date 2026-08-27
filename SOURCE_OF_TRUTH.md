@@ -192,7 +192,87 @@ submit proposed mutations; they never mutate canonical state directly. Cores,
 consolidators, ingress paths, and the dormant valve all cross the heart's typed
 validation/transaction boundary.
 
+### Packed substrate rails and the shelf pivot (ratified 2026-08-26)
+
+Jeff ratified the packed-rail pivot on 2026-08-26 after the roundtable
+convergence recorded in `roundtable/PACKED_RAIL_CODEC_PROPOSAL.md`
+(including Codex's Q1-Q9 review and ChatGPT's mask-model correction). This
+section is binding doctrine.
+
+- Three contracts stay distinct: the exact packed scaffold, the derived
+  neural representation a core actually consumes, and discrete output
+  serialization. An exact pack is exact storage, not by itself a learned
+  semantic unit.
+- Rails pack exact 16D substrate cells into disjoint literal lanes:
+  `d_model / 16` cells per packed row at each registered width (64D = 4,
+  128D = 8, 256D = 16, 512D = 32, 1024D = 64). One generic codec must prove
+  every registered width rather than bespoke per-width codecs. Dense opaque
+  bit/positional packing is not an active reasoning surface.
+- No pack-count ceiling exists on any rail; the Heart may push an unlimited
+  number of packed rows. Packs never cross logical-region, attended-interval,
+  or provenance/source-span boundaries; boundary packs carry explicit empty
+  lanes so attended edge characters are never suppressed. Pages, chunks, and
+  budgets remain compute controls with coverage receipts; content is never
+  capped.
+- Mask law (corrected model): masking is the materialization boundary
+  between the Shared Field and Dormant State, governed independently per
+  region from 0% to 100%. Mask policies resolve deterministically into exact
+  spans/turns before compilation; the Heart circulates only the exposed
+  field. Masked material resides in Dormant — exact, addressable, and
+  restorable by stable identity — and later recall can rematerialize it into
+  the Shared Field. The cells never move; the mask moves. Packing never
+  interprets a percentage: it receives an exact active field and packs
+  everything presented to it.
+- Cores attend directly to their designated rail; the Heart is not in the
+  attention path. The Heart packs and unpacks cells at every registered
+  width, maintains exact substrate/rail and rail-to-rail roundtrips, moves
+  masks, and remains the sole validator and committer of canonical state.
+- Emission contract: a core emits discrete per-lane categorical decisions
+  over the registered codebook (substrate character, empty, EOS), trained
+  with per-lane cross-entropy per Layer 13. The Heart deterministically
+  reconstructs exact 16D cells and the typed proposal from those decisions.
+  Nearest-vector snapping is auxiliary evidence only; an arbitrary
+  continuous vector is never claimed to be exactly invertible.
+- Shelf: the learned Heart translator tissue, its training campaigns and
+  checkpoints, and autonomous Cortex implementations are shelved —
+  preserved, non-serving, documented by a shelf manifest (original paths,
+  commit/checkpoint/evidence identities, import consequences, return
+  conditions). Remaining active: the exact compiler/codec, the deterministic
+  Heart control plane, the Trainer, the Dormant evidence bridge, and
+  deterministic grounded structural surfaces. Return conditions: learned
+  translation returns when a native dialect, language, reordering,
+  paraphrase, or other non-copy transformation cannot be represented by
+  exact repacking; learned Cortex returns when measured real-memory
+  retrieval/episode organization is the bottleneck and a grounded evaluation
+  can prove gain.
+- Learned-organ priority is now the reasoning cores on packed rails, trained
+  by the Trainer from real Dormant memory (`experience_v1` and lived
+  autobiography through the evidence bridge) under runtime-faithful
+  controls: episode/conversation-level time splits, remove/swap/inject/
+  stale-evidence/provenance-breaking/reordered-cause counterfactual probes,
+  cited source IDs, and historical responses treated as observations, not
+  presumed targets. Synthetic minimal pairs remain necessary supplements for
+  rare critical distinctions.
+- Substrate coverage: the frozen 95-character substrate does not represent
+  every real Dormant character. Campaigns must count inaccessible
+  characters, and a governed additive Unicode/escape strategy precedes any
+  general real-memory coverage claim.
+- The per-character D64 reader remains permanent specialist tissue. Exact
+  repacking translates the exact scaffold only; it is not semantic
+  translation and does not translate learned native dialects.
+- The first proof is tests, not training: a generic `d_model/16`-lane
+  compiler/view, boundary/address receipts, and a categorical pack decoder,
+  with exhaustive substrate roundtrip, mask-gap and provenance-boundary,
+  cross-width repack, and rejection evidence before any packed-reader
+  training begins.
+
 ### Heart intelligence and semantic conduction
+
+(Shelved 2026-08-26 under the packed-rail pivot: the learned ensemble this
+section describes is preserved, non-serving tissue with the return
+conditions stated in "Packed substrate rails and the shelf pivot". The
+deterministic Heart authority wrapped around it remains fully active
+doctrine.)
 
 The mature Heart is not merely a deterministic router. It may contain a
 Trainer-governed ensemble of learned translation/conduction cores that help it
@@ -481,7 +561,7 @@ Core diversity should emerge naturally from governed variation in lived-experien
 
 Steady-state Axon should normally keep at least one **isolated non-live candidate learning lane** active on admissible lived-experience or study curriculum while other cores serve the organism. "Always learning" never means forcing meaningless gradient steps: if no curriculum passes provenance/quality gates, that lane remains occupied with curation, replay construction, evaluation, or forgetting analysis until admissible learning material exists. The live accepted cores remain immutable until a candidate independently passes Trainer gates and activation.
 
-**Current first learned-organ priority is the Heart translation/conduction ensemble.** Reasoning and Semantic Cortex training remain behind it. The Trainer recognizes Heart translation cores/adapters as explicit parameter-bearing organ kinds. `runtime/heart/translation_core.py` is now the first permanent learned Heart tissue: a 64D, two-layer, four-head, 4096-FFN translator grounded from the frozen 16D character substrate, with explicit semantic, referent, and grounding heads; it has no canonical-write authority. Architecture v3 has no learned or validated source/target character ceiling. A configurable physical page is only a processing unit: two ordered recurrent sweeps visit every exact source character, the second sweep builds full addressable character memory from a query state that has already traversed the complete source, and a coverage record binds per-row source-index hashes, page spans, and visited counts. Source and decoder positions are deterministic sinusoidal functions rather than finite learned tables. `runtime/heart/d64_codec.py` freezes each actual `SharedFieldSnapshot` through the exact and semantic D64 compilers, verifies exact roundtrip and grounding, and supplies the Heart with the literal raw 16D lane cells plus monotonically increasing canonical character positions. Masking earlier spans therefore cannot renumber later active text. A substituted lane cell, stale field/rail/surface identity, or proposal not bound to the frozen frame fails closed. `training/heart_translation.py` materializes every provenance-labeled structured-proposition curriculum case as a real Shared Field and real D64 frame before model input; it provides disjoint heldout/regression/counterfactual suites, semantic/grounding evaluation, and an immutable content-addressed task-loss objective. Curriculum v3 includes train and held-out complete-field cases for every critical semantic class whose grounded spans begin beyond character 256. Its current training recipe uses deterministic shuffled epochs: every case is visited once before reshuffling, and the immutable recipe identity is bound into candidate generation and source lineage. A first real Trainer-governed 12-step CUDA smoke used the obsolete fixed-192 architecture v1; it lowered loss from 4.9502 to 4.3422 and moved some semantic submetrics, but grounded roundtrip and aggregate semantic fidelity remained 0.0, so the candidate was rejected and no activation/promotion proposal occurred. Its immutable artifacts remain historical evidence and are not compatible with v3.
+**Current first learned-organ priority (shelf pivot, ratified 2026-08-26): the reasoning cores on packed rails, trained from real Dormant memory.** The Heart translation/conduction ensemble and autonomous Semantic Cortex are shelved as preserved non-serving tissue (see "Packed substrate rails and the shelf pivot"); the priority history below is retained as evidence. The Trainer recognizes Heart translation cores/adapters as explicit parameter-bearing organ kinds. `runtime/heart/translation_core.py` is now the first permanent learned Heart tissue: a 64D, two-layer, four-head, 4096-FFN translator grounded from the frozen 16D character substrate, with explicit semantic, referent, and grounding heads; it has no canonical-write authority. Architecture v3 has no learned or validated source/target character ceiling. A configurable physical page is only a processing unit: two ordered recurrent sweeps visit every exact source character, the second sweep builds full addressable character memory from a query state that has already traversed the complete source, and a coverage record binds per-row source-index hashes, page spans, and visited counts. Source and decoder positions are deterministic sinusoidal functions rather than finite learned tables. `runtime/heart/d64_codec.py` freezes each actual `SharedFieldSnapshot` through the exact and semantic D64 compilers, verifies exact roundtrip and grounding, and supplies the Heart with the literal raw 16D lane cells plus monotonically increasing canonical character positions. Masking earlier spans therefore cannot renumber later active text. A substituted lane cell, stale field/rail/surface identity, or proposal not bound to the frozen frame fails closed. `training/heart_translation.py` materializes every provenance-labeled structured-proposition curriculum case as a real Shared Field and real D64 frame before model input; it provides disjoint heldout/regression/counterfactual suites, semantic/grounding evaluation, and an immutable content-addressed task-loss objective. Curriculum v3 includes train and held-out complete-field cases for every critical semantic class whose grounded spans begin beyond character 256. Its current training recipe uses deterministic shuffled epochs: every case is visited once before reshuffling, and the immutable recipe identity is bound into candidate generation and source lineage. A first real Trainer-governed 12-step CUDA smoke used the obsolete fixed-192 architecture v1; it lowered loss from 4.9502 to 4.3422 and moved some semantic submetrics, but grounded roundtrip and aggregate semantic fidelity remained 0.0, so the candidate was rejected and no activation/promotion proposal occurred. Its immutable artifacts remain historical evidence and are not compatible with v3.
 
 The current real-D64 v4 diagnostic culminated in a governed 512-step, batch-8
 CUDA candidate (`run_id`
