@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-28T10:36:17-05:00
-Current through event: `evt-20260828T153617941522Z-codex-unicode-substrate-audit`
+Updated: 2026-08-28T10:55:54-05:00
+Current through event: `evt-20260828T155554988191Z-codex-substrate-width-review`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -71,6 +71,17 @@ raw canonical Unicode unchanged, compiles unsupported code points to an
 unambiguous sequence of existing frozen cells, escapes the literal sentinel,
 and receipts every expanded transport lane back to its canonical address.
 
+Substrate-width review on 2026-08-28 found no reason to replace that canonical
+16D scaffold. Width and vocabulary coverage are separate: 24D or 32D does not
+make a finite codebook universal. The proven 16D bank still passes all geometry
+gates and tiles D64–D1024 exactly; 32D also tiles but halves exact-cell density,
+while 24D wastes 16/64 dimensions on D64 and is irregular on every registered
+power-of-two rail. The recommended evidence path is a compact categorical
+UTF-8 transport over frozen/additive 16D cells compared against an optional
+derived 32D Unicode/semantic sidecar. A 32D winner may be added, especially as
+the frozen 16D exact cell plus 16 new derived features, but must not silently
+replace or orphan the canonical 16D tissue.
+
 ## Reality boundary and success claim
 
 Axon's central engineering vision is grounded: exact persistent state, a shared
@@ -128,6 +139,9 @@ specialist tissue rather than being forced to become the whole mind.
 - The current 95-cell writing bank is frozen permanent tissue. Universal
   Unicode support must be additive and exactly reversible; raw canonical text
   may not be normalized, dropped, substituted, or rewritten as escapes.
+- Substrate cell width is not reasoning width. D64 reasoning already lifts the
+  exact scaffold into 64D hidden state. 24D is not a registered replacement;
+  32D is an admissible derived comparator only, pending evidence.
 - Discrete content uses discrete loss. Counterfactual/source-use evidence and
   regression/replay floors outrank decreasing training loss.
 - `D:\00` is protected read-only source evidence. Exact lived evidence is never
@@ -263,6 +277,9 @@ consolidator services do not.
   compiled with complete coverage and exact roundtrip; native bank roundtrip
   was 95/95. Emoji, accent, backtick, tab, CR, and curly-quote probes all
   rejected with `UnsupportedActiveCharacterError` as designed.
+- Frozen 16D geometry recheck passed every gate. Packing arithmetic: 16D gives
+  4/8/16/32/64 cells on D64/D128/D256/D512/D1024; 32D gives
+  2/4/8/16/32; 24D gives only two D64 cells and wastes 16 dimensions.
 - Fixed-character poison scanner: passed with zero violations.
 - Substrate conformance, Python compileall, SOT mirror equality, and
   `git diff --check`: passed.
@@ -329,12 +346,14 @@ consolidator services do not.
    registered widths divisible by 16, add a discrete per-lane emission head,
    then prove exhaustive pack/unpack, mask-gap, cross-width repack, rejection,
    and CPU behavior.
-5. Before reasoning-core training, ratify and implement the universal Unicode
-   transport: raw canonical Unicode remains unchanged; masks resolve before
-   expansion; direct supported cells stay frozen; unsupported code points and
-   literal sentinels encode reversibly; malformed transport rejects; receipts
-   bind canonical and transport positions; expansion is measured on
-   `experience_v1` and active code.
+5. Before reasoning-core training, run and ratify the bounded universal-
+   transport comparator: compact categorical UTF-8 over frozen/additive 16D
+   cells versus an optional derived 32D Unicode capsule. Raw canonical Unicode
+   remains unchanged; masks resolve before expansion; malformed transport
+   rejects; receipts bind canonical and transport positions. Measure complete
+   roundtrip, geometry/category separation, expansion on `experience_v1`, D64
+   rows, CPU throughput, copy learning, and checkpoint compatibility. Do not
+   replace canonical 16D or adopt 24D.
 6. Benchmark the existing permanent per-character D64 specialist against a new
    packed-row consumer on the same runtime-faithful task; do not infer semantics
    or compute savings from packing alone.
