@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-28T16:20:45-05:00
-Current through event: `evt-20260828T212045247851Z-codex-reasoning-circulation-runtime`
+Updated: 2026-08-28T16:42:07-05:00
+Current through event: `evt-20260828T2142070016603Z-codex-layered-soul-proposal`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -226,6 +226,68 @@ construction, preflight binding, and autonomous pedagogy remain open.
   canonical receipt, response, and explicit later outcome evidence. The loader
   verifies the exact successor and whole-conversation split. Tool effects and
   Trainer results have exact hooks but still need automatic executor wiring.
+
+## Layered soul architecture proposal (not yet ratified)
+
+Jeff requires reasoning cores to use their persistent private souls during
+training, not acquire soul state only after deployment. Codex agrees and would
+block substantive reasoning training until training and service share the same
+versioned inhale/emission/exhale contract. Mechanism fixtures may remain
+stateless, but they are not evidence about a learned living core.
+
+The proposed soul is layered rather than one opaque tensor:
+
+- **Constitution/identity:** a frozen or separately governed layer carrying
+  core identity, Axon's inherited identity and values, role, provenance, and
+  schema compatibility. Recovered autobiography may seed this only as explicit
+  inherited Axon evidence, never as fabricated per-core lived experience.
+- **Cold private soul:** preserved, append-only private experience,
+  commitments, corrections, and exact evidence references. It may be masked or
+  retrieved for compute, never truncated; Dormant State remains the exact
+  authoritative copy of factual and episodic evidence.
+- **Warm private soul:** slowly changing self-model, relationships, projects,
+  durable preferences, habits, confidence/calibration, and provenance-bound
+  episode summaries. Mutations are typed, content-addressed, versioned, and
+  rollbackable.
+- **Hot private soul:** compact current intent, hypotheses, affective/control
+  state, and recurrent working state. It updates after first proposal,
+  refinement, and consolidation, then is promoted, retained, or allowed to
+  expire according to explicit policy; it is never sole factual authority.
+- **Learned procedural tissue:** weights and governed LoRA/adapters distill
+  repeated strategies from lived trajectories. They are not the sole store of
+  identity, autobiography, or recoverable evidence.
+
+Exact typed soul regions and latent recurrent state may coexist. Exact
+identity, commitments, journal entries, and evidence links must stay readable
+and auditable. Latent state may carry useful intuition and affect, but must be
+checkpointed, hashed, schema-versioned, and incapable of silently becoming the
+only copy of an exact fact. Each core owns a distinct private soul; brothers
+see its proposals, not its private state. A common inherited Axon constitution
+can seed every core while warm/hot trajectories develop distinct perspectives.
+
+Training must causally unroll the real three-phase runtime. For every core and
+phase it loads the exact pre-soul, inhales it, attends the same frozen field and
+eligible proposal workspace used in service, emits a typed field proposal plus
+a typed soul delta, and commits the resulting private soul before the next
+phase. Episode records therefore need `core_id`, `soul_before_id`, frozen view,
+visible proposal workspace, emission, `soul_delta_id`, `soul_after_id`, and
+later outcome/evidence. A loader must fail closed on any missing or stale link.
+
+Offline training never mutates a live core soul. Trainer forks parameters and
+the matching soul snapshot into a candidate branch, replays episodes in causal
+order, and promotes or rolls back both compatible tissues together. Because a
+live soul can continue changing while a candidate trains, promotion needs an
+explicit merge/rebase of newer live soul events rather than overwriting them.
+Held-out trajectories receive their own pre-split soul fork; today's
+future-rich soul may never be used to answer yesterday's held-out episode.
+
+The first soul-conditioned campaign must include no-soul, swapped-soul,
+stale-soul, and irrelevant-soul ablations; field-truth-over-soul conflicts;
+cross-core contamination and invented-memory rejection; crash/restart and
+rollback exactness; no-op/abstain; and long-horizon continuity. Useful behavior
+must measurably degrade when the relevant soul is removed while remaining
+stable when irrelevant soul is removed. This distinguishes genuine soul use
+from decorative context.
 
 ## Heart identity-generalization evidence
 
