@@ -4,6 +4,7 @@ Every rejection the heart can issue has a dedicated name so callers, tests,
 and audit logs can distinguish *why* a proposal, participant, or commit was
 refused.  Nothing in this package fails open.
 """
+
 from __future__ import annotations
 
 
@@ -139,43 +140,48 @@ class HealthCorruptionError(HeartError):
     """Durable Heart identity/health metadata is corrupt or untrusted."""
 
 
+class MaskStateCorruptionError(HeartError):
+    """Durable per-region mask-control state is corrupt or untrusted."""
+
+
 class HostStateError(HeartError):
     """The permanent Heart host is in an inconsistent or illegal state."""
 
 
 __all__ = [
-    "HeartError",
-    "InvalidAuthorityGrantError",
     "AuthorityViolationError",
+    "BarrierClosedError",
+    "BarrierNotReadyError",
+    "CoreCommitError",
     "CoreRegistryError",
     "DuplicateCoreError",
-    "UnknownCoreError",
-    "NoActiveParticipantsError",
-    "HeartbeatError",
-    "StaleRailBindingError",
-    "RailWidthMismatchError",
-    "StaleBaseProposalError",
-    "ProposalBoardError",
-    "UnknownParticipantError",
     "DuplicateProposalError",
-    "RailMembershipError",
-    "BarrierNotReadyError",
-    "BarrierClosedError",
-    "HeartTransactionError",
-    "IngressDuringTickError",
-    "ValveDuringTickError",
-    "CoreCommitError",
-    "TickBindingError",
     "FinalCommitAlreadyMadeError",
-    "LeaseDeniedError",
-    "UnknownValveError",
-    "ValveClosedError",
-    "ValveBudgetExceededError",
-    "ValveSourceMismatchError",
-    "ValveAuthorityError",
-    "ValveAdmissionError",
-    "PoisonEventError",
-    "ReplayEventError",
     "HealthCorruptionError",
+    "HeartError",
+    "HeartTransactionError",
+    "HeartbeatError",
     "HostStateError",
+    "IngressDuringTickError",
+    "InvalidAuthorityGrantError",
+    "LeaseDeniedError",
+    "MaskStateCorruptionError",
+    "NoActiveParticipantsError",
+    "PoisonEventError",
+    "ProposalBoardError",
+    "RailMembershipError",
+    "RailWidthMismatchError",
+    "ReplayEventError",
+    "StaleBaseProposalError",
+    "StaleRailBindingError",
+    "TickBindingError",
+    "UnknownCoreError",
+    "UnknownParticipantError",
+    "UnknownValveError",
+    "ValveAdmissionError",
+    "ValveAuthorityError",
+    "ValveBudgetExceededError",
+    "ValveClosedError",
+    "ValveDuringTickError",
+    "ValveSourceMismatchError",
 ]

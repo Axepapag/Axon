@@ -1,9 +1,10 @@
 """Immutable canonical shared-field schema.
 
-The canonical field is a logical, auditable document.  It is deliberately not
-limited to the current 384-position model window; that limit belongs to the
-compiled D64 rail.
+The canonical regional body is a logical, auditable document with no character
+ceiling.  Physical pages and packed rows are processing units only; neither the
+Shared Field view nor any compiled rail may silently omit an unmasked cell.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -11,7 +12,7 @@ import json
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
 from types import MappingProxyType
-from typing import Any, Mapping
+from typing import Any, Iterator, Mapping
 
 LEGACY_SCHEMA_VERSION = "shared-field-v1"
 SCHEMA_VERSION = "shared-field-v2"
@@ -85,7 +86,13 @@ class AttendedInterval:
 
 @dataclass(frozen=True, slots=True)
 class RegionMaskPolicy:
-    """A reusable policy that resolves to attended intervals for one region."""
+    """A reusable policy that resolves one region to exact attended intervals.
+
+    ``tail_percent`` is the operational 0-100 slider policy.  It exposes an
+    exact newest-character suffix using integer ceiling arithmetic, so every
+    non-zero setting exposes at least one cell when the region is non-empty.
+    The percentage is only control input; compilers receive exact intervals.
+    """
 
     kind: str
     limit: int = 0
@@ -97,11 +104,13 @@ class RegionMaskPolicy:
             raise TypeError("RegionMaskPolicy.limit must be an integer")
         if self.limit < 0:
             raise ValueError("RegionMaskPolicy.limit must be non-negative")
-        if self.kind not in {"all", "none", "last_n_spans"}:
+        if self.kind not in {"all", "none", "last_n_spans", "tail_percent"}:
             raise ValueError(
                 f"unsupported RegionMaskPolicy.kind {self.kind!r}; "
-                f"expected 'all', 'none', or 'last_n_spans'"
+                "expected 'all', 'none', 'last_n_spans', or 'tail_percent'"
             )
+        if self.kind == "tail_percent" and self.limit > 100:
+            raise ValueError("tail_percent limit must be in [0, 100]")
 
     def to_canonical_dict(self) -> dict[str, Any]:
         return {"kind": self.kind, "limit": self.limit}
@@ -122,6 +131,11 @@ def resolve_mask_policy(
         return ()
     if policy.kind == "all":
         return (AttendedInterval(0, text_length),)
+    if policy.kind == "tail_percent":
+        if policy.limit == 0:
+            return ()
+        attended_count = (text_length * policy.limit + 99) // 100
+        return (AttendedInterval(text_length - attended_count, text_length),)
     if policy.kind == "last_n_spans":
         limit = policy.limit
         total = len(spans)
@@ -250,8 +264,10 @@ class RegionState:
     """Immutable state of one canonical logical region.
 
     The region preserves its complete canonical text in ``spans``.  Attention
-    masks select which characters are attended by the D64 rail; masked text
-    remains canonical and restorable, but is not compiled.
+    masks select which characters are attended by a rail; masked text remains
+    canonical in this same position-stable region but is not compiled.  The
+    serialized ``visibility`` value remains for legacy snapshot compatibility;
+    the live Heart path uses its independent mask controller instead.
     """
 
     name: LogicalRegion | str
@@ -274,19 +290,13 @@ class RegionState:
         object.__setattr__(self, "spans", spans)
 
         visibility = (
-            self.visibility
-            if isinstance(self.visibility, RegionVisibility)
-            else RegionVisibility(self.visibility)
+            self.visibility if isinstance(self.visibility, RegionVisibility) else RegionVisibility(self.visibility)
         )
         object.__setattr__(self, "visibility", visibility)
 
         policy = self.write_policy
         if policy is None:
-            policy = (
-                WritePolicy.CORE_WRITABLE
-                if name in CORE_WRITABLE_REGIONS
-                else WritePolicy.SEALED
-            )
+            policy = WritePolicy.CORE_WRITABLE if name in CORE_WRITABLE_REGIONS else WritePolicy.SEALED
         elif not isinstance(policy, WritePolicy):
             policy = WritePolicy(policy)
         if policy is WritePolicy.CORE_WRITABLE and name not in CORE_WRITABLE_REGIONS:
@@ -304,9 +314,7 @@ class RegionState:
             if mask_policy is not None:
                 intervals = resolve_mask_policy(spans, mask_policy)
             elif visibility is RegionVisibility.ATTENDED:
-                intervals = (
-                    (AttendedInterval(0, text_length),) if text_length > 0 else ()
-                )
+                intervals = (AttendedInterval(0, text_length),) if text_length > 0 else ()
             else:
                 intervals = ()
         else:
@@ -323,18 +331,14 @@ class RegionState:
         previous_end = 0
         for interval in intervals:
             if not isinstance(interval, AttendedInterval):
-                raise TypeError(
-                    "RegionState.attended_intervals must contain AttendedInterval values"
-                )
+                raise TypeError("RegionState.attended_intervals must contain AttendedInterval values")
             if interval.start < 0 or interval.end > text_length:
                 raise ValueError(
                     f"attended interval [{interval.start}, {interval.end}) exceeds "
                     f"region {name.value!r} length {text_length}"
                 )
             if interval.start < previous_end:
-                raise ValueError(
-                    f"attended intervals in region {name.value!r} must be sorted and non-overlapping"
-                )
+                raise ValueError(f"attended intervals in region {name.value!r} must be sorted and non-overlapping")
             previous_end = interval.end
 
     @property
@@ -485,31 +489,20 @@ class SharedFieldSnapshot:
             raise TypeError("SharedFieldSnapshot.tick_id must be an integer")
         if self.tick_id < 0:
             raise ValueError("SharedFieldSnapshot.tick_id must be non-negative")
-        if self.parent_field_id is not None and (
-            not isinstance(self.parent_field_id, str) or not self.parent_field_id
-        ):
+        if self.parent_field_id is not None and (not isinstance(self.parent_field_id, str) or not self.parent_field_id):
             raise ValueError("parent_field_id must be None or a non-empty string")
 
         supplied: dict[LogicalRegion, RegionState] = {}
         for region_state in tuple(self.regions):
             if not isinstance(region_state, RegionState):
-                raise TypeError(
-                    "SharedFieldSnapshot.regions must contain RegionState values"
-                )
+                raise TypeError("SharedFieldSnapshot.regions must contain RegionState values")
             if region_state.name in supplied:
-                raise ValueError(
-                    f"duplicate logical region {region_state.name.value!r}"
-                )
+                raise ValueError(f"duplicate logical region {region_state.name.value!r}")
             supplied[region_state.name] = region_state
-        normalized = tuple(
-            supplied.get(region, RegionState(name=region))
-            for region in CANONICAL_REGION_ORDER
-        )
+        normalized = tuple(supplied.get(region, RegionState(name=region)) for region in CANONICAL_REGION_ORDER)
         object.__setattr__(self, "regions", normalized)
 
-        manifests = tuple(
-            sorted(set(str(item) for item in self.source_manifest_ids))
-        )
+        manifests = tuple(sorted(set(str(item) for item in self.source_manifest_ids)))
         if any(not item for item in manifests):
             raise ValueError("source_manifest_ids cannot contain empty values")
         object.__setattr__(self, "source_manifest_ids", manifests)
@@ -591,23 +584,23 @@ class SharedFieldSnapshot:
 
 
 __all__ = [
+    "CANONICAL_REGION_ORDER",
+    "CORE_WRITABLE_REGIONS",
+    "LEGACY_CORTEX_REGION_NAME",
     "LEGACY_SCHEMA_VERSION",
+    "LOGICAL_REGION_IDS",
     "SCHEMA_VERSION",
     "SUPPORTED_SCHEMA_VERSIONS",
-    "LEGACY_CORTEX_REGION_NAME",
-    "LogicalRegion",
-    "CANONICAL_REGION_ORDER",
-    "LOGICAL_REGION_IDS",
-    "RegionVisibility",
-    "WritePolicy",
     "AttendedInterval",
-    "RegionMaskPolicy",
-    "resolve_mask_policy",
-    "PhysicalRole",
-    "CORE_WRITABLE_REGIONS",
     "FieldSpan",
+    "LogicalRegion",
+    "PhysicalRole",
+    "RegionMaskPolicy",
     "RegionState",
+    "RegionVisibility",
     "SharedFieldSnapshot",
+    "WritePolicy",
     "canonical_json_bytes",
     "canonical_sha256",
+    "resolve_mask_policy",
 ]

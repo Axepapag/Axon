@@ -11,6 +11,7 @@ four independently attended characters.  Every row contains up to four literal
 frozen 16D substrate cells and explicit lane addresses so consumers may unpack
 or address the exact characters without inference.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -34,8 +35,7 @@ from .schema import (
     resolve_mask_policy,
 )
 
-
-D64_COMPILER_SCHEMA = "axon-field-compiler-d64-v1"
+D64_COMPILER_SCHEMA = "axon-field-compiler-d64-v2"
 D64_WIDTH = 64
 SUBSTRATE_WIDTH = 16
 D64_LANES_PER_ROW = D64_WIDTH // SUBSTRATE_WIDTH
@@ -69,6 +69,9 @@ class CanonicalCharAddress:
     source: str
     provenance: str
     character: str
+    attended_interval_index: int
+    attended_interval_start: int
+    attended_interval_end: int
     row_index: int
     lane_index: int
 
@@ -82,6 +85,9 @@ class CanonicalCharAddress:
             "source": self.source,
             "provenance": self.provenance,
             "character": self.character,
+            "attended_interval_index": self.attended_interval_index,
+            "attended_interval_start": self.attended_interval_start,
+            "attended_interval_end": self.attended_interval_end,
             "row_index": self.row_index,
             "lane_index": self.lane_index,
         }
@@ -218,13 +224,8 @@ class CompiledD64Field:
     def assert_fresh(self, snapshot: SharedFieldSnapshot) -> None:
         if not isinstance(snapshot, SharedFieldSnapshot):
             raise TypeError("snapshot must be SharedFieldSnapshot")
-        if (
-            snapshot.field_id != self.source_field_id
-            or snapshot.tick_id != self.source_tick_id
-        ):
-            raise StaleCompiledFieldError(
-                "compiled D64 rail is stale for the supplied canonical snapshot"
-            )
+        if snapshot.field_id != self.source_field_id or snapshot.tick_id != self.source_tick_id:
+            raise StaleCompiledFieldError("compiled D64 rail is stale for the supplied canonical snapshot")
 
     def address(self, row: int, lane: int) -> CanonicalCharAddress | None:
         if row < 0 or row >= self.row_count:
@@ -241,11 +242,7 @@ class CompiledD64Field:
 
     def region_addresses(self, region: LogicalRegion | str) -> tuple[CanonicalCharAddress, ...]:
         logical = region if isinstance(region, LogicalRegion) else LogicalRegion(region)
-        return tuple(
-            address
-            for address in self.addresses
-            if address is not None and address.region is logical
-        )
+        return tuple(address for address in self.addresses if address is not None and address.region is logical)
 
     def region_text(self, region: LogicalRegion | str) -> str:
         addresses = self.region_addresses(region)
@@ -295,10 +292,7 @@ class CompiledD64Field:
             for page_index, start in enumerate(range(0, len(addresses), page_size)):
                 chunk = addresses[start : start + page_size]
                 cells = np.stack(
-                    [
-                        self.lane_cell16(address.row_index, address.lane_index)
-                        for address in chunk
-                    ],
+                    [self.lane_cell16(address.row_index, address.lane_index) for address in chunk],
                     axis=0,
                 ).astype(np.float32, copy=False)
                 yield D64CharacterPage(
@@ -333,9 +327,7 @@ class D64FieldCompiler:
         if not isinstance(snapshot, SharedFieldSnapshot):
             raise TypeError("D64FieldCompiler.compile requires SharedFieldSnapshot")
         if SLOT_DIM != SUBSTRATE_WIDTH:
-            raise FieldCompilerError(
-                f"frozen substrate width changed: expected 16, got {SLOT_DIM}"
-            )
+            raise FieldCompilerError(f"frozen substrate width changed: expected 16, got {SLOT_DIM}")
         masks = region_masks or {}
 
         rows: list[np.ndarray] = []
@@ -358,33 +350,33 @@ class D64FieldCompiler:
                 attended_intervals = resolve_mask_policy(state.spans, override)
             else:
                 attended_intervals = tuple(state.attended_intervals)
-            expected_active += sum(
-                interval.end - interval.start for interval in attended_intervals
-            )
+            expected_active += sum(interval.end - interval.start for interval in attended_intervals)
             cartography.extend(_cartography_for_region(region, text))
-            region_cells: list[np.ndarray] = []
-            region_addresses: list[CanonicalCharAddress] = []
-            region_position = 0
-            interval_index = 0
-            interval_count = len(attended_intervals)
+
+            # Compile one source group at a time.  A group is the intersection
+            # of exactly one attended interval and one canonical FieldSpan.
+            # Packing each group independently is the fail-closed boundary law:
+            # no row can bridge a mask gap, source span, or provenance source.
+            span_offset = 0
+            span_ranges: list[tuple[int, int, Any]] = []
             for span in state.spans:
-                span_position = 0
-                for character in span.text:
-                    # Advance past any intervals that have already ended so the
-                    # attended check is always evaluated against the current
-                    # interval.  Intervals are half-open [start, end), sorted,
-                    # and non-overlapping.
-                    while (
-                        interval_index < interval_count
-                        and attended_intervals[interval_index].end <= region_position
-                    ):
-                        interval_index += 1
-                    attended = (
-                        interval_index < interval_count
-                        and attended_intervals[interval_index].start <= region_position
-                        < attended_intervals[interval_index].end
-                    )
-                    if attended:
+                span_end = span_offset + len(span.text)
+                span_ranges.append((span_offset, span_end, span))
+                span_offset = span_end
+
+            for interval_index, interval in enumerate(attended_intervals):
+                if interval.start == interval.end:
+                    continue
+                for span_start, span_end, span in span_ranges:
+                    group_start = max(interval.start, span_start)
+                    group_end = min(interval.end, span_end)
+                    if group_start >= group_end:
+                        continue
+                    group_cells: list[np.ndarray] = []
+                    group_addresses: list[CanonicalCharAddress] = []
+                    for region_position in range(group_start, group_end):
+                        span_position = region_position - span_start
+                        character = span.text[span_position]
                         try:
                             assert_supported_text(character)
                             cell = np.asarray(char_to_slot(character), dtype=np.float32)
@@ -396,48 +388,43 @@ class D64FieldCompiler:
                                 f"character={character!r}"
                             ) from exc
                         if cell.shape != (SUBSTRATE_WIDTH,):
-                            raise FieldCompilerError(
-                                f"substrate returned invalid cell shape {cell.shape!r}"
-                            )
-                        region_cells.append(cell)
-                        region_addresses.append(
+                            raise FieldCompilerError(f"substrate returned invalid cell shape {cell.shape!r}")
+                        group_cells.append(cell)
+                        group_addresses.append(
                             CanonicalCharAddress(
                                 region=region,
                                 region_position=region_position,
-                                global_position=global_position,
+                                global_position=global_position + region_position,
                                 span_id=span.span_id,
                                 span_position=span_position,
                                 source=span.source,
                                 provenance=span.provenance,
                                 character=character,
+                                attended_interval_index=interval_index,
+                                attended_interval_start=interval.start,
+                                attended_interval_end=interval.end,
                                 row_index=-1,
                                 lane_index=-1,
                             )
                         )
-                    region_position += 1
-                    global_position += 1
-                    span_position += 1
 
-            for start in range(0, len(region_cells), D64_LANES_PER_ROW):
-                chunk_cells = region_cells[start : start + D64_LANES_PER_ROW]
-                chunk_addresses = region_addresses[start : start + D64_LANES_PER_ROW]
-                row = np.zeros((D64_WIDTH,), dtype=np.float32)
-                valid = np.zeros((D64_LANES_PER_ROW,), dtype=np.bool_)
-                row_index = len(rows)
-                for lane, (cell, address) in enumerate(zip(chunk_cells, chunk_addresses)):
-                    cell_start = lane * SUBSTRATE_WIDTH
-                    row[cell_start : cell_start + SUBSTRATE_WIDTH] = cell
-                    valid[lane] = True
-                    addresses.append(
-                        replace(address, row_index=row_index, lane_index=lane)
-                    )
-                addresses.extend(
-                    [None] * (D64_LANES_PER_ROW - len(chunk_addresses))
-                )
-                rows.append(row)
-                valid_masks.append(valid)
+                    for start in range(0, len(group_cells), D64_LANES_PER_ROW):
+                        chunk_cells = group_cells[start : start + D64_LANES_PER_ROW]
+                        chunk_addresses = group_addresses[start : start + D64_LANES_PER_ROW]
+                        row = np.zeros((D64_WIDTH,), dtype=np.float32)
+                        valid = np.zeros((D64_LANES_PER_ROW,), dtype=np.bool_)
+                        row_index = len(rows)
+                        for lane, (cell, address) in enumerate(zip(chunk_cells, chunk_addresses, strict=True)):
+                            cell_start = lane * SUBSTRATE_WIDTH
+                            row[cell_start : cell_start + SUBSTRATE_WIDTH] = cell
+                            valid[lane] = True
+                            addresses.append(replace(address, row_index=row_index, lane_index=lane))
+                        addresses.extend([None] * (D64_LANES_PER_ROW - len(chunk_addresses)))
+                        rows.append(row)
+                        valid_masks.append(valid)
 
             region_row_ranges.append((region.value, region_row_start, len(rows)))
+            global_position += len(text)
 
         rows_array = (
             np.stack(rows, axis=0).astype(np.float32, copy=False)
@@ -450,10 +437,7 @@ class D64FieldCompiler:
             else np.zeros((0, D64_LANES_PER_ROW), dtype=np.bool_)
         )
         rows_sha = hashlib.sha256(rows_array.astype("<f4", copy=False).tobytes(order="C")).hexdigest()
-        address_payload = [
-            None if address is None else address.to_canonical_dict()
-            for address in addresses
-        ]
+        address_payload = [None if address is None else address.to_canonical_dict() for address in addresses]
         address_sha = hashlib.sha256(canonical_json_bytes(address_payload)).hexdigest()
         valid_addresses = tuple(address for address in addresses if address is not None)
         compiled_count = len(valid_addresses)
@@ -477,11 +461,11 @@ class D64FieldCompiler:
             address_sha256=address_sha,
             roundtrip_sha256=roundtrip_sha,
             complete=(
-                tuple(visited_regions)
-                == tuple(region.value for region in CANONICAL_REGION_ORDER)
+                tuple(visited_regions) == tuple(region.value for region in CANONICAL_REGION_ORDER)
                 and compiled_count == expected_active
                 and int(valid_array.sum()) == compiled_count
                 and len(addresses) == rows_array.shape[0] * D64_LANES_PER_ROW
+                and _rows_respect_source_boundaries(tuple(addresses))
             ),
         )
         if not coverage.complete:
@@ -577,9 +561,7 @@ def _cartography_for_region(
         result.append(_cartographic_span("region_text", region, 0, len(text), text))
 
     for match in re.finditer(r"[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)*", text):
-        result.append(
-            _cartographic_span("word", region, match.start(), match.end(), match.group(0))
-        )
+        result.append(_cartographic_span("word", region, match.start(), match.end(), match.group(0)))
 
     sentence_start = 0
     for match in re.finditer(r"[.!?]+(?=\s|$)", text):
@@ -588,35 +570,23 @@ def _cartography_for_region(
         while start < end and text[start].isspace():
             start += 1
         if start < end:
-            result.append(
-                _cartographic_span("sentence", region, start, end, text[start:end])
-            )
+            result.append(_cartographic_span("sentence", region, start, end, text[start:end]))
         sentence_start = end
     if sentence_start < len(text):
         start = sentence_start
         while start < len(text) and text[start].isspace():
             start += 1
         if start < len(text):
-            result.append(
-                _cartographic_span("sentence", region, start, len(text), text[start:])
-            )
+            result.append(_cartographic_span("sentence", region, start, len(text), text[start:]))
 
     paragraph_start = 0
     for match in re.finditer(r"\n\s*\n", text):
         end = match.start()
         if paragraph_start < end:
-            result.append(
-                _cartographic_span(
-                    "paragraph", region, paragraph_start, end, text[paragraph_start:end]
-                )
-            )
+            result.append(_cartographic_span("paragraph", region, paragraph_start, end, text[paragraph_start:end]))
         paragraph_start = match.end()
     if paragraph_start < len(text):
-        result.append(
-            _cartographic_span(
-                "paragraph", region, paragraph_start, len(text), text[paragraph_start:]
-            )
-        )
+        result.append(_cartographic_span("paragraph", region, paragraph_start, len(text), text[paragraph_start:]))
     return result
 
 
@@ -644,32 +614,64 @@ def _verify_vector_roundtrip(compiled: CompiledD64Field) -> None:
             continue
         cells: list[np.ndarray] = []
         for address in addresses:
-            cells.append(
-                compiled.lane_cell16(address.row_index, address.lane_index)
-            )
+            cells.append(compiled.lane_cell16(address.row_index, address.lane_index))
         decoded = bank.decode_sequence(np.stack(cells, axis=0), blanks_as="")
         expected = "".join(address.character for address in addresses)
         if decoded != expected:
-            raise IncompleteRailError(
-                f"16D vector roundtrip mismatch in D64 rail region {region.value!r}"
+            raise IncompleteRailError(f"16D vector roundtrip mismatch in D64 rail region {region.value!r}")
+
+
+def _rows_respect_source_boundaries(
+    addresses: tuple[CanonicalCharAddress | None, ...],
+) -> bool:
+    """Prove every physical row belongs to one exact source group.
+
+    The address list is row-major with four lanes per D64 row.  Valid lanes
+    must be a contiguous prefix, and all of them must share region, attended
+    interval, canonical span, source, and provenance identity.
+    """
+
+    for start in range(0, len(addresses), D64_LANES_PER_ROW):
+        lanes = addresses[start : start + D64_LANES_PER_ROW]
+        seen_padding = False
+        boundary_keys: set[tuple[Any, ...]] = set()
+        for address in lanes:
+            if address is None:
+                seen_padding = True
+                continue
+            if seen_padding:
+                return False
+            boundary_keys.add(
+                (
+                    address.region,
+                    address.attended_interval_index,
+                    address.attended_interval_start,
+                    address.attended_interval_end,
+                    address.span_id,
+                    address.source,
+                    address.provenance,
+                )
             )
+        if len(boundary_keys) > 1:
+            return False
+    return True
 
 
 __all__ = [
     "D64_COMPILER_SCHEMA",
+    "D64_LANES_PER_ROW",
     "D64_WIDTH",
     "SUBSTRATE_WIDTH",
-    "D64_LANES_PER_ROW",
-    "FieldCompilerError",
-    "UnsupportedActiveCharacterError",
-    "IncompleteRailError",
-    "StaleCompiledFieldError",
     "CanonicalCharAddress",
     "CartographicSpan",
-    "D64CoverageManifest",
-    "D64CharacterPage",
     "CompiledD64Field",
+    "D64CharacterPage",
+    "D64CoverageManifest",
     "D64FieldCompiler",
-    "replacement_delta",
+    "FieldCompilerError",
+    "IncompleteRailError",
+    "StaleCompiledFieldError",
+    "UnsupportedActiveCharacterError",
     "apply_compiled_delta",
+    "replacement_delta",
 ]

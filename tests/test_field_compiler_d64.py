@@ -8,9 +8,9 @@ import torch
 
 from runtime.axon_runtime.d64_adapter import CanonicalD64RuntimeAdapter
 from runtime.field import (
-    AttendedInterval,
     CANONICAL_REGION_ORDER,
     D64_LANES_PER_ROW,
+    AttendedInterval,
     D64FieldCompiler,
     FieldSpan,
     LogicalRegion,
@@ -43,15 +43,11 @@ def test_d64_packs_four_exact_16d_cells_and_roundtrips() -> None:
 
 
 def test_rows_never_cross_region_boundaries_and_padding_is_explicit() -> None:
-    snapshot = SharedFieldSnapshot.from_texts(
-        {"conversation_history": "abc", "user_input": "wxyz1"}
-    )
+    snapshot = SharedFieldSnapshot.from_texts({"conversation_history": "abc", "user_input": "wxyz1"})
     compiled = D64FieldCompiler().compile(snapshot)
     for row in range(compiled.row_count):
         regions = {
-            address.region
-            for lane in range(D64_LANES_PER_ROW)
-            if (address := compiled.address(row, lane)) is not None
+            address.region for lane in range(D64_LANES_PER_ROW) if (address := compiled.address(row, lane)) is not None
         }
         assert len(regions) <= 1
     assert compiled.coverage.padding_lanes == 4  # 1 pad + 3 pads
@@ -62,7 +58,7 @@ def test_rows_never_cross_region_boundaries_and_padding_is_explicit() -> None:
 def test_compiler_visits_all_regions_and_preserves_masking() -> None:
     masked = RegionState.from_text(
         LogicalRegion.DIARY,
-        "secretÃ°Å¸â„¢â€š",
+        "secret\U0001f642",
         visibility="masked",
     )
     snapshot = SharedFieldSnapshot(
@@ -70,16 +66,14 @@ def test_compiler_visits_all_regions_and_preserves_masking() -> None:
         regions=(RegionState.from_text("user_input", "hello"), masked),
     )
     compiled = D64FieldCompiler().compile(snapshot)
-    assert compiled.coverage.visited_regions == tuple(
-        region.value for region in CANONICAL_REGION_ORDER
-    )
+    assert compiled.coverage.visited_regions == tuple(region.value for region in CANONICAL_REGION_ORDER)
     assert compiled.region_text("user_input") == "hello"
     assert compiled.region_text("diary") == ""
-    assert snapshot.region("diary").text == "secretÃ°Å¸â„¢â€š"
+    assert snapshot.region("diary").text == "secret\U0001f642"
 
 
 def test_unsupported_attended_character_fails_closed() -> None:
-    snapshot = SharedFieldSnapshot.from_texts({"user_input": "helloÃ°Å¸â„¢â€š"})
+    snapshot = SharedFieldSnapshot.from_texts({"user_input": "hello\U0001f642"})
     with pytest.raises(UnsupportedActiveCharacterError, match="user_input"):
         D64FieldCompiler().compile(snapshot)
 
@@ -166,9 +160,7 @@ def test_d64_reader_consumes_only_the_canonical_compiled_rail() -> None:
         "scratch": "plan",
     }
     snapshot = SharedFieldSnapshot.from_texts(field)
-    model = CompleteField64D(
-        ReaderConfig(page_size=4, inference_budget_chars=128, dropout=0.0)
-    )
+    model = CompleteField64D(ReaderConfig(page_size=4, inference_budget_chars=128, dropout=0.0))
     assert "local_position" not in dict(model.named_modules())
     assert "page_position" not in dict(model.named_modules())
     assert model._target_indices("a" * 1024).shape == (1025,)
@@ -182,16 +174,11 @@ def test_d64_reader_consumes_only_the_canonical_compiled_rail() -> None:
     assert memory.states.shape[-1] == 64
     valid_positions = memory.region_positions[memory.region_positions >= 0]
     assert int(valid_positions.numel()) == compiled.coverage.compiled_active_characters
-    assert compiled.active_texts() == {
-        region.value: snapshot.region(region).text
-        for region in CANONICAL_REGION_ORDER
-    }
+    assert compiled.active_texts() == {region.value: snapshot.region(region).text for region in CANONICAL_REGION_ORDER}
 
 
 def test_compiler_attends_last_n_spans_exactly() -> None:
-    spans = tuple(
-        FieldSpan(span_id=f"turn-{i}", text=f"{i}\n") for i in range(5)
-    )
+    spans = tuple(FieldSpan(span_id=f"turn-{i}", text=f"{i}\n") for i in range(5))
     state = RegionState(
         name=LogicalRegion.CONVERSATION_HISTORY,
         spans=spans,
@@ -223,6 +210,9 @@ def test_compiler_attends_disjoint_explicit_intervals() -> None:
     addresses = compiled.region_addresses("user_input")
     assert [a.region_position for a in addresses] == [0, 1, 5, 6]
     assert [a.span_position for a in addresses] == [0, 1, 5, 6]
+    assert [a.attended_interval_index for a in addresses] == [0, 0, 1, 1]
+    assert addresses[0].row_index != addresses[2].row_index
+    assert compiled.coverage.padding_lanes == 4
 
 
 def test_compiler_all_policy_attends_full_region_text() -> None:

@@ -14,6 +14,7 @@ a new canonical body.  This preserves the one-body doctrine: there is exactly
 one authoritative ``SharedFieldSnapshot``, and rails/tick images are derived
 projections of it.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -21,6 +22,12 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Mapping
 
+from runtime.dormant import (
+    DormantEvidenceBridge,
+    DormantEvidenceGenerationStore,
+    DormantRelevanceAuditor,
+    DormantRelevancePolicy,
+)
 from runtime.field import (
     CanonicalStateBranch,
     CompiledD64DualSurface,
@@ -34,16 +41,11 @@ from runtime.field import (
     canonical_sha256,
     replacement_delta,
 )
-from runtime.dormant import (
-    DormantEvidenceBridge,
-    DormantEvidenceGenerationStore,
-    DormantRelevanceAuditor,
-    DormantRelevancePolicy,
-)
 
-from .authority import AuthorityGrant, IngressChannel, INGRESS_OWNED_REGIONS
+from .authority import INGRESS_OWNED_REGIONS, AuthorityGrant, IngressChannel
 from .errors import HeartTransactionError
 from .ingress_queue import IngressItem, IngressQueue
+from .masks import HeartRegionMaskController
 from .registry import CoreRegistry
 from .tick import FrozenTickImage, HeartbeatClock, TickIdentity, derive_view_id
 from .transaction import HeartCommit, HeartTransactionBoundary
@@ -129,6 +131,7 @@ class BeatCoordinator:
         config: BeatConfig | None = None,
         compiler: D64FieldCompiler | None = None,
         semantic_compiler: D64SemanticSurfaceCompiler | None = None,
+        mask_controller: HeartRegionMaskController | None = None,
     ) -> None:
         if not isinstance(branch, CanonicalStateBranch):
             raise TypeError("BeatCoordinator requires a CanonicalStateBranch")
@@ -136,19 +139,19 @@ class BeatCoordinator:
             raise TypeError("BeatCoordinator requires a CoreRegistry")
         self._branch = branch
         self._registry = registry
-        self._state_root = (
-            None if state_root is None else Path(state_root).resolve()
-        )
+        self._state_root = None if state_root is None else Path(state_root).resolve()
         self._config = config if config is not None else BeatConfig()
         self._compiler = compiler if compiler is not None else D64FieldCompiler()
-        self._semantic_compiler = (
-            semantic_compiler if semantic_compiler is not None else D64SemanticSurfaceCompiler()
-        )
+        self._semantic_compiler = semantic_compiler if semantic_compiler is not None else D64SemanticSurfaceCompiler()
+        if mask_controller is not None and not isinstance(mask_controller, HeartRegionMaskController):
+            raise TypeError("mask_controller must be a HeartRegionMaskController")
+        self._mask_controller = mask_controller
         self._clock = HeartbeatClock()
         self._boundary = HeartTransactionBoundary()
         self._queue = IngressQueue()
         self._current_field = self._load_field()
         self._last_field_id: str | None = None
+        self._last_view_id: str | None = None
         self._open_tick_image: FrozenTickImage | None = None
         self._open_dual_surface: CompiledD64DualSurface | None = None
         self._bridge: DormantEvidenceBridge | None = None
@@ -170,6 +173,12 @@ class BeatCoordinator:
         return self._open_dual_surface
 
     @property
+    def open_tick_image(self) -> FrozenTickImage | None:
+        """Current immutable tick image, if a reasoning tick is in flight."""
+
+        return self._open_tick_image
+
+    @property
     def boundary(self) -> HeartTransactionBoundary:
         """Return the one Heart transaction boundary owned by this coordinator."""
 
@@ -186,6 +195,18 @@ class BeatCoordinator:
         """Identity of the opened dormant index, if recall has touched it."""
 
         return None if self._bridge is None else self._bridge.index.index_id
+
+    @property
+    def current_view_id(self) -> str:
+        """Identity of the complete mask policy set used for the next freeze."""
+
+        return derive_view_id(self._region_masks())
+
+    @property
+    def mask_view_changed(self) -> bool:
+        """Whether mask control moved since the last successfully frozen view."""
+
+        return self.current_view_id != self._last_view_id
 
     def sync_to_branch_head(self) -> SharedFieldSnapshot:
         """Synchronize coordinator memory to durable canonical HEAD."""
@@ -217,8 +238,10 @@ class BeatCoordinator:
         return self._queue.enqueue(channel, text, provenance=provenance)
 
     def _region_masks(self) -> dict[LogicalRegion, RegionMaskPolicy]:
-        """Return the derived attention masks supplied by configuration."""
+        """Return one detached complete mask set for this operation."""
 
+        if self._mask_controller is not None:
+            return self._mask_controller.policies()
         policies = self._config.region_policies
         return dict(policies) if policies else {}
 
@@ -294,9 +317,7 @@ class BeatCoordinator:
         )
         persisted = self._commit_to_branch(commit)
         if persisted.field_id != commit.successor.field_id:
-            raise HeartTransactionError(
-                "canonical branch HEAD disagrees with the Heart commit successor"
-            )
+            raise HeartTransactionError("canonical branch HEAD disagrees with the Heart commit successor")
         return commit
 
     def _drain_and_commit_ingress(
@@ -352,9 +373,7 @@ class BeatCoordinator:
             # generation resolution for real DormantEvidenceBridge instances.
             return self._bridge
         if self._state_root is None:
-            raise RuntimeError(
-                "BeatCoordinator has no state_root; cannot open dormant evidence bridge"
-            )
+            raise RuntimeError("BeatCoordinator has no state_root; cannot open dormant evidence bridge")
         if self._dormant_generations is None:
             self._dormant_generations = DormantEvidenceGenerationStore(self._state_root)
         generation_token = self._dormant_generations.active_token()
@@ -426,8 +445,7 @@ class BeatCoordinator:
         )
         generation_token = self._bridge_generation_token or "unversioned"
         recall_provenance = (
-            f"dormant_valve:{bridge.index.index_id}:generation:{generation_token}:"
-            f"relevance:{relevance.decision_id}"
+            f"dormant_valve:{bridge.index.index_id}:generation:{generation_token}:relevance:{relevance.decision_id}"
         )
 
         surfaced = bridge.surface(field, relevance.selected, replace_existing=True)
@@ -499,8 +517,7 @@ class BeatCoordinator:
                 from runtime.field import IncompleteRailError
 
                 raise IncompleteRailError(
-                    f"D64 roundtrip mismatch in {region!r}: "
-                    f"expected {len(expected)} chars, observed {len(observed)}"
+                    f"D64 roundtrip mismatch in {region!r}: expected {len(expected)} chars, observed {len(observed)}"
                 )
 
     def stabilize_recall(
@@ -534,6 +551,7 @@ class BeatCoordinator:
         self._boundary.note_tick_opened(image)
         self._open_tick_image = image
         self._open_dual_surface = dual_surface
+        self._last_view_id = image.view_id
         return image
 
     def _open_tick(self, field: SharedFieldSnapshot) -> FrozenTickImage:
@@ -570,11 +588,15 @@ class BeatCoordinator:
             field, ingress_commits = self._drain_and_commit_ingress(field)
             commits.extend(ingress_commits)
 
-            # 2. Detect canonical change against the last stabilized field.
-            changed = force or field.field_id != self._last_field_id
+            # 2. Detect canonical and derived-view change independently.  A
+            # mask move must circulate a new view over the same canonical body,
+            # but it is not a reason to run canonical dormant recall.
+            field_changed = field.field_id != self._last_field_id
+            view_changed = self.mask_view_changed
+            changed = force or field_changed or view_changed
 
             # 3. Primitive dormant recall when the active field changed.
-            if changed:
+            if force or field_changed:
                 field, recall_commit = self._run_recall(field)
                 if recall_commit is not None:
                     commits.append(recall_commit)

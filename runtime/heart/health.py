@@ -1,4 +1,5 @@
 """Durable read-only observability for the permanent Axon Heart."""
+
 from __future__ import annotations
 
 import json
@@ -34,6 +35,9 @@ class HeartHealth:
     lease_owner_token: str | None
     last_tick_uid: str | None = None
     last_view_id: str | None = None
+    mask_state_id: str | None = None
+    mask_revision: int | None = None
+    region_masks: dict[str, Any] | None = None
 
 
 class HealthJournal:
@@ -57,9 +61,7 @@ class HealthJournal:
             handle.write(line)
             handle.flush()
             os.fsync(handle.fileno())
-        temporary = self.latest_path.with_name(
-            self.latest_path.name + f".{os.getpid()}.tmp"
-        )
+        temporary = self.latest_path.with_name(self.latest_path.name + f".{os.getpid()}.tmp")
         with temporary.open("w", encoding="utf-8", newline="\n") as handle:
             handle.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
             handle.flush()
@@ -78,4 +80,4 @@ class HealthJournal:
         return value
 
 
-__all__ = ["HeartHealth", "HealthJournal"]
+__all__ = ["HealthJournal", "HeartHealth"]

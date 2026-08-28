@@ -1,10 +1,12 @@
 # Axon Source Of Truth
 
-Last updated: 2026-08-25 (Heart long-position curriculum and governed evidence recorded)
+Last updated: 2026-08-27 (in-place regional masking and Heart mask control corrected)
 
 ## Core Doctrine
 
-Axon is a stateful, always-on AI built around a canonical shared field and private reasoning cores.
+Axon is a stateful, always-on AI built around one canonical regional state body,
+an actively attended Shared Field selected from that body, and private reasoning
+cores.
 
 The field is Jeff's bridge into Axon's world. It must preserve exact English characters, provenance, and structured context without hiding meaning behind opaque semantic symbols.
 
@@ -15,7 +17,7 @@ The field is Jeff's bridge into Axon's world. It must preserve exact English cha
 - Character identity and order are source-of-truth data, not a lossy summary.
 - A larger `d_model` core may lift those 16D cells into its own lane, but it does not replace the canonical character field.
 
-## Active Shared Field
+## Canonical Regional State and Active Shared Field
 
 The shared field is organized into regions. Regions can include:
 
@@ -36,28 +38,36 @@ The canonical `cortex` region is not the whole Semantic Cortex organ. The organ 
 
 Persisted `shared-field-v1` history is immutable. Historical v1 snapshots keep their original serialized region name `structured_knowledge` and therefore keep their original `field_id`/hash. `CanonicalStateBranch.migrate_to_current_schema()` advances a branch by creating a new v2 successor with the exact same spans, provenance, manifests, and text, parented to the v1 HEAD; it never rewrites the historical snapshot. New v2 snapshots serialize the region as `cortex`.
 
-Each region contains ordered character cells plus metadata spans. Words, sentences, paragraphs, and semantic edges are represented as spans over exact characters with auditable metadata.
+Each region contains one position-stable ordered sequence of exact character
+cells plus metadata spans. Words, sentences, paragraphs, and semantic edges are
+represented as spans over those exact characters with auditable metadata. A
+region's complete sequence is canonical; masking never creates a second copy or
+changes the sequence's positions.
 
 No active exact-text path may collapse a paragraph into one opaque vector and then ask a small core to recover exact text from that vector.
 
-Every core pass attends the entire currently unmasked shared field. A physical
+The **Shared Field** is exactly the currently unmasked partition of every
+canonical region. Every core pass attends that entire Shared Field. A physical
 model window may be used as one page in a complete ordered sweep, but it is not
 an attention limit and may not silently omit unmasked field characters. Every
 logical pass must produce an auditable coverage record proving that each exact
 shared-field character was visited.
 
-Each persisted region may contain an unmasked shared-field portion and a masked
-dormant portion. Per-region policies may retain exact characters, lines,
-paragraphs, containers, or conversational turns. Changing a threshold moves
-the boundary only: masked text is preserved exactly, and moving the boundary
-back immediately restores that material to the shared field.
+Every region has an independent governed mask adjustable from 0% through 100%.
+Policies may resolve over exact characters, lines, paragraphs, containers, or
+conversational turns; a percentage control resolves deterministically to exact
+character intervals before compilation. Zero percent exposes none of that
+region, and 100% exposes all of it. Moving the mask backward toward older
+history makes the original exact cells part of the Shared Field immediately;
+moving it forward makes them dormant-in-place. No cell is moved, copied,
+deleted, regenerated, or renumbered.
 
 Attention masks are **derived compile-time views**, not part of the canonical
-shared-field identity. The canonical `SharedFieldSnapshot` is the ordered spans;
-mask policies are resolved to attended intervals when the heart compiles a rail
-or forms a recall query. Changing a mask therefore does not create a new
-canonical body and does not allow the heart to hold a second canonical field
-that is not persisted through the branch.
+regional-body identity. The canonical `SharedFieldSnapshot` is the complete
+ordered spans. The Heart durably owns the independent per-region mask-control
+state and resolves it to attended intervals when it compiles rails or forms a
+recall query. Changing a mask produces a new derived `view_id` and new rail view
+over the same `field_id`; it never creates a new canonical body.
 
 The initial implementation may use one movable boundary per region. The
 versioned future mask schema may additionally select multiple ordered,
@@ -66,23 +76,42 @@ newest turns. This is an additive feature, not a prerequisite for the first
 complete-field reader; in every form, masked characters remain exact and
 restorable.
 
+The serialized `RegionVisibility` field is retained only for immutable legacy
+snapshot compatibility. It is not the live mask controller and may not be used
+to create a second canonical masking path. Current Heart circulation supplies
+the complete explicit per-region policy set.
+
 ## Dormant State
 
-Dormant state is structured memory outside the current canonical shared field.
-It stores containers, edges, facts, procedures, episodes, diary entries,
-source chunks, and provenance.
+Dormant State is exact state that is not currently part of the attended Shared
+Field. For canonical regions, dormancy is an in-place membership state selected
+by that region's mask: the original cells remain in their original region and
+at their original addresses. Dormant also owns exact provenance stores for
+imported/recovered episodes and source material plus provenance-bound structured
+knowledge derived from exact evidence. Those stores are not a relocated copy of
+masked regional cells and never become a competing canonical body.
 
-Dormant memory is not attended directly. Search and surfacing copy relevant readable material into active regions.
+Dormant material is not attended directly. Moving a regional mask exposes the
+original in-place regional cells. Retrieval from the broader Dormant evidence/
+knowledge stores may instead surface verified, provenance-bearing readable
+material into a governed canonical region through the Heart.
 
-Masking is not truncation. It is an explicit, auditable shared-to-dormant
-membership transition governed independently per region. A model window may
+Masking is not truncation, transfer, eviction, archival, or physical tiering. It
+is an explicit, auditable attended/dormant membership boundary governed
+independently per region. A model window, storage pressure, or compute budget may
 never move this boundary implicitly.
 
 ### Autobiographical continuity
 
-Axon's lived history is append-only at the evidence layer. Accepted user turns, Axon responses, tool invocations and results, advisor inputs, canonical state transitions, and governed learning/evaluation outcomes are not silently deleted when they leave active attention. They may become masked/cold, but their exact content, ordering, source identity, outcome, and provenance remain durably recoverable through Dormant State. Rejected or quarantined ingress is also preserved as evidence, but remains explicitly distinguished from accepted lived experience.
+Axon's lived history is append-only at the evidence layer. Accepted user turns, Axon responses, tool invocations and results, advisor inputs, canonical state transitions, and governed learning/evaluation outcomes are not silently deleted when they leave active attention. Regional material becomes dormant in place under its mask; its exact content, ordering, stable address, source identity, outcome, and provenance remain unchanged. Rejected or quarantined ingress is also preserved as evidence, but remains explicitly distinguished from accepted lived experience.
 
-The current bootstrap mask implementation may retain cold exact spans inside persisted Shared Field snapshots while deriving a narrower attended view. Mature storage may externalize sufficiently cold spans into exact Dormant containers and rematerialize them by stable identity when an older mask interval is reopened. That storage choice may change; the invariant does not: sliding the governed history mask backward must recover the same exact prior material rather than a summary or regenerated approximation.
+Canonical regional cells may never be externalized, rematerialized, or replaced
+by a pointer merely because they become cold. Storage implementations may cache,
+page, or index the immutable regional body, but the operation must be transparent:
+the same canonical cells and addresses remain authoritative before, during, and
+after mask movement. Sliding a history mask back to the first recorded turn
+therefore exposes the original material directly, never a summary or regenerated
+approximation.
 
 Dormant State therefore carries two inseparable forms of memory under one authority: exact episodic/autobiographical evidence and structured semantic knowledge derived from that evidence. Derived facts, procedures, summaries, and semantic edges must keep provenance back to the exact episodes that support them; semantic processing never replaces or erases the lived source record.
 
@@ -113,7 +142,15 @@ experience stored in Dormant State. It is not equivalent to vector search,
 embeddings retrieval, or the canonical `cortex` region alone. Dormant retrieval
 is one Cortex sense; semantic interpretation is the organ's larger job.
 
-The Cortex is also the semantic digestion layer for lived experience. Raw episodes remain exact in Dormant State; Cortex may continuously derive grounded entities, relationships, procedures, causal links, recurring patterns, confidence, and semantic edges from them. Those structures remain provenance-bound to their source episodes and may themselves be stored in Dormant State as structured knowledge. Cortex does not turn an episode into a lossy replacement and does not decide what becomes parametric memory; it supplies semantic organization that both reasoning and Trainer curriculum construction can consume.
+The Cortex is also the semantic digestion layer for lived experience. On its
+own cadence it may inspect material newly made dormant in any region, plus exact
+Dormant evidence stores, and derive grounded entities, triples, relationships,
+procedures, causal links, recurring patterns, confidence, and semantic edges.
+Those structures remain provenance-bound to their exact regional/evidence
+sources and may themselves be stored in Dormant State as structured knowledge.
+Cortex harvesting never removes, relocates, edits, or replaces the source cells.
+Cortex does not decide what becomes parametric memory; it supplies semantic
+organization that reasoning and Trainer curriculum construction can consume.
 
 The Cortex runs on its own **cortical cadence**. A Cortex tick is distinct from
 both a heartbeat and a reasoning tick. The Cortex may inspect the exact current
@@ -183,9 +220,11 @@ Required properties:
 The Field Compiler Organ is Axon's heart. It runs on its own cadence — the
 heartbeat — which is distinct from a cognitive tick. The heart pumps exact
 information: external input (users, tools, advisors) inward to the organs,
-and organ output outward, roundtrip. The **canonical Shared Field is the truth
-body**; the Heart is its sovereign guardian, compiler, translator, and sole
-canonical writer. Learned Heart tissue may become extremely capable, but no
+and organ output outward, roundtrip. The complete canonical regional state is
+the truth body; its unmasked partition is the Shared Field circulated to the
+rails. The Heart is the body's sovereign guardian, mask controller, compiler,
+translator, and sole canonical writer. Learned Heart tissue may become
+extremely capable, but no
 neural Heart model is itself canonical truth and no learned output gains
 unchecked commit authority. Other organs and ingress paths may originate and
 submit proposed mutations; they never mutate canonical state directly. Cores,
@@ -214,15 +253,16 @@ section is binding doctrine.
   lanes so attended edge characters are never suppressed. Pages, chunks, and
   budgets remain compute controls with coverage receipts; content is never
   capped.
-- Mask law (corrected model): masking is the materialization boundary
-  between the Shared Field and Dormant State, governed independently per
-  region from 0% to 100%. Mask policies resolve deterministically into exact
-  spans/turns before compilation; the Heart circulates only the exposed
-  field. Masked material resides in Dormant — exact, addressable, and
-  restorable by stable identity — and later recall can rematerialize it into
-  the Shared Field. The cells never move; the mask moves. Packing never
-  interprets a percentage: it receives an exact active field and packs
-  everything presented to it.
+- Mask law (final in-place model, clarified 2026-08-27): each canonical region
+  retains one exact position-stable cell sequence and has an independent
+  Heart-owned 0–100% mask. The unmasked partition is the Shared Field; the
+  masked partition is dormant in place. Policies resolve deterministically
+  into exact spans/turns before compilation. The Heart circulates all and only
+  exposed cells to every registered rail. Moving a mask changes the derived
+  view, never the canonical cells, addresses, or `field_id`; no recall or
+  rematerialization step is involved. Packing never interprets a percentage:
+  it receives resolved attended intervals, stops and pads at every mask/
+  provenance boundary, and packs every exposed character exactly once.
 - Cores attend directly to their designated rail; the Heart is not in the
   attention path. The Heart packs and unpacks cells at every registered
   width, maintains exact substrate/rail and rail-to-rail roundtrips, moves
@@ -355,12 +395,15 @@ Each beat:
    during an in-flight tick queue for the next beat and never mutate the
    frozen base.
 2. Resolves derived per-region attention masks for the rail and recall query.
-   Masked text remains canonical and restorable; only attended intervals enter
-   the compiled rails. Policies are resolved from reusable mask policies such
-   as `all`, `none`, or `last_n_spans` at compile/recall time and do not alter
-   the canonical `SharedFieldSnapshot` identity.
-3. Detects change via canonical field identity/freshness. No change means no
-   recompilation.
+   Masked text remains exact and position-stable in its canonical region; only
+   attended intervals enter compiled rails. Policies are resolved from reusable
+   mask policies such as `all`, `none`, `last_n_spans`, or a tail percentage at
+   compile/recall time and do not alter the canonical `SharedFieldSnapshot`
+   identity.
+3. Detects both canonical-field change and derived mask-view change. A changed
+   `field_id` requires fresh canonical stabilization; a mask-only change keeps
+   the same `field_id` but must produce and circulate a new `view_id`. Only when
+   neither identity changed may recompilation be skipped.
 4. In the current bootstrap runtime, runs the Heart-owned `dormant_recall` valve when change warrants recall. Mature Cortex anatomy moves semantic recall ownership behind the independent cortical cadence; Heart continues to validate any canonical materialization.
 5. Recompiles the affected rail(s), proving complete coverage and exact
    roundtrip against the fresh canonical field.
@@ -385,15 +428,25 @@ base/successor field identity, and tick binding when applicable. Health and
 lease files beneath `State/active/heart` are durable observability/control
 metadata, not a second canonical body.
 
-Attention-mask choices remain derived. Each frozen tick image and rail now also
-carry an explicit derived `view_id` computed from the mask policy set. Two
-masked views of the same canonical `field_id` are therefore distinguishable
-without making masks canonical. A changed field still must pass the exact D64
-coverage/roundtrip proof before the tick image is frozen. With no real reasoning
-cores registered yet, the host explicitly closes the empty developmental tick
-after a successful freeze so circulation can continue; it does not invent a
-participant or proposal. Proposal/refinement/consolidation barriers attach to
-these real frozen images in later builds.
+Attention-mask choices remain derived from durable Heart control state. The
+Heart persists one explicit policy for every canonical region independently;
+updating one region advances mask-control state without rewriting the canonical
+field. Each frozen tick image and rail carries an explicit derived `view_id`
+computed from the complete policy set. Two masked views of the same canonical
+`field_id` are therefore distinguishable without making masks part of canonical
+content identity. A changed field or changed view must pass exact D64 coverage/
+roundtrip proof before the tick image is frozen. With no real reasoning cores
+registered yet, the host explicitly closes the empty developmental tick after a
+successful freeze so circulation can continue; it does not invent a participant
+or proposal. Proposal/refinement/consolidation barriers attach to these real
+frozen images in later builds.
+
+`runtime/heart/masks.py` implements the first durable complete ten-region mask
+controller beneath `State/active/heart/region_masks.json`. The permanent host
+exposes independent policy and 0–100% newest-suffix controls, wakes circulation
+for a mask-only change, preserves an already frozen in-flight tick, and records
+mask revision/state identity plus every policy in Heart health. A restart
+reloads and verifies the content-addressed mask state before circulation.
 
 Primitive but real organs are acceptable progress; fake organs are not. An
 organ may be noisy or weak in its first form provided it is real permanent
@@ -806,7 +859,7 @@ Current Day Zero D64 trainer:
 - curriculum records are source material only and are materialized as `SharedFieldSnapshot` before core access,
 - every neural read enters through the deterministic D64 compiler and its complete/fresh coverage proof,
 - the current D64 reader deterministically unpacks exact 16D lanes before its per-character neural lift,
-- scratch changes are ordinary typed deltas followed by canonical rematerialization and a second complete read,
+- scratch changes are ordinary typed deltas followed by canonical successor compilation and a second complete read,
 - response-draft learning remains observable and exact-position/copy-gate evaluation remains available,
 - training workspaces live beneath `State/training`; branch-backed episode journaling and canonical split/resume proof remain required before a new training campaign is authorized.
 
@@ -829,14 +882,19 @@ Binding invariants:
   being omitted;
 - one D64 physical row contains at most four exact 16D cells; rows never cross
   logical-region boundaries and unused lanes are explicit padding;
-- every valid lane retains exact region position, global active-field position,
-  source span, span position, source, provenance, row, and lane identity;
+- every valid lane retains exact region position, global canonical-body position,
+  source span, span position, source, provenance, attended-interval identity,
+  row, and lane identity;
 - all ten logical regions are visited on every compile, including empty or
   explicitly masked regions; masked text remains canonical state but is not an
   attended rail character; attended intervals are sorted, non-overlapping,
   half-open ranges over the region's full span text and are compiled exactly;
   masks may be supplied at compile time as derived views and do not change the
   canonical field identity;
+- a physical row may not bridge a region boundary, attended-interval boundary,
+  canonical source-span boundary, or provenance boundary. A short boundary
+  group receives explicit empty lanes; neither adjacent attended islands nor
+  adjacent provenance sources are compacted together to save space;
 - compilation is accepted only after complete coverage and exact 16D roundtrip
   verification; a rail from an older `field_id` is stale and must not be used;
 - a D64 row is lossless storage, not four magically independent Transformer
@@ -1092,7 +1150,7 @@ The active implementation surface is intentionally narrow:
 - `runtime/axon_runtime/d64_adapter.py` ? runtime-facing exact and dual-surface D64 adapter,
 - `runtime/dormant/experience.py`, `runtime/dormant/evidence_bridge.py`, `runtime/dormant/relevance.py`, `runtime/dormant/generations.py`, `runtime/dormant/incremental.py`, and `runtime/dormant/evaluation.py` ? immutable content-addressed exact experience/source snapshots plus read-only manifest/hash-bound dormant retrieval, exact dereference, bounded graph/relation relevance, verified derived-index generations, transactional append/layout-preserving update maintenance, and held-out evaluation,
 - `Cortext/contracts.py` ? grounded Semantic Cortex service contract only; no active specialist/training authority and the `semantic_cortex` valve remains CLOSED,
-- `runtime/heart/` ? heart anatomy: authority/core control plane, canonical transaction boundary, beat coordinator, sovereign 20-slot valve plane, OS single-writer lease, restart-safe cardiac identity, durable ingress/replay/quarantine spool, crash-safe exact autobiographical ingress deposit, health observability, explicit derived-view identity, relevance-gated dormant recall, permanent Heart host, `runtime/heart/intelligence.py` for learned Heart identity/fidelity/promotion contracts, `runtime/heart/d64_codec.py` for literal real-field D64 framing, and `runtime/heart/translation_core.py` for the first permanent non-authoritative 64D neural translator tissue; no learned Heart translator is serving/active yet;
+- `runtime/heart/` ? heart anatomy: authority/core control plane, canonical transaction boundary, beat coordinator, sovereign 20-slot valve plane, OS single-writer lease, restart-safe cardiac identity, durable ingress/replay/quarantine spool, crash-safe exact autobiographical ingress deposit, durable independent per-region mask control, health observability, explicit derived-view identity, relevance-gated dormant recall, permanent Heart host, `runtime/heart/intelligence.py` for learned Heart identity/fidelity/promotion contracts, `runtime/heart/d64_codec.py` for literal real-field D64 framing, and `runtime/heart/translation_core.py` for the first permanent non-authoritative 64D neural translator tissue; no learned Heart translator is serving/active yet;
 - `runtime/trainer/` ? permanent Trainer parameter-authority anatomy: heterogeneous parameter+buffer inventory, OS single-writer lease, scoped mutation grants, immutable content-addressed learning policies, isolated candidate optimizer execution with governed accumulation/scheduling/precision/budgets, per-parameter telemetry, exact mid-accumulation checkpoint/restore, deterministic promotion gates, atomic active-generation pointers, exact activation/rollback snapshots and receipts, restart hydration, deterministic content-addressed lived-experience sessions, immutable lifecycle records, and read-only inspection; no model is trained or activated without an explicit governed plan/policy/gate/activation path;
 - `scripts/run_axon_heart.py`, `scripts/evaluate_dormant_relevance.py`, `scripts/maintain_dormant_index.py`, and `scripts/verify_d64_dual_surface.py` ? permanent Heart runtime, deterministic dormant semantic/relevance evaluation, explicit derived-index maintenance/recovery, and read-only live D64 dual-surface verification entry points;
 - `training/canonical_d64.py`, `training/complete_field_64d.py`, and `training/train_complete_field_64d.py` ? developmental canonical D64 reasoning path; `training/heart_translation.py` plus `scripts/train_heart_translation_smoke.py` ? real-field-D64 Heart translation curriculum/evaluation and Trainer-governed bounded candidate smoke path with content-addressed task objective and no activation,

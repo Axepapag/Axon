@@ -2,25 +2,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_authority_mirrors_are_byte_identical() -> None:
-    assert (ROOT / "SOURCE_OF_TRUTH.md").read_bytes() == (
-        ROOT / "docs" / "SOURCE_OF_TRUTH.md"
-    ).read_bytes()
-    assert (ROOT / "WORKING_CONTRACT.md").read_bytes() == (
-        ROOT / "docs" / "WORKING_CONTRACT.md"
-    ).read_bytes()
+    assert (ROOT / "SOURCE_OF_TRUTH.md").read_bytes() == (ROOT / "docs" / "SOURCE_OF_TRUTH.md").read_bytes()
+    assert (ROOT / "WORKING_CONTRACT.md").read_bytes() == (ROOT / "docs" / "WORKING_CONTRACT.md").read_bytes()
 
 
 def test_day_zero_active_python_surface_is_narrow() -> None:
-    runtime_dirs = {
-        path.name
-        for path in (ROOT / "runtime").iterdir()
-        if path.is_dir() and path.name != "__pycache__"
-    }
+    runtime_dirs = {path.name for path in (ROOT / "runtime").iterdir() if path.is_dir() and path.name != "__pycache__"}
     assert runtime_dirs == {"axon_runtime", "field", "dormant", "heart", "trainer"}
 
     field_files = {path.name for path in (ROOT / "runtime" / "field").glob("*.py")}
@@ -33,9 +24,7 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "state_branch.py",
     }
 
-    runtime_files = {
-        path.name for path in (ROOT / "runtime" / "axon_runtime").glob("*.py")
-    }
+    runtime_files = {path.name for path in (ROOT / "runtime" / "axon_runtime").glob("*.py")}
     assert runtime_files == {"__init__.py", "d64_adapter.py"}
 
     dormant_files = {path.name for path in (ROOT / "runtime" / "dormant").glob("*.py")}
@@ -67,11 +56,12 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "health.py",
         "host.py",
         "identity.py",
+        "masks.py",
         "intelligence.py",
         "translation_core.py",
-            "d64_codec.py",
-            "autobiography.py",
-            "lease.py",
+        "d64_codec.py",
+        "autobiography.py",
+        "lease.py",
         "valve.py",
     }
 

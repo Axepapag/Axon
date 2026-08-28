@@ -6,6 +6,7 @@ path: every accepted mutation still crosses the existing
 ``HeartTransactionBoundary`` and ``CanonicalStateBranch`` owned by
 ``BeatCoordinator``.
 """
+
 from __future__ import annotations
 
 import threading
@@ -14,13 +15,13 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Iterable
 
 from runtime.field import (
     CanonicalStateBranch,
     FieldDelta,
     InsertText,
     LogicalRegion,
+    RegionMaskPolicy,
     SharedFieldSnapshot,
 )
 from runtime.field.state_branch import DEFAULT_STATE_ROOT
@@ -32,18 +33,16 @@ from .durable_ingress import DurableIngressSpool, IngressRecord
 from .errors import (
     HealthCorruptionError,
     HostStateError,
-    ReplayEventError,
     UnknownValveError,
-    ValveAdmissionError,
 )
-from .health import HeartHealth, HealthJournal
+from .health import HealthJournal, HeartHealth
 from .identity import HeartIdentityStore
 from .lease import SingleWriterLease
+from .masks import HeartRegionMaskController, HeartRegionMaskState
 from .registry import CoreRegistry
 from .tick import FrozenTickImage, TickIdentity
 from .transaction import HeartCommit
 from .valve import (
-    HeartValveDefinition,
     HeartValveRegistry,
     ValveBudget,
     ValveDecision,
@@ -126,6 +125,9 @@ class HeartHost:
         self._autobiography: HeartAutobiography | None = None
         self._health_journal: HealthJournal | None = None
         self._coordinator: BeatCoordinator | None = None
+        self._mask_controller: HeartRegionMaskController | None = None
+        self._mask_dirty = False
+        self._last_circulated_view_id: str | None = None
         self._lease_record: dict | None = None
         self._started = False
         self._last_successful_circulation_at: datetime | None = None
@@ -150,6 +152,12 @@ class HeartHost:
         return self._spool
 
     @property
+    def mask_controller(self) -> HeartRegionMaskController:
+        if self._mask_controller is None:
+            raise HostStateError("Heart region-mask controller has not been started")
+        return self._mask_controller
+
+    @property
     def identity_store(self) -> HeartIdentityStore:
         if self._identity_store is None:
             raise HostStateError("Heart host has not been started")
@@ -168,6 +176,10 @@ class HeartHost:
                 identity_store.begin_start()
                 spool = DurableIngressSpool(self.heart_dir / "ingress")
                 health = HealthJournal(self.heart_dir)
+                mask_controller = HeartRegionMaskController(
+                    self.heart_dir / "region_masks.json",
+                    initial_policies=self.beat_config.region_policies,
+                )
                 branch = CanonicalStateBranch.active_runtime(
                     branch_id="active",
                     state_root=self.state_root,
@@ -177,6 +189,7 @@ class HeartHost:
                     self.cores,
                     state_root=self.state_root,
                     config=self.beat_config,
+                    mask_controller=mask_controller,
                 )
                 autobiography = HeartAutobiography(self.state_root)
             except Exception:
@@ -187,6 +200,7 @@ class HeartHost:
             self._autobiography = autobiography
             self._health_journal = health
             self._coordinator = coordinator
+            self._mask_controller = mask_controller
             self._lease_record = lease_record
             self._started = True
             self._stop_event.clear()
@@ -198,6 +212,11 @@ class HeartHost:
                     self._last_successful_circulation_at = datetime.fromisoformat(prior)
                 except (TypeError, ValueError):
                     self._last_successful_circulation_at = None
+            prior_view_id = latest.get("last_view_id") if latest else None
+            self._last_circulated_view_id = prior_view_id
+            self._mask_dirty = (prior_view_id is not None and prior_view_id != coordinator.current_view_id) or (
+                prior_view_id is None and mask_controller.state.revision > 0
+            )
             self._write_health(
                 last_beat_at=None,
                 last_failure_reason=None,
@@ -210,6 +229,9 @@ class HeartHost:
             self._wake_event.set()
             self._started = False
             self._coordinator = None
+            self._mask_controller = None
+            self._mask_dirty = False
+            self._last_circulated_view_id = None
             self._spool = None
             self._autobiography = None
             self._health_journal = None
@@ -237,6 +259,45 @@ class HeartHost:
                 provenance=provenance,
                 envelope_type="text/plain",
             )
+        )
+
+    def region_mask_state(self) -> HeartRegionMaskState:
+        """Return the durable complete per-region mask-control state."""
+
+        with self._lock:
+            self._require_started()
+            return self.mask_controller.state
+
+    def set_region_mask_policy(
+        self,
+        region: LogicalRegion | str,
+        policy: RegionMaskPolicy,
+    ) -> HeartRegionMaskState:
+        """Move one region's mask without touching canonical field content.
+
+        An in-flight frozen tick is never mutated.  The new policy is durable
+        immediately and is circulated on the next eligible heartbeat.
+        """
+
+        with self._lock:
+            self._require_started()
+            before = self.mask_controller.state.state_id
+            state = self.mask_controller.set_policy(region, policy)
+            if state.state_id != before:
+                self._mask_dirty = True
+                self._wake_event.set()
+            return state
+
+    def set_region_unmasked_percent(
+        self,
+        region: LogicalRegion | str,
+        percent: int,
+    ) -> HeartRegionMaskState:
+        """Set one region's independent newest-suffix slider to 0..100%."""
+
+        return self.set_region_mask_policy(
+            region,
+            RegionMaskPolicy("tail_percent", percent),
         )
 
     def submit_tool(self, text: str, *, provenance: str = "tool") -> ValveDecision:
@@ -401,9 +462,7 @@ class HeartHost:
                         processed_ids.append(record.event_id)
                         continue
                     if len(definition.governed_regions) != 1:
-                        raise HostStateError(
-                            f"primitive ingress valve {definition.valve_id!r} must govern one region"
-                        )
+                        raise HostStateError(f"primitive ingress valve {definition.valve_id!r} must govern one region")
                     region = next(iter(definition.governed_regions))
                     operation = InsertText(
                         region=region,
@@ -423,9 +482,7 @@ class HeartHost:
                         "valve_version": definition.version,
                         "source_id": record.source_id,
                         "authority_class": definition.authority_class.value,
-                        "governed_regions": sorted(
-                            item.value for item in definition.governed_regions
-                        ),
+                        "governed_regions": sorted(item.value for item in definition.governed_regions),
                         "item_id": record.event_id,
                         "provenance": record.provenance,
                         "heartbeat_sequence": heartbeat_sequence,
@@ -452,13 +509,13 @@ class HeartHost:
                         # decides retry eligibility, so always release it.
                         self.valves.tracker.complete(record.valve_id)
 
-                changed = current.field_id != starting_field_id
-                if changed or force:
+                field_changed = current.field_id != starting_field_id
+                if field_changed or force:
                     current, recall_commit = coordinator.stabilize_recall(current)
                     if recall_commit is not None:
                         commits.append(recall_commit)
 
-                if commits or force:
+                if commits or force or self._mask_dirty:
                     tick_reserved = self.identity_store.next_tick()
                     tick_identity = TickIdentity(
                         tick_sequence=tick_reserved.tick_sequence,
@@ -469,6 +526,8 @@ class HeartHost:
                     tick_image = coordinator.freeze_tick(current, tick_identity)
                     if not self.cores.active(64) and self.host_config.auto_close_null_ticks:
                         coordinator.close_tick()
+                    self._mask_dirty = False
+                    self._last_circulated_view_id = tick_image.view_id
                     self._last_successful_circulation_at = now
                     state = HostBeatState.CIRCULATED
                 else:
@@ -572,9 +631,7 @@ class HeartHost:
                 "state": definition.state.value,
                 "version": definition.version,
                 "authority_class": definition.authority_class.value,
-                "governed_regions": sorted(
-                    region.value for region in definition.governed_regions
-                ),
+                "governed_regions": sorted(region.value for region in definition.governed_regions),
                 "budget": {
                     "pending_cap": definition.budget.pending_cap,
                     "items_per_beat": definition.budget.items_per_beat,
@@ -584,12 +641,8 @@ class HeartHost:
                 },
                 "usage": {
                     "pending": self.valves.tracker.pending(definition.valve_id),
-                    "items_this_beat": self.valves.tracker.items_this_beat(
-                        definition.valve_id
-                    ),
-                    "chars_this_beat": self.valves.tracker.chars_this_beat(
-                        definition.valve_id
-                    ),
+                    "items_this_beat": self.valves.tracker.items_this_beat(definition.valve_id),
+                    "chars_this_beat": self.valves.tracker.chars_this_beat(definition.valve_id),
                 },
             }
         health = HeartHealth(
@@ -602,26 +655,26 @@ class HeartHost:
             last_failure_reason=last_failure_reason,
             canonical_head_field_id=None if field is None else field.field_id,
             canonical_head_tick_id=None if field is None else field.tick_id,
-            tick_in_flight=(
-                False if self._coordinator is None else self._coordinator.tick_in_flight
-            ),
+            tick_in_flight=(False if self._coordinator is None else self._coordinator.tick_in_flight),
             queue_depth_by_valve=queue_depths,
             quarantine_count=(0 if self._spool is None else self._spool.quarantine_count),
             rejection_count=(0 if self._spool is None else self._spool.rejection_count),
             valve_states=valve_states,
-            dormant_index_id=(
-                None if self._coordinator is None else self._coordinator.dormant_index_id
-            ),
-            lease_owner_pid=(
-                None if self._lease_record is None else self._lease_record.get("pid")
-            ),
-            lease_owner_token=(
-                None
-                if self._lease_record is None
-                else self._lease_record.get("owner_token")
-            ),
+            dormant_index_id=(None if self._coordinator is None else self._coordinator.dormant_index_id),
+            lease_owner_pid=(None if self._lease_record is None else self._lease_record.get("pid")),
+            lease_owner_token=(None if self._lease_record is None else self._lease_record.get("owner_token")),
             last_tick_uid=None if last_tick is None else last_tick.identity.tick_uid,
-            last_view_id=None if last_tick is None else last_tick.view_id,
+            last_view_id=(self._last_circulated_view_id if last_tick is None else last_tick.view_id),
+            mask_state_id=(None if self._mask_controller is None else self._mask_controller.state.state_id),
+            mask_revision=(None if self._mask_controller is None else self._mask_controller.state.revision),
+            region_masks=(
+                None
+                if self._mask_controller is None
+                else {
+                    region.value: self._mask_controller.state.policy_for(region).to_canonical_dict()
+                    for region in self._mask_controller.state.policies
+                }
+            ),
         )
         self._health_journal.write(health)
 
@@ -665,8 +718,8 @@ class HeartHost:
 
 
 __all__ = [
-    "HostBeatState",
-    "HeartHostConfig",
-    "HeartHostBeatResult",
     "HeartHost",
+    "HeartHostBeatResult",
+    "HeartHostConfig",
+    "HostBeatState",
 ]
