@@ -19,8 +19,6 @@ from .activation import (
     ParameterRollbackReceipt,
 )
 from .authority import AuthorizedParameterMutation, ParameterAuthorityError, authorize_parameter_mutation
-from .execution import CandidateOptimizationSession, OptimizerExecutionPolicy
-from .gates import EvaluationObservation, PromotionGate, PromotionGateDecision, evaluate_promotion_gate
 from .contracts import (
     ParameterInventory,
     ParameterModuleDescriptor,
@@ -28,15 +26,18 @@ from .contracts import (
     ParameterMutationPlan,
     ParameterPromotionProposal,
 )
+from .episodes import RuntimeEpisodeSessionManifest
+from .execution import CandidateOptimizationSession, OptimizerExecutionPolicy
+from .gates import EvaluationObservation, PromotionGate, PromotionGateDecision, evaluate_promotion_gate
 from .lease import TrainerLeaseDeniedError, TrainerWriterLease
 from .lifecycle import CandidateCheckpointRecord
+from .preflight import TrainingPreflightReceipt
 from .registry import (
     ParameterRegistry,
     capture_module_manifest,
     descriptors_share_anatomy,
     parameter_value_sha256,
 )
-from .preflight import TrainingPreflightReceipt
 from .sessions import TrainerSessionManifest
 from .store import TrainerStateStore
 from .telemetry import ParameterTelemetryFrame, capture_parameter_telemetry
@@ -170,6 +171,15 @@ class TrainerControlPlane:
 
         self._require_writer_authority()
         return self.store.write_session(session)
+
+    def publish_runtime_episode_session(
+        self,
+        session: RuntimeEpisodeSessionManifest,
+    ) -> Path:
+        """Publish one verified runtime-faithful episode session under lease."""
+
+        self._require_writer_authority()
+        return self.store.write_runtime_episode_session(session)
 
     def authorize(
         self,

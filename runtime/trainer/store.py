@@ -20,6 +20,7 @@ from .activation import (
 )
 from .authority import AuthorizedParameterMutation
 from .contracts import ParameterInventory, ParameterModuleDescriptor, ParameterMutationPlan, ParameterPromotionProposal
+from .episodes import RuntimeEpisodeSessionManifest
 from .gates import EvaluationObservation, PromotionGateDecision
 from .learning import GovernedLearningPolicy
 from .lifecycle import (
@@ -28,8 +29,8 @@ from .lifecycle import (
     LearningMicrostepReceipt,
     OptimizationStepReceipt,
 )
-from .registry import capture_module_manifest
 from .preflight import TrainingPreflightReceipt
+from .registry import capture_module_manifest
 from .sessions import TrainerSessionManifest
 from .telemetry import ParameterTelemetryFrame
 
@@ -108,6 +109,13 @@ class TrainerStateStore:
     def write_session(self, session: TrainerSessionManifest) -> Path:
         if not isinstance(session, TrainerSessionManifest):
             raise TypeError("session must be a TrainerSessionManifest")
+        path = self.sessions_dir / session.session_id / "manifest.json"
+        self._write_immutable(path, session.to_canonical_dict())
+        return path
+
+    def write_runtime_episode_session(self, session: RuntimeEpisodeSessionManifest) -> Path:
+        if not isinstance(session, RuntimeEpisodeSessionManifest):
+            raise TypeError("session must be a RuntimeEpisodeSessionManifest")
         path = self.sessions_dir / session.session_id / "manifest.json"
         self._write_immutable(path, session.to_canonical_dict())
         return path
@@ -505,4 +513,4 @@ class TrainerStateStore:
         self._atomic_json(path, value)
 
 
-__all__ = ["TrainerStoreError", "TrainerStateStore"]
+__all__ = ["TrainerStateStore", "TrainerStoreError"]

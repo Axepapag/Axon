@@ -86,6 +86,8 @@ from .state_branch import (
     BranchIntegrityError,
     CanonicalStateBranch,
     CanonicalStateBranchError,
+    field_delta_from_canonical_dict,
+    snapshot_from_canonical_dict,
 )
 
 __all__ = [
@@ -155,9 +157,11 @@ __all__ = [
     "apply_delta",
     "canonical_json_bytes",
     "canonical_sha256",
+    "field_delta_from_canonical_dict",
     "replacement_delta",
     "replay_deltas",
     "resolve_mask_policy",
+    "snapshot_from_canonical_dict",
     "structural_features64",
     "validate_delta",
 ]

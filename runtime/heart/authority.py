@@ -212,11 +212,11 @@ class AuthorityGrant:
 
 
 __all__ = [
-    "AuthorityClass",
-    "IngressChannel",
-    "INGRESS_OWNED_REGIONS",
-    "DORMANT_VALVE_GOVERNED_REGIONS",
     "CONSOLIDATOR_GOVERNED_REGIONS",
     "DEFAULT_CORE_GOVERNED_REGIONS",
+    "DORMANT_VALVE_GOVERNED_REGIONS",
+    "INGRESS_OWNED_REGIONS",
+    "AuthorityClass",
     "AuthorityGrant",
+    "IngressChannel",
 ]

@@ -31,8 +31,8 @@ from .schema import (
     RegionState,
     SharedFieldSnapshot,
     canonical_json_bytes,
+    canonical_sha256,
 )
-
 
 BRANCH_SCHEMA = "axon-canonical-state-branch-v1"
 BRANCH_HEAD_SCHEMA = "axon-canonical-state-branch-head-v1"
@@ -493,6 +493,36 @@ def _field_delta_from_dict(value: Mapping[str, Any]) -> FieldDelta:
     return delta
 
 
+def snapshot_from_canonical_dict(value: Mapping[str, Any]) -> SharedFieldSnapshot:
+    """Strictly reconstruct and verify one fully identified canonical snapshot."""
+
+    if not isinstance(value, Mapping):
+        raise TypeError("snapshot value must be a mapping")
+    return _snapshot_from_dict(value)
+
+
+def field_delta_from_canonical_dict(value: Mapping[str, Any]) -> FieldDelta:
+    """Strictly reconstruct a canonical or persisted typed delta mapping."""
+
+    if not isinstance(value, Mapping):
+        raise TypeError("delta value must be a mapping")
+    item = dict(value)
+    canonical_fields = {
+        "schema",
+        "base_field_id",
+        "base_tick_id",
+        "author_core_id",
+        "pass_id",
+        "operations",
+        "evidence",
+    }
+    if set(item) == canonical_fields:
+        digest = canonical_sha256(item)
+        item["delta_id"] = digest
+        item["canonical_hash"] = digest
+    return _field_delta_from_dict(item)
+
+
 def _require_under(path: Path, root: Path) -> None:
     try:
         path.relative_to(root)
@@ -543,13 +573,15 @@ def _nonnegative_int(value: Any, label: str) -> int:
 
 
 __all__ = [
-    "BRANCH_SCHEMA",
-    "BRANCH_HEAD_SCHEMA",
     "BRANCH_EVENT_SCHEMA",
+    "BRANCH_HEAD_SCHEMA",
+    "BRANCH_SCHEMA",
     "DEFAULT_STATE_ROOT",
-    "CanonicalStateBranchError",
-    "BranchIntegrityError",
     "BranchAuthorityError",
     "BranchHead",
+    "BranchIntegrityError",
     "CanonicalStateBranch",
+    "CanonicalStateBranchError",
+    "field_delta_from_canonical_dict",
+    "snapshot_from_canonical_dict",
 ]

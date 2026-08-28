@@ -10,7 +10,7 @@ valve envelopes identify source and provenance, they never carry an
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Iterable
@@ -20,10 +20,7 @@ from runtime.field import LogicalRegion, canonical_json_bytes
 from .authority import AuthorityClass, AuthorityGrant, IngressChannel
 from .errors import (
     UnknownValveError,
-    ValveAdmissionError,
     ValveAuthorityError,
-    ValveBudgetExceededError,
-    ValveClosedError,
     ValveSourceMismatchError,
 )
 
@@ -715,13 +712,13 @@ def primitive_valve_registry() -> HeartValveRegistry:
 
 
 __all__ = [
-    "ValveState",
-    "ValveBudget",
     "HeartValveDefinition",
-    "ValveEnvelope",
-    "ValveDecision",
-    "ValveReceipt",
-    "ValveBudgetTracker",
     "HeartValveRegistry",
+    "ValveBudget",
+    "ValveBudgetTracker",
+    "ValveDecision",
+    "ValveEnvelope",
+    "ValveReceipt",
+    "ValveState",
     "primitive_valve_registry",
 ]

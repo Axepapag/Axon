@@ -9,12 +9,14 @@ path: every accepted mutation still crosses the existing
 
 from __future__ import annotations
 
+import hashlib
 import threading
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
+from typing import Any, Iterable, Mapping
 
 from runtime.field import (
     CanonicalStateBranch,
@@ -28,6 +30,11 @@ from runtime.field.state_branch import DEFAULT_STATE_ROOT
 
 from .authority import AuthorityClass
 from .autobiography import HeartAutobiography
+from .circulation import (
+    ReasoningCirculation,
+    ReasoningCirculationResult,
+    ReasoningCorePort,
+)
 from .coordinator import BeatConfig, BeatCoordinator
 from .durable_ingress import DurableIngressSpool, IngressRecord
 from .errors import (
@@ -99,6 +106,7 @@ class HeartHostBeatResult:
     processed_event_ids: tuple[str, ...]
     tick_image: FrozenTickImage | None = None
     deferred_event_id: str | None = None
+    reasoning_result: ReasoningCirculationResult | None = None
 
 
 class HeartHost:
@@ -112,12 +120,14 @@ class HeartHost:
         beat_config: BeatConfig | None = None,
         valve_registry: HeartValveRegistry | None = None,
         core_registry: CoreRegistry | None = None,
+        reasoning_ports: Iterable[ReasoningCorePort] = (),
     ) -> None:
         self.state_root = Path(state_root).resolve(strict=False)
         self.host_config = host_config or HeartHostConfig()
         self.beat_config = beat_config or BeatConfig()
         self.valves = valve_registry or primitive_valve_registry()
         self.cores = core_registry or CoreRegistry()
+        self._reasoning_ports = tuple(reasoning_ports)
         self.heart_dir = self.state_root / "active" / "heart"
         self._lease = SingleWriterLease(self.state_root)
         self._identity_store: HeartIdentityStore | None = None
@@ -125,6 +135,7 @@ class HeartHost:
         self._autobiography: HeartAutobiography | None = None
         self._health_journal: HealthJournal | None = None
         self._coordinator: BeatCoordinator | None = None
+        self._circulation: ReasoningCirculation | None = None
         self._mask_controller: HeartRegionMaskController | None = None
         self._mask_dirty = False
         self._last_circulated_view_id: str | None = None
@@ -192,6 +203,15 @@ class HeartHost:
                     mask_controller=mask_controller,
                 )
                 autobiography = HeartAutobiography(self.state_root)
+                circulation = (
+                    None
+                    if not self._reasoning_ports
+                    else ReasoningCirculation(
+                        coordinator,
+                        self.cores,
+                        self._reasoning_ports,
+                    )
+                )
             except Exception:
                 self._lease.release()
                 raise
@@ -200,6 +220,7 @@ class HeartHost:
             self._autobiography = autobiography
             self._health_journal = health
             self._coordinator = coordinator
+            self._circulation = circulation
             self._mask_controller = mask_controller
             self._lease_record = lease_record
             self._started = True
@@ -229,6 +250,7 @@ class HeartHost:
             self._wake_event.set()
             self._started = False
             self._coordinator = None
+            self._circulation = None
             self._mask_controller = None
             self._mask_dirty = False
             self._last_circulated_view_id = None
@@ -393,6 +415,115 @@ class HeartHost:
             self._wake_event.set()
             return ValveDecision(True, "admitted", False, receipt)
 
+    def _deposit_reasoning_episode(
+        self,
+        base: SharedFieldSnapshot,
+        result: ReasoningCirculationResult,
+        *,
+        occurred_at: datetime,
+    ) -> None:
+        if self._autobiography is None:
+            raise HostStateError("Heart autobiography has not been started")
+        response_text = result.commit.successor.region(LogicalRegion.RESPONSE_DRAFT).text
+        self._autobiography.deposit_reasoning_episode(
+            event_id=f"reasoning-{result.result_id}",
+            response_text=response_text,
+            occurred_at=occurred_at.isoformat(),
+            payload={
+                "schema": "axon-runtime-reasoning-episode-v1",
+                "conversation_id": self.identity_store.identity.heart_epoch_id,
+                "pre_action_field": base.to_dict(),
+                "circulation": result.to_canonical_dict(),
+                "response_text_sha256": hashlib.sha256(
+                    response_text.encode("utf-8")
+                ).hexdigest(),
+                "outcome_quality": "observed",
+                "outcome_evidence_ids": [],
+            },
+        )
+
+    def _complete_reasoning_tick(
+        self,
+        *,
+        occurred_at: datetime,
+    ) -> ReasoningCirculationResult:
+        if self._circulation is None:
+            raise HostStateError("active reasoning cores have no configured runtime ports")
+        base = self.coordinator.current_field
+        result = self._circulation.run()
+        self._deposit_reasoning_episode(base, result, occurred_at=occurred_at)
+        return result
+
+    def record_episode_outcome(
+        self,
+        *,
+        event_id: str,
+        episode_event_id: str,
+        outcome_quality: str,
+        evidence_ids: Iterable[str],
+        detail: str,
+        occurred_at: datetime | None = None,
+    ) -> None:
+        """Attach explicit outcome evidence without relabeling observation as truth."""
+
+        with self._lock:
+            self._require_started()
+            if self._autobiography is None:
+                raise HostStateError("Heart autobiography has not been started")
+            when = occurred_at or datetime.now(timezone.utc)
+            self._autobiography.deposit_episode_outcome(
+                event_id=event_id,
+                episode_event_id=episode_event_id,
+                outcome_quality=outcome_quality,
+                evidence_ids=tuple(evidence_ids),
+                detail=detail,
+                occurred_at=when.isoformat(),
+            )
+
+    def record_tool_invocation(
+        self,
+        *,
+        event_id: str,
+        exact_text: str,
+        payload: Mapping[str, Any],
+        occurred_at: datetime | None = None,
+    ) -> None:
+        """Freeze one completed tool call/result pair as exact lived evidence."""
+
+        with self._lock:
+            self._require_started()
+            if self._autobiography is None:
+                raise HostStateError("Heart autobiography has not been started")
+            when = occurred_at or datetime.now(timezone.utc)
+            self._autobiography.deposit_tool_invocation(
+                event_id=event_id,
+                exact_text=exact_text,
+                payload=payload,
+                occurred_at=when.isoformat(),
+            )
+
+    def record_trainer_outcome(
+        self,
+        *,
+        event_id: str,
+        exact_text: str,
+        payload: Mapping[str, Any],
+        occurred_at: datetime | None = None,
+    ) -> None:
+        """Freeze one governed Trainer attempt and outcome into autobiography."""
+
+        with self._lock:
+            self._require_started()
+            if self._autobiography is None:
+                raise HostStateError("Heart autobiography has not been started")
+            when = occurred_at or datetime.now(timezone.utc)
+            self._autobiography.deposit_trainer_outcome(
+                event_id=event_id,
+                exact_text=exact_text,
+                payload=payload,
+                occurred_at=when.isoformat(),
+            )
+
     def heartbeat(self, *, force: bool = False) -> HeartHostBeatResult:
         """Execute one permanent-host heartbeat against the canonical active body."""
 
@@ -405,10 +536,31 @@ class HeartHost:
             processed_ids: list[str] = []
             deferred_event_id: str | None = None
             tick_image: FrozenTickImage | None = None
+            reasoning_result: ReasoningCirculationResult | None = None
             try:
                 coordinator = self.coordinator
                 if coordinator.tick_in_flight:
-                    active_cores = self.cores.active(64)
+                    active_cores = self.cores.active()
+                    if active_cores and self._circulation is not None:
+                        tick_image = coordinator.open_tick_image
+                        reasoning_result = self._complete_reasoning_tick(occurred_at=now)
+                        commits.append(reasoning_result.commit)
+                        field = coordinator.sync_to_branch_head()
+                        self._last_successful_circulation_at = now
+                        self._write_health(
+                            last_beat_at=now,
+                            last_failure_reason=None,
+                            last_tick=tick_image,
+                        )
+                        return HeartHostBeatResult(
+                            heartbeat_sequence=heartbeat_sequence,
+                            state=HostBeatState.CIRCULATED,
+                            field=field,
+                            commits=tuple(commits),
+                            processed_event_ids=(),
+                            tick_image=tick_image,
+                            reasoning_result=reasoning_result,
+                        )
                     if active_cores or not self.host_config.auto_close_null_ticks:
                         field = coordinator.sync_to_branch_head()
                         self._write_health(
@@ -524,7 +676,11 @@ class HeartHost:
                         base_tick_id=current.tick_id,
                     )
                     tick_image = coordinator.freeze_tick(current, tick_identity)
-                    if not self.cores.active(64) and self.host_config.auto_close_null_ticks:
+                    active_cores = self.cores.active()
+                    if active_cores and self._circulation is not None:
+                        reasoning_result = self._complete_reasoning_tick(occurred_at=now)
+                        commits.append(reasoning_result.commit)
+                    elif not active_cores and self.host_config.auto_close_null_ticks:
                         coordinator.close_tick()
                     self._mask_dirty = False
                     self._last_circulated_view_id = tick_image.view_id
@@ -547,6 +703,7 @@ class HeartHost:
                     processed_event_ids=tuple(processed_ids),
                     tick_image=tick_image,
                     deferred_event_id=deferred_event_id,
+                    reasoning_result=reasoning_result,
                 )
             except Exception as exc:
                 try:

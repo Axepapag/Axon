@@ -46,6 +46,8 @@ class ParticipantState(str, Enum):
 
     PENDING = "pending"
     RETURNED = "returned"
+    NO_OP = "no_op"
+    ABSTAINED = "abstained"
     FAILED = "failed"
     TIMED_OUT = "timed_out"
 
@@ -57,6 +59,7 @@ class Proposal:
     delta: FieldDelta
     rail_d_model: int
     pass_kind: ProposalPass
+    emission_id: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.delta, FieldDelta):
@@ -73,6 +76,10 @@ class Proposal:
             raise TypeError("Proposal.rail_d_model must be an integer")
         if self.rail_d_model <= 0:
             raise ValueError("Proposal.rail_d_model must be positive")
+        if self.emission_id is not None and (
+            not isinstance(self.emission_id, str) or not self.emission_id
+        ):
+            raise ValueError("Proposal.emission_id must be None or non-empty")
         if str(self.delta.pass_id) != pass_kind.value:
             raise ProposalBoardError(
                 f"proposal pass_id {self.delta.pass_id!r} does not match "
@@ -274,6 +281,26 @@ class ProposalBoard:
     ) -> ParticipantRecord:
         return self._mark(core_id, pass_kind, ParticipantState.TIMED_OUT, detail)
 
+    def mark_no_op(
+        self,
+        core_id: str,
+        pass_kind: ProposalPass,
+        detail: str = "",
+    ) -> ParticipantRecord:
+        """Account an explicit grounded decision that no edit is proposed."""
+
+        return self._mark(core_id, pass_kind, ParticipantState.NO_OP, detail)
+
+    def mark_abstained(
+        self,
+        core_id: str,
+        pass_kind: ProposalPass,
+        detail: str = "",
+    ) -> ParticipantRecord:
+        """Account an explicit refusal to guess without sufficient grounds."""
+
+        return self._mark(core_id, pass_kind, ParticipantState.ABSTAINED, detail)
+
     @staticmethod
     def _pending_ids(records: dict[str, ParticipantRecord]) -> tuple[str, ...]:
         return tuple(
@@ -368,9 +395,9 @@ class ProposalBoard:
 
 
 __all__ = [
-    "ProposalPass",
+    "ParticipantRecord",
     "ParticipantState",
     "Proposal",
-    "ParticipantRecord",
     "ProposalBoard",
+    "ProposalPass",
 ]

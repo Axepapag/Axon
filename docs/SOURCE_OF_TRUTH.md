@@ -141,10 +141,18 @@ durable spool item. Each deposit freezes the exact envelope bytes, lifecycle
 immutable content-addressed batch. Commit-before-deposit or deposit-before-ack
 failure is restart-safe and idempotent: canonical span provenance detects the
 accepted event, the same Dormant identities are verified or rebuilt, and only
-then is the spool advanced. Automatic deposits for future Axon response
-commits, tool invocation requests, consolidator decisions, and governed
-learning/evaluation outcomes remain an implementation gap; therefore the
-system does not yet claim complete lifelong capture of every event class.
+then is the spool advanced.
+
+Every successful configured reasoning circulation now deposits a complete
+`runtime_reasoning_episode`: exact pre-action canonical field, frozen tick
+image, first/refined participant accounting, exact per-rail proposal
+workspaces, categorical emissions, source and materialized consolidator
+deltas, finalization receipt, canonical commit, exact accepted response, and
+an explicit initial quality of `observed`. Heart exposes exact deposit hooks
+for later outcome evidence, completed tool invocations/results, and governed
+Trainer outcomes. Those hooks are permanent evidence boundaries, but not every
+future tool executor or Trainer path is automatically connected to them yet;
+therefore complete lifelong capture of every event class is not yet claimed.
 
 ## Semantic Cortex Organ
 
@@ -281,10 +289,14 @@ section is binding doctrine.
   width, maintains exact substrate/rail and rail-to-rail roundtrips, moves
   masks, and remains the sole validator and committer of canonical state.
 - Emission contract: a Unicode-capable core emits discrete per-lane
-  categorical decisions over the registered transport codebook (native
-  character, UTF-8 byte, empty, EOS), trained
-  with per-lane cross-entropy per Layer 13. The Heart deterministically
-  reconstructs exact 16D cells and the typed proposal from those decisions.
+  categorical decisions over the 351-category registered transport codebook
+  (native character or strict UTF-8 byte), plus explicit EMPTY and EOS control
+  categories, trained with per-lane cross-entropy per Layer 13. Emissions bind
+  exact region/start/end addresses, base field/tick, author, home rail, and
+  pass. DELTA, NO_OP, and ABSTAIN are distinct decisions. The Heart rejects
+  malformed category streams, missing/duplicate EOS, noncanonical Unicode,
+  stale bases, invalid bounds, and unauthorized regions, then deterministically
+  reconstructs exact 16D cells and a typed proposal from accepted decisions.
   Nearest-vector snapping is auxiliary evidence only; an arbitrary
   continuous vector is never claimed to be exactly invertible.
 - Shelf: the learned Heart translator tissue, its training campaigns and
@@ -454,11 +466,25 @@ field. Each frozen tick image and rail carries an explicit derived `view_id`
 computed from the complete policy set. Two masked views of the same canonical
 `field_id` are therefore distinguishable without making masks part of canonical
 content identity. A changed field or changed view must pass exact D64 coverage/
-roundtrip proof before the tick image is frozen. With no real reasoning cores
-registered yet, the host explicitly closes the empty developmental tick after a
-successful freeze so circulation can continue; it does not invent a participant
-or proposal. Proposal/refinement/consolidation barriers attach to these real
-frozen images in later builds.
+roundtrip proof before the tick image is frozen. With no active reasoning cores,
+the host explicitly closes the empty developmental tick after a successful
+freeze; it does not invent a participant or proposal. With active descriptors
+and configured execution ports, `runtime/heart/circulation.py` now runs the
+real proposal/refinement/consolidation barriers against that frozen image and
+commits only the accepted consolidator result. An active descriptor without a
+runtime port fails safely and cannot be mistaken for serving intelligence.
+
+`runtime/heart/reasoning_output.py` is the exact learned-output boundary;
+`runtime/heart/proposal_workspace.py` is the derived noncanonical proposal
+interlingua and categorical rail renderer. The renderer is width-generic for
+every positive multiple of 16, while D64 remains the only physically compiled
+Shared Field rail. No wider rail is claimed until its real compiler/surface is
+proved. `runtime/heart/turns.py` deterministically completes an accepted user
+turn: the consolidator must author a nonempty `response_draft`, then Heart
+appends an exact readable length-delimited user/response frame to
+`conversation_history` and clears transient `user_input` in the same atomic
+delta. During this first form those two bookkeeping regions are reserved from
+simultaneous consolidator edits to avoid ambiguous overlapping authorship.
 
 `runtime/heart/masks.py` implements the first durable complete ten-region mask
 controller beneath `State/active/heart/region_masks.json`. The permanent host
@@ -533,9 +559,10 @@ deliberation round against a frozen canonical base:
    tick image with a coverage proof, emits a sparse proposed delta (only the
    edits it proposes, each bound to F_N with author/rail/pass provenance),
    and exhales the experience into its soul.
-4. The first pass closes when every required participant has returned,
-   failed, or timed out under governed policy. The heart then exposes the
-   complete first-pass proposal board in the per-rail workspace.
+4. The first pass closes when every required participant has returned a delta,
+   returned an explicit no-op, abstained, failed, or timed out under governed
+   policy. The heart then exposes the complete first-pass proposal board and
+   participant accounting in the per-rail workspace.
 5. Each core inhales its updated soul, re-attends the tick image plus the
    complete proposal board, emits one refined sparse delta, and exhales.
 6. After the refinement barrier, the rotating consolidator attends the tick
@@ -546,6 +573,14 @@ deliberation round against a frozen canonical base:
    base freshness, provenance) and atomically commits it, producing the
    successor canonical field; the consolidator exhales its experience. The
    tick ends at that commit — and only there.
+
+The current runtime implements this complete barrier/transaction mechanism
+synchronously through a permanent `ReasoningCorePort`; future local-thread,
+process, or remote executors implement the same boundary. The port is
+responsible for core-local inhale/exhale and soul handling. Deterministic
+fixture ports prove the organism mechanism in tests, but no learned D64
+reasoning core is serving yet. This is mechanism-functional circulation, not a
+claim of learned reasoning or conversational intelligence.
 
 "Against the entire shared field" means authored against the exact frozen
 base with field-wide addressability as permitted by authority class; it never
@@ -615,17 +650,29 @@ promotion. Neither a curriculum nor learned weights may replace the exact
 Dormant episodes from which it was derived.
 
 `runtime/trainer/sessions.py` implements the first deterministic durable
-lived-experience session compiler. It verifies an exact experience import and
-publishes content-addressed Trainer manifests whose examples reference source
-record identities and complete context ranges rather than copying or clipping
-text. Stable SHA-based 80/10/10 train/heldout/regression assignment prevents
-split drift. The recovered `D:\00` import currently yields a 59,858-example
-Heart grounding session and a 14,205-example observed conversation session.
-Observed assistant responses are explicitly labeled as observations whose
-correctness is not inferred, and the conversation session cannot authorize
-serving promotion. These manifests are governed curriculum inputs; direct
-dataset-loader/preflight integration and outcome-based target curation remain
-future work.
+historical record-reference compiler. It verifies exact experience imports and
+publishes content-addressed manifests whose examples reference source record
+identities and complete context ranges rather than copying or clipping text.
+The recovered `D:\00` import currently yields a 59,858-example Heart grounding
+session and a 14,205-example observed conversation session. Those historical
+assistant responses remain observations whose correctness is not inferred;
+the record-hash splits are stable but are not asserted to be whole-conversation
+splits because the recovered sources do not provide a trustworthy conversation
+identity. The historical conversation manifest therefore cannot authorize
+serving promotion.
+
+`runtime/trainer/episodes.py` is the runtime-faithful path. It compiles only
+complete `runtime_reasoning_episode` records, binds every episode from one
+durable Heart epoch/conversation to the same deterministic 80/10/10 split,
+keeps observed/failure/unknown quality distinct, and permits serving-promotion
+eligibility only when a separate exact outcome record supplies success,
+correction, or endorsement plus nonempty evidence identities. Its loader
+strictly reconstructs the pre-action `SharedFieldSnapshot`, categorical
+emissions and proposal workspaces, source/materialized typed deltas, completed
+turn, and accepted successor field. Trainer state and control-plane APIs can
+publish these immutable sessions. Model-specific batching, counterfactual
+generation, preflight binding, and the first learned reasoning-core campaign
+remain future work.
 
 The purpose of lived-experience training is primarily **procedural compression**: reasoning habits, tool-use instincts, error avoidance, planning patterns, semantic discrimination, confidence calibration, and other generalized intuition that should become easier because Axon has encountered similar situations before. Parameters are not required to memorize every factual detail. Exact facts, versions, identities, conversations, source material, and auditable outcomes remain in Dormant State and can be surfaced by Cortex when needed. In mature operation, weights should answer roughly "how have situations like this tended to work?" while Dormant State + Cortex answer "what exactly happened, what is known now, and what evidence supports it?"
 
@@ -1175,8 +1222,8 @@ The active implementation surface is intentionally narrow:
 - `runtime/axon_runtime/d64_adapter.py` ? runtime-facing exact and dual-surface D64 adapter,
 - `runtime/dormant/experience.py`, `runtime/dormant/evidence_bridge.py`, `runtime/dormant/relevance.py`, `runtime/dormant/generations.py`, `runtime/dormant/incremental.py`, and `runtime/dormant/evaluation.py` ? immutable content-addressed exact experience/source snapshots plus read-only manifest/hash-bound dormant retrieval, exact dereference, bounded graph/relation relevance, verified derived-index generations, transactional append/layout-preserving update maintenance, and held-out evaluation,
 - `Cortext/contracts.py` ? grounded Semantic Cortex service contract only; no active specialist/training authority and the `semantic_cortex` valve remains CLOSED,
-- `runtime/heart/` ? heart anatomy: authority/core control plane, canonical transaction boundary, beat coordinator, sovereign 20-slot valve plane, OS single-writer lease, restart-safe cardiac identity, durable ingress/replay/quarantine spool, crash-safe exact autobiographical ingress deposit, durable independent per-region mask control, health observability, explicit derived-view identity, relevance-gated dormant recall, permanent Heart host, `runtime/heart/intelligence.py` for learned Heart identity/fidelity/promotion contracts, `runtime/heart/d64_codec.py` for literal real-field D64 framing, and `runtime/heart/translation_core.py` for the first permanent non-authoritative 64D neural translator tissue; no learned Heart translator is serving/active yet;
-- `runtime/trainer/` ? permanent Trainer parameter-authority anatomy: heterogeneous parameter+buffer inventory, OS single-writer lease, scoped mutation grants, immutable content-addressed learning policies, isolated candidate optimizer execution with governed accumulation/scheduling/precision/budgets, per-parameter telemetry, exact mid-accumulation checkpoint/restore, deterministic promotion gates, atomic active-generation pointers, exact activation/rollback snapshots and receipts, restart hydration, deterministic content-addressed lived-experience sessions, immutable lifecycle records, and read-only inspection; no model is trained or activated without an explicit governed plan/policy/gate/activation path;
+- `runtime/heart/` ? heart anatomy: authority/core control plane, canonical transaction boundary, beat coordinator, proposal/refinement barriers, exact categorical reasoning-output decoder, width-generic derived proposal workspaces with a physical D64 renderer, rotating consolidator circulation, deterministic completed-turn materialization, sovereign 20-slot valve plane, OS single-writer lease, restart-safe cardiac identity, durable ingress/replay/quarantine spool, exact ingress/reasoning autobiography plus outcome/tool/Trainer hooks, durable independent per-region mask control, health observability, explicit derived-view identity, relevance-gated dormant recall, permanent Heart host, `runtime/heart/intelligence.py` for learned Heart identity/fidelity/promotion contracts, `runtime/heart/d64_codec.py` for literal real-field D64 framing, and `runtime/heart/translation_core.py` for preserved non-authoritative 64D neural translator tissue; circulation is mechanism-functional but no learned reasoning core or Heart translator is serving yet;
+- `runtime/trainer/` ? permanent Trainer parameter-authority anatomy: heterogeneous parameter+buffer inventory, OS single-writer lease, scoped mutation grants, immutable content-addressed learning policies, isolated candidate optimizer execution with governed accumulation/scheduling/precision/budgets, per-parameter telemetry, exact mid-accumulation checkpoint/restore, deterministic promotion gates, atomic active-generation pointers, exact activation/rollback snapshots and receipts, restart hydration, historical record-reference sessions plus whole-conversation runtime-faithful episode compilation/loading with explicit outcome quality, immutable lifecycle records, and read-only inspection; no model is trained or activated without an explicit governed plan/policy/gate/activation path;
 - `scripts/run_axon_heart.py`, `scripts/evaluate_dormant_relevance.py`, `scripts/maintain_dormant_index.py`, and `scripts/verify_d64_dual_surface.py` ? permanent Heart runtime, deterministic dormant semantic/relevance evaluation, explicit derived-index maintenance/recovery, and read-only live D64 dual-surface verification entry points;
 - `training/canonical_d64.py`, `training/complete_field_64d.py`, and `training/train_complete_field_64d.py` ? developmental canonical D64 reasoning path; `training/heart_translation.py` plus `scripts/train_heart_translation_smoke.py` ? real-field-D64 Heart translation curriculum/evaluation and Trainer-governed bounded candidate smoke path with content-addressed task objective and no activation,
 - `curator/import_d00_memories.py` and the remaining `curator/` recovered-corpus utilities ? protected-source, byte-exact autobiographical import plus offline exact dormant-memory schema/materialization/building tooling; `scripts/compile_lived_experience_sessions.py` ? deterministic governed session compilation from exact Dormant experience,

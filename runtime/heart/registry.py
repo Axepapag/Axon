@@ -122,7 +122,7 @@ class CoreRegistry:
 
 
 __all__ = [
-    "CoreStatus",
     "CoreDescriptor",
     "CoreRegistry",
+    "CoreStatus",
 ]

@@ -314,4 +314,4 @@ def _record_from_dict(data: dict[str, Any]) -> IngressRecord:
         raise ReplayEventError("malformed ingress journal record") from exc
 
 
-__all__ = ["IngressRecord", "DurableIngressSpool"]
+__all__ = ["DurableIngressSpool", "IngressRecord"]

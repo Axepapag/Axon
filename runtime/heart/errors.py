@@ -56,6 +56,10 @@ class ProposalBoardError(HeartError):
     """Base class for proposal-board (noncanonical workspace) failures."""
 
 
+class ReasoningCirculationError(HeartError):
+    """A reasoning pass or consolidator failed its exact runtime contract."""
+
+
 class UnknownParticipantError(ProposalBoardError):
     """A proposal or accounting event named a non-participant core."""
 
@@ -171,6 +175,7 @@ __all__ = [
     "ProposalBoardError",
     "RailMembershipError",
     "RailWidthMismatchError",
+    "ReasoningCirculationError",
     "ReplayEventError",
     "StaleBaseProposalError",
     "StaleRailBindingError",

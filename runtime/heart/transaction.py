@@ -26,12 +26,12 @@ from runtime.field import (
 
 from .authority import AuthorityClass, AuthorityGrant
 from .errors import (
+    AuthorityViolationError,
     CoreCommitError,
     FinalCommitAlreadyMadeError,
     HeartTransactionError,
     IngressDuringTickError,
     StaleBaseProposalError,
-    AuthorityViolationError,
     TickBindingError,
     ValveDuringTickError,
 )

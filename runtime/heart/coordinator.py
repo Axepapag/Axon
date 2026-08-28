@@ -4,9 +4,9 @@ A ``BeatCoordinator`` owns one canonical state branch, a heart transaction
 boundary, and a heartbeat clock.  Each beat drains the ingress queue between
 ticks, runs primitive dormant recall when the canonical field changes, applies
 per-region attention masks as a derived compile-time view, and freezes the
-canonical field as a D64 tick image.  Build B stops at the tick image; Build E
-will attach proposal, refinement, and consolidation barriers to the same frozen
-image.
+canonical field as a D64 tick image.  The reasoning circulation attaches its
+proposal, refinement, and consolidation barriers to that same frozen image and
+returns only through the consolidator transaction path.
 
 Attention masks are intentionally not part of the canonical identity.  The
 branch stores and hashes only the ordered spans; changing a mask does not create
@@ -283,7 +283,12 @@ class BeatCoordinator:
             ),
         )
 
-    def _commit_to_branch(self, commit: HeartCommit) -> SharedFieldSnapshot:
+    def _commit_to_branch(
+        self,
+        commit: HeartCommit,
+        *,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> SharedFieldSnapshot:
         """Persist one heart commit through the canonical state branch.
 
         The branch is the durable canonical authority.  After persisting, the
@@ -291,10 +296,13 @@ class BeatCoordinator:
         a later failure cannot leave coordinator memory behind durable state.
         """
 
+        branch_metadata: dict[str, Any] = {"heart_commit": commit.to_canonical_dict()}
+        if metadata:
+            branch_metadata.update(dict(metadata))
         persisted = self._branch.commit(
             commit.delta,
             permitted_regions=commit.grant.governed_regions,
-            metadata={"heart_commit": commit.to_canonical_dict()},
+            metadata=branch_metadata,
         )
         self._current_field = persisted
         return persisted
@@ -318,6 +326,71 @@ class BeatCoordinator:
         persisted = self._commit_to_branch(commit)
         if persisted.field_id != commit.successor.field_id:
             raise HeartTransactionError("canonical branch HEAD disagrees with the Heart commit successor")
+        return commit
+
+    def rail_surface(self, d_model: int) -> CompiledD64DualSurface:
+        """Return the physical surface for one rail on the in-flight tick.
+
+        The execution interface is width-generic, but D64 is intentionally the
+        only compiled physical rail today.  Wider labels fail closed until a
+        real compiler and surface type exist.
+        """
+
+        if d_model != 64:
+            raise HeartTransactionError(
+                f"no physical runtime surface is registered for d_model {d_model}"
+            )
+        if self._open_tick_image is None or self._open_dual_surface is None:
+            raise HeartTransactionError("no physical rail surface exists without an in-flight tick")
+        self._open_tick_image.require_rail(d_model)
+        return self._open_dual_surface
+
+    def commit_consolidator_delta(
+        self,
+        delta: FieldDelta,
+        *,
+        tick: TickIdentity,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> HeartCommit:
+        """Commit exactly one final reasoning decision and consume its tick."""
+
+        image = self._open_tick_image
+        if image is None:
+            raise HeartTransactionError("no reasoning tick is in flight")
+        if tick != image.identity:
+            raise HeartTransactionError("consolidator tick differs from the frozen tick image")
+        base = self._current_field
+        if base.field_id != tick.base_field_id or base.tick_id != tick.base_tick_id:
+            raise HeartTransactionError("canonical field moved after the reasoning tick froze")
+        circulation_metadata = {} if metadata is None else dict(metadata)
+        commit = self._boundary.commit(
+            base,
+            delta,
+            AuthorityGrant.consolidator(),
+            tick=tick,
+            valve_provenance={
+                "authority_class": "consolidator",
+                "tick_uid": tick.tick_uid,
+                **circulation_metadata,
+            },
+        )
+        try:
+            persisted = self._commit_to_branch(
+                commit,
+                metadata={"reasoning_circulation": circulation_metadata},
+            )
+        except Exception:
+            # The transaction boundary has consumed the tick.  Clear its
+            # derived surfaces and reload durable truth so recovery can open a
+            # fresh tick instead of reusing an ambiguous final decision.
+            self._open_tick_image = None
+            self._open_dual_surface = None
+            self._sync_to_branch_head()
+            raise
+        if persisted.field_id != commit.successor.field_id:
+            raise HeartTransactionError("canonical branch HEAD disagrees with the consolidator successor")
+        self._open_tick_image = None
+        self._open_dual_surface = None
         return commit
 
     def _drain_and_commit_ingress(
@@ -631,9 +704,8 @@ class BeatCoordinator:
     def close_tick(self) -> None:
         """Close the in-flight tick without a consolidator commit.
 
-        Build B uses this test/production boundary because reasoning cores and
-        consolidation do not yet exist.  Build E will close the tick via the
-        consolidator's heart commit.
+        This remains the explicit null-tick/development boundary.  A reasoning
+        tick ends through :meth:`commit_consolidator_delta`, not this method.
         """
 
         if self._open_tick_image is None:

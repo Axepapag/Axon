@@ -352,12 +352,12 @@ class FrozenTickImage:
 
 
 __all__ = [
+    "DERIVED_VIEW_SCHEMA",
     "TICK_IDENTITY_SCHEMA",
     "TICK_IMAGE_SCHEMA",
-    "DERIVED_VIEW_SCHEMA",
-    "derive_view_id",
-    "TickIdentity",
+    "FrozenTickImage",
     "HeartbeatClock",
     "RailBinding",
-    "FrozenTickImage",
+    "TickIdentity",
+    "derive_view_id",
 ]
