@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-26T22:12:06-05:00
-Current through event: `evt-20260827T031206801962Z-kimmy-packed-rail-ratification`
+Updated: 2026-08-27T20:15:50-05:00
+Current through event: `evt-20260828T011550810215Z-codex-mask-anatomy-clarification`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -31,13 +31,11 @@ proved; learned semantic Heart function is not.
 
 **Pivot ratified by Jeff on 2026-08-26** after full three-way convergence
 (Kimmy proposal, Codex Q1-Q9 review, ChatGPT review). Ratified doctrine now
-lives in both SoT mirrors, section "Packed substrate rails and the shelf
-pivot (ratified 2026-08-26)": exact packed rails with no pack-count ceiling
-(generic `d_model/16`-lane codec, packs never cross region/attended-interval/
-provenance boundaries, boundary packs use explicit empty lanes); the
-corrected mask law (masking is the per-region 0-100% materialization
-boundary between Shared Field and Dormant — cells never move, the mask
-moves, masked material resides exact in Dormant); discrete per-lane
+currently lives in both SoT mirrors, section "Packed substrate rails and the
+shelf pivot (ratified 2026-08-26)": exact packed rails with no pack-count
+ceiling (generic `d_model/16`-lane codec, packs never cross region/attended-
+interval/provenance boundaries, boundary packs use explicit empty lanes);
+discrete per-lane
 categorical emission with deterministic Heart reconstruction (no approximate
 continuous decode); the shelf (learned Heart translator + autonomous Cortex
 preserved non-serving with manifest and return conditions); reasoning cores
@@ -46,6 +44,17 @@ as the new first learned-organ priority, trained from real Dormant memory;
 The per-character D64 reader remains permanent specialist tissue. The
 proposal document (`roundtable/PACKED_RAIL_CODEC_PROPOSAL.md`) is now
 historical context for that doctrine.
+
+Jeff clarified the mask anatomy again on 2026-08-27. Each canonical region is
+one exact, position-stable body. Its independent 0–100% mask partitions that
+body into the attended Shared Field and dormant-in-place material; Heart sends
+only the unmasked cells to rails. Moving a mask changes the derived rail view,
+not canonical cell location or identity. Future Cortex digestion harvests
+provenance-bound semantic derivatives from newly dormant material without
+moving, deleting, or replacing the regional source. Current SoT wording still
+contains contradictory relocation language ("resides in Dormant",
+"rematerialize", and possible externalization), so the locked mirrors require
+a governed wording correction before mask/rail implementation proceeds.
 
 ## Reality boundary and success claim
 
@@ -90,6 +99,10 @@ specialist tissue rather than being forced to become the whole mind.
   D64 remains useful tissue when wider peers arrive.
 - Heart alone validates/materializes canonical Shared Field commits. Trainer
   alone governs parameter mutation, lineage, gates, promotion, and activation.
+- Every canonical region retains one exact, position-stable cell sequence. Its
+  own 0–100% mask alone decides which cells are Shared Field and sent to rails;
+  masked cells are dormant in place and never move, renumber, or become a
+  second canonical copy.
 - Discrete content uses discrete loss. Counterfactual/source-use evidence and
   regression/replay floors outrank decreasing training loss.
 - `D:\00` is protected read-only source evidence. Exact lived evidence is never
@@ -252,10 +265,11 @@ consolidator services do not.
 8. **CLAIM BOUNDARY:** persistent private state and behavioral identity are
    engineerable; subjective consciousness or continuity of a metaphysical soul
    is not currently testable or guaranteeable.
-9. **RATIFICATION BLOCKER:** current doctrine requires per-character unpacking
-   and Heart-first learned-organ sequencing. The packed-reader/shelf pivot and
-   its unbounded-rail/mask-growth rulings need an explicit mirrored amendment
-   before moves, code, or training.
+9. **DOCTRINE WORDING BLOCKER:** Jeff's 2026-08-27 clarification makes masking
+   an in-place partition of each canonical region. Current SoT still describes
+   masked material as residing outside the Shared Field and permits physical
+   externalization/rematerialization. Correct both mirrors before implementing
+   the mask/rail boundary so storage language cannot relocate canonical cells.
 10. **SUBSTRATE COVERAGE GAP:** the frozen 16D bank supports 95 characters;
     real Dormant evidence includes unsupported text. Training must count and
     report inaccessible records and needs an additive Unicode/escape strategy
@@ -268,22 +282,26 @@ consolidator services do not.
    pad at attended-interval boundaries; character masks never rounded), Jeff
    ratified, and the amendment is live in both SoT mirrors at SHA256
    `BD83AF87…` ("Packed substrate rails and the shelf pivot").
-2. Publish an evidence-bound shelf manifest and move only genuinely learned
+2. Apply Jeff's 2026-08-27 in-place mask clarification to both SoT mirrors:
+   one position-stable canonical regional body; Shared Field equals its
+   unmasked partition; dormant equals its masked in-place partition; Heart
+   rails contain only unmasked cells; Cortex derivatives never replace source.
+3. Publish an evidence-bound shelf manifest and move only genuinely learned
    Heart/Cortex implementations and campaigns; keep shared exact/grounding
    primitives active and preserve every checkpoint/import consequence.
-3. Generalize the existing exact physical-row compiler to registered widths,
+4. Generalize the existing exact physical-row compiler to registered widths,
    add boundary/address receipts and a discrete per-lane emission head, then
    prove exhaustive pack/unpack, mask-gap, repack, rejection and CPU behavior.
-4. Benchmark the existing permanent per-character D64 specialist against a new
+5. Benchmark the existing permanent per-character D64 specialist against a new
    packed-row consumer on the same runtime-faithful task; do not infer semantics
    or compute savings from packing alone.
-5. Index `experience_v1`, wire missing autobiography outcomes, define episode/
+6. Index `experience_v1`, wire missing autobiography outcomes, define episode/
    time-safe splits and counterfactual source-use probes, and report unsupported
    substrate coverage before reasoning-core training.
-6. Launch only a bounded Trainer-governed real-memory reasoning smoke after the
+7. Launch only a bounded Trainer-governed real-memory reasoning smoke after the
    anatomy/preflight gates pass; observed historical responses are not presumed
    correct targets.
-7. Table the minimum-living-Axon loop with exact packed circulation, grounded
+8. Table the minimum-living-Axon loop with exact packed circulation, grounded
    recall/proposal, discrete typed emission, Heart validation/commit, automatic
    outcome deposit, and demonstrated abstain/no-op behavior.
 
