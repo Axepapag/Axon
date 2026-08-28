@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-28T12:01:43-05:00
-Current through event: `evt-20260828T170143732437Z-codex-pre-reasoning-organism-audit`
+Updated: 2026-08-28T16:20:45-05:00
+Current through event: `evt-20260828T212045247851Z-codex-reasoning-circulation-runtime`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -71,16 +71,30 @@ Heart/reasoning output heads remain native-only and explicitly reject Unicode
 frames; they require a governed 351-class categorical output/copy route before
 claiming non-native generation.
 
-A pre-reasoning organism audit now separates functioning control-plane anatomy
-from the missing living loop. Heart has a real event-driven work signal, a
-30-second default idle liveness cadence, independent durable heartbeat/tick
-identities, frozen D64 tick images, registry metadata, two-pass proposal
-barriers and a consolidator-only transaction boundary. The barriers and commit
-boundary pass focused tests, but no production runner instantiates the proposal
-board, executes cores, renders proposal sidecars, invokes a consolidator or
-feeds its commit back into the next circulation. Only D64 is physically
-compiled. The intended cadence is one frozen reasoning tick with proposal,
-refinement and consolidation phases; barriers are not separate tick identities.
+The missing reasoning-runner anatomy is now implemented at the mechanism layer.
+With active descriptors and configured `ReasoningCorePort` implementations,
+HeartHost runs one frozen D64 tick through first proposals, complete participant
+accounting, exact per-rail proposal rendering, refinement, a second barrier,
+rotating consolidation, deterministic completed-turn materialization, and the
+one consolidator transaction. DELTA, NO_OP, ABSTAIN, failure, and timeout are
+distinct barrier states. Learned output is an exact 353-category contract:
+351 permanent Unicode transport categories plus EMPTY and EOS, bound to exact
+region/start/end addresses and rejected on malformed Unicode, stale base,
+bounds, or authority. Proposal workspaces are width-generic, but only D64 has a
+physical Shared Field compiler. No learned reasoning port serves yet; this is a
+real organism mechanism, not a claim of learned intelligence.
+
+Successful reasoning circulation now finalizes a conversational turn in one
+atomic delta: the consolidator authors nonempty `response_draft`; Heart appends
+an exact readable length-delimited user/response record to
+`conversation_history` and clears transient `user_input`. The full episode is
+deposited into exact Dormant autobiography with pre-action field, frozen image,
+both boards, emissions, deltas, receipt, commit, accepted response, and quality
+`observed`. Explicit outcome, tool-invocation, and Trainer-outcome hooks exist.
+`runtime/trainer/episodes.py` compiles whole-conversation stable splits, never
+infers correctness from observation, requires explicit evidence for serving
+eligibility, and reconstructs the complete accepted runtime transition before
+yielding a training episode.
 
 Substrate-width review on 2026-08-28 found no reason to replace that canonical
 16D scaffold. Width and vocabulary coverage are separate: 24D or 32D does not
@@ -127,8 +141,9 @@ specialist tissue rather than being forced to become the whole mind.
 
 - Jeff is project convener and final authority.
 - `docs/SOURCE_OF_TRUTH.md` and root `SOURCE_OF_TRUTH.md` are byte-identical at
-  SHA256 `1B28EB3739AE4D49B41FE895F8E8638112862824018ED54E3C95AE995C121CB9`
-  (packed rails, in-place masks, and exact additive 16D Unicode transport).
+  SHA256 `412499F780EEDDEEB5AE94C4DDEC1A28714A866C5CF8C19496D457FCDF565C0C`
+  (packed rails, in-place masks, exact 16D Unicode transport, reasoning
+  circulation, completed-turn autobiography, and runtime episodes).
 - No trained anatomy may contain a fixed character/context ceiling, finite
   learned position table, wrapping page index, destructive truncation, or silent
   long-item exclusion. Pages, buckets, batches, and steps are compute controls.
@@ -165,8 +180,11 @@ specialist tissue rather than being forced to become the whole mind.
 Seven `D:\00` sources totaling 3,529,335,677 bytes are preserved under
 `State/dormant/experience_v1/source_snapshots/` as 59,875 hash-bound logical
 records. Accepted external user/tool/advisor ingress is deposited before spool
-acknowledgement. Automatic response, tool request/result, consolidator, and
-Trainer outcome hooks remain missing.
+acknowledgement. Successful configured reasoning ticks now deposit exact
+response/consolidator episodes automatically. Explicit exact deposit hooks
+exist for completed tool invocation/results, Trainer outcomes, and later
+episode outcome evidence; automatic wiring from every future tool and Trainer
+executor remains open.
 
 The Trainer provides leased parameter authority, preflight, isolated candidate
 clones, exact mutation grants, telemetry, immutable checkpoints including
@@ -177,22 +195,25 @@ proposals, zero activation/rollback receipts, zero active-generation pointers,
 and no writer lease. Two immutable source-reference sessions exist: 59,858
 exact Heart-grounding examples and 14,205 observed user/assistant pairs; both
 are explicitly non-serving, and historical assistant text is not treated as a
-correctness label. It is a working experiment constitution, not yet an
-autonomous teacher or runtime-faithful episode loader.
+correctness label. A separate runtime-faithful compiler/loader now reconstructs
+complete live episodes and requires explicit outcome evidence before marking an
+example serving-promotion eligible. Model-specific batching, counterfactual
+construction, preflight binding, and autonomous pedagogy remain open.
 
-## Pre-reasoning architecture boundary
+## Current reasoning architecture boundary
 
 - Keep the exact scaffold at 16D. Dormant authority is raw exact Unicode and
   provenance, not a permanently materialized ocean of 16D tensors; Heart
   derives 16D transport only for attended material.
-- Accepted user ingress currently owns `user_input`, not
-  `conversation_history`. Turn finalization that archives user/response turns,
-  clears transient input, and deposits complete outcomes is still missing.
-- Proposal and refinement records already use exact typed `FieldDelta` values
-  bound to one base. They should remain noncanonical and become the first
-  width-neutral interlingua: Heart deterministically renders the same proposal
-  board beside F_N on every destination rail. Learned cross-width translation
-  is not required for exact text/edit proposals.
+- Accepted user ingress owns transient `user_input`. On a successful reasoning
+  commit Heart now archives the exact user/response turn into
+  `conversation_history` and clears input atomically. In the first form those
+  two bookkeeping regions are reserved from simultaneous consolidator edits.
+- Proposal and refinement records use exact typed `FieldDelta` values bound to
+  one base and remain noncanonical. Heart now renders the same exact proposal
+  board beside F_N on each destination rail through a width-generic interface;
+  only the D64 physical path exists today. Learned cross-width translation is
+  not required for exact text/edit proposals.
 - Jeff's `D64 / 2 layers / 1 head / 131072 FFN` design is retained as a serious
   Candidate A. It is about 33.85M encoder-layer parameters and costs about
   33.55M FFN multiply-accumulates per transport unit, 32 times a two-layer
@@ -200,11 +221,11 @@ autonomous teacher or runtime-faithful episode loader.
   must compete under identical complete-field gates against multi-head,
   deeper/moderate-FFN, and optionally sparse-expert candidates; none is treated
   as disposable tissue.
-- Continuous lived-experience training requires complete episode capture:
-  pre-action field/view, evidence, every proposal and refinement, consolidator
-  choice, canonical receipt, tool effects, response, later correction/outcome,
-  and Trainer result. Splits must be by whole episode/source/time, never by
-  isolated adjacent messages that leak history.
+- Continuous lived-experience capture now records pre-action field/view, every
+  participant state/emission, proposal/refinement boards, consolidator choice,
+  canonical receipt, response, and explicit later outcome evidence. The loader
+  verifies the exact successor and whole-conversation split. Tool effects and
+  Trainer results have exact hooks but still need automatic executor wiring.
 
 ## Heart identity-generalization evidence
 
@@ -303,13 +324,17 @@ to emit raw substrate vectors. Heart must preserve each native emission,
 translate it into registered discrete text plus canonical addresses and a typed
 `FieldDelta`, and provide roundtrip/grounding evidence. A rotating consolidator
 selects a final proposal, but only Heart validation and atomic commit make it
-canonical. Frozen D64 tick binding, proposal barriers, and final transaction
-mechanics exist. Core execution, native-proposal translation, refinement, and
-consolidator services do not.
+canonical. Frozen D64 tick binding, core execution ports, proposal/refinement
+barriers, exact proposal rail rendering, rotating consolidation, final
+transaction, turn finalization, and autobiographical episode loading now exist.
+Only deterministic fixture ports have exercised the loop; no learned reasoning
+generation is active. Hidden-state/native-dialect translation remains future
+work and is not needed for the current exact typed-delta interlingua.
 
 ## Verification and Git
 
-- Full repository suite: 405/405 passed after exact 16D Unicode transport integration.
+- Full repository suite: 413/413 passed after reasoning circulation and runtime
+  episode integration.
 - Regional-mask proofs cover exact 0/1/50/100% behavior, ten-region
   independence, atomic persistence/restart, corruption rejection, stable
   canonical addresses and 16D cells, no boundary bridging, mask-only
@@ -325,11 +350,12 @@ consolidator services do not.
 - Fixed-character poison scanner: passed with zero violations.
 - Substrate conformance, Python compileall, SOT mirror equality, and
   `git diff --check`: passed.
-- Known non-failing warnings: PyTorch nested-tensor warning and unwritable local
-  `.pytest_cache`.
-- Changed-file Ruff, compileall, poison scan, SOT mirror, and diff hygiene pass.
-  Global Ruff 0.16.4 is installed; whole-active-repo baseline currently reports
-  211 findings, intentionally not mass-fixed in this training turn.
+- Known non-failing warning: PyTorch nested-tensor warning. Pytest cache was
+  explicitly disabled for the binding run because the existing repository
+  cache path is not writable.
+- Changed-file Ruff, compileall, SOT mirror, and diff hygiene pass. Repository-
+  wide Ruff currently reports 135 older findings outside this change; they were
+  not mass-fixed in this architecture turn.
 - Implementation commits `25a620bb39b85f966b76c4d8397d9250da7d3e15`,
   `83b48fce8c943f409b741bc002684d79c86aac68`, and SOT commit
   `00b56b7a9cdac88c91896f926fd9213037c64410` were pushed to `origin/main`.
@@ -337,24 +363,30 @@ consolidator services do not.
   `b063bba87d2d7b93cf9271a21190a8ccbe48b3d8` was pushed to `origin/main`.
 - Exact additive 16D Unicode transport implementation commit
   `d24e761e3959047a0e029a6f9f37f680c1036856` was pushed to `origin/main`.
+- Reasoning circulation/runtime episode implementation commit
+  `74068c0e1bc8c66513cdcc27b5d7eb2e996b2d1d` was pushed to `origin/main`.
 - No Heart training/evaluation process or Trainer writer lease remained.
-- D: retained 139,902,599,168 bytes free after artifacts. All training used the
-  local GTX 1650; cloud spend was $0.
+- D: retained 139,790,180,352 bytes free. No training process or paid/cloud
+  operation ran in this turn; spend was $0.
 
 ## Active flags
 
 1. **CAPABILITY BLOCKER:** governed exact conduction passes every unseen field,
    but one of 37 replay sequences still fails and no semantic Heart serves.
-2. **AUTOBIOGRAPHY GAP:** response, tool request/result, consolidator, and
-   learning-outcome deposits remain unwired.
-3. **TRAINER INTEGRATION GAP:** lived-experience manifests are not organ loaders,
-   and observed outputs are not automatically trustworthy targets.
+2. **AUTOBIOGRAPHY RECOVERY GAP:** reasoning episodes deposit after the
+   canonical commit, but crash reconciliation for the narrow commit-before-
+   episode-deposit window is not yet journaled. Tool and Trainer hooks exist but
+   are not automatically called by every future executor.
+3. **TRAINER INTEGRATION GAP:** runtime-faithful episode loading and explicit
+   quality gates exist, but no model-specific batch/objective/counterfactual or
+   preflight binding has been implemented.
 4. **RETRIEVAL GAP:** `experience_v1` is not indexed through the Cortex/Dormant
    evidence bridge.
-5. **REASONING CIRCULATION GAP:** no running core/refinement/consolidator service
-   or learned native-proposal translator exists.
+5. **LEARNED REASONING GAP:** the full mechanism runs through a permanent core
+   port, but no learned D64 core implements that port or produces useful
+   proposals yet.
 6. **TOOLING BACKLOG:** Ruff 0.16.4 is installed/configured and changed files
-   pass; 211 pre-existing findings remain across the active repository.
+   pass; 135 pre-existing findings remain across the repository-wide audit.
 7. **STRATEGIC RISK:** infrastructure and Heart work may become over-serialized
    unless a bounded useful end-to-end cognition loop follows the next earned
    Heart gate.
@@ -365,11 +397,9 @@ consolidator services do not.
    generic, but only D64 physical rail compilation exists. Registered D128,
    D256, and generic `d_model/16` packing still need implementation and exact
    cross-width proof.
-10. **LEARNED OUTPUT GAP:** exact compiler/input circulation now supports every
-    valid Unicode scalar, but old learned decoders still emit only the 95 native
-    categories. A reasoning campaign must either use native-only targets or add
-    and gate a 351-class transport output/copy head; it may not report Unicode
-    writing from exact input transport alone.
+10. **LEARNED OUTPUT GAP:** the strict 351-transport-category plus EMPTY/EOS
+    runtime contract now exists, but no learned head has been trained against
+    it. Exact mechanism decode is not evidence that a core can learn to emit it.
 
 ## Recommended next actions
 
@@ -386,29 +416,32 @@ consolidator services do not.
 3. Publish an evidence-bound shelf manifest and move only genuinely learned
    Heart/Cortex implementations and campaigns; keep shared exact/grounding
    primitives active and preserve every checkpoint/import consequence.
-4. Generalize D64 compiler-v2's existing boundary/address receipts to
-   registered widths divisible by 16, add a discrete per-lane emission head,
-   then prove exhaustive pack/unpack, mask-gap, cross-width repack, rejection,
-   and CPU behavior.
+4. Generalize D64 compiler-v3's existing boundary/address receipts to
+   registered widths divisible by 16, then prove exhaustive pack/unpack,
+   mask-gap, cross-width repack, rejection, and CPU behavior. The width-generic
+   proposal renderer is ready; physical wider Shared Field compilers are not.
 5. ~~Implement and ratify the 16D universal transport before reasoning-core
    training~~ — DONE 2026-08-28: strict categorical UTF-8, raw canonical
    Unicode, typed receipts, masks-before-expansion, exhaustive scalar and
    rejection proof, CPU reading, native-cell/checkpoint compatibility, and
    exact code/escape tests are live at `d24e761`. Next, measure expansion on
-   `experience_v1` and add a governed 351-class reasoning output/copy head;
+   `experience_v1` and train a governed 351-class reasoning output/copy head
+   against the implemented strict runtime contract;
    24D/32D replacement work is not required.
 6. Benchmark the existing permanent per-character D64 specialist against a new
    packed-row consumer on the same runtime-faithful task; do not infer semantics
    or compute savings from packing alone.
-7. Index `experience_v1`, wire missing autobiography outcomes, define episode/
-   time-safe splits and counterfactual source-use probes, and report unsupported
-   substrate coverage before reasoning-core training.
-8. Launch only a bounded Trainer-governed real-memory reasoning smoke after the
-   anatomy/preflight gates pass; observed historical responses are not presumed
-   correct targets.
-9. Table the minimum-living-Axon loop with exact packed circulation, grounded
-   recall/proposal, discrete typed emission, Heart validation/commit, automatic
-   outcome deposit, and demonstrated abstain/no-op behavior.
+7. Close the reasoning commit/deposit crash window, automatically connect tool
+   and Trainer executors to their autobiography hooks, and add explicit durable
+   conversation/session boundaries rather than relying on the Heart epoch as
+   the first-form grouping identity.
+8. Define the D64 architecture tournament and its runtime-faithful objectives,
+   batches, preflight, held-out/counterfactual/source-use/replay gates, CPU
+   latency budget, and promotion criteria. Historical responses remain
+   observations, never presumed correct targets.
+9. Launch only a bounded Trainer-governed real-memory D64 reasoning smoke after
+   those gates pass. The next missing milestone is learned useful behavior, not
+   more control-plane anatomy.
 
 ## Important paths and commands
 
@@ -417,6 +450,12 @@ consolidator services do not.
   Codex's Q1-Q8 response in `roundtable/ENGINE_TEAM_BUS.md`
 - Durable mask control: `runtime/heart/masks.py`; permanent host integration:
   `runtime/heart/host.py`; exact D64 packing: `runtime/field/compiler_d64.py`
+- Reasoning circulation/output/workspaces/turn finalization:
+  `runtime/heart/circulation.py`, `runtime/heart/reasoning_output.py`,
+  `runtime/heart/proposal_workspace.py`, and `runtime/heart/turns.py`
+- Runtime-faithful lived episodes: `runtime/trainer/episodes.py`; mechanism and
+  loader proofs: `tests/test_reasoning_circulation.py` and
+  `tests/test_reasoning_output.py`
 - Mask proof suite: `tests/test_heart_region_masks.py`
 - CLI mask control: `python scripts/run_axon_heart.py --mask REGION=PERCENT`
 - Frozen native bank and exact Unicode transport: `substrate/substrate.py`,
