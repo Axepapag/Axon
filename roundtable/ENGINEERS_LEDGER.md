@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-27T21:39:33-05:00
-Current through event: `evt-20260828T023933838605Z-codex-in-place-regional-masks`
+Updated: 2026-08-28T10:36:17-05:00
+Current through event: `evt-20260828T153617941522Z-codex-unicode-substrate-audit`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -57,6 +57,20 @@ region, attended-interval, span, source, and provenance boundary. Future
 Cortex digestion remains non-destructive, provenance-bound work; it was not
 implemented in this mask correction.
 
+The pre-reasoning Unicode audit is now exact. The frozen bank contains all
+printable ASCII except backtick plus LF: 95 native characters total. Ordinary
+ASCII-subset Python, Java, C++, and JSON compile and roundtrip exactly, but an
+attended backtick, tab, CR, accented character, curly quote, emoji, or other
+unsupported Unicode scalar fails the entire D64 view closed. Unsupported text
+may remain preserved while masked, but it is inaudible to cores until masked
+out or representable. A scan found unsupported characters in 27/78 active
+runtime/training/scripts/substrate Python files, mostly documentation
+backticks. General real-memory reasoning training is therefore blocked on an
+additive reversible Unicode transport. The recommended permanent anatomy keeps
+raw canonical Unicode unchanged, compiles unsupported code points to an
+unambiguous sequence of existing frozen cells, escapes the literal sentinel,
+and receipts every expanded transport lane back to its canonical address.
+
 ## Reality boundary and success claim
 
 Axon's central engineering vision is grounded: exact persistent state, a shared
@@ -111,6 +125,9 @@ specialist tissue rather than being forced to become the whole mind.
 - Mask policy and its durable controller are rail-width-independent, but D64
   is still the only implemented physical compiler. Wider registered rails are
   not implied by this proof.
+- The current 95-cell writing bank is frozen permanent tissue. Universal
+  Unicode support must be additive and exactly reversible; raw canonical text
+  may not be normalized, dropped, substituted, or rewritten as escapes.
 - Discrete content uses discrete loss. Counterfactual/source-use evidence and
   regression/replay floors outrank decreasing training loss.
 - `D:\00` is protected read-only source evidence. Exact lived evidence is never
@@ -242,6 +259,10 @@ consolidator services do not.
   independence, atomic persistence/restart, corruption rejection, stable
   canonical addresses and 16D cells, no boundary bridging, mask-only
   circulation over the same field, and frozen in-flight ticks.
+- Runtime code probes: ordinary Python (81 chars), Java (99), and C++ (69)
+  compiled with complete coverage and exact roundtrip; native bank roundtrip
+  was 95/95. Emoji, accent, backtick, tab, CR, and curly-quote probes all
+  rejected with `UnsupportedActiveCharacterError` as designed.
 - Fixed-character poison scanner: passed with zero violations.
 - Substrate conformance, Python compileall, SOT mirror equality, and
   `git diff --check`: passed.
@@ -283,10 +304,11 @@ consolidator services do not.
    generic, but only D64 physical rail compilation exists. Registered D128,
    D256, and generic `d_model/16` packing still need implementation and exact
    cross-width proof.
-10. **SUBSTRATE COVERAGE GAP:** the frozen 16D bank supports 95 characters;
-    real Dormant evidence includes unsupported text. Training must count and
-    report inaccessible records and needs an additive Unicode/escape strategy
-    before claiming general real-memory coverage.
+10. **BLOCKING — SUBSTRATE COVERAGE GAP:** the frozen 16D bank supports every
+    printable ASCII character except backtick plus LF, but not tab, CR or
+    general Unicode. Any unsupported attended character stops D64 circulation.
+    General real-memory reasoning training must wait for an additive reversible
+    Unicode transport with canonical-address receipts and exact roundtrip.
 
 ## Recommended next actions
 
@@ -307,16 +329,22 @@ consolidator services do not.
    registered widths divisible by 16, add a discrete per-lane emission head,
    then prove exhaustive pack/unpack, mask-gap, cross-width repack, rejection,
    and CPU behavior.
-5. Benchmark the existing permanent per-character D64 specialist against a new
+5. Before reasoning-core training, ratify and implement the universal Unicode
+   transport: raw canonical Unicode remains unchanged; masks resolve before
+   expansion; direct supported cells stay frozen; unsupported code points and
+   literal sentinels encode reversibly; malformed transport rejects; receipts
+   bind canonical and transport positions; expansion is measured on
+   `experience_v1` and active code.
+6. Benchmark the existing permanent per-character D64 specialist against a new
    packed-row consumer on the same runtime-faithful task; do not infer semantics
    or compute savings from packing alone.
-6. Index `experience_v1`, wire missing autobiography outcomes, define episode/
+7. Index `experience_v1`, wire missing autobiography outcomes, define episode/
    time-safe splits and counterfactual source-use probes, and report unsupported
    substrate coverage before reasoning-core training.
-7. Launch only a bounded Trainer-governed real-memory reasoning smoke after the
+8. Launch only a bounded Trainer-governed real-memory reasoning smoke after the
    anatomy/preflight gates pass; observed historical responses are not presumed
    correct targets.
-8. Table the minimum-living-Axon loop with exact packed circulation, grounded
+9. Table the minimum-living-Axon loop with exact packed circulation, grounded
    recall/proposal, discrete typed emission, Heart validation/commit, automatic
    outcome deposit, and demonstrated abstain/no-op behavior.
 
@@ -329,6 +357,8 @@ consolidator services do not.
   `runtime/heart/host.py`; exact D64 packing: `runtime/field/compiler_d64.py`
 - Mask proof suite: `tests/test_heart_region_masks.py`
 - CLI mask control: `python scripts/run_axon_heart.py --mask REGION=PERCENT`
+- Frozen character bank and strict admission: `substrate/substrate.py` and
+  `runtime/field/compiler_d64.py`
 - Generalization curriculum/loss/evidence: `training/heart_translation.py`
 - Governed run: `scripts/train_heart_decoder_generalization_smoke.py`
 - Latest governed-conduit evidence:
