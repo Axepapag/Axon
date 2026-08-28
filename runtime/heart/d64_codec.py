@@ -1,7 +1,9 @@
 """Grounded deterministic codec between canonical fields and D64 Heart tissue."""
+
 from __future__ import annotations
 
 import hashlib
+import itertools
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Iterable
 
@@ -18,12 +20,18 @@ from runtime.field import (
     canonical_sha256,
     replacement_delta,
 )
+from substrate import (
+    NATIVE_TOKEN_COUNT,
+    TRANSPORT_VOCAB_SIZE,
+    decode_unicode_tokens,
+    transport_token_cell16,
+)
 
 if TYPE_CHECKING:
     from .translation_core import HeartTranslationCore
 
 
-D64_HEART_FRAME_SCHEMA = "axon-heart-d64-frame-v1"
+D64_HEART_FRAME_SCHEMA = "axon-heart-d64-frame-v2"
 
 
 class D64HeartCodecError(RuntimeError):
@@ -37,6 +45,7 @@ class D64HeartFrame:
     rail_id: str
     semantic_surface_id: str
     characters: tuple[str, ...]
+    transport_token_ids: tuple[int, ...]
     canonical_positions: tuple[int, ...]
     cells16: np.ndarray
     address_sha256: str
@@ -45,17 +54,23 @@ class D64HeartFrame:
 
     def __post_init__(self) -> None:
         cells = np.asarray(self.cells16, dtype=np.float32)
-        if cells.shape != (len(self.characters), 16):
-            raise ValueError("D64 Heart frame cells must have shape [characters, 16]")
+        token_ids = tuple(int(item) for item in self.transport_token_ids)
+        if cells.shape != (len(token_ids), 16):
+            raise ValueError("D64 Heart frame cells must have shape [transport_units, 16]")
         if not self.characters:
             raise ValueError("D64 Heart frame cannot be empty")
+        if len(self.characters) != len(token_ids):
+            raise ValueError("D64 Heart frame characters must parallel transport units")
         if any(not isinstance(char, str) or len(char) != 1 for char in self.characters):
             raise ValueError("D64 Heart frame characters must be literal single characters")
+        if any(item < 0 or item >= TRANSPORT_VOCAB_SIZE for item in token_ids):
+            raise ValueError("D64 Heart frame transport token id is out of range")
+        object.__setattr__(self, "transport_token_ids", token_ids)
         positions = tuple(int(item) for item in self.canonical_positions)
-        if len(positions) != len(self.characters) or any(item < 0 for item in positions):
+        if len(positions) != len(token_ids) or any(item < 0 for item in positions):
             raise ValueError("D64 Heart frame canonical positions are invalid")
-        if any(right <= left for left, right in zip(positions, positions[1:])):
-            raise ValueError("D64 Heart frame canonical positions must be strictly increasing")
+        if any(right < left for left, right in itertools.pairwise(positions)):
+            raise ValueError("D64 Heart frame canonical positions must be non-decreasing")
         object.__setattr__(self, "canonical_positions", positions)
         if not np.isfinite(cells).all():
             raise ValueError("D64 Heart frame cells must be finite")
@@ -65,7 +80,7 @@ class D64HeartFrame:
 
     @property
     def exact_text(self) -> str:
-        return "".join(self.characters)
+        return decode_unicode_tokens(self.transport_token_ids)
 
     def to_canonical_dict(self, *, include_id: bool = True) -> dict[str, Any]:
         value: dict[str, Any] = {
@@ -74,8 +89,12 @@ class D64HeartFrame:
             "source_tick_id": self.source_tick_id,
             "rail_id": self.rail_id,
             "semantic_surface_id": self.semantic_surface_id,
-            "character_count": len(self.characters),
+            "character_count": len(self.exact_text),
+            "transport_unit_count": len(self.transport_token_ids),
             "exact_text_sha256": hashlib.sha256(self.exact_text.encode("utf-8")).hexdigest(),
+            "transport_token_ids_sha256": hashlib.sha256(
+                np.asarray(self.transport_token_ids, dtype=np.int64).tobytes(order="C")
+            ).hexdigest(),
             "cells16_sha256": hashlib.sha256(self.cells16.tobytes(order="C")).hexdigest(),
             "canonical_positions_sha256": hashlib.sha256(
                 np.asarray(self.canonical_positions, dtype=np.int64).tobytes(order="C")
@@ -135,10 +154,10 @@ class D64HeartCodec:
         dual.exact.verify_roundtrip(snapshot)
         dual.semantic.verify_grounding(snapshot, dual.exact)
         addresses = tuple(address for address in dual.exact.addresses if address is not None)
-        if len(addresses) != dual.exact.coverage.expected_active_characters:
-            raise D64HeartCodecError("D64 frame address count does not match complete coverage")
+        if len(addresses) != dual.exact.coverage.compiled_transport_units:
+            raise D64HeartCodecError("D64 frame address count does not match transport coverage")
         positions = tuple(address.global_position for address in addresses)
-        if any(right <= left for left, right in zip(positions, positions[1:])):
+        if any(right < left for left, right in itertools.pairwise(positions)):
             raise D64HeartCodecError("D64 frame addresses are not in canonical ordering")
         cells = np.stack(
             [dual.exact.lane_cell16(address.row_index, address.lane_index) for address in addresses],
@@ -150,6 +169,7 @@ class D64HeartCodec:
             rail_id=dual.exact.rail_id,
             semantic_surface_id=dual.semantic.surface_id,
             characters=tuple(address.character for address in addresses),
+            transport_token_ids=tuple(address.transport_token_id for address in addresses),
             canonical_positions=positions,
             cells16=cells,
             address_sha256=dual.exact.coverage.address_sha256,
@@ -157,9 +177,7 @@ class D64HeartCodec:
         )
 
     @staticmethod
-    def batch_for_model(
-        model: "HeartTranslationCore", frames: Iterable[D64HeartFrame]
-    ) -> D64HeartModelBatch:
+    def batch_for_model(model: "HeartTranslationCore", frames: Iterable[D64HeartFrame]) -> D64HeartModelBatch:
         rows = tuple(frames)
         if not rows:
             raise ValueError("cannot batch zero D64 Heart frames")
@@ -170,13 +188,15 @@ class D64HeartCodec:
         mask = torch.zeros((len(rows), max_chars), dtype=torch.bool)
         bank = model.bank16.detach().cpu().numpy()
         for row_index, frame in enumerate(rows):
-            try:
-                source = [model.char_to_index[char] for char in frame.characters]
-            except KeyError as exc:
-                raise D64HeartCodecError(f"compiled D64 frame contains unsupported model character: {exc}") from exc
+            if any(token_id >= NATIVE_TOKEN_COUNT for token_id in frame.transport_token_ids):
+                raise D64HeartCodecError("legacy 95-character Heart model cannot consume UTF-8 byte transport units")
+            source = list(frame.transport_token_ids)
             expected = bank[np.asarray(source, dtype=np.int64)]
             if not np.allclose(frame.cells16, expected, rtol=0.0, atol=1e-6):
                 raise D64HeartCodecError("compiled D64 lane cell does not match frozen Heart substrate")
+            for token_id, cell in zip(frame.transport_token_ids, frame.cells16, strict=True):
+                if not np.array_equal(cell, transport_token_cell16(token_id)):
+                    raise D64HeartCodecError("compiled D64 lane cell does not match Unicode transport bank")
             length = len(source)
             indices[row_index, :length] = torch.tensor(source, dtype=torch.long)
             cells[row_index, :length] = torch.from_numpy(frame.cells16.copy())
@@ -221,8 +241,8 @@ class D64HeartCodec:
 
 __all__ = [
     "D64_HEART_FRAME_SCHEMA",
+    "D64HeartCodec",
     "D64HeartCodecError",
     "D64HeartFrame",
     "D64HeartModelBatch",
-    "D64HeartCodec",
 ]

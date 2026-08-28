@@ -7,9 +7,10 @@ coverage, and constructs ordinary typed FieldDelta objects.  It does not decide
 what Axon should believe or commit.
 
 The rail is physical D64 storage, not a claim that one 64D Transformer token is
-four independently attended characters.  Every row contains up to four literal
-frozen 16D substrate cells and explicit lane addresses so consumers may unpack
-or address the exact characters without inference.
+four independently attended characters.  Every row contains up to four exact
+typed 16D transport cells and explicit lane receipts so consumers may recover
+the canonical characters without inference. Native characters occupy one unit;
+non-native Unicode scalars occupy their strict one-to-four-byte sequence.
 """
 
 from __future__ import annotations
@@ -21,7 +22,17 @@ from typing import Any, Iterable, Iterator, Mapping
 
 import numpy as np
 
-from substrate import SLOT_DIM, assert_supported_text, char_to_slot, get_letter_bank
+from substrate import (
+    NATIVE_TOKEN_COUNT,
+    SLOT_DIM,
+    InvalidUnicodeScalarError,
+    decode_unicode_tokens,
+    encode_unicode_character,
+    encode_unicode_text,
+    transport_token_cell16,
+    transport_token_kind,
+    transport_token_value,
+)
 
 from .delta import FieldDelta, ReplaceText, apply_delta
 from .schema import (
@@ -35,7 +46,8 @@ from .schema import (
     resolve_mask_policy,
 )
 
-D64_COMPILER_SCHEMA = "axon-field-compiler-d64-v2"
+D64_LEGACY_COMPILER_SCHEMA = "axon-field-compiler-d64-v2"
+D64_COMPILER_SCHEMA = "axon-field-compiler-d64-v3"
 D64_WIDTH = 64
 SUBSTRATE_WIDTH = 16
 D64_LANES_PER_ROW = D64_WIDTH // SUBSTRATE_WIDTH
@@ -46,7 +58,7 @@ class FieldCompilerError(RuntimeError):
 
 
 class UnsupportedActiveCharacterError(FieldCompilerError):
-    """An attended canonical character cannot be represented by the substrate."""
+    """Canonical text contains a value outside valid Unicode scalar text."""
 
 
 class IncompleteRailError(FieldCompilerError):
@@ -59,7 +71,7 @@ class StaleCompiledFieldError(FieldCompilerError):
 
 @dataclass(frozen=True, slots=True)
 class CanonicalCharAddress:
-    """Exact source identity for one valid 16D lane in a D64 row."""
+    """Exact source and transport identity for one valid 16D D64 lane."""
 
     region: LogicalRegion
     region_position: int
@@ -69,6 +81,11 @@ class CanonicalCharAddress:
     source: str
     provenance: str
     character: str
+    transport_token_id: int
+    transport_kind: str
+    transport_value: str | int
+    transport_unit_index: int
+    transport_unit_count: int
     attended_interval_index: int
     attended_interval_start: int
     attended_interval_end: int
@@ -85,6 +102,11 @@ class CanonicalCharAddress:
             "source": self.source,
             "provenance": self.provenance,
             "character": self.character,
+            "transport_token_id": self.transport_token_id,
+            "transport_kind": self.transport_kind,
+            "transport_value": self.transport_value,
+            "transport_unit_index": self.transport_unit_index,
+            "transport_unit_count": self.transport_unit_count,
             "attended_interval_index": self.attended_interval_index,
             "attended_interval_start": self.attended_interval_start,
             "attended_interval_end": self.attended_interval_end,
@@ -128,6 +150,10 @@ class D64CoverageManifest:
     visited_regions: tuple[str, ...]
     expected_active_characters: int
     compiled_active_characters: int
+    compiled_transport_units: int
+    native_transport_units: int
+    utf8_byte_transport_units: int
+    expanded_characters: int
     row_count: int
     valid_lanes: int
     padding_lanes: int
@@ -146,6 +172,10 @@ class D64CoverageManifest:
             "visited_regions": list(self.visited_regions),
             "expected_active_characters": self.expected_active_characters,
             "compiled_active_characters": self.compiled_active_characters,
+            "compiled_transport_units": self.compiled_transport_units,
+            "native_transport_units": self.native_transport_units,
+            "utf8_byte_transport_units": self.utf8_byte_transport_units,
+            "expanded_characters": self.expanded_characters,
             "row_count": self.row_count,
             "valid_lanes": self.valid_lanes,
             "padding_lanes": self.padding_lanes,
@@ -182,8 +212,10 @@ class D64CharacterPage:
         if self.empty_region_marker:
             if self.text or self.addresses or cells.shape[0] != 0:
                 raise ValueError("empty region marker may not contain character data")
-        elif len(self.text) != cells.shape[0] or len(self.addresses) != cells.shape[0]:
-            raise ValueError("page text/cells/addresses must have equal length")
+        elif len(self.addresses) != cells.shape[0]:
+            raise ValueError("page transport cells and addresses must have equal length")
+        elif len(self.text) != len(_group_addresses_by_canonical_character(self.addresses)):
+            raise ValueError("page text must contain one character per canonical address group")
         cells.setflags(write=False)
         object.__setattr__(self, "cells16", cells)
 
@@ -244,9 +276,19 @@ class CompiledD64Field:
         logical = region if isinstance(region, LogicalRegion) else LogicalRegion(region)
         return tuple(address for address in self.addresses if address is not None and address.region is logical)
 
+    def region_character_addresses(
+        self,
+        region: LogicalRegion | str,
+    ) -> tuple[CanonicalCharAddress, ...]:
+        """Return one primary receipt per canonical attended character."""
+
+        return tuple(group[0] for group in _group_addresses_by_canonical_character(self.region_addresses(region)))
+
+    def region_transport_token_ids(self, region: LogicalRegion | str) -> tuple[int, ...]:
+        return tuple(address.transport_token_id for address in self.region_addresses(region))
+
     def region_text(self, region: LogicalRegion | str) -> str:
-        addresses = self.region_addresses(region)
-        return "".join(address.character for address in addresses)
+        return decode_unicode_tokens(self.region_transport_token_ids(region))
 
     def active_texts(self) -> dict[str, str]:
         return {region.value: self.region_text(region) for region in CANONICAL_REGION_ORDER}
@@ -289,8 +331,10 @@ class CompiledD64Field:
                 )
                 logical_page_index += 1
                 continue
-            for page_index, start in enumerate(range(0, len(addresses), page_size)):
-                chunk = addresses[start : start + page_size]
+            character_groups = _group_addresses_by_canonical_character(addresses)
+            for page_index, start in enumerate(range(0, len(character_groups), page_size)):
+                chunk_groups = character_groups[start : start + page_size]
+                chunk = tuple(address for group in chunk_groups for address in group)
                 cells = np.stack(
                     [self.lane_cell16(address.row_index, address.lane_index) for address in chunk],
                     axis=0,
@@ -302,19 +346,19 @@ class CompiledD64Field:
                     region_page_index=page_index,
                     logical_page_index=logical_page_index,
                     region_start=start,
-                    region_end=start + len(chunk),
+                    region_end=start + len(chunk_groups),
                     global_start=chunk[0].global_position,
                     global_end=chunk[-1].global_position + 1,
-                    text="".join(address.character for address in chunk),
+                    text="".join(group[0].character for group in chunk_groups),
                     cells16=cells,
                     addresses=chunk,
                 )
                 logical_page_index += 1
-            global_cursor += len(addresses)
+            global_cursor += len(character_groups)
 
 
 class D64FieldCompiler:
-    """Compile exact attended SharedFieldSnapshot characters into D64 rows."""
+    """Compile exact attended Unicode characters into typed 16D D64 lanes."""
 
     schema = D64_COMPILER_SCHEMA
 
@@ -337,6 +381,9 @@ class D64FieldCompiler:
         region_row_ranges: list[tuple[str, int, int]] = []
         visited_regions: list[str] = []
         expected_active = 0
+        native_transport_units = 0
+        utf8_byte_transport_units = 0
+        expanded_characters = 0
         global_position = 0
 
         for region in CANONICAL_REGION_ORDER:
@@ -351,6 +398,15 @@ class D64FieldCompiler:
             else:
                 attended_intervals = tuple(state.attended_intervals)
             expected_active += sum(interval.end - interval.start for interval in attended_intervals)
+            try:
+                # Cartography hashes the complete canonical text, including
+                # dormant-in-place cells.  Reject invalid surrogate code units
+                # explicitly; every valid Unicode scalar is transportable.
+                encode_unicode_text(text)
+            except InvalidUnicodeScalarError as exc:
+                raise UnsupportedActiveCharacterError(
+                    f"canonical region {region.value!r} contains invalid Unicode scalar text"
+                ) from exc
             cartography.extend(_cartography_for_region(region, text))
 
             # Compile one source group at a time.  A group is the intersection
@@ -378,35 +434,47 @@ class D64FieldCompiler:
                         span_position = region_position - span_start
                         character = span.text[span_position]
                         try:
-                            assert_supported_text(character)
-                            cell = np.asarray(char_to_slot(character), dtype=np.float32)
-                        except Exception as exc:
+                            encoded = encode_unicode_character(character)
+                        except InvalidUnicodeScalarError as exc:
                             raise UnsupportedActiveCharacterError(
-                                "attended canonical character is not representable by the frozen "
-                                f"16D substrate: region={region.value!r}, span={span.span_id!r}, "
+                                "attended canonical value is not a Unicode scalar: "
+                                f"region={region.value!r}, span={span.span_id!r}, "
                                 f"region_position={region_position}, span_position={span_position}, "
                                 f"character={character!r}"
                             ) from exc
-                        if cell.shape != (SUBSTRATE_WIDTH,):
-                            raise FieldCompilerError(f"substrate returned invalid cell shape {cell.shape!r}")
-                        group_cells.append(cell)
-                        group_addresses.append(
-                            CanonicalCharAddress(
-                                region=region,
-                                region_position=region_position,
-                                global_position=global_position + region_position,
-                                span_id=span.span_id,
-                                span_position=span_position,
-                                source=span.source,
-                                provenance=span.provenance,
-                                character=character,
-                                attended_interval_index=interval_index,
-                                attended_interval_start=interval.start,
-                                attended_interval_end=interval.end,
-                                row_index=-1,
-                                lane_index=-1,
+                        if encoded.expanded:
+                            expanded_characters += 1
+                        for unit_index, token_id in enumerate(encoded.token_ids):
+                            cell = np.asarray(transport_token_cell16(token_id), dtype=np.float32)
+                            if cell.shape != (SUBSTRATE_WIDTH,):
+                                raise FieldCompilerError(f"transport returned invalid cell shape {cell.shape!r}")
+                            if token_id < NATIVE_TOKEN_COUNT:
+                                native_transport_units += 1
+                            else:
+                                utf8_byte_transport_units += 1
+                            group_cells.append(cell)
+                            group_addresses.append(
+                                CanonicalCharAddress(
+                                    region=region,
+                                    region_position=region_position,
+                                    global_position=global_position + region_position,
+                                    span_id=span.span_id,
+                                    span_position=span_position,
+                                    source=span.source,
+                                    provenance=span.provenance,
+                                    character=character,
+                                    transport_token_id=token_id,
+                                    transport_kind=transport_token_kind(token_id),
+                                    transport_value=transport_token_value(token_id),
+                                    transport_unit_index=unit_index,
+                                    transport_unit_count=len(encoded.token_ids),
+                                    attended_interval_index=interval_index,
+                                    attended_interval_start=interval.start,
+                                    attended_interval_end=interval.end,
+                                    row_index=-1,
+                                    lane_index=-1,
+                                )
                             )
-                        )
 
                     for start in range(0, len(group_cells), D64_LANES_PER_ROW):
                         chunk_cells = group_cells[start : start + D64_LANES_PER_ROW]
@@ -440,10 +508,11 @@ class D64FieldCompiler:
         address_payload = [None if address is None else address.to_canonical_dict() for address in addresses]
         address_sha = hashlib.sha256(canonical_json_bytes(address_payload)).hexdigest()
         valid_addresses = tuple(address for address in addresses if address is not None)
-        compiled_count = len(valid_addresses)
-        roundtrip_text = "".join(address.character for address in valid_addresses)
+        transport_count = len(valid_addresses)
+        roundtrip_text = decode_unicode_tokens(address.transport_token_id for address in valid_addresses)
+        compiled_count = len(roundtrip_text)
         roundtrip_sha = hashlib.sha256(roundtrip_text.encode("utf-8")).hexdigest()
-        padding_lanes = len(addresses) - compiled_count
+        padding_lanes = len(addresses) - transport_count
 
         coverage = D64CoverageManifest(
             schema=D64_COMPILER_SCHEMA,
@@ -453,8 +522,12 @@ class D64FieldCompiler:
             visited_regions=tuple(visited_regions),
             expected_active_characters=expected_active,
             compiled_active_characters=compiled_count,
+            compiled_transport_units=transport_count,
+            native_transport_units=native_transport_units,
+            utf8_byte_transport_units=utf8_byte_transport_units,
+            expanded_characters=expanded_characters,
             row_count=int(rows_array.shape[0]),
-            valid_lanes=compiled_count,
+            valid_lanes=transport_count,
             padding_lanes=padding_lanes,
             region_row_ranges=tuple(region_row_ranges),
             rows_sha256=rows_sha,
@@ -463,9 +536,10 @@ class D64FieldCompiler:
             complete=(
                 tuple(visited_regions) == tuple(region.value for region in CANONICAL_REGION_ORDER)
                 and compiled_count == expected_active
-                and int(valid_array.sum()) == compiled_count
+                and int(valid_array.sum()) == transport_count
                 and len(addresses) == rows_array.shape[0] * D64_LANES_PER_ROW
                 and _rows_respect_source_boundaries(tuple(addresses))
+                and _transport_addresses_complete(valid_addresses)
             ),
         )
         if not coverage.complete:
@@ -517,7 +591,10 @@ def replacement_delta(
 
     compiled.assert_fresh(snapshot)
     logical = region if isinstance(region, LogicalRegion) else LogicalRegion(region)
-    assert_supported_text(text)
+    try:
+        encode_unicode_text(text)
+    except InvalidUnicodeScalarError as exc:
+        raise UnsupportedActiveCharacterError("replacement text contains invalid Unicode scalar text") from exc
     prior = snapshot.region(logical).text
     return FieldDelta(
         base_field_id=snapshot.field_id,
@@ -560,7 +637,7 @@ def _cartography_for_region(
     if text:
         result.append(_cartographic_span("region_text", region, 0, len(text), text))
 
-    for match in re.finditer(r"[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)*", text):
+    for match in re.finditer(r"[^\W_]+(?:['-][^\W_]+)*", text, flags=re.UNICODE):
         result.append(_cartographic_span("word", region, match.start(), match.end(), match.group(0)))
 
     sentence_start = 0
@@ -607,18 +684,72 @@ def _cartographic_span(
 
 
 def _verify_vector_roundtrip(compiled: CompiledD64Field) -> None:
-    bank = get_letter_bank()
     for region in CANONICAL_REGION_ORDER:
         addresses = compiled.region_addresses(region)
         if not addresses:
             continue
-        cells: list[np.ndarray] = []
         for address in addresses:
-            cells.append(compiled.lane_cell16(address.row_index, address.lane_index))
-        decoded = bank.decode_sequence(np.stack(cells, axis=0), blanks_as="")
-        expected = "".join(address.character for address in addresses)
+            observed = compiled.lane_cell16(address.row_index, address.lane_index)
+            expected_cell = transport_token_cell16(address.transport_token_id)
+            if not np.array_equal(observed, expected_cell):
+                raise IncompleteRailError(f"16D transport-cell mismatch in D64 rail region {region.value!r}")
+        decoded = decode_unicode_tokens(address.transport_token_id for address in addresses)
+        expected = "".join(group[0].character for group in _group_addresses_by_canonical_character(addresses))
         if decoded != expected:
             raise IncompleteRailError(f"16D vector roundtrip mismatch in D64 rail region {region.value!r}")
+
+
+def _group_addresses_by_canonical_character(
+    addresses: tuple[CanonicalCharAddress, ...],
+) -> tuple[tuple[CanonicalCharAddress, ...], ...]:
+    groups: list[list[CanonicalCharAddress]] = []
+    for address in addresses:
+        key = (
+            address.region,
+            address.region_position,
+            address.span_id,
+            address.span_position,
+            address.attended_interval_index,
+        )
+        if not groups:
+            groups.append([address])
+            continue
+        prior = groups[-1][0]
+        prior_key = (
+            prior.region,
+            prior.region_position,
+            prior.span_id,
+            prior.span_position,
+            prior.attended_interval_index,
+        )
+        if key == prior_key:
+            groups[-1].append(address)
+        else:
+            groups.append([address])
+    return tuple(tuple(group) for group in groups)
+
+
+def _transport_addresses_complete(addresses: tuple[CanonicalCharAddress, ...]) -> bool:
+    for group in _group_addresses_by_canonical_character(addresses):
+        expected_count = group[0].transport_unit_count
+        if expected_count != len(group):
+            return False
+        if tuple(item.transport_unit_index for item in group) != tuple(range(expected_count)):
+            return False
+        if any(
+            item.character != group[0].character
+            or item.region_position != group[0].region_position
+            or item.global_position != group[0].global_position
+            for item in group
+        ):
+            return False
+        try:
+            decoded = decode_unicode_tokens(item.transport_token_id for item in group)
+        except ValueError:
+            return False
+        if decoded != group[0].character:
+            return False
+    return True
 
 
 def _rows_respect_source_boundaries(
@@ -660,6 +791,7 @@ def _rows_respect_source_boundaries(
 __all__ = [
     "D64_COMPILER_SCHEMA",
     "D64_LANES_PER_ROW",
+    "D64_LEGACY_COMPILER_SCHEMA",
     "D64_WIDTH",
     "SUBSTRATE_WIDTH",
     "CanonicalCharAddress",

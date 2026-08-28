@@ -1,6 +1,6 @@
 # Axon Source Of Truth
 
-Last updated: 2026-08-27 (in-place regional masking and Heart mask control corrected)
+Last updated: 2026-08-28 (exact additive 16D Unicode transport ratified and implemented)
 
 ## Core Doctrine
 
@@ -8,12 +8,24 @@ Axon is a stateful, always-on AI built around one canonical regional state body,
 an actively attended Shared Field selected from that body, and private reasoning
 cores.
 
-The field is Jeff's bridge into Axon's world. It must preserve exact English characters, provenance, and structured context without hiding meaning behind opaque semantic symbols.
+The field is Jeff's bridge into Axon's world. It must preserve exact Unicode text, provenance, and structured context without hiding meaning behind opaque semantic symbols.
 
 ## Substrate
 
-- The frozen alphabet substrate is 16D.
-- Every visible character in active text maps to one frozen 16D vector.
+- The frozen substrate width is 16D. The original 95-character native bank and
+  all of its token IDs and vectors remain frozen unchanged.
+- Canonical text stores raw exact Unicode scalars. A native character maps to
+  its one original 16D cell. Every other valid scalar maps deterministically to
+  its strict UTF-8 bytes, one typed 16D byte-transport cell per byte. This is an
+  additive categorical transport, not normalization, escaping, or a widening
+  of the substrate.
+- Byte transport uses a frozen deterministic 256-cell extended-Hamming
+  codebook. Native IDs are `0..94`; byte IDs are `95..350`. Token kind and ID
+  are carried in exact compiler receipts. Nearest-vector guessing has no
+  decoding authority.
+- Strict decode rejects malformed UTF-8, unpaired surrogates, out-of-range
+  scalars, and alternate byte spellings of native characters. Masks resolve
+  over canonical scalar positions before any one-to-four-cell expansion.
 - Character identity and order are source-of-truth data, not a lossy summary.
 - A larger `d_model` core may lift those 16D cells into its own lane, but it does not replace the canonical character field.
 
@@ -242,8 +254,8 @@ section is binding doctrine.
   neural representation a core actually consumes, and discrete output
   serialization. An exact pack is exact storage, not by itself a learned
   semantic unit.
-- Rails pack exact 16D substrate cells into disjoint literal lanes:
-  `d_model / 16` cells per packed row at each registered width (64D = 4,
+- Rails pack exact typed 16D transport cells into disjoint literal lanes:
+  `d_model / 16` transport units per packed row at each registered width (64D = 4,
   128D = 8, 256D = 16, 512D = 32, 1024D = 64). One generic codec must prove
   every registered width rather than bespoke per-width codecs. Dense opaque
   bit/positional packing is not an active reasoning surface.
@@ -262,13 +274,15 @@ section is binding doctrine.
   view, never the canonical cells, addresses, or `field_id`; no recall or
   rematerialization step is involved. Packing never interprets a percentage:
   it receives resolved attended intervals, stops and pads at every mask/
-  provenance boundary, and packs every exposed character exactly once.
+  provenance boundary, and packs every exposed canonical character exactly
+  once as one native unit or its complete strict UTF-8 transport sequence.
 - Cores attend directly to their designated rail; the Heart is not in the
   attention path. The Heart packs and unpacks cells at every registered
   width, maintains exact substrate/rail and rail-to-rail roundtrips, moves
   masks, and remains the sole validator and committer of canonical state.
-- Emission contract: a core emits discrete per-lane categorical decisions
-  over the registered codebook (substrate character, empty, EOS), trained
+- Emission contract: a Unicode-capable core emits discrete per-lane
+  categorical decisions over the registered transport codebook (native
+  character, UTF-8 byte, empty, EOS), trained
   with per-lane cross-entropy per Layer 13. The Heart deterministically
   reconstructs exact 16D cells and the typed proposal from those decisions.
   Nearest-vector snapping is auxiliary evidence only; an arbitrary
@@ -293,10 +307,15 @@ section is binding doctrine.
   cited source IDs, and historical responses treated as observations, not
   presumed targets. Synthetic minimal pairs remain necessary supplements for
   rare critical distinctions.
-- Substrate coverage: the frozen 95-character substrate does not represent
-  every real Dormant character. Campaigns must count inaccessible
-  characters, and a governed additive Unicode/escape strategy precedes any
-  general real-memory coverage claim.
+- Unicode coverage: compiler/input coverage is exact for every valid Unicode
+  scalar through `axon-unicode-transport-utf8-16d-v1`; raw canonical state is
+  never escaped or normalized. Campaigns must report canonical scalar counts,
+  transport-unit expansion, and exact decode. Existing shelved 95-class
+  learned Heart/reasoning decoders remain native-only tissue: they may read
+  the literal transport cells through compatible readers, but they may not
+  pretend to emit non-native text. A Unicode frame presented to the legacy
+  Heart model fails closed until a governed 351-class output/copy route is
+  trained and independently gated.
 - The per-character D64 reader remains permanent specialist tissue. Exact
   repacking translates the exact scaffold only; it is not semantic
   translation and does not translate learned native dialects.
@@ -614,7 +633,7 @@ Core diversity should emerge naturally from governed variation in lived-experien
 
 Steady-state Axon should normally keep at least one **isolated non-live candidate learning lane** active on admissible lived-experience or study curriculum while other cores serve the organism. "Always learning" never means forcing meaningless gradient steps: if no curriculum passes provenance/quality gates, that lane remains occupied with curation, replay construction, evaluation, or forgetting analysis until admissible learning material exists. The live accepted cores remain immutable until a candidate independently passes Trainer gates and activation.
 
-**Current first learned-organ priority (shelf pivot, ratified 2026-08-26): the reasoning cores on packed rails, trained from real Dormant memory.** The Heart translation/conduction ensemble and autonomous Semantic Cortex are shelved as preserved non-serving tissue (see "Packed substrate rails and the shelf pivot"); the priority history below is retained as evidence. The Trainer recognizes Heart translation cores/adapters as explicit parameter-bearing organ kinds. `runtime/heart/translation_core.py` is now the first permanent learned Heart tissue: a 64D, two-layer, four-head, 4096-FFN translator grounded from the frozen 16D character substrate, with explicit semantic, referent, and grounding heads; it has no canonical-write authority. Architecture v3 has no learned or validated source/target character ceiling. A configurable physical page is only a processing unit: two ordered recurrent sweeps visit every exact source character, the second sweep builds full addressable character memory from a query state that has already traversed the complete source, and a coverage record binds per-row source-index hashes, page spans, and visited counts. Source and decoder positions are deterministic sinusoidal functions rather than finite learned tables. `runtime/heart/d64_codec.py` freezes each actual `SharedFieldSnapshot` through the exact and semantic D64 compilers, verifies exact roundtrip and grounding, and supplies the Heart with the literal raw 16D lane cells plus monotonically increasing canonical character positions. Masking earlier spans therefore cannot renumber later active text. A substituted lane cell, stale field/rail/surface identity, or proposal not bound to the frozen frame fails closed. `training/heart_translation.py` materializes every provenance-labeled structured-proposition curriculum case as a real Shared Field and real D64 frame before model input; it provides disjoint heldout/regression/counterfactual suites, semantic/grounding evaluation, and an immutable content-addressed task-loss objective. Curriculum v3 includes train and held-out complete-field cases for every critical semantic class whose grounded spans begin beyond character 256. Its current training recipe uses deterministic shuffled epochs: every case is visited once before reshuffling, and the immutable recipe identity is bound into candidate generation and source lineage. A first real Trainer-governed 12-step CUDA smoke used the obsolete fixed-192 architecture v1; it lowered loss from 4.9502 to 4.3422 and moved some semantic submetrics, but grounded roundtrip and aggregate semantic fidelity remained 0.0, so the candidate was rejected and no activation/promotion proposal occurred. Its immutable artifacts remain historical evidence and are not compatible with v3.
+**Current first learned-organ priority (shelf pivot, ratified 2026-08-26): the reasoning cores on packed rails, trained from real Dormant memory.** The Heart translation/conduction ensemble and autonomous Semantic Cortex are shelved as preserved non-serving tissue (see "Packed substrate rails and the shelf pivot"); the priority history below is retained as evidence. The Trainer recognizes Heart translation cores/adapters as explicit parameter-bearing organ kinds. `runtime/heart/translation_core.py` is now the first permanent learned Heart tissue: a 64D, two-layer, four-head, 4096-FFN translator grounded from the frozen 16D character substrate, with explicit semantic, referent, and grounding heads; it has no canonical-write authority. Architecture v3 has no learned or validated source/target sequence-length ceiling; its learned vocabulary remains the original 95 native characters. A configurable physical page is only a processing unit: two ordered recurrent sweeps visit every exact source character, the second sweep builds full addressable character memory from a query state that has already traversed the complete source, and a coverage record binds per-row source-index hashes, page spans, and visited counts. Source and decoder positions are deterministic sinusoidal functions rather than finite learned tables. `runtime/heart/d64_codec.py` freezes each actual `SharedFieldSnapshot` through the exact and semantic D64 compilers, verifies exact roundtrip and grounding, and supplies the Heart with literal raw 16D transport cells, categorical token IDs, and non-decreasing canonical character positions; every byte of one expanded scalar shares its original position. Masking earlier spans therefore cannot renumber later active text. A substituted lane cell, malformed/noncanonical transport, stale field/rail/surface identity, or proposal not bound to the frozen frame fails closed. The legacy Heart model explicitly rejects Unicode byte frames until a Unicode-capable learned route is independently trained and gated. `training/heart_translation.py` materializes every provenance-labeled structured-proposition curriculum case as a real Shared Field and real D64 frame before model input; it provides disjoint heldout/regression/counterfactual suites, semantic/grounding evaluation, and an immutable content-addressed task-loss objective. Curriculum v3 includes train and held-out complete-field cases for every critical semantic class whose grounded spans begin beyond character 256. Its current training recipe uses deterministic shuffled epochs: every case is visited once before reshuffling, and the immutable recipe identity is bound into candidate generation and source lineage. A first real Trainer-governed 12-step CUDA smoke used the obsolete fixed-192 architecture v1; it lowered loss from 4.9502 to 4.3422 and moved some semantic submetrics, but grounded roundtrip and aggregate semantic fidelity remained 0.0, so the candidate was rejected and no activation/promotion proposal occurred. Its immutable artifacts remain historical evidence and are not compatible with v3.
 
 The current real-D64 v4 diagnostic culminated in a governed 512-step, batch-8
 CUDA candidate (`run_id`
@@ -858,7 +877,7 @@ Current Day Zero D64 trainer:
 - `training/train_complete_field_64d.py` is canonical-only; there is no active detached-record or legacy-anatomy switch,
 - curriculum records are source material only and are materialized as `SharedFieldSnapshot` before core access,
 - every neural read enters through the deterministic D64 compiler and its complete/fresh coverage proof,
-- the current D64 reader deterministically unpacks exact 16D lanes before its per-character neural lift,
+- the current D64 reader deterministically unpacks every exact 16D transport lane before its neural lift,
 - scratch changes are ordinary typed deltas followed by canonical successor compilation and a second complete read,
 - response-draft learning remains observable and exact-position/copy-gate evaluation remains available,
 - training workspaces live beneath `State/training`; branch-backed episode journaling and canonical split/resume proof remain required before a new training campaign is authorized.
@@ -877,14 +896,17 @@ Binding invariants:
 
 - the compiler consumes one immutable `SharedFieldSnapshot` and binds every
   rail to that snapshot's exact `field_id` and `tick_id`;
-- every attended canonical character is represented by its literal frozen 16D
-  substrate cell; unsupported attended characters fail closed rather than
-  being omitted;
-- one D64 physical row contains at most four exact 16D cells; rows never cross
+- every attended canonical character is represented exactly: native characters
+  retain their literal frozen 16D cell, while non-native Unicode scalars expand
+  to their canonical one-to-four strict UTF-8 byte cells with typed token/unit
+  receipts. Every valid Unicode scalar is supported; invalid scalar text and
+  malformed/noncanonical categorical streams fail closed rather than being
+  omitted or rewritten;
+- one D64 physical row contains at most four exact 16D transport cells; rows never cross
   logical-region boundaries and unused lanes are explicit padding;
 - every valid lane retains exact region position, global canonical-body position,
   source span, span position, source, provenance, attended-interval identity,
-  row, and lane identity;
+  transport token kind/value, unit index/count, row, and lane identity;
 - all ten logical regions are visited on every compile, including empty or
   explicitly masked regions; masked text remains canonical state but is not an
   attended rail character; attended intervals are sorted, non-overlapping,
@@ -895,7 +917,8 @@ Binding invariants:
   canonical source-span boundary, or provenance boundary. A short boundary
   group receives explicit empty lanes; neither adjacent attended islands nor
   adjacent provenance sources are compacted together to save space;
-- compilation is accepted only after complete coverage and exact 16D roundtrip
+- compilation is accepted only after separate canonical-character and physical
+  transport-unit coverage proofs plus exact categorical/16D roundtrip
   verification; a rail from an older `field_id` is stale and must not be used;
 - a D64 row is lossless storage, not four magically independent Transformer
   tokens. Current V6 consumers deterministically unpack exact lanes before the
@@ -912,7 +935,7 @@ work and are not made canonical by this section.
 
 Each d_model rail is a dual surface over the frozen tick image. The exact
 scaffold is the lossless, region-preserving, provenance-complete packing of
-exact 16D character cells defined above, and it alone carries the coverage
+exact 16D transport cells defined above, and it alone carries the coverage
 and roundtrip guarantees. Alongside it, the heart may derive semantic slots
 for words, phrases, sentences, paragraphs, concepts, and edges; every
 semantic slot carries source-span references back to exact canonical
@@ -977,9 +1000,11 @@ held-out recovered semantic-edge task used for Build C.1. On the accepted
 while the existing exact-evidence C.1 relevance auditor on the identical pools
 achieves Hit@8 0.625000 / MRR 0.529557. The evaluation compiled 1,659,828 exact
 characters into 250,507 grounded semantic slots across the cases. One recovered
-candidate contained an exact character unsupported by the frozen 16D substrate;
-it was counted explicitly as D64-inaccessible rather than normalized or
-truncated, and it was not an expected target. Artifact:
+candidate contained a character that the then-current native-only compiler did
+not support; it was counted explicitly as D64-inaccessible rather than
+normalized or truncated, and it was not an expected target. This is retained
+as historical evaluation evidence; the current exact Unicode transport closes
+that compiler-ingress gap without altering the old artifact. Artifact:
 `State/dormant/.derived/evidence_v1/evaluations/build_d2_d64_specialist_baseline_64_v1.json`,
 SHA256 `1e176a27d6ab24cf79969f73c6ab8b68486f66acaaf5d0176e8b5b453cc4b0ee`.
 
@@ -1145,7 +1170,7 @@ The active implementation surface is intentionally narrow:
 
 - `runtime/field/schema.py` ? canonical ten-region exact field schema,
 - `runtime/field/delta.py` ? typed canonical deltas and validation/apply/replay,
-- `runtime/field/compiler_d64.py` and `runtime/field/semantic_d64.py` ? exact deterministic D64 compiler plus grounded deterministic first-form semantic-slot surface,
+- `substrate/unicode_transport.py`, `runtime/field/compiler_d64.py`, and `runtime/field/semantic_d64.py` ? exact additive typed 16D Unicode transport, deterministic D64 compiler, and grounded deterministic first-form semantic-slot surface,
 - `runtime/field/state_branch.py` ? canonical branch persistence,
 - `runtime/axon_runtime/d64_adapter.py` ? runtime-facing exact and dual-surface D64 adapter,
 - `runtime/dormant/experience.py`, `runtime/dormant/evidence_bridge.py`, `runtime/dormant/relevance.py`, `runtime/dormant/generations.py`, `runtime/dormant/incremental.py`, and `runtime/dormant/evaluation.py` ? immutable content-addressed exact experience/source snapshots plus read-only manifest/hash-bound dormant retrieval, exact dereference, bounded graph/relation relevance, verified derived-index generations, transactional append/layout-preserving update maintenance, and held-out evaluation,

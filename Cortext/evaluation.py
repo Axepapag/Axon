@@ -10,6 +10,7 @@ the exact D64 rail and the accepted semantic surface, and bound through the
 Cortex projection contract.  No canonical branch is mutated and the Heart's
 ``semantic_cortex`` valve remains closed.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -20,7 +21,6 @@ import numpy as np
 from runtime.dormant.evaluation import DormantForwardEvaluationCase
 from runtime.dormant.evidence_bridge import DormantEvidenceIndex, VerifiedDormantEvidence
 from runtime.dormant.relevance import DormantRelevanceAuditor, DormantRelevancePolicy
-from substrate.substrate import assert_supported_text
 from runtime.field import (
     D64FieldCompiler,
     D64SemanticSlot,
@@ -31,6 +31,7 @@ from runtime.field import (
     SharedFieldSnapshot,
     canonical_sha256,
 )
+from substrate import InvalidUnicodeScalarError, encode_unicode_text
 
 from .contracts import ExactEvidenceRef, SemanticProjectionRef, SemanticQuery
 
@@ -224,9 +225,7 @@ class StructuralLexicalD64Reranker:
         source_span_id: str,
     ) -> D64SemanticSlot:
         matches = [
-            slot
-            for slot in slots
-            if slot.slot_kind == "field_span" and slot.source_span_ids == (source_span_id,)
+            slot for slot in slots if slot.slot_kind == "field_span" and slot.source_span_ids == (source_span_id,)
         ]
         if len(matches) != 1:
             raise ValueError(
@@ -243,18 +242,15 @@ class StructuralLexicalD64Reranker:
     ) -> tuple[SemanticQuery, tuple[str, ...], str, str, int, int, tuple[str, ...]]:
         if not evidence:
             raise ValueError("D64 reranking requires a non-empty exact candidate pool")
-        # The query itself must be exactly representable or no grounded D64
-        # projection exists for this case.  Candidate failures are handled
-        # differently below: they remain in the ranking universe but receive no
-        # D64 semantic score, making substrate coverage an explicit measured
-        # limitation rather than silently normalizing or truncating source text.
-        assert_supported_text(case.query)
+        # Every valid Unicode scalar is representable through the exact 16D
+        # UTF-8 transport.  Only invalid surrogate text remains inaccessible.
+        encode_unicode_text(case.query)
         supported_evidence: list[VerifiedDormantEvidence] = []
         unsupported_candidate_ids: list[str] = []
         for item in evidence:
             try:
-                assert_supported_text(item.container.text)
-            except ValueError:
+                encode_unicode_text(item.container.text)
+            except InvalidUnicodeScalarError:
                 unsupported_candidate_ids.append(item.container.container_id)
             else:
                 supported_evidence.append(item)
@@ -333,11 +329,7 @@ def evaluate_d64_reranking(
 
     if isinstance(k, bool) or not isinstance(k, int) or not 1 <= k <= 128:
         raise ValueError("k must be an integer in [1, 128]")
-    if (
-        isinstance(candidate_multiplier, bool)
-        or not isinstance(candidate_multiplier, int)
-        or candidate_multiplier < 1
-    ):
+    if isinstance(candidate_multiplier, bool) or not isinstance(candidate_multiplier, int) or candidate_multiplier < 1:
         raise ValueError("candidate_multiplier must be a positive integer")
     if not cases:
         raise ValueError("cases must be non-empty")
@@ -355,10 +347,12 @@ def evaluate_d64_reranking(
         if not evidence:
             raise ValueError(f"held-out case {case.case_id} produced an empty exact candidate pool")
         pool_ids = tuple(item.container.container_id for item in evidence)
-        query, structural_ranking, rail_id, surface_id, exact_chars, slot_count, unsupported_candidate_ids = active_reranker.rank_case(
-            case,
-            evidence,
-            k=k,
+        query, structural_ranking, rail_id, surface_id, exact_chars, slot_count, unsupported_candidate_ids = (
+            active_reranker.rank_case(
+                case,
+                evidence,
+                k=k,
+            )
         )
         audited = active_auditor.select(case.query, evidence, empty_field)
         audited_ranking = tuple(audited.selected_container_ids[:k])
@@ -405,8 +399,8 @@ def evaluate_d64_reranking(
 
 
 __all__ = [
-    "D64_RERANK_EVALUATION_SCHEMA",
     "D64_RERANK_BASELINE_GENERATION",
+    "D64_RERANK_EVALUATION_SCHEMA",
     "D64RerankCaseResult",
     "D64RerankEvaluationResult",
     "StructuralLexicalD64Reranker",

@@ -1,35 +1,34 @@
 """Complete-field 64D reader and two-tick scratch/response writer.
 
 This module is deliberately independent from the archived fixed-window
-trainers.  Exact text remains in the canonical field.  A physical page is
-only a bounded processing unit; every active character in every canonical
-region is visited before a decoder may run.
+trainers. Exact text remains in the canonical field. A physical page is only
+a bounded processing unit; every active canonical character and each of its
+typed 16D transport units is visited before a decoder may run.
 """
+
 from __future__ import annotations
 
 import hashlib
 import math
 from dataclasses import asdict, dataclass
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping
 
 import numpy as np
 import torch
-from torch import nn
 import torch.nn.functional as F
+from torch import nn
 
-from substrate import assert_supported_text, get_letter_bank
 from runtime.field import (
     CANONICAL_REGION_ORDER,
     CompiledD64Field,
     D64CharacterPage,
     D64FieldCompiler,
-    FieldDelta,
     LogicalRegion,
     SharedFieldSnapshot,
     apply_compiled_delta,
     replacement_delta,
 )
-
+from substrate import NATIVE_TOKEN_COUNT, assert_supported_text, encode_unicode_text, get_letter_bank
 
 REGION_ORDER: tuple[str, ...] = (
     "conversation_history",
@@ -67,8 +66,6 @@ class ReaderConfig:
             raise ValueError("page_size and state_tokens must be positive")
         if self.inference_budget_chars < 1:
             raise ValueError("inference_budget_chars must be positive")
-
-
 
 
 @dataclass(frozen=True)
@@ -132,7 +129,7 @@ def coverage_manifest_from_compiled(
             zero_duplicates = False
         if page.region_end < page.region_start:
             zero_gaps = False
-        if page.text != active[region][page.region_start:page.region_end]:
+        if page.text != active[region][page.region_start : page.region_end]:
             zero_gaps = False
         cursor_by_region[region] = max(cursor, page.region_end)
         observed += len(page.text)
@@ -172,11 +169,9 @@ def canonical_field(field: Mapping[str, str]) -> dict[str, str]:
         text = field.get(region, "")
         if not isinstance(text, str):
             raise TypeError(f"region {region} must be text")
-        assert_supported_text(text)
+        encode_unicode_text(text)
         result[region] = text
     return result
-
-
 
 
 def frozen_orthogonal_lift(d_model: int = 64, seed: int = 7) -> torch.Tensor:
@@ -198,8 +193,7 @@ def sinusoidal_positions(
         raise ValueError("positions must be rank-1")
     work = positions.to(dtype=torch.float32).unsqueeze(-1)
     frequencies = torch.exp(
-        torch.arange(0, d_model, 2, device=positions.device, dtype=torch.float32)
-        * (-math.log(10_000.0) / d_model)
+        torch.arange(0, d_model, 2, device=positions.device, dtype=torch.float32) * (-math.log(10_000.0) / d_model)
     )
     angles = work * frequencies
     encoded = torch.zeros(positions.shape[0], d_model, device=positions.device, dtype=torch.float32)
@@ -211,8 +205,10 @@ def sinusoidal_positions(
 class CompleteField64D(nn.Module):
     """One shallow core that gains logical depth through complete-field ticks."""
 
-    def __init__(self, cfg: ReaderConfig = ReaderConfig()):
+    def __init__(self, cfg: ReaderConfig | None = None):
         super().__init__()
+        if cfg is None:
+            cfg = ReaderConfig()
         self.cfg = cfg
         bank = get_letter_bank()
         self.characters = tuple(bank.chars[:-1])
@@ -268,7 +264,6 @@ class CompleteField64D(nn.Module):
     def device(self) -> torch.device:
         return next(self.parameters()).device
 
-
     def _compiled_page_tensor(self, page: D64CharacterPage) -> torch.Tensor:
         """Lift exact 16D cells unpacked from the canonical D64 rail.
 
@@ -279,20 +274,14 @@ class CompleteField64D(nn.Module):
         current V6 weights see the same input scale they were trained on.
         """
         if page.text:
-            raw = torch.from_numpy(np.array(page.cells16, copy=True)).to(
-                device=self.device, dtype=self.bank16.dtype
-            )
-            norms = raw.norm(dim=-1, keepdim=True).clamp_min(
-                torch.finfo(raw.dtype).tiny
-            )
+            raw = torch.from_numpy(np.array(page.cells16, copy=True)).to(device=self.device, dtype=self.bank16.dtype)
+            norms = raw.norm(dim=-1, keepdim=True).clamp_min(torch.finfo(raw.dtype).tiny)
             chars = (raw / norms) @ self.char_lift
         else:
             chars = self.empty_region_marker.unsqueeze(0)
         length = chars.shape[0]
         local = torch.arange(length, device=self.device)
-        region = self.region_embedding(
-            torch.full((length,), page.region_id, dtype=torch.long, device=self.device)
-        )
+        region = self.region_embedding(torch.full((length,), page.region_id, dtype=torch.long, device=self.device))
         local_pos = sinusoidal_positions(
             local,
             self.cfg.d_model,
@@ -311,16 +300,8 @@ class CompleteField64D(nn.Module):
         denom = max(1.0, float(page.global_end + 1))
         start = math.log1p(page.global_start) / math.log1p(denom)
         end = math.log1p(page.global_end) / math.log1p(denom)
-        global_features = torch.tensor(
-            [start, end], device=self.device
-        ).expand(length, 2)
-        return (
-            chars
-            + region
-            + local_pos
-            + page_pos
-            + self.global_position(global_features)
-        )
+        global_features = torch.tensor([start, end], device=self.device).expand(length, 2)
+        return chars + region + local_pos + page_pos + self.global_position(global_features)
 
     def read_compiled_with_memory(
         self,
@@ -349,7 +330,10 @@ class CompleteField64D(nn.Module):
             memory_states.append(page_memory)
             if page.text:
                 page_chars = torch.tensor(
-                    [self.char_to_index[address.character] for address in page.addresses],
+                    [
+                        address.transport_token_id if address.transport_token_id < NATIVE_TOKEN_COUNT else -1
+                        for address in page.addresses
+                    ],
                     dtype=torch.long,
                     device=self.device,
                 )
@@ -359,12 +343,8 @@ class CompleteField64D(nn.Module):
                     device=self.device,
                 )
             else:
-                page_chars = torch.full(
-                    (1,), -1, dtype=torch.long, device=self.device
-                )
-                page_positions = torch.full(
-                    (1,), -1, dtype=torch.long, device=self.device
-                )
+                page_chars = torch.full((1,), -1, dtype=torch.long, device=self.device)
+                page_positions = torch.full((1,), -1, dtype=torch.long, device=self.device)
             memory_char_indices.append(page_chars.unsqueeze(0))
             memory_region_ids.append(
                 torch.full(
@@ -397,8 +377,6 @@ class CompleteField64D(nn.Module):
         state, memory, manifest = self.read_compiled_with_memory(compiled)
         return state, memory, manifest, compiled
 
-
-
     def _target_indices(self, text: str) -> torch.Tensor:
         assert_supported_text(text)
         return torch.tensor(
@@ -424,9 +402,7 @@ class CompleteField64D(nn.Module):
         if memory is None:
             logits = self.decoder_output(self.decoder_norm(output))
             if return_alignment:
-                empty = torch.empty(
-                    output.shape[0], output.shape[1], 0, device=output.device, dtype=output.dtype
-                )
+                empty = torch.empty(output.shape[0], output.shape[1], 0, device=output.device, dtype=output.dtype)
                 return logits, {
                     "position_logits": empty,
                     "generate_gate_logits": torch.full(
@@ -458,13 +434,15 @@ class CompleteField64D(nn.Module):
         pointer_attention = F.softmax(masked_position_logits, dim=-1)
         pointer_attention = pointer_attention * valid_sources.to(pointer_attention.dtype)
         copy_mass = pointer_attention.sum(dim=-1, keepdim=True)
-        pointer_attention = pointer_attention / copy_mass.clamp_min(
-            torch.finfo(pointer_attention.dtype).tiny
-        )
-        safe_indices = memory.char_indices.clamp_min(0).unsqueeze(1).expand(
-            -1,
-            output.shape[1],
-            -1,
+        pointer_attention = pointer_attention / copy_mass.clamp_min(torch.finfo(pointer_attention.dtype).tiny)
+        safe_indices = (
+            memory.char_indices.clamp_min(0)
+            .unsqueeze(1)
+            .expand(
+                -1,
+                output.shape[1],
+                -1,
+            )
         )
         copied = torch.zeros_like(generated).scatter_add(
             dim=-1,
@@ -477,9 +455,7 @@ class CompleteField64D(nn.Module):
         has_copy_source = copy_mass.gt(0).to(generate_gate.dtype)
         generate_gate = generate_gate * has_copy_source + (1.0 - has_copy_source)
         probabilities = generate_gate * generated + (1.0 - generate_gate) * copied
-        log_probabilities = probabilities.clamp_min(
-            torch.finfo(probabilities.dtype).tiny
-        ).log()
+        log_probabilities = probabilities.clamp_min(torch.finfo(probabilities.dtype).tiny).log()
         if return_alignment:
             return log_probabilities, {
                 "position_logits": masked_position_logits,
@@ -495,9 +471,7 @@ class CompleteField64D(nn.Module):
         memory: AddressableMemory | None = None,
         *,
         return_alignment: bool = False,
-    ) -> tuple[torch.Tensor, torch.Tensor] | tuple[
-        torch.Tensor, torch.Tensor, dict[str, torch.Tensor]
-    ]:
+    ) -> tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, dict[str, torch.Tensor]]:
         targets = self._target_indices(target).unsqueeze(0)
         bos = torch.full((1, 1), self.bos_index, dtype=torch.long, device=self.device)
         decoder_input = torch.cat((bos, targets[:, :-1]), dim=1)
@@ -520,9 +494,7 @@ class CompleteField64D(nn.Module):
         memory: AddressableMemory | None = None,
         *,
         return_alignment: bool = False,
-    ) -> tuple[torch.Tensor, torch.Tensor] | tuple[
-        torch.Tensor, torch.Tensor, dict[str, torch.Tensor]
-    ]:
+    ) -> tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, dict[str, torch.Tensor]]:
         """Train on model-generated prefixes so greedy behavior cannot hide behind teacher forcing."""
         if not 0.0 <= teacher_forcing_ratio <= 1.0:
             raise ValueError("teacher_forcing_ratio must be between zero and one")
@@ -540,8 +512,7 @@ class CompleteField64D(nn.Module):
         hidden = torch.tanh(self.decoder_init(torch.cat((summary, head_vec), dim=-1))).unsqueeze(0)
         token = torch.full((1, 1), self.bos_index, dtype=torch.long, device=self.device)
         teacher_choices = (
-            torch.rand(max(0, targets.shape[1] - 1), device=self.device)
-            < teacher_forcing_ratio
+            torch.rand(max(0, targets.shape[1] - 1), device=self.device) < teacher_forcing_ratio
         ).tolist()
         logits: list[torch.Tensor] = []
         pointer_logits: list[torch.Tensor] = []
@@ -563,17 +534,17 @@ class CompleteField64D(nn.Module):
             if position + 1 >= targets.shape[1]:
                 continue
             use_teacher = bool(teacher_choices[position])
-            token = (
-                targets[:, position : position + 1]
-                if use_teacher
-                else step_logits.argmax(dim=-1).detach()
-            )
+            token = targets[:, position : position + 1] if use_teacher else step_logits.argmax(dim=-1).detach()
         joined_logits = torch.cat(logits, dim=1)
         if return_alignment:
-            return joined_logits, targets, {
-                "position_logits": torch.cat(pointer_logits, dim=1),
-                "generate_gate_logits": torch.cat(gate_logits, dim=1),
-            }
+            return (
+                joined_logits,
+                targets,
+                {
+                    "position_logits": torch.cat(pointer_logits, dim=1),
+                    "generate_gate_logits": torch.cat(gate_logits, dim=1),
+                },
+            )
         return joined_logits, targets
 
     def alignment_supervision(
@@ -643,36 +614,30 @@ class CompleteField64D(nn.Module):
             region_id = REGION_TO_ID[source_region]
             for offset, source_position in enumerate(range(source_start, source_end)):
                 matches = (
-                    (memory.region_ids[0] == region_id)
-                    & (memory.region_positions[0] == source_position)
-                    & memory.char_indices[0].ge(0)
-                ).nonzero(as_tuple=False).flatten()
-                if matches.numel() != 1:
-                    raise ValueError(
-                        f"alignment source {source_region}[{source_position}] does not resolve uniquely"
+                    (
+                        (memory.region_ids[0] == region_id)
+                        & (memory.region_positions[0] == source_position)
+                        & memory.char_indices[0].ge(0)
                     )
+                    .nonzero(as_tuple=False)
+                    .flatten()
+                )
+                if matches.numel() != 1:
+                    raise ValueError(f"alignment source {source_region}[{source_position}] does not resolve uniquely")
                 memory_index = int(matches.item())
                 char_index = int(memory.char_indices[0, memory_index].item())
                 source_chars.append(self.characters[char_index])
                 source_indices.append(memory_index)
 
                 target_position = target_start + offset
-                expected_source = torch.tensor(
-                    [memory_index], dtype=torch.long, device=self.device
-                )
-                position_loss = F.cross_entropy(
-                    position_logits[:, target_position, :], expected_source
-                )
+                expected_source = torch.tensor([memory_index], dtype=torch.long, device=self.device)
+                position_loss = F.cross_entropy(position_logits[:, target_position, :], expected_source)
                 position_losses.append(position_loss)
-                predicted_source = int(
-                    position_logits[0, target_position].argmax(dim=-1).item()
-                )
+                predicted_source = int(position_logits[0, target_position].argmax(dim=-1).item())
                 position_correct += int(predicted_source == memory_index)
 
                 copy_target = torch.zeros((1,), device=self.device, dtype=gate_logits.dtype)
-                copy_gate_loss = F.binary_cross_entropy_with_logits(
-                    gate_logits[:, target_position], copy_target
-                )
+                copy_gate_loss = F.binary_cross_entropy_with_logits(gate_logits[:, target_position], copy_target)
                 gate_losses.append(copy_gate_loss)
                 gate_correct += int(float(gate_logits[0, target_position].item()) < 0.0)
                 supervised_copy_positions += 1
@@ -685,9 +650,7 @@ class CompleteField64D(nn.Module):
         if eos_supervised:
             eos_target = torch.ones((1,), device=self.device, dtype=gate_logits.dtype)
             eos_position = len(target_text)
-            gate_losses.append(
-                F.binary_cross_entropy_with_logits(gate_logits[:, eos_position], eos_target)
-            )
+            gate_losses.append(F.binary_cross_entropy_with_logits(gate_logits[:, eos_position], eos_target))
             gate_correct += int(float(gate_logits[0, eos_position].item()) >= 0.0)
 
         position_loss = torch.stack(position_losses).mean() if position_losses else zero
@@ -700,11 +663,7 @@ class CompleteField64D(nn.Module):
             "position_correct": position_correct,
             "gate_supervised_positions": gate_count,
             "gate_correct": gate_correct,
-            "position_accuracy": (
-                position_correct / supervised_copy_positions
-                if supervised_copy_positions
-                else 1.0
-            ),
+            "position_accuracy": (position_correct / supervised_copy_positions if supervised_copy_positions else 1.0),
             "gate_accuracy": gate_correct / gate_count if gate_count else 1.0,
         }
 
@@ -757,9 +716,7 @@ class CompleteField64D(nn.Module):
             if alignment.get("schema") != "axon-r0-source-alignment-v1":
                 raise ValueError("unsupported R0 source-alignment schema")
             if set(alignment) != {"schema", "scratch", "response_draft"}:
-                raise ValueError(
-                    "canonical R0 source alignment must define scratch and response_draft"
-                )
+                raise ValueError("canonical R0 source alignment must define scratch and response_draft")
 
         compiled1 = active_compiler.compile(snapshot)
         state1, memory1, coverage1 = self.read_compiled_with_memory(compiled1)
@@ -832,9 +789,7 @@ class CompleteField64D(nn.Module):
                 pass_id="response_draft",
                 provenance="canonical_d64_training_teacher_response",
             )
-            final_snapshot = apply_compiled_delta(
-                second_snapshot, compiled2, response_delta
-            )
+            final_snapshot = apply_compiled_delta(second_snapshot, compiled2, response_delta)
 
         result: dict[str, Any] = {
             "scratch_logits": scratch_logits,
@@ -856,30 +811,16 @@ class CompleteField64D(nn.Module):
             result["alignment"] = {
                 "scratch": scratch_supervision,
                 "response_draft": response_supervision,
-                "position_loss": (
-                    scratch_supervision["position_loss"]
-                    + response_supervision["position_loss"]
-                ),
-                "gate_loss": (
-                    scratch_supervision["gate_loss"]
-                    + response_supervision["gate_loss"]
-                ),
-                "copy_positions": (
-                    scratch_supervision["copy_positions"]
-                    + response_supervision["copy_positions"]
-                ),
+                "position_loss": (scratch_supervision["position_loss"] + response_supervision["position_loss"]),
+                "gate_loss": (scratch_supervision["gate_loss"] + response_supervision["gate_loss"]),
+                "copy_positions": (scratch_supervision["copy_positions"] + response_supervision["copy_positions"]),
                 "position_correct": (
-                    scratch_supervision["position_correct"]
-                    + response_supervision["position_correct"]
+                    scratch_supervision["position_correct"] + response_supervision["position_correct"]
                 ),
                 "gate_supervised_positions": (
-                    scratch_supervision["gate_supervised_positions"]
-                    + response_supervision["gate_supervised_positions"]
+                    scratch_supervision["gate_supervised_positions"] + response_supervision["gate_supervised_positions"]
                 ),
-                "gate_correct": (
-                    scratch_supervision["gate_correct"]
-                    + response_supervision["gate_correct"]
-                ),
+                "gate_correct": (scratch_supervision["gate_correct"] + response_supervision["gate_correct"]),
             }
         return result
 
@@ -897,13 +838,8 @@ class CompleteField64D(nn.Module):
         active_compiler = D64FieldCompiler() if compiler is None else compiler
         compiled1 = active_compiler.compile(snapshot)
         state1, memory1, coverage1 = self.read_compiled_with_memory(compiled1)
-        scratch, scratch_terminated = self.decode_greedy(
-            state1, head=0, memory=memory1
-        )
-        if (
-            not scratch_terminated
-            or snapshot.region(LogicalRegion.SCRATCH).text == scratch
-        ):
+        scratch, scratch_terminated = self.decode_greedy(state1, head=0, memory=memory1)
+        if not scratch_terminated or snapshot.region(LogicalRegion.SCRATCH).text == scratch:
             scratch_delta = None
             second_snapshot = snapshot
         else:
@@ -919,13 +855,8 @@ class CompleteField64D(nn.Module):
             second_snapshot = apply_compiled_delta(snapshot, compiled1, scratch_delta)
         compiled2 = active_compiler.compile(second_snapshot)
         state2, memory2, coverage2 = self.read_compiled_with_memory(compiled2)
-        response, response_terminated = self.decode_greedy(
-            state2, head=1, memory=memory2
-        )
-        if (
-            not response_terminated
-            or second_snapshot.region(LogicalRegion.RESPONSE_DRAFT).text == response
-        ):
+        response, response_terminated = self.decode_greedy(state2, head=1, memory=memory2)
+        if not response_terminated or second_snapshot.region(LogicalRegion.RESPONSE_DRAFT).text == response:
             response_delta = None
             final_snapshot = second_snapshot
         else:
@@ -938,9 +869,7 @@ class CompleteField64D(nn.Module):
                 pass_id="response_draft",
                 provenance="canonical_d64_runtime_response",
             )
-            final_snapshot = apply_compiled_delta(
-                second_snapshot, compiled2, response_delta
-            )
+            final_snapshot = apply_compiled_delta(second_snapshot, compiled2, response_delta)
         return {
             "scratch": scratch,
             "response_draft": response,
@@ -950,8 +879,12 @@ class CompleteField64D(nn.Module):
             "coverage_tick2": coverage2.to_dict(),
             "typed_delta": {
                 "schema": "axon-canonical-d64-transaction-v1",
-                "scratch": None if scratch_delta is None else {**scratch_delta.to_canonical_dict(), "delta_id": scratch_delta.delta_id},
-                "response_draft": None if response_delta is None else {**response_delta.to_canonical_dict(), "delta_id": response_delta.delta_id},
+                "scratch": None
+                if scratch_delta is None
+                else {**scratch_delta.to_canonical_dict(), "delta_id": scratch_delta.delta_id},
+                "response_draft": None
+                if response_delta is None
+                else {**response_delta.to_canonical_dict(), "delta_id": response_delta.delta_id},
             },
             "scratch_delta": scratch_delta,
             "response_delta": response_delta,
@@ -961,9 +894,6 @@ class CompleteField64D(nn.Module):
             "compiled_tick1": compiled1,
             "compiled_tick2": compiled2,
         }
-
-
-
 
 
 def sequence_cross_entropy(
@@ -989,11 +919,11 @@ def teacher_char_accuracy(logits: torch.Tensor, targets: torch.Tensor) -> float:
 
 __all__ = [
     "REGION_ORDER",
-    "ReaderConfig",
-    "CoverageManifest",
-    "coverage_manifest_from_compiled",
     "CompleteField64D",
+    "CoverageManifest",
+    "ReaderConfig",
     "canonical_field",
+    "coverage_manifest_from_compiled",
     "frozen_orthogonal_lift",
     "sequence_cross_entropy",
     "teacher_char_accuracy",

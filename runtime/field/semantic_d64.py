@@ -17,34 +17,35 @@ behind an explicit generation identity while exact grounding remains intact.
 
 This module has no reasoning vote and no canonical commit authority.
 """
+
 from __future__ import annotations
 
 import hashlib
+import itertools
 import math
 import re
 from dataclasses import dataclass, field
-from typing import Any, Iterable
+from typing import Any
 
 import numpy as np
+
+from substrate import decode_unicode_tokens
 
 from .compiler_d64 import (
     D64_LANES_PER_ROW,
     D64_WIDTH,
-    CartographicSpan,
     CompiledD64Field,
-    StaleCompiledFieldError,
 )
 from .schema import (
     LOGICAL_REGION_IDS,
     FieldSpan,
     LogicalRegion,
     SharedFieldSnapshot,
-    canonical_json_bytes,
     canonical_sha256,
 )
 
-D64_SEMANTIC_SURFACE_SCHEMA = "axon-d64-semantic-surface-v1"
-D64_SEMANTIC_SLOT_SCHEMA = "axon-d64-semantic-slot-v1"
+D64_SEMANTIC_SURFACE_SCHEMA = "axon-d64-semantic-surface-v2"
+D64_SEMANTIC_SLOT_SCHEMA = "axon-d64-semantic-slot-v2"
 D64_STRUCTURAL_FEATURE_SCHEMA = "axon-d64-structural-features-v1"
 D64_STRUCTURAL_FEATURE_GENERATION = "structural-lexical-v1"
 
@@ -132,11 +133,11 @@ def structural_features64(
             for start in range(0, len(padded) - size + 1):
                 _add_feature(
                     vector,
-                    f"chargram:{size}:{padded[start:start + size]}",
+                    f"chargram:{size}:{padded[start : start + size]}",
                     weight,
                 )
 
-    for left, right in zip(tokens, tokens[1:]):
+    for left, right in itertools.pairwise(tokens):
         _add_feature(vector, f"token-bigram:{left}|{right}", 0.35)
 
     # Coarse structural scale is exact metadata, not learned semantics.
@@ -188,7 +189,11 @@ class D64SemanticSlot:
             raise TypeError("region must be LogicalRegion")
         if isinstance(self.region_start, bool) or not isinstance(self.region_start, int) or self.region_start < 0:
             raise ValueError("region_start must be a non-negative integer")
-        if isinstance(self.region_end, bool) or not isinstance(self.region_end, int) or self.region_end <= self.region_start:
+        if (
+            isinstance(self.region_end, bool)
+            or not isinstance(self.region_end, int)
+            or self.region_end <= self.region_start
+        ):
             raise ValueError("region_end must be an integer greater than region_start")
         if len(self.text_sha256) != 64:
             raise ValueError("text_sha256 must be a 64-character digest")
@@ -198,10 +203,12 @@ class D64SemanticSlot:
             raise ValueError("text_sha256 must be hexadecimal") from exc
 
         lane_refs = tuple(int(item) for item in self.exact_lane_refs)
-        if len(lane_refs) != self.region_end - self.region_start:
-            raise D64SemanticBindingError("semantic slot lane count must equal its exact character span length")
-        if any(item < 0 for item in lane_refs) or any(right <= left for left, right in zip(lane_refs, lane_refs[1:])):
-            raise D64SemanticBindingError("semantic slot exact_lane_refs must be strictly increasing non-negative indices")
+        if len(lane_refs) < self.region_end - self.region_start:
+            raise D64SemanticBindingError("semantic slot requires at least one transport lane per exact character")
+        if any(item < 0 for item in lane_refs) or any(right <= left for left, right in itertools.pairwise(lane_refs)):
+            raise D64SemanticBindingError(
+                "semantic slot exact_lane_refs must be strictly increasing non-negative indices"
+            )
         object.__setattr__(self, "exact_lane_refs", lane_refs)
 
         for name in ("source_span_ids", "container_refs", "edge_refs"):
@@ -342,20 +349,19 @@ class D64SemanticSurface:
             raise KeyError(slot.slot_id)
         if exact.rail_id != self.source_rail_id:
             raise StaleD64SemanticSurfaceError("exact rail does not match semantic surface")
-        characters: list[str] = []
+        token_ids: list[int] = []
         for flat_ref in slot.exact_lane_refs:
             row, lane = divmod(flat_ref, D64_LANES_PER_ROW)
             address = exact.address(row, lane)
             if address is None:
                 raise D64SemanticBindingError("semantic slot points at D64 padding")
-            characters.append(address.character)
-        return "".join(characters)
+            token_ids.append(address.transport_token_id)
+        return decode_unicode_tokens(token_ids)
 
     def verify_grounding(self, snapshot: SharedFieldSnapshot, exact: CompiledD64Field) -> None:
         self.assert_fresh(snapshot, exact)
         span_maps: dict[LogicalRegion, dict[str, FieldSpan]] = {
-            region.name: {span.span_id: span for span in region.spans}
-            for region in snapshot.regions
+            region.name: {span.span_id: span for span in region.spans} for region in snapshot.regions
         }
         for slot in self.slots:
             text = self.slot_text(slot, exact)
@@ -368,16 +374,25 @@ class D64SemanticSurface:
                 row, lane = divmod(flat_ref, D64_LANES_PER_ROW)
                 address = exact.address(row, lane)
                 if address is None or address.region is not slot.region:
-                    raise D64SemanticBindingError(f"semantic slot {slot.slot_id} crosses an exact rail region/padding boundary")
+                    raise D64SemanticBindingError(
+                        f"semantic slot {slot.slot_id} crosses an exact rail region/padding boundary"
+                    )
                 observed_positions.append(address.region_position)
                 observed_span_ids.add(address.span_id)
-            if observed_positions != expected_positions:
-                raise D64SemanticBindingError(f"semantic slot {slot.slot_id} does not cover its declared contiguous exact span")
+            unique_observed_positions = list(dict.fromkeys(observed_positions))
+            if unique_observed_positions != expected_positions:
+                raise D64SemanticBindingError(
+                    f"semantic slot {slot.slot_id} does not cover its declared contiguous exact span"
+                )
             if observed_span_ids != set(slot.source_span_ids):
-                raise D64SemanticBindingError(f"semantic slot {slot.slot_id} source span references do not match exact addresses")
+                raise D64SemanticBindingError(
+                    f"semantic slot {slot.slot_id} source span references do not match exact addresses"
+                )
             known = span_maps[slot.region]
             if any(span_id not in known for span_id in slot.source_span_ids):
-                raise D64SemanticBindingError(f"semantic slot {slot.slot_id} references a missing canonical source span")
+                raise D64SemanticBindingError(
+                    f"semantic slot {slot.slot_id} references a missing canonical source span"
+                )
             expected_container_refs: set[str] = set()
             expected_edge_refs: set[str] = set()
             for span_id in slot.source_span_ids:
@@ -466,15 +481,14 @@ class D64SemanticSurfaceCompiler:
             raise TypeError("exact must be CompiledD64Field")
         exact.assert_fresh(snapshot)
 
-        address_by_region_position: dict[tuple[LogicalRegion, int], int] = {}
+        mutable_address_map: dict[tuple[LogicalRegion, int], list[int]] = {}
         span_by_region_id: dict[tuple[LogicalRegion, str], FieldSpan] = {}
         for flat_ref, address in enumerate(exact.addresses):
             if address is None:
                 continue
             key = (address.region, address.region_position)
-            if key in address_by_region_position:
-                raise D64SemanticBindingError("exact rail contains duplicate region-position addresses")
-            address_by_region_position[key] = flat_ref
+            mutable_address_map.setdefault(key, []).append(flat_ref)
+        address_by_region_position = {key: tuple(refs) for key, refs in mutable_address_map.items()}
         for region in snapshot.regions:
             for span in region.spans:
                 span_by_region_id[(region.name, span.span_id)] = span
@@ -564,7 +578,7 @@ class D64SemanticSurfaceCompiler:
         self,
         snapshot: SharedFieldSnapshot,
         exact: CompiledD64Field,
-        address_by_region_position: dict[tuple[LogicalRegion, int], int],
+        address_by_region_position: dict[tuple[LogicalRegion, int], tuple[int, ...]],
         span_by_region_id: dict[tuple[LogicalRegion, str], FieldSpan],
         *,
         region: LogicalRegion,
@@ -580,19 +594,24 @@ class D64SemanticSurfaceCompiler:
         source_span_ids: set[str] = set()
         characters: list[str] = []
         for position in range(start, end):
-            flat_ref = address_by_region_position.get((region, position))
-            if flat_ref is None:
+            position_refs = address_by_region_position.get((region, position))
+            if position_refs is None:
                 # A semantic slot may not partially bridge masked text.  The
                 # exact canonical characters still exist, but this derived view
                 # does not attend the complete structural object.
                 return None
-            row, lane = divmod(flat_ref, D64_LANES_PER_ROW)
-            address = exact.address(row, lane)
-            if address is None:
-                raise D64SemanticBindingError("exact address map resolved to padding")
-            refs.append(flat_ref)
-            source_span_ids.add(address.span_id)
-            characters.append(address.character)
+            position_addresses = []
+            for flat_ref in position_refs:
+                row, lane = divmod(flat_ref, D64_LANES_PER_ROW)
+                address = exact.address(row, lane)
+                if address is None:
+                    raise D64SemanticBindingError("exact address map resolved to padding")
+                refs.append(flat_ref)
+                source_span_ids.add(address.span_id)
+                position_addresses.append(address)
+            if not position_addresses:
+                raise D64SemanticBindingError("exact address map resolved to zero transport units")
+            characters.append(position_addresses[0].character)
         text = "".join(characters)
         text_sha = hashlib.sha256(text.encode("utf-8")).hexdigest()
         if text_sha != expected_text_sha256:
@@ -632,16 +651,16 @@ class D64SemanticSurfaceCompiler:
 
 
 __all__ = [
-    "D64_SEMANTIC_SURFACE_SCHEMA",
     "D64_SEMANTIC_SLOT_SCHEMA",
-    "D64_STRUCTURAL_FEATURE_SCHEMA",
+    "D64_SEMANTIC_SURFACE_SCHEMA",
     "D64_STRUCTURAL_FEATURE_GENERATION",
-    "D64SemanticSurfaceError",
+    "D64_STRUCTURAL_FEATURE_SCHEMA",
+    "CompiledD64DualSurface",
     "D64SemanticBindingError",
-    "StaleD64SemanticSurfaceError",
-    "structural_features64",
     "D64SemanticSlot",
     "D64SemanticSurface",
-    "CompiledD64DualSurface",
     "D64SemanticSurfaceCompiler",
+    "D64SemanticSurfaceError",
+    "StaleD64SemanticSurfaceError",
+    "structural_features64",
 ]

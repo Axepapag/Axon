@@ -36,7 +36,7 @@ def test_d64_reranking_evaluation_uses_real_dual_surface_and_exact_candidates(tm
     assert "c-system" in case.structural_top_k_container_ids
 
 
-def test_d64_reranking_counts_unsupported_candidates_without_normalizing_or_truncating(tmp_path: Path) -> None:
+def test_d64_reranking_compiles_unicode_candidates_without_normalizing_or_truncating(tmp_path: Path) -> None:
     state_root = _write_fixture_state(tmp_path)
     dormant = state_root / "dormant"
     unsupported = {
@@ -53,9 +53,7 @@ def test_d64_reranking_counts_unsupported_candidates_without_normalizing_or_trun
         "metadata": {},
     }
     with (dormant / "containers.jsonl").open("ab") as handle:
-        handle.write(
-            (json.dumps(unsupported, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
-        )
+        handle.write((json.dumps(unsupported, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8"))
     manifest_path = dormant / "corpus_manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest["output_counts"]["containers"] = 3
@@ -70,9 +68,9 @@ def test_d64_reranking_counts_unsupported_candidates_without_normalizing_or_trun
 
     case = result.cases[0]
     assert "c-mu" in case.pool_container_ids
-    assert case.unsupported_candidate_ids == ("c-mu",)
-    assert result.unsupported_candidate_count == 1
-    assert case.structural_top_k_container_ids[-1] == "c-mu"
+    assert case.unsupported_candidate_ids == ()
+    assert result.unsupported_candidate_count == 0
+    assert "c-mu" in case.structural_top_k_container_ids
 
 
 def test_d64_reranking_cli_imports_repo_packages_from_documented_invocation() -> None:

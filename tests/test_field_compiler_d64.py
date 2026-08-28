@@ -18,7 +18,6 @@ from runtime.field import (
     RegionState,
     SharedFieldSnapshot,
     StaleCompiledFieldError,
-    UnsupportedActiveCharacterError,
     apply_compiled_delta,
     replacement_delta,
 )
@@ -72,10 +71,15 @@ def test_compiler_visits_all_regions_and_preserves_masking() -> None:
     assert snapshot.region("diary").text == "secret\U0001f642"
 
 
-def test_unsupported_attended_character_fails_closed() -> None:
-    snapshot = SharedFieldSnapshot.from_texts({"user_input": "hello\U0001f642"})
-    with pytest.raises(UnsupportedActiveCharacterError, match="user_input"):
-        D64FieldCompiler().compile(snapshot)
+def test_unicode_attended_character_uses_exact_utf8_transport() -> None:
+    text = "hello\U0001f642"
+    snapshot = SharedFieldSnapshot.from_texts({"user_input": text})
+    compiled = D64FieldCompiler().compile(snapshot)
+    assert compiled.region_text("user_input") == text
+    assert compiled.coverage.expected_active_characters == len(text)
+    assert compiled.coverage.compiled_active_characters == len(text)
+    assert compiled.coverage.compiled_transport_units == len("hello") + 4
+    assert compiled.coverage.utf8_byte_transport_units == 4
 
 
 def test_lane_addresses_preserve_span_source_and_exact_positions() -> None:

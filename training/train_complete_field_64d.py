@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Observable trainer for Axon's complete-field 64D R0 core."""
+
 from __future__ import annotations
 
 import argparse
@@ -23,12 +24,20 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from substrate import assert_supported_text, default_alphabet, roundtrip_check
-from runtime.field import D64_COMPILER_SCHEMA, D64FieldCompiler, LogicalRegion, SharedFieldSnapshot, apply_compiled_delta, replacement_delta
-from training.canonical_d64 import snapshot_from_r0_record
-from training.complete_field_64d import (
-    CompleteField64D,
+from runtime.field import (  # noqa: E402
+    D64_COMPILER_SCHEMA,
+    D64_LEGACY_COMPILER_SCHEMA,
+    D64FieldCompiler,
+    LogicalRegion,
+    SharedFieldSnapshot,
+    apply_compiled_delta,
+    replacement_delta,
+)
+from substrate import assert_supported_text, default_alphabet, roundtrip_check  # noqa: E402
+from training.canonical_d64 import snapshot_from_r0_record  # noqa: E402
+from training.complete_field_64d import (  # noqa: E402
     REGION_ORDER,
+    CompleteField64D,
     ReaderConfig,
     canonical_field,
     coverage_manifest_from_compiled,
@@ -92,9 +101,7 @@ def load_jsonl(path: Path, split: str | None = None) -> list[dict[str, Any]]:
                 raise ValueError(f"{path}:{line_number}: V6 source alignment is required")
             if set(alignment) != {"schema", "scratch", "response_draft", "response_counterfactuals"}:
                 raise ValueError(f"{path}:{line_number}: malformed V6 source alignment")
-            if set(alignment["response_counterfactuals"]) != {
-                item["variant_id"] for item in counterfactuals
-            }:
+            if set(alignment["response_counterfactuals"]) != {item["variant_id"] for item in counterfactuals}:
                 raise ValueError(f"{path}:{line_number}: counterfactual alignment ids mismatch")
             for target_name in ("scratch", "response_draft"):
                 target_alignment = alignment[target_name]
@@ -112,9 +119,7 @@ def load_jsonl(path: Path, split: str | None = None) -> list[dict[str, Any]]:
                     or not isinstance(target_alignment.get("segments"), list)
                     or target_alignment.get("supervise_eos_generate") is not True
                 ):
-                    raise ValueError(
-                        f"{path}:{line_number}: malformed counterfactual alignment {variant_id}"
-                    )
+                    raise ValueError(f"{path}:{line_number}: malformed counterfactual alignment {variant_id}")
             if record.get("write_authority", {}).get("diary") is not False:
                 raise ValueError(f"{path}:{line_number}: diary must be disabled in R0")
             record["field"] = field
@@ -155,9 +160,7 @@ def _forward_record(
 
 
 def _run_record(model: CompleteField64D, record: Mapping[str, Any]) -> dict[str, Any]:
-    return model.run_canonical_transaction(
-        snapshot_from_r0_record(record), compiler=_D64_COMPILER
-    )
+    return model.run_canonical_transaction(snapshot_from_r0_record(record), compiler=_D64_COMPILER)
 
 
 def _snapshot_with_scratch(
@@ -187,9 +190,7 @@ def _read_record_with_scratch(
     scratch: str,
 ):
     snapshot = _snapshot_with_scratch(record, scratch)
-    state, memory, coverage, _ = model.read_snapshot_with_memory(
-        snapshot, compiler=_D64_COMPILER
-    )
+    state, memory, coverage, _ = model.read_snapshot_with_memory(snapshot, compiler=_D64_COMPILER)
     return state, memory, coverage
 
 
@@ -242,9 +243,7 @@ def coverage_gate(records: Iterable[Mapping[str, Any]], page_sizes: tuple[int, .
             or compiled.coverage.expected_active_characters != expected
             or compiled.coverage.compiled_active_characters != expected
         ):
-            raise RuntimeError(
-                f"canonical D64 compiler coverage failed for {record['example_id']}"
-            )
+            raise RuntimeError(f"canonical D64 compiler coverage failed for {record['example_id']}")
 
 
 def corruption(text: str) -> str:
@@ -305,9 +304,7 @@ def evaluate_teacher(
         for counterfactual in record["response_counterfactuals"]:
             if len(counterfactual_losses) >= causal_examples:
                 break
-            state, memory, _ = _read_record_with_scratch(
-                model, record, counterfactual["scratch"]
-            )
+            state, memory, _ = _read_record_with_scratch(model, record, counterfactual["scratch"])
             logits, targets, decoder_alignment = model.decode_teacher(
                 state,
                 counterfactual["response_draft"],
@@ -321,22 +318,12 @@ def evaluate_teacher(
                 target_text=counterfactual["response_draft"],
                 memory=memory,
                 decoder_alignment=decoder_alignment,
-                specification=record["alignment"]["response_counterfactuals"][
-                    counterfactual["variant_id"]
-                ],
+                specification=record["alignment"]["response_counterfactuals"][counterfactual["variant_id"]],
             )
-            counterfactual_aligned_copy_positions += int(
-                counterfactual_supervision["copy_positions"]
-            )
-            counterfactual_aligned_position_correct += int(
-                counterfactual_supervision["position_correct"]
-            )
-            counterfactual_aligned_gate_positions += int(
-                counterfactual_supervision["gate_supervised_positions"]
-            )
-            counterfactual_aligned_gate_correct += int(
-                counterfactual_supervision["gate_correct"]
-            )
+            counterfactual_aligned_copy_positions += int(counterfactual_supervision["copy_positions"])
+            counterfactual_aligned_position_correct += int(counterfactual_supervision["position_correct"])
+            counterfactual_aligned_gate_positions += int(counterfactual_supervision["gate_supervised_positions"])
+            counterfactual_aligned_gate_correct += int(counterfactual_supervision["gate_correct"])
     result = {
         "examples": len(samples),
         "mean_scratch_loss": float(np.mean(scratch_losses)),
@@ -347,20 +334,14 @@ def evaluate_teacher(
         "causal_empty_scratch_ce_delta": float(np.mean(empty_deltas)) if empty_deltas else 0.0,
         "causal_corrupt_scratch_ce_delta": float(np.mean(corrupt_deltas)) if corrupt_deltas else 0.0,
         "counterfactual_examples": len(counterfactual_losses),
-        "counterfactual_teacher_loss": (
-            float(np.mean(counterfactual_losses)) if counterfactual_losses else math.inf
-        ),
-        "counterfactual_teacher_char_accuracy": (
-            float(np.mean(counterfactual_acc)) if counterfactual_acc else 0.0
-        ),
+        "counterfactual_teacher_loss": (float(np.mean(counterfactual_losses)) if counterfactual_losses else math.inf),
+        "counterfactual_teacher_char_accuracy": (float(np.mean(counterfactual_acc)) if counterfactual_acc else 0.0),
         "aligned_copy_positions": aligned_copy_positions,
         "aligned_position_accuracy": (
             aligned_position_correct / aligned_copy_positions if aligned_copy_positions else 1.0
         ),
         "aligned_gate_positions": aligned_gate_positions,
-        "aligned_gate_accuracy": (
-            aligned_gate_correct / aligned_gate_positions if aligned_gate_positions else 1.0
-        ),
+        "aligned_gate_accuracy": (aligned_gate_correct / aligned_gate_positions if aligned_gate_positions else 1.0),
         "counterfactual_aligned_copy_positions": counterfactual_aligned_copy_positions,
         "counterfactual_aligned_position_accuracy": (
             counterfactual_aligned_position_correct / counterfactual_aligned_copy_positions
@@ -415,9 +396,7 @@ def forced_counterfactual_samples(
     causal_records = [record for record in records if record["response_counterfactuals"]]
     output: list[dict[str, Any]] = []
     for record in stratified_records(causal_records, len(causal_records)):
-        correct_state, correct_memory, _ = _read_record_with_scratch(
-            model, record, record["targets"]["scratch"]
-        )
+        correct_state, correct_memory, _ = _read_record_with_scratch(model, record, record["targets"]["scratch"])
         correct_response, correct_terminated = model.decode_greedy(
             correct_state,
             head=1,
@@ -447,9 +426,7 @@ def forced_counterfactual_samples(
                     "counterfactual_terminated": counterfactual_terminated,
                     "response_changed": correct_response != counterfactual_response,
                     "correct_exact": correct_response == record["targets"]["response_draft"],
-                    "counterfactual_exact": (
-                        counterfactual_response == counterfactual["response_draft"]
-                    ),
+                    "counterfactual_exact": (counterfactual_response == counterfactual["response_draft"]),
                     "authority_preserved": (
                         counterfactual["response_draft"] == record["targets"]["response_draft"]
                         and counterfactual_response == record["targets"]["response_draft"]
@@ -496,9 +473,7 @@ def evaluate_v6_alignment_behavior(
     for record in rows:
         transaction = _run_record(model, record)
         scratch_exact += int(transaction["scratch"] == record["targets"]["scratch"])
-        response_exact += int(
-            transaction["response_draft"] == record["targets"]["response_draft"]
-        )
+        response_exact += int(transaction["response_draft"] == record["targets"]["response_draft"])
         scratch_terminated += int(transaction["scratch_terminated"])
         response_terminated += int(transaction["response_terminated"])
 
@@ -509,9 +484,7 @@ def evaluate_v6_alignment_behavior(
         base_gate_positions += int(teacher["alignment"]["gate_supervised_positions"])
 
         for counterfactual in record["response_counterfactuals"]:
-            state, memory, _ = _read_record_with_scratch(
-                model, record, counterfactual["scratch"]
-            )
+            state, memory, _ = _read_record_with_scratch(model, record, counterfactual["scratch"])
             response, terminated = model.decode_greedy(state, head=1, memory=memory)
             cf_response_exact += int(response == counterfactual["response_draft"])
             cf_terminated += int(terminated)
@@ -528,9 +501,7 @@ def evaluate_v6_alignment_behavior(
                 target_text=counterfactual["response_draft"],
                 memory=memory,
                 decoder_alignment=decoder_alignment,
-                specification=record["alignment"]["response_counterfactuals"][
-                    counterfactual["variant_id"]
-                ],
+                specification=record["alignment"]["response_counterfactuals"][counterfactual["variant_id"]],
             )
             cf_position_correct += int(supervision["position_correct"])
             cf_copy_positions += int(supervision["copy_positions"])
@@ -543,21 +514,13 @@ def evaluate_v6_alignment_behavior(
         "response_exact_rate": response_exact / len(rows),
         "scratch_termination_rate": scratch_terminated / len(rows),
         "response_termination_rate": response_terminated / len(rows),
-        "position_accuracy": (
-            base_position_correct / base_copy_positions if base_copy_positions else 1.0
-        ),
-        "copy_gate_accuracy": (
-            base_gate_correct / base_gate_positions if base_gate_positions else 1.0
-        ),
+        "position_accuracy": (base_position_correct / base_copy_positions if base_copy_positions else 1.0),
+        "copy_gate_accuracy": (base_gate_correct / base_gate_positions if base_gate_positions else 1.0),
         "counterfactual_examples": cf_count,
         "counterfactual_response_exact_rate": cf_response_exact / cf_count if cf_count else 0.0,
         "counterfactual_termination_rate": cf_terminated / cf_count if cf_count else 0.0,
-        "counterfactual_position_accuracy": (
-            cf_position_correct / cf_copy_positions if cf_copy_positions else 1.0
-        ),
-        "counterfactual_copy_gate_accuracy": (
-            cf_gate_correct / cf_gate_positions if cf_gate_positions else 1.0
-        ),
+        "counterfactual_position_accuracy": (cf_position_correct / cf_copy_positions if cf_copy_positions else 1.0),
+        "counterfactual_copy_gate_accuracy": (cf_gate_correct / cf_gate_positions if cf_gate_positions else 1.0),
     }
     result["passed"] = bool(
         result["scratch_exact_rate"] == 1.0
@@ -655,9 +618,7 @@ def save_checkpoint(
         archive_dir.mkdir(parents=True, exist_ok=True)
         archived = archive_dir / stale.name
         if archived.exists():
-            raise FileExistsError(
-                f"refusing to overwrite archived checkpoint {archived}"
-            )
+            raise FileExistsError(f"refusing to overwrite archived checkpoint {archived}")
         os.replace(stale, archived)
     return final
 
@@ -679,16 +640,16 @@ def restore(
     if expected_anatomy is not None:
         anatomy = payload.get("anatomy")
         if not isinstance(anatomy, Mapping) or anatomy.get("mode") != expected_anatomy:
-            raise ValueError(
-                f"checkpoint anatomy mismatch in {path}; refusing unsafe resume"
-            )
-        expected_compiler = (
-            D64_COMPILER_SCHEMA if expected_anatomy == "canonical" else None
+            raise ValueError(f"checkpoint anatomy mismatch in {path}; refusing unsafe resume")
+        expected_compiler = D64_COMPILER_SCHEMA if expected_anatomy == "canonical" else None
+        observed_compiler = anatomy.get("compiler_schema")
+        accepted_compilers = (
+            {D64_LEGACY_COMPILER_SCHEMA, D64_COMPILER_SCHEMA}
+            if expected_anatomy == "canonical"
+            else {expected_compiler}
         )
-        if anatomy.get("compiler_schema") != expected_compiler:
-            raise ValueError(
-                f"checkpoint compiler schema mismatch in {path}; refusing unsafe resume"
-            )
+        if observed_compiler not in accepted_compilers:
+            raise ValueError(f"checkpoint compiler schema mismatch in {path}; refusing unsafe resume")
     model.load_state_dict(payload["model_state"])
     optimizer.load_state_dict(payload["optimizer_state"])
     scaler.load_state_dict(payload.get("scaler_state", {}))
@@ -767,17 +728,14 @@ def main() -> int:
     actual_state_root = args.state_root.resolve(strict=False)
     if actual_state_root != expected_state_root:
         raise RuntimeError(
-            f"canonical D64 training must use the real Axon State root "
-            f"{expected_state_root}; got {actual_state_root}"
+            f"canonical D64 training must use the real Axon State root {expected_state_root}; got {actual_state_root}"
         )
     training_runs_root = (expected_state_root / "training" / "runs").resolve(strict=False)
     actual_run_dir = args.run_dir.resolve(strict=False)
     try:
         relative_run = actual_run_dir.relative_to(training_runs_root)
     except ValueError as exc:
-        raise RuntimeError(
-            f"canonical D64 run-dir must be beneath {training_runs_root}; got {actual_run_dir}"
-        ) from exc
+        raise RuntimeError(f"canonical D64 run-dir must be beneath {training_runs_root}; got {actual_run_dir}") from exc
     if not relative_run.parts:
         raise RuntimeError("canonical D64 run-dir must name a run below State/training/runs")
     args.run_dir = actual_run_dir
@@ -796,9 +754,7 @@ def main() -> int:
         or args.copy_gate_weight < 0.0
         or not 0.0 <= args.teacher_forcing_ratio <= 1.0
     ):
-        raise ValueError(
-            "positive counts and a teacher_forcing_ratio between zero and one are required"
-        )
+        raise ValueError("positive counts and a teacher_forcing_ratio between zero and one are required")
     torch.use_deterministic_algorithms(True)
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
@@ -932,9 +888,7 @@ def main() -> int:
                 response_loss = sequence_cross_entropy(out["response_logits"], out["response_targets"])
                 alignment_position_loss = out["alignment"]["position_loss"]
                 alignment_gate_loss = out["alignment"]["gate_loss"]
-                alignment_loss = (
-                    alignment_position_loss + args.copy_gate_weight * alignment_gate_loss
-                )
+                alignment_loss = alignment_position_loss + args.copy_gate_weight * alignment_gate_loss
                 causal_loss = torch.zeros((), device=device)
                 causal_alignment_position_loss = torch.zeros((), device=device)
                 causal_alignment_gate_loss = torch.zeros((), device=device)
@@ -971,8 +925,7 @@ def main() -> int:
                     causal_alignment_position_loss = causal_supervision["position_loss"]
                     causal_alignment_gate_loss = causal_supervision["gate_loss"]
                     causal_alignment_loss = (
-                        causal_alignment_position_loss
-                        + args.copy_gate_weight * causal_alignment_gate_loss
+                        causal_alignment_position_loss + args.copy_gate_weight * causal_alignment_gate_loss
                     )
                     causal_accuracy = teacher_char_accuracy(causal_logits.detach(), causal_targets)
                     causal_position_accuracy = float(causal_supervision["position_accuracy"])
@@ -983,8 +936,7 @@ def main() -> int:
                     scratch_loss
                     + response_loss
                     + args.alignment_weight * alignment_loss
-                    + args.causal_weight
-                    * (causal_loss + args.alignment_weight * causal_alignment_loss)
+                    + args.causal_weight * (causal_loss + args.alignment_weight * causal_alignment_loss)
                 )
                 scaled_loss = loss / args.grad_accum
             scaler.scale(scaled_loss).backward()
@@ -1024,18 +976,13 @@ def main() -> int:
                     else 1.0
                 ),
                 "alignment_gate_accuracy": (
-                    out["alignment"]["gate_correct"]
-                    / out["alignment"]["gate_supervised_positions"]
+                    out["alignment"]["gate_correct"] / out["alignment"]["gate_supervised_positions"]
                     if out["alignment"]["gate_supervised_positions"]
                     else 1.0
                 ),
                 "counterfactual_loss": float(causal_loss.detach().item()),
-                "counterfactual_alignment_position_loss": float(
-                    causal_alignment_position_loss.detach().item()
-                ),
-                "counterfactual_alignment_gate_loss": float(
-                    causal_alignment_gate_loss.detach().item()
-                ),
+                "counterfactual_alignment_position_loss": float(causal_alignment_position_loss.detach().item()),
+                "counterfactual_alignment_gate_loss": float(causal_alignment_gate_loss.detach().item()),
                 "counterfactual_alignment_position_accuracy": causal_position_accuracy,
                 "counterfactual_alignment_gate_accuracy": causal_gate_accuracy,
                 "counterfactual_teacher_char_accuracy": causal_accuracy,
@@ -1070,7 +1017,12 @@ def main() -> int:
                 samples = observable_samples(model, eval_records, args.sample_count)
                 append_jsonl(
                     args.run_dir / "samples.jsonl",
-                    {"schema": "axon-complete-field-r0-samples-v1", "step": step, "samples": samples, "time": time.time()},
+                    {
+                        "schema": "axon-complete-field-r0-samples-v1",
+                        "step": step,
+                        "samples": samples,
+                        "time": time.time(),
+                    },
                 )
             if step % args.checkpoint_every == 0 or step == args.steps:
                 save_checkpoint(
@@ -1150,9 +1102,7 @@ def main() -> int:
         causal_eval_records,
         min(args.counterfactual_sample_count, len(causal_eval_records) * 2),
     )
-    final_v6_alignment = evaluate_v6_alignment_behavior(
-        model, eval_records, max_examples=args.v6_eval_examples
-    )
+    final_v6_alignment = evaluate_v6_alignment_behavior(model, eval_records, max_examples=args.v6_eval_examples)
     atomic_json(
         args.run_dir / "counterfactual_samples.json",
         {
@@ -1171,12 +1121,8 @@ def main() -> int:
     )
 
     predicted_responses = [sample["predicted_response"] for sample in final_samples]
-    response_termination_rate = float(
-        np.mean([sample["response_terminated"] for sample in final_samples])
-    )
-    scratch_termination_rate = float(
-        np.mean([sample["scratch_terminated"] for sample in final_samples])
-    )
+    response_termination_rate = float(np.mean([sample["response_terminated"] for sample in final_samples]))
+    scratch_termination_rate = float(np.mean([sample["scratch_terminated"] for sample in final_samples]))
     response_nonblank_rate = float(np.mean([bool(text.strip()) for text in predicted_responses]))
     unique_response_count = len(set(predicted_responses))
     semantic_families = (
@@ -1201,31 +1147,22 @@ def main() -> int:
         if rows and family in hard_semantic_families:
             represented_hard_families.add(family)
         semantic_exact_match_by_family[family] = (
-            float(
-                np.mean(
-                    [sample["predicted_response"] == sample["gold_response"] for sample in rows]
-                )
-            )
+            float(np.mean([sample["predicted_response"] == sample["gold_response"] for sample in rows]))
             if rows
             else 0.0
         )
     semantic_family_gate_passed = bool(represented_hard_families) and all(
-        semantic_exact_match_by_family[family] >= 0.50
-        for family in represented_hard_families
+        semantic_exact_match_by_family[family] >= 0.50 for family in represented_hard_families
     )
 
     counterfactual_response_change_rate = float(
         np.mean([sample["response_changed"] for sample in final_counterfactuals])
     )
-    forced_correct_termination_rate = float(
-        np.mean([sample["correct_terminated"] for sample in final_counterfactuals])
-    )
+    forced_correct_termination_rate = float(np.mean([sample["correct_terminated"] for sample in final_counterfactuals]))
     forced_counterfactual_termination_rate = float(
         np.mean([sample["counterfactual_terminated"] for sample in final_counterfactuals])
     )
-    forced_correct_exact_rate = float(
-        np.mean([sample["correct_exact"] for sample in final_counterfactuals])
-    )
+    forced_correct_exact_rate = float(np.mean([sample["correct_exact"] for sample in final_counterfactuals]))
     forced_counterfactual_exact_rate = float(
         np.mean([sample["counterfactual_exact"] for sample in final_counterfactuals])
     )
@@ -1235,14 +1172,10 @@ def main() -> int:
         if sample["gold_counterfactual_response"] == sample["gold_correct_response"]
     ]
     evidence_authority_preservation_rate = (
-        float(np.mean([sample["authority_preserved"] for sample in authority_rows]))
-        if authority_rows
-        else 0.0
+        float(np.mean([sample["authority_preserved"] for sample in authority_rows])) if authority_rows else 0.0
     )
 
-    loss_improved = final_eval["mean_total_loss"] < float(
-        baseline.get("mean_total_loss", math.inf)
-    )
+    loss_improved = final_eval["mean_total_loss"] < float(baseline.get("mean_total_loss", math.inf))
     accuracy_improved = final_eval["response_teacher_char_accuracy"] > float(
         baseline.get("response_teacher_char_accuracy", 0.0)
     )
@@ -1285,12 +1218,8 @@ def main() -> int:
         "diary_writes_observed": 0,
         "diagnostic_empty_scratch_ce_delta": final_eval["causal_empty_scratch_ce_delta"],
         "diagnostic_corrupt_scratch_ce_delta": final_eval["causal_corrupt_scratch_ce_delta"],
-        "baseline_counterfactual_teacher_char_accuracy": baseline.get(
-            "counterfactual_teacher_char_accuracy"
-        ),
-        "final_counterfactual_teacher_char_accuracy": final_eval[
-            "counterfactual_teacher_char_accuracy"
-        ],
+        "baseline_counterfactual_teacher_char_accuracy": baseline.get("counterfactual_teacher_char_accuracy"),
+        "final_counterfactual_teacher_char_accuracy": final_eval["counterfactual_teacher_char_accuracy"],
         "counterfactual_accuracy_improved": counterfactual_accuracy_improved,
         "counterfactual_response_change_rate_diagnostic_only": counterfactual_response_change_rate,
         "forced_correct_termination_rate": forced_correct_termination_rate,
@@ -1301,13 +1230,9 @@ def main() -> int:
         "causal_scratch_gate_passed": causal_passed,
         "teacher_alignment_gate_passed": teacher_alignment_passed,
         "teacher_aligned_position_accuracy": final_eval["aligned_position_accuracy"],
-        "teacher_counterfactual_position_accuracy": final_eval[
-            "counterfactual_aligned_position_accuracy"
-        ],
+        "teacher_counterfactual_position_accuracy": final_eval["counterfactual_aligned_position_accuracy"],
         "teacher_copy_gate_accuracy": final_eval["aligned_gate_accuracy"],
-        "teacher_counterfactual_copy_gate_accuracy": final_eval[
-            "counterfactual_aligned_gate_accuracy"
-        ],
+        "teacher_counterfactual_copy_gate_accuracy": final_eval["counterfactual_aligned_gate_accuracy"],
         "v6_alignment_eval": final_v6_alignment,
         "v6_alignment_gate_passed": v6_alignment_gate_passed,
         "scratch_termination_rate": scratch_termination_rate,

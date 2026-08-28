@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import numpy as np
 import pytest
 import torch
 
@@ -71,6 +70,7 @@ def test_real_d64_codec_rejects_substituted_lane_cells() -> None:
         rail_id=frame.rail_id,
         semantic_surface_id=frame.semantic_surface_id,
         characters=frame.characters,
+        transport_token_ids=frame.transport_token_ids,
         canonical_positions=frame.canonical_positions,
         cells16=corrupted,
         address_sha256=frame.address_sha256,
