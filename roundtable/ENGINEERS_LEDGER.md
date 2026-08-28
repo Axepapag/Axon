@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-27T20:15:50-05:00
-Current through event: `evt-20260828T011550810215Z-codex-mask-anatomy-clarification`
+Updated: 2026-08-27T21:39:33-05:00
+Current through event: `evt-20260828T023933838605Z-codex-in-place-regional-masks`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -45,16 +45,17 @@ The per-character D64 reader remains permanent specialist tissue. The
 proposal document (`roundtable/PACKED_RAIL_CODEC_PROPOSAL.md`) is now
 historical context for that doctrine.
 
-Jeff clarified the mask anatomy again on 2026-08-27. Each canonical region is
-one exact, position-stable body. Its independent 0–100% mask partitions that
-body into the attended Shared Field and dormant-in-place material; Heart sends
-only the unmasked cells to rails. Moving a mask changes the derived rail view,
-not canonical cell location or identity. Future Cortex digestion harvests
-provenance-bound semantic derivatives from newly dormant material without
-moving, deleting, or replacing the regional source. Current SoT wording still
-contains contradictory relocation language ("resides in Dormant",
-"rematerialize", and possible externalization), so the locked mirrors require
-a governed wording correction before mask/rail implementation proceeds.
+Jeff clarified the mask anatomy again on 2026-08-27, and the doctrine and
+permanent D64 Heart path now implement it. Each canonical region is one exact,
+position-stable body. Its independent durable 0–100% mask partitions that body
+into the attended Shared Field and dormant-in-place material; Heart sends all
+and only unmasked cells to rails. Moving a mask changes the derived `view_id`
+over the same canonical `field_id`, never cell location or identity, and never
+manufactures a canonical commit. A movement during an open tick waits for the
+next eligible tick. D64 compiler-v2 rows stop and explicitly pad at every
+region, attended-interval, span, source, and provenance boundary. Future
+Cortex digestion remains non-destructive, provenance-bound work; it was not
+implemented in this mask correction.
 
 ## Reality boundary and success claim
 
@@ -90,8 +91,8 @@ specialist tissue rather than being forced to become the whole mind.
 
 - Jeff is project convener and final authority.
 - `docs/SOURCE_OF_TRUTH.md` and root `SOURCE_OF_TRUTH.md` are byte-identical at
-  SHA256 `BD83AF87C9A2B50381E498388F8AA115355ED288197634CF96315682F1E4CAA3`
-  (packed-rail pivot amendment, ratified by Jeff 2026-08-26).
+  SHA256 `2852DBD5453984E9BD775AB7A25534DED2D6D8ECB4D4243FEA0B656819518F8C`
+  (packed-rail pivot plus Jeff's in-place regional mask correction).
 - No trained anatomy may contain a fixed character/context ceiling, finite
   learned position table, wrapping page index, destructive truncation, or silent
   long-item exclusion. Pages, buckets, batches, and steps are compute controls.
@@ -103,6 +104,13 @@ specialist tissue rather than being forced to become the whole mind.
   own 0–100% mask alone decides which cells are Shared Field and sent to rails;
   masked cells are dormant in place and never move, renumber, or become a
   second canonical copy.
+- Permanent Heart owns one complete explicit ten-region mask policy at
+  `State/active/heart/region_masks.json`. `tail_percent` uses deterministic
+  integer ceiling over the newest suffix: 0% attends none, 100% attends all,
+  and a positive setting on a nonempty region attends at least one cell.
+- Mask policy and its durable controller are rail-width-independent, but D64
+  is still the only implemented physical compiler. Wider registered rails are
+  not implied by this proof.
 - Discrete content uses discrete loss. Counterfactual/source-use evidence and
   regression/replay floors outrank decreasing training loss.
 - `D:\00` is protected read-only source evidence. Exact lived evidence is never
@@ -229,10 +237,14 @@ consolidator services do not.
 
 ## Verification and Git
 
-- Full repository suite: 371/371 passed (re-verified exit 0 by Kimmy on
-  2026-08-26 after the usage gap).
+- Full repository suite: 382/382 passed after the mask/SOT engine correction.
+- Regional-mask proofs cover exact 0/1/50/100% behavior, ten-region
+  independence, atomic persistence/restart, corruption rejection, stable
+  canonical addresses and 16D cells, no boundary bridging, mask-only
+  circulation over the same field, and frozen in-flight ticks.
 - Fixed-character poison scanner: passed with zero violations.
-- Python compileall and `git diff --check`: passed.
+- Substrate conformance, Python compileall, SOT mirror equality, and
+  `git diff --check`: passed.
 - Known non-failing warnings: PyTorch nested-tensor warning and unwritable local
   `.pytest_cache`.
 - Changed-file Ruff, compileall, poison scan, SOT mirror, and diff hygiene pass.
@@ -241,6 +253,8 @@ consolidator services do not.
 - Implementation commits `25a620bb39b85f966b76c4d8397d9250da7d3e15`,
   `83b48fce8c943f409b741bc002684d79c86aac68`, and SOT commit
   `00b56b7a9cdac88c91896f926fd9213037c64410` were pushed to `origin/main`.
+- In-place mask doctrine/engine implementation commit
+  `b063bba87d2d7b93cf9271a21190a8ccbe48b3d8` was pushed to `origin/main`.
 - No Heart training/evaluation process or Trainer writer lease remained.
 - D: retained 139,902,599,168 bytes free after artifacts. All training used the
   local GTX 1650; cloud spend was $0.
@@ -265,11 +279,10 @@ consolidator services do not.
 8. **CLAIM BOUNDARY:** persistent private state and behavioral identity are
    engineerable; subjective consciousness or continuity of a metaphysical soul
    is not currently testable or guaranteeable.
-9. **DOCTRINE WORDING BLOCKER:** Jeff's 2026-08-27 clarification makes masking
-   an in-place partition of each canonical region. Current SoT still describes
-   masked material as residing outside the Shared Field and permits physical
-   externalization/rematerialization. Correct both mirrors before implementing
-   the mask/rail boundary so storage language cannot relocate canonical cells.
+9. **WIDER-RAIL GAP:** the mask controller and canonical partition law are
+   generic, but only D64 physical rail compilation exists. Registered D128,
+   D256, and generic `d_model/16` packing still need implementation and exact
+   cross-width proof.
 10. **SUBSTRATE COVERAGE GAP:** the frozen 16D bank supports 95 characters;
     real Dormant evidence includes unsupported text. Training must count and
     report inaccessible records and needs an additive Unicode/escape strategy
@@ -282,16 +295,18 @@ consolidator services do not.
    pad at attended-interval boundaries; character masks never rounded), Jeff
    ratified, and the amendment is live in both SoT mirrors at SHA256
    `BD83AF87…` ("Packed substrate rails and the shelf pivot").
-2. Apply Jeff's 2026-08-27 in-place mask clarification to both SoT mirrors:
-   one position-stable canonical regional body; Shared Field equals its
-   unmasked partition; dormant equals its masked in-place partition; Heart
-   rails contain only unmasked cells; Cortex derivatives never replace source.
+2. ~~Apply Jeff's 2026-08-27 in-place mask clarification to both SoT mirrors
+   and the permanent Heart path~~ — DONE 2026-08-27: exact canonical regional
+   body, durable independent ten-region controls, mask-only derived views,
+   D64 boundary-safe compilation, restart/in-flight handling, and exhaustive
+   tests are live at implementation commit `b063bba`.
 3. Publish an evidence-bound shelf manifest and move only genuinely learned
    Heart/Cortex implementations and campaigns; keep shared exact/grounding
    primitives active and preserve every checkpoint/import consequence.
-4. Generalize the existing exact physical-row compiler to registered widths,
-   add boundary/address receipts and a discrete per-lane emission head, then
-   prove exhaustive pack/unpack, mask-gap, repack, rejection and CPU behavior.
+4. Generalize D64 compiler-v2's existing boundary/address receipts to
+   registered widths divisible by 16, add a discrete per-lane emission head,
+   then prove exhaustive pack/unpack, mask-gap, cross-width repack, rejection,
+   and CPU behavior.
 5. Benchmark the existing permanent per-character D64 specialist against a new
    packed-row consumer on the same runtime-faithful task; do not infer semantics
    or compute savings from packing alone.
@@ -310,6 +325,10 @@ consolidator services do not.
 - SOT: `docs/SOURCE_OF_TRUTH.md`
 - Packed-rail proposal/review: `roundtable/PACKED_RAIL_CODEC_PROPOSAL.md` and
   Codex's Q1-Q8 response in `roundtable/ENGINE_TEAM_BUS.md`
+- Durable mask control: `runtime/heart/masks.py`; permanent host integration:
+  `runtime/heart/host.py`; exact D64 packing: `runtime/field/compiler_d64.py`
+- Mask proof suite: `tests/test_heart_region_masks.py`
+- CLI mask control: `python scripts/run_axon_heart.py --mask REGION=PERCENT`
 - Generalization curriculum/loss/evidence: `training/heart_translation.py`
 - Governed run: `scripts/train_heart_decoder_generalization_smoke.py`
 - Latest governed-conduit evidence:
