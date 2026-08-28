@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-28T10:55:54-05:00
-Current through event: `evt-20260828T155554988191Z-codex-substrate-width-review`
+Updated: 2026-08-28T11:29:41-05:00
+Current through event: `evt-20260828T162941226058Z-codex-exact-16d-unicode-transport`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -57,19 +57,19 @@ region, attended-interval, span, source, and provenance boundary. Future
 Cortex digestion remains non-destructive, provenance-bound work; it was not
 implemented in this mask correction.
 
-The pre-reasoning Unicode audit is now exact. The frozen bank contains all
-printable ASCII except backtick plus LF: 95 native characters total. Ordinary
-ASCII-subset Python, Java, C++, and JSON compile and roundtrip exactly, but an
-attended backtick, tab, CR, accented character, curly quote, emoji, or other
-unsupported Unicode scalar fails the entire D64 view closed. Unsupported text
-may remain preserved while masked, but it is inaudible to cores until masked
-out or representable. A scan found unsupported characters in 27/78 active
-runtime/training/scripts/substrate Python files, mostly documentation
-backticks. General real-memory reasoning training is therefore blocked on an
-additive reversible Unicode transport. The recommended permanent anatomy keeps
-raw canonical Unicode unchanged, compiles unsupported code points to an
-unambiguous sequence of existing frozen cells, escapes the literal sentinel,
-and receipts every expanded transport lane back to its canonical address.
+The pre-reasoning Unicode blocker is closed at the exact compiler/input
+boundary. `axon-unicode-transport-utf8-16d-v1` preserves the original 95 native
+token IDs and cells, adds 256 deterministic typed byte cells, and represents
+every valid Unicode scalar as one native unit or its strict one-to-four-byte
+UTF-8 sequence. Canonical state stays raw Unicode; masks resolve over canonical
+positions before expansion; every unit receipts back to the same character,
+span, provenance, interval, and stable global address. Strict decoding rejects
+malformed UTF-8, surrogates, and byte aliases for native characters. D64
+compiler-v3, semantic grounding, Heart framing, Cortext evaluation, and the
+permanent CPU D64 reader now consume this exact transport. Old 95-class learned
+Heart/reasoning output heads remain native-only and explicitly reject Unicode
+frames; they require a governed 351-class categorical output/copy route before
+claiming non-native generation.
 
 Substrate-width review on 2026-08-28 found no reason to replace that canonical
 16D scaffold. Width and vocabulary coverage are separate: 24D or 32D does not
@@ -116,8 +116,8 @@ specialist tissue rather than being forced to become the whole mind.
 
 - Jeff is project convener and final authority.
 - `docs/SOURCE_OF_TRUTH.md` and root `SOURCE_OF_TRUTH.md` are byte-identical at
-  SHA256 `2852DBD5453984E9BD775AB7A25534DED2D6D8ECB4D4243FEA0B656819518F8C`
-  (packed-rail pivot plus Jeff's in-place regional mask correction).
+  SHA256 `1B28EB3739AE4D49B41FE895F8E8638112862824018ED54E3C95AE995C121CB9`
+  (packed rails, in-place masks, and exact additive 16D Unicode transport).
 - No trained anatomy may contain a fixed character/context ceiling, finite
   learned position table, wrapping page index, destructive truncation, or silent
   long-item exclusion. Pages, buckets, batches, and steps are compute controls.
@@ -136,9 +136,10 @@ specialist tissue rather than being forced to become the whole mind.
 - Mask policy and its durable controller are rail-width-independent, but D64
   is still the only implemented physical compiler. Wider registered rails are
   not implied by this proof.
-- The current 95-cell writing bank is frozen permanent tissue. Universal
-  Unicode support must be additive and exactly reversible; raw canonical text
-  may not be normalized, dropped, substituted, or rewritten as escapes.
+- The original 95-cell writing bank remains frozen permanent tissue inside the
+  351-token exact Unicode transport. Native IDs/cells are unchanged; valid
+  non-native scalars use strict UTF-8 byte cells. Raw canonical text may not be
+  normalized, dropped, substituted, or rewritten as escapes.
 - Substrate cell width is not reasoning width. D64 reasoning already lifts the
   exact scaffold into 64D hidden state. 24D is not a registered replacement;
   32D is an admissible derived comparator only, pending evidence.
@@ -268,15 +269,16 @@ consolidator services do not.
 
 ## Verification and Git
 
-- Full repository suite: 382/382 passed after the mask/SOT engine correction.
+- Full repository suite: 405/405 passed after exact 16D Unicode transport integration.
 - Regional-mask proofs cover exact 0/1/50/100% behavior, ten-region
   independence, atomic persistence/restart, corruption rejection, stable
   canonical addresses and 16D cells, no boundary bridging, mask-only
   circulation over the same field, and frozen in-flight ticks.
-- Runtime code probes: ordinary Python (81 chars), Java (99), and C++ (69)
-  compiled with complete coverage and exact roundtrip; native bank roundtrip
-  was 95/95. Emoji, accent, backtick, tab, CR, and curly-quote probes all
-  rejected with `UnsupportedActiveCharacterError` as designed.
+- Exhaustive transport proof roundtripped all 1,112,064 valid Unicode scalars;
+  strict malformed/overlong/surrogate/native-alias streams rejected. Mixed
+  multilingual text, emoji, decomposed accents, backtick, tab, CR, Python,
+  Java, C++, JSON escapes, masks, pages and provenance boundaries roundtrip
+  exactly. The original 95 native IDs/cells remain byte-identical.
 - Frozen 16D geometry recheck passed every gate. Packing arithmetic: 16D gives
   4/8/16/32/64 cells on D64/D128/D256/D512/D1024; 32D gives
   2/4/8/16/32; 24D gives only two D64 cells and wastes 16 dimensions.
@@ -293,6 +295,8 @@ consolidator services do not.
   `00b56b7a9cdac88c91896f926fd9213037c64410` were pushed to `origin/main`.
 - In-place mask doctrine/engine implementation commit
   `b063bba87d2d7b93cf9271a21190a8ccbe48b3d8` was pushed to `origin/main`.
+- Exact additive 16D Unicode transport implementation commit
+  `d24e761e3959047a0e029a6f9f37f680c1036856` was pushed to `origin/main`.
 - No Heart training/evaluation process or Trainer writer lease remained.
 - D: retained 139,902,599,168 bytes free after artifacts. All training used the
   local GTX 1650; cloud spend was $0.
@@ -321,11 +325,11 @@ consolidator services do not.
    generic, but only D64 physical rail compilation exists. Registered D128,
    D256, and generic `d_model/16` packing still need implementation and exact
    cross-width proof.
-10. **BLOCKING — SUBSTRATE COVERAGE GAP:** the frozen 16D bank supports every
-    printable ASCII character except backtick plus LF, but not tab, CR or
-    general Unicode. Any unsupported attended character stops D64 circulation.
-    General real-memory reasoning training must wait for an additive reversible
-    Unicode transport with canonical-address receipts and exact roundtrip.
+10. **LEARNED OUTPUT GAP:** exact compiler/input circulation now supports every
+    valid Unicode scalar, but old learned decoders still emit only the 95 native
+    categories. A reasoning campaign must either use native-only targets or add
+    and gate a 351-class transport output/copy head; it may not report Unicode
+    writing from exact input transport alone.
 
 ## Recommended next actions
 
@@ -346,14 +350,13 @@ consolidator services do not.
    registered widths divisible by 16, add a discrete per-lane emission head,
    then prove exhaustive pack/unpack, mask-gap, cross-width repack, rejection,
    and CPU behavior.
-5. Before reasoning-core training, run and ratify the bounded universal-
-   transport comparator: compact categorical UTF-8 over frozen/additive 16D
-   cells versus an optional derived 32D Unicode capsule. Raw canonical Unicode
-   remains unchanged; masks resolve before expansion; malformed transport
-   rejects; receipts bind canonical and transport positions. Measure complete
-   roundtrip, geometry/category separation, expansion on `experience_v1`, D64
-   rows, CPU throughput, copy learning, and checkpoint compatibility. Do not
-   replace canonical 16D or adopt 24D.
+5. ~~Implement and ratify the 16D universal transport before reasoning-core
+   training~~ — DONE 2026-08-28: strict categorical UTF-8, raw canonical
+   Unicode, typed receipts, masks-before-expansion, exhaustive scalar and
+   rejection proof, CPU reading, native-cell/checkpoint compatibility, and
+   exact code/escape tests are live at `d24e761`. Next, measure expansion on
+   `experience_v1` and add a governed 351-class reasoning output/copy head;
+   24D/32D replacement work is not required.
 6. Benchmark the existing permanent per-character D64 specialist against a new
    packed-row consumer on the same runtime-faithful task; do not infer semantics
    or compute savings from packing alone.
@@ -376,8 +379,9 @@ consolidator services do not.
   `runtime/heart/host.py`; exact D64 packing: `runtime/field/compiler_d64.py`
 - Mask proof suite: `tests/test_heart_region_masks.py`
 - CLI mask control: `python scripts/run_axon_heart.py --mask REGION=PERCENT`
-- Frozen character bank and strict admission: `substrate/substrate.py` and
-  `runtime/field/compiler_d64.py`
+- Frozen native bank and exact Unicode transport: `substrate/substrate.py`,
+  `substrate/unicode_transport.py`, and `runtime/field/compiler_d64.py`
+- Exhaustive Unicode/escape/CPU proof: `tests/test_unicode_transport.py`
 - Generalization curriculum/loss/evidence: `training/heart_translation.py`
 - Governed run: `scripts/train_heart_decoder_generalization_smoke.py`
 - Latest governed-conduit evidence:
