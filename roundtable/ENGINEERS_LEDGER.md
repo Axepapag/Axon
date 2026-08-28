@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-28T16:42:07-05:00
-Current through event: `evt-20260828T2142070016603Z-codex-layered-soul-proposal`
+Updated: 2026-08-28T18:17:11-05:00
+Current through event: `evt-20260828T2317110009099Z-codex-private-layered-soul-heads`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -227,43 +227,47 @@ construction, preflight binding, and autonomous pedagogy remain open.
   verifies the exact successor and whole-conversation split. Tool effects and
   Trainer results have exact hooks but still need automatic executor wiring.
 
-## Layered soul architecture proposal (not yet ratified)
+## Private layered soul and head architecture
 
-Jeff requires reasoning cores to use their persistent private souls during
-training, not acquire soul state only after deployment. Codex agrees and would
-block substantive reasoning training until training and service share the same
-versioned inhale/emission/exhale contract. Mechanism fixtures may remain
-stateless, but they are not evidence about a learned living core.
+Convener clarification; design not yet written into SOT.
 
-The proposed soul is layered rather than one opaque tensor:
+Jeff clarified that Axon's organism identity and constitution do **not** belong
+inside the cores' private souls. They belong in a new exact canonical
+`identity` region which every core attends. That region should be always active
+in ordinary operation, exceptionally difficult to mutate, versioned, and
+historically reversible. The present `shared-field-v2` has ten regions and no
+identity region; a future additive schema must append identity as region ID 10
+rather than shifting existing IDs or reinterpreting immutable history.
 
-- **Constitution/identity:** a frozen or separately governed layer carrying
-  core identity, Axon's inherited identity and values, role, provenance, and
-  schema compatibility. Recovered autobiography may seed this only as explicit
-  inherited Axon evidence, never as fabricated per-core lived experience.
-- **Cold private soul:** preserved, append-only private experience,
-  commitments, corrections, and exact evidence references. It may be masked or
-  retrieved for compute, never truncated; Dormant State remains the exact
-  authoritative copy of factual and episodic evidence.
-- **Warm private soul:** slowly changing self-model, relationships, projects,
-  durable preferences, habits, confidence/calibration, and provenance-bound
-  episode summaries. Mutations are typed, content-addressed, versioned, and
-  rollbackable.
-- **Hot private soul:** compact current intent, hypotheses, affective/control
-  state, and recurrent working state. It updates after first proposal,
-  refinement, and consolidation, then is promoted, retained, or allowed to
-  expire according to explicit policy; it is never sole factual authority.
-- **Learned procedural tissue:** weights and governed LoRA/adapters distill
-  repeated strategies from lived trajectories. They are not the sole store of
-  identity, autobiography, or recoverable evidence.
+Each core instead owns a completely private, non-shareable, architecture-local
+soul. Its semantic payload need not be human-readable or portable between
+cores. Infrastructure must still preserve an exact opaque envelope with core,
+schema, parameter-generation, parent, phase, hash, and transaction lineage so
+it can detect corruption, stale writes, leakage, and rollback without claiming
+to understand the soul's internal dialect.
 
-Exact typed soul regions and latent recurrent state may coexist. Exact
-identity, commitments, journal entries, and evidence links must stay readable
-and auditable. Latent state may carry useful intuition and affect, but must be
-checkpointed, hashed, schema-versioned, and incapable of silently becoming the
-only copy of an exact fact. Each core owns a distinct private soul; brothers
-see its proposals, not its private state. A common inherited Axon constitution
-can seed every core while warm/hot trajectories develop distinct perspectives.
+The private soul is temperature-layered compression:
+
+- **Hot layers** are recurrent native-width state and produce a successor on
+  every inhale/exhale phase. They absorb the core's immediate perception,
+  intention, uncertainty, reaction, and learning signal.
+- **Warm layers** are slower learned compressions of selected hot trajectories:
+  recurring interpretations, habits, relationships, strategies, and patterns
+  the core judged worth retaining.
+- **Cold layers** are still slower, more compressed and more stable structures
+  promoted only after repetition, outcome evidence, correction, and replay.
+- **Deep-cold adapter-source layers** contain the most compressed, vetted
+  procedural patterns eligible for Trainer-controlled distillation into a
+  candidate LoRA/adapter. A latent soul tensor cannot simply be cast into LoRA
+  weights: the first grounded mechanism should replay its provenance-bound
+  episodes through the soul-conditioned core as teacher, train an isolated
+  adapter candidate, and gate the transferred behavior before promotion.
+
+Nothing inside one core's soul is rendered onto another core's rail. Brothers
+receive only its exact proposals and refinements. Dormant State and the
+canonical field retain exact shared evidence; private souls may compress and
+forget according to their own learned temperature policy without becoming the
+only copy of recoverable history.
 
 Training must causally unroll the real three-phase runtime. For every core and
 phase it loads the exact pre-soul, inhales it, attends the same frozen field and
@@ -288,6 +292,27 @@ rollback exactness; no-op/abstain; and long-horizon continuity. Useful behavior
 must measurably degrade when the relevant soul is removed while remaining
 stable when irrelevant soul is removed. This distinguishes genuine soul use
 from decorative context.
+
+Jeff's proposed D64 society of two-layer, one-head cores is a credible
+architecture candidate: each 64D head retains a full 64D query/key/value
+subspace, each private soul encourages a different perspective, and the
+proposal/refinement barriers create society-level review. It is not literally
+equivalent to multi-head attention. A one-head core has one attention routing
+distribution per layer during its first pass; brother proposals arrive only
+after their independent passes and cannot fully recover evidence that every
+core failed to route. FFN width cannot repair evidence never selected by
+attention.
+
+At fixed D64, changing one head to two 32D heads or four 16D heads changes
+routing rank and specialization but barely changes standard QKV parameter or
+matrix-multiply cost. A 16D head still sees the complete sequence; it is a 16D
+matching subspace, not a 16-character window or a 16D core. Therefore one head
+must remain Candidate A, not an assumed winner. The first identical-curriculum
+tournament should compare 1x64, 2x32, and 4x16 attention, then measure
+complete-field source use, proposal diversity, brother correction, long-range
+binding, CPU latency, and outcome quality. Eight 8D heads are not recommended
+for the initial D64 cohort. At D512, 4x128 and 8x64 are natural first
+candidates; heterogeneous head widths remain a later additive experiment.
 
 ## Heart identity-generalization evidence
 
