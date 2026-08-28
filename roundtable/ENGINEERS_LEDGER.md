@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-28T11:29:41-05:00
-Current through event: `evt-20260828T162941226058Z-codex-exact-16d-unicode-transport`
+Updated: 2026-08-28T12:01:43-05:00
+Current through event: `evt-20260828T170143732437Z-codex-pre-reasoning-organism-audit`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -70,6 +70,17 @@ permanent CPU D64 reader now consume this exact transport. Old 95-class learned
 Heart/reasoning output heads remain native-only and explicitly reject Unicode
 frames; they require a governed 351-class categorical output/copy route before
 claiming non-native generation.
+
+A pre-reasoning organism audit now separates functioning control-plane anatomy
+from the missing living loop. Heart has a real event-driven work signal, a
+30-second default idle liveness cadence, independent durable heartbeat/tick
+identities, frozen D64 tick images, registry metadata, two-pass proposal
+barriers and a consolidator-only transaction boundary. The barriers and commit
+boundary pass focused tests, but no production runner instantiates the proposal
+board, executes cores, renders proposal sidecars, invokes a consolidator or
+feeds its commit back into the next circulation. Only D64 is physically
+compiled. The intended cadence is one frozen reasoning tick with proposal,
+refinement and consolidation phases; barriers are not separate tick identities.
 
 Substrate-width review on 2026-08-28 found no reason to replace that canonical
 16D scaffold. Width and vocabulary coverage are separate: 24D or 32D does not
@@ -158,13 +169,42 @@ acknowledgement. Automatic response, tool request/result, consolidator, and
 Trainer outcome hooks remain missing.
 
 The Trainer provides leased parameter authority, preflight, isolated candidate
-clones, exact mutation grants, telemetry, immutable checkpoints, deterministic
-gates, activation, and rollback machinery. Current inspection snapshot
-`15d74aa6f4aea1eda93c3c21379fd3aaa4f6363bba1b6b82b12df38d20ada8e2`
-reports 18 authorizations, 19 evaluations, 18 gate decisions, 17 preflight
-receipts, zero promotion proposals, zero activation/rollback receipts, zero
-active-generation pointers, and no writer lease. It is a working experiment
-constitution, not yet an autonomous teacher.
+clones, exact mutation grants, telemetry, immutable checkpoints including
+optimizer/gradient state, deterministic gates, activation, and rollback
+machinery. Current read-only inspection reports 22 authorizations, 22 plans,
+21 preflight receipts, 23 evaluations, 22 gate decisions, zero promotion
+proposals, zero activation/rollback receipts, zero active-generation pointers,
+and no writer lease. Two immutable source-reference sessions exist: 59,858
+exact Heart-grounding examples and 14,205 observed user/assistant pairs; both
+are explicitly non-serving, and historical assistant text is not treated as a
+correctness label. It is a working experiment constitution, not yet an
+autonomous teacher or runtime-faithful episode loader.
+
+## Pre-reasoning architecture boundary
+
+- Keep the exact scaffold at 16D. Dormant authority is raw exact Unicode and
+  provenance, not a permanently materialized ocean of 16D tensors; Heart
+  derives 16D transport only for attended material.
+- Accepted user ingress currently owns `user_input`, not
+  `conversation_history`. Turn finalization that archives user/response turns,
+  clears transient input, and deposits complete outcomes is still missing.
+- Proposal and refinement records already use exact typed `FieldDelta` values
+  bound to one base. They should remain noncanonical and become the first
+  width-neutral interlingua: Heart deterministically renders the same proposal
+  board beside F_N on every destination rail. Learned cross-width translation
+  is not required for exact text/edit proposals.
+- Jeff's `D64 / 2 layers / 1 head / 131072 FFN` design is retained as a serious
+  Candidate A. It is about 33.85M encoder-layer parameters and costs about
+  33.55M FFN multiply-accumulates per transport unit, 32 times a two-layer
+  4096-FFN baseline. One head supplies only one routing pattern per layer. It
+  must compete under identical complete-field gates against multi-head,
+  deeper/moderate-FFN, and optionally sparse-expert candidates; none is treated
+  as disposable tissue.
+- Continuous lived-experience training requires complete episode capture:
+  pre-action field/view, evidence, every proposal and refinement, consolidator
+  choice, canonical receipt, tool effects, response, later correction/outcome,
+  and Trainer result. Splits must be by whole episode/source/time, never by
+  isolated adjacent messages that leak history.
 
 ## Heart identity-generalization evidence
 
