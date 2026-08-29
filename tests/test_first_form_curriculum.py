@@ -103,3 +103,26 @@ def test_ffcs_load_rejects_tampered_target_identity(tmp_path) -> None:
 
     with pytest.raises(ValueError, match="target identity mismatch"):
         load_first_form_curriculum(path)
+
+
+def test_ffcs_df_compiles_real_board_deltas_and_complete_long_fields(tmp_path) -> None:
+    state_root = tmp_path / "State"
+    curriculum = FirstFormCurriculumCompiler(_experience_store(state_root)).compile_df(
+        identity_text="Axon is Axon. Every brother attends the complete field.",
+        requested_counts=(("D", (2, 1, 1)), ("F", (2, 1, 1))),
+    )
+
+    assert curriculum.actual_family_split_counts == curriculum.requested_family_split_counts
+    society = [item for item in curriculum.cases if item.family == "D"]
+    long_field = [item for item in curriculum.cases if item.family == "F"]
+    assert len(society) == 4
+    assert len(long_field) == 4
+    assert all('"schema":"shared-field-delta-v1"' in item.episode.first_workspace_text for item in society)
+    assert all(item.procedural_depth == 3 for item in curriculum.cases)
+    assert all(item.transport_pages > 11 for item in long_field)
+    assert all("cross_page_composition" in item.episode.mechanism_tags for item in long_field)
+
+    restored = load_first_form_curriculum(
+        publish_first_form_curriculum(curriculum, state_root=state_root)
+    )
+    assert restored.manifest_id == curriculum.manifest_id

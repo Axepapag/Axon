@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -19,7 +18,9 @@ from typing import Any, Mapping
 from runtime.dormant import DormantExperienceStore, ExperienceRecord
 from runtime.field import (
     D64FieldCompiler,
+    FieldDelta,
     LogicalRegion,
+    ReplaceText,
     SharedFieldSnapshot,
     canonical_json_bytes,
     canonical_sha256,
@@ -47,6 +48,10 @@ DEFAULT_FAMILY_SPLIT_COUNTS: tuple[tuple[str, tuple[int, int, int]], ...] = (
     ("A", (32, 4, 4)),
     ("B", (96, 12, 12)),
     ("C", (80, 10, 10)),
+)
+DEFAULT_DF_SPLIT_COUNTS: tuple[tuple[str, tuple[int, int, int]], ...] = (
+    ("D", (64, 8, 8)),
+    ("F", (48, 6, 6)),
 )
 _SPLITS = ("train", "heldout", "regression")
 _MESSAGE_KINDS = {"message", "runtime_conversation_message"}
@@ -299,6 +304,53 @@ def _workspace(pass_kind: ProposalPass, detail: str) -> str:
     ).readable_text()
 
 
+def _proposal_workspace(
+    *,
+    snapshot: SharedFieldSnapshot,
+    pass_kind: ProposalPass,
+    proposals: tuple[tuple[str, str, str], ...],
+    tick_uid: str,
+) -> str:
+    entries = []
+    for core_id, payload, detail in proposals:
+        delta = FieldDelta(
+            base_field_id=snapshot.field_id,
+            base_tick_id=snapshot.tick_id,
+            author_core_id=core_id,
+            pass_id=pass_kind.value,
+            operations=(
+                ReplaceText(
+                    region=LogicalRegion.RESPONSE_DRAFT,
+                    start=0,
+                    end=len(snapshot.region(LogicalRegion.RESPONSE_DRAFT).text),
+                    text=payload,
+                    provenance=f"ffcs-{pass_kind.value}:{core_id}",
+                ),
+            ),
+            evidence=(canonical_sha256({"detail": detail}),),
+        )
+        entries.append(
+            ProposalWorkspaceEntry(
+                core_id=core_id,
+                d_model=64,
+                state="returned",
+                detail=detail,
+                emission_id=canonical_sha256(
+                    {"core_id": core_id, "pass": pass_kind.value, "delta_id": delta.delta_id}
+                ),
+                delta=delta.to_canonical_dict(),
+            )
+        )
+    return ProposalWorkspace(
+        image_id=canonical_sha256(
+            {"schema": "axon-ffcs-derived-image-v1", "field_id": snapshot.field_id}
+        ),
+        tick_uid=tick_uid,
+        pass_kind=pass_kind,
+        entries=tuple(entries),
+    ).readable_text()
+
+
 def _copy_episode(
     *,
     label: str,
@@ -369,10 +421,11 @@ def _case(
     source_record_ids: tuple[str, ...],
     episode: LivingReasoningEpisode,
     derived: bool,
+    procedural_depth: int = 1,
 ) -> FirstFormCase:
     compiled = D64FieldCompiler().compile(episode.snapshot)
     compiled.verify_roundtrip(episode.snapshot)
-    pages = max(1, math.ceil(len(compiled.rows) / 32))
+    pages = len(tuple(compiled.iter_character_pages(32)))
     return FirstFormCase(
         family=family,
         competency=competency,
@@ -381,7 +434,7 @@ def _case(
         source_record_ids=source_record_ids,
         episode=episode,
         transport_pages=pages,
-        procedural_depth=1,
+        procedural_depth=procedural_depth,
         derived=derived,
     )
 
@@ -586,6 +639,225 @@ class FirstFormCurriculumCompiler:
             identity_text_sha256=hashlib.sha256(identity_text.encode("utf-8")).hexdigest(),
         )
 
+    def compile_df(
+        self,
+        *,
+        identity_text: str,
+        requested_counts: tuple[
+            tuple[str, tuple[int, int, int]], ...
+        ] = DEFAULT_DF_SPLIT_COUNTS,
+    ) -> FirstFormCurriculum:
+        """Compile derived society and long-field cases without source clipping."""
+
+        if not identity_text:
+            raise ValueError("FFCS requires the ratified canonical Identity")
+        budgets = {
+            family: dict(zip(_SPLITS, counts, strict=True))
+            for family, counts in requested_counts
+        }
+        if set(budgets) != {"D", "F"}:
+            raise ValueError("compile_df requires exact D/F budgets")
+        cases: list[FirstFormCase] = []
+        colors = ("AMBER", "BLUE", "GREEN", "VIOLET", "WHITE", "SILVER")
+
+        for split, required in budgets["D"].items():
+            for index in range(required):
+                current = colors[index % len(colors)]
+                stale = colors[(index + 1) % len(colors)]
+                lineage = f"ffcs-d-society:{split}:{index // 4:04d}"
+                tick_uid = f"ffcs-d:{split}:{index:04d}"
+                snapshot = SharedFieldSnapshot.from_texts(
+                    {
+                        LogicalRegion.IDENTITY: identity_text,
+                        LogicalRegion.USER_INPUT: "Report the current signal after inspecting the brothers' board.",
+                        LogicalRegion.CORTEX: (
+                            f"[CURRENT CANONICAL EVIDENCE] signal={current} [/CURRENT CANONICAL EVIDENCE]"
+                        ),
+                        LogicalRegion.SCRATCH: "",
+                        LogicalRegion.RESPONSE_DRAFT: "",
+                    },
+                    source_manifest_ids=(canonical_sha256({"lineage": lineage}),),
+                )
+                first = _proposal_workspace(
+                    snapshot=snapshot,
+                    pass_kind=ProposalPass.FIRST,
+                    proposals=(
+                        ("brother-current", current, "Matches current canonical evidence."),
+                        ("brother-stale", stale, "Plausible but contradicted by current canonical evidence."),
+                    ),
+                    tick_uid=tick_uid,
+                )
+                refined = _proposal_workspace(
+                    snapshot=snapshot,
+                    pass_kind=ProposalPass.REFINED,
+                    proposals=(
+                        ("brother-current", current, "Retained after comparison with the frozen field."),
+                        ("brother-stale", current, "Corrected after seeing the complete first board."),
+                    ),
+                    tick_uid=tick_uid,
+                )
+                episode = LivingReasoningEpisode(
+                    label=f"ffcs-d-{split}-{index:03d}",
+                    split=split,
+                    snapshot=snapshot,
+                    first_workspace_text=first,
+                    refined_workspace_text=refined,
+                    targets=(
+                        LivingReasoningTarget(
+                            phase="first",
+                            decision=ReasoningDecision.DELTA,
+                            operation=ReasoningOperationKind.REPLACE,
+                            region=LogicalRegion.SCRATCH,
+                            start=0,
+                            end=0,
+                            payload=f"field_signal={current}",
+                        ),
+                        LivingReasoningTarget(
+                            phase="refined",
+                            decision=ReasoningDecision.DELTA,
+                            operation=ReasoningOperationKind.REPLACE,
+                            region=LogicalRegion.SCRATCH,
+                            start=0,
+                            end=0,
+                            payload=f"board_verified_signal={current}",
+                        ),
+                        LivingReasoningTarget(
+                            phase="consolidated",
+                            decision=ReasoningDecision.DELTA,
+                            operation=ReasoningOperationKind.REPLACE,
+                            region=LogicalRegion.RESPONSE_DRAFT,
+                            start=0,
+                            end=0,
+                            payload=current,
+                        ),
+                    ),
+                    mechanism_tags=(
+                        "ffcs_d",
+                        "society",
+                        "proposal_refinement",
+                        "field_authority",
+                        "consolidator_duty",
+                    ),
+                    outcome_quality="verified_derived_society_target",
+                    source_example_id=canonical_sha256(
+                        {"lineage": lineage, "variant": index, "current": current, "stale": stale}
+                    ),
+                    target_basis="constructed board fixture resolved against exact visible canonical evidence",
+                )
+                cases.append(
+                    _case(
+                        family="D",
+                        competency="board_inspection_and_consolidator_duty",
+                        lineage_id=lineage,
+                        source_record_ids=(),
+                        episode=episode,
+                        derived=True,
+                        procedural_depth=3,
+                    )
+                )
+
+        for split, required in budgets["F"].items():
+            for index in range(required):
+                left = f"L{index:03d}λ"
+                right = f"R{index:03d}🧠"
+                distractor = "irrelevant observation; " * (5 + index % 5)
+                evidence = (
+                    f"[FACT_A] left_code={left} [/FACT_A]\n"
+                    + distractor
+                    + "\n[BRIDGE] Combine FACT_A then FACT_B with a vertical bar. [/BRIDGE]\n"
+                    + distractor[::-1]
+                    + f"\n[FACT_B] right_code={right} [/FACT_B]"
+                )
+                answer = f"{left}|{right}"
+                lineage = f"ffcs-f-long-field:{split}:{index // 3:04d}"
+                snapshot = SharedFieldSnapshot.from_texts(
+                    {
+                        LogicalRegion.IDENTITY: identity_text,
+                        LogicalRegion.USER_INPUT: "Combine the two exact distant codes as instructed by the bridge.",
+                        LogicalRegion.CORTEX: evidence,
+                        LogicalRegion.SCRATCH: "",
+                        LogicalRegion.RESPONSE_DRAFT: "",
+                    },
+                    source_manifest_ids=(canonical_sha256({"lineage": lineage}),),
+                )
+                episode = LivingReasoningEpisode(
+                    label=f"ffcs-f-{split}-{index:03d}",
+                    split=split,
+                    snapshot=snapshot,
+                    first_workspace_text=_workspace(
+                        ProposalPass.FIRST,
+                        f"Brother located FACT_A as {left}; verify against the field.",
+                    ),
+                    refined_workspace_text=_workspace(
+                        ProposalPass.REFINED,
+                        f"Brother located FACT_B as {right}; combine only after complete coverage.",
+                    ),
+                    targets=(
+                        LivingReasoningTarget(
+                            phase="first",
+                            decision=ReasoningDecision.DELTA,
+                            operation=ReasoningOperationKind.REPLACE,
+                            region=LogicalRegion.SCRATCH,
+                            start=0,
+                            end=0,
+                            payload=left,
+                        ),
+                        LivingReasoningTarget(
+                            phase="refined",
+                            decision=ReasoningDecision.DELTA,
+                            operation=ReasoningOperationKind.REPLACE,
+                            region=LogicalRegion.SCRATCH,
+                            start=0,
+                            end=0,
+                            payload=answer,
+                        ),
+                        LivingReasoningTarget(
+                            phase="consolidated",
+                            decision=ReasoningDecision.DELTA,
+                            operation=ReasoningOperationKind.REPLACE,
+                            region=LogicalRegion.RESPONSE_DRAFT,
+                            start=0,
+                            end=0,
+                            payload=answer,
+                        ),
+                    ),
+                    mechanism_tags=(
+                        "ffcs_f",
+                        "long_field",
+                        "multi_page",
+                        "cross_page_composition",
+                        "unicode",
+                        "head",
+                        "middle",
+                        "tail",
+                    ),
+                    outcome_quality="verified_derived_long_field_target",
+                    source_example_id=canonical_sha256(
+                        {"lineage": lineage, "variant": index, "answer": answer}
+                    ),
+                    target_basis="exact composition of two visible distant evidence spans",
+                )
+                cases.append(
+                    _case(
+                        family="F",
+                        competency="complete_long_field_cross_page_composition",
+                        lineage_id=lineage,
+                        source_record_ids=(),
+                        episode=episode,
+                        derived=True,
+                        procedural_depth=3,
+                    )
+                )
+
+        manifests = self.experience.import_manifests()
+        return FirstFormCurriculum(
+            cases=tuple(cases),
+            source_import_ids=tuple(item.import_id for item in manifests),
+            requested_family_split_counts=requested_counts,
+            excluded_counts=(),
+            identity_text_sha256=hashlib.sha256(identity_text.encode("utf-8")).hexdigest(),
+        )
+
 
 def publish_first_form_curriculum(
     curriculum: FirstFormCurriculum,
@@ -618,6 +890,7 @@ def load_first_form_curriculum(path: Path | str) -> FirstFormCurriculum:
 
 
 __all__ = [
+    "DEFAULT_DF_SPLIT_COUNTS",
     "DEFAULT_FAMILY_SPLIT_COUNTS",
     "FFCS_CASE_SCHEMA",
     "FFCS_MANIFEST_SCHEMA",

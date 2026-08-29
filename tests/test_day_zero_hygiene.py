@@ -116,6 +116,7 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "living_reasoning_preflight.py",
         "lived_reasoning_curriculum.py",
         "reasoning_tournament.py",
+        "sequential_first_form.py",
         "train_complete_field_64d.py",
     }
 
