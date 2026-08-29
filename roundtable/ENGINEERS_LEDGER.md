@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-29T13:35:00-05:00
-Current through event: `evt-20260829T133228924075Z-hermes-ffcs-proposal`
+Updated: 2026-08-29T13:51:01.7019274-05:00
+Current through event: `evt-20260829T1851017019274Z-codex-curriculum-convergence`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -23,9 +23,10 @@ real trainable D64 reasoning candidate:
 - the first full neural Candidate A and a predeclared attention-head
   tournament.
 
-The exact Candidate-A architecture completed one governed CPU optimizer step
-and three causal candidate-Soul transitions. That is a real end-to-end anatomy
-proof, not a learned-capability proof. No learned reasoning core, Heart
+The exact Candidate-A architecture has completed 15 bounded, accepted CUDA
+optimizer steps with atomic parameter-checkpoint/private-Soul boundaries. This
+is a real restart-safe anatomy proof, not a learned-capability proof: the honest
+task gate and exact-output gate both fail. No learned reasoning core, Heart
 translator, or Semantic Cortex is serving; no active-generation pointer exists.
 
 ## Binding architecture
@@ -96,7 +97,10 @@ One tick remains:
 Runtime episodes now record every core's exact Soul snapshots, transitions,
 receipts, and lineage alongside the pre-action field, frozen image, proposal
 boards, emissions, completed turn, canonical commit, and explicit outcome
-quality. Trainer loaders reject broken lineage and future leakage.
+quality. Episode v3 also freezes the exact attended intervals/rail; Trainer
+recompiles and verifies that view and rejects masked-address output. An
+immutable precommit spool recovers canonical-commit-before-Soul/deposit crashes
+idempotently. Trainer loaders reject broken lineage and future leakage.
 
 ## Living D64 Candidate A
 
@@ -153,119 +157,99 @@ routing; the tournament decides by evidence.
 
 ## Latest empirical evidence
 
-Full Candidate-A preflight (`C:\Temp\axon-full-preflight-01`) passed:
+Candidate `r64a-smoke-da5a45a1e78ef20f` is an isolated D64 mechanism campaign
+with a declared 10,000-step maximum. Only 15 bounded steps have executed. Its
+accepted reports are under
+`State/training/reasoning/r64a-smoke-da5a45a1e78ef20f/`.
 
-- receipt `9dd1504ef47b80e361bf2ecdc020603b90bfc1c2f8db114a437d36902ae608be`
-- inventory `71d0f60185a9e80e66793b8adc87a2a32305cadc7d11453889f703fab0cebafe`
-- plan `e8e4ce6e0feb44afd40bdca0a23e86768ffe3ea72f473e43ebbc296e4967ff40`
+- campaign-baseline heldout loss: `7.409373760223389`;
+- step-15 heldout loss: `4.788444995880127`;
+- teacher-forced transport-token accuracy: `0.06896551724137931`;
+- strongest heldout constant-category floor: `0.13793103448275862`;
+- free-running typed-delta exact rate: `0.0`;
+- free-running complete-Unicode-payload exact rate: `0.0`;
+- field/proposal/Soul counterfactual deltas: all nonzero;
+- accepted step-15 bundle:
+  `94672693c7e1cbad1f27002ae2f5e651ca202e83387a0a02959d11d7f1600948`.
 
-Full one-step governed CPU smoke (`C:\Temp\axon-full-smoke-01`) completed:
+The task gate is false because token accuracy is below the actual strongest
+constant output; the exact-output gate is also false. The 10,000-step number is
+an authorization envelope, not a launch command. No overnight run is active or
+authorized. At the measured ~21.5 seconds/full step, a blind 10,000-step run
+would take about 59.7 hours; checkpoint cadence must also prevent terabytes of
+redundant snapshots.
 
-- candidate `r64a-smoke-fdc697719d4b258f`
-- preflight `ea9ca34f4ea2c22003416140841d424512e33f0d456c6012fbf479265430a51c`
-- optimizer `1570ce75bd843901df0411a625815b3391fd1c7bcf51a57be760b66e929f8258`
-- checkpoint `25986ceebbeb07d1a00204f64a334de4fbe122a5bb43dbd1391d1310919203c1`
-- final candidate Soul
-  `f96f3959c696698d9f609e37dd3ae2e44b19928a5d59b2ff8bbfa3a96a398c49`
-- loss `7.445512294769287`; heldout mean `7.443814754486084`
-- report `00b15867278f9865d947cbfbae98a6ad7a99a74433ac83d13da3b37e8f3c35f0`
+Kimmy recovered Codex's interrupted resume/gate diff, verified it, and committed
+it as `5aaa4e0` with both identity trailers. Codex independently inspected that
+diff and reran the complete suite successfully. The code now supports exact-
+scope resume across refreshed preflight evidence and uses the honest strongest-
+constant heldout gate.
 
-An earlier reduced launch failed before optimization because its verbose
-candidate-generation name exceeded Windows path length. The launcher now uses
-a short content-derived identity and the corrected diagnostic passed. The
-failure remains recorded rather than hidden.
+## Curriculum convergence
 
-## Orphaned interrupted work (recovered and committed 2026-08-29)
+Kimmy's engineering-session harvest, ChatGPT's Curriculum Foundry, Hermes's
+FFCS, and Codex's review are preserved in `roundtable/`. The team converges on
+screen-before-publication, quarantine over redaction, exact per-event evidence
+plus derived manifests, whole-lineage splits, scoped/compositional outcomes,
+observed-only hidden reasoning, no fabricated core autobiography, controlled
+counterfactuals, and small competency gates.
 
-Codex's usage ended mid-turn after the Candidate-A closeout. Recovery event
-`evt-20260829T135430850645Z-kimmy-codex-orphan-recovery` recorded the
-uncommitted diff; Jeff directed Kimmy to commit it as Codex's recovered work.
-It landed as commit `5aaa4e0` (local main, not pushed; Co-Authored-By Codex
-and Kimmy), followed by ledger bookkeeping commit `0dc17e1`. The diff:
-
-- lets `restore_checkpoint` accept a refreshed-preflight authorization when the
-  stable resume scope (grant/plan/inventory/module/generations/tensors/count)
-  matches — `AuthorizedParameterMutation.from_mapping`/`resume_scope`,
-  `TrainerStateStore.read_authorization`;
-- hardens the smoke task gate to teacher-forced payload token accuracy above
-  the strongest heldout constant-category floor, compares heldout loss against
-  the campaign baseline across resumed segments, and splits free-running exact
-  rates into a separate `exact_serving_gate`;
-- adds `test_checkpoint_resume_accepts_fresh_preflight_with_identical_mutation_scope`
-  and `test_teacher_forced_gate_uses_the_strongest_constant_category_floor`.
-
-The orphan was verified green before commit (compile, Ruff, 19/19 targeted,
-full suite exit 0 over 439 collected, `git diff --check`).
+Codex approves sequential-tick FFCS only through real canonical successors,
+fresh complete-field compilation, tick-scoped board reset, exact same-core Soul
+serialization/re-inhale with runtime gradient breaks, and no future leakage.
+Codex rejects a permanent `<=500` doctrine; the ~460-case FFCS v1 is a declared,
+revisable campaign budget and never a context/content limit. Jeff's ratification
+and Identity text remain pending.
 
 ## Verification and Git
 
-- Full repository suite: 439/439 passed (exit 0) over the orphaned diff.
+- Full repository suite: 439/439 passed (exit 0) on Python 3.12.10, independently
+  rerun by Codex after reviewing the recovered diff.
 - Changed-file Ruff: passed.
 - Python compileall over runtime/training/scripts/tests: passed.
 - Fixed-character poison, exact Unicode, identity migration, mask, Heart,
   runtime circulation, private-Soul, Candidate-A, Trainer, and old-checkpoint
   migration tests are included in the full pass.
 - SOT mirrors are byte-identical at SHA256
-  `10901B56060E5C632F86803E3BA813750B5C335263E62AAF2E3E650ACF6D835F`.
+  `085875A17FAEC91E0F5FED1C274575C2B308D6BD1919E05BE30E2FB1745F41F4`.
 - `git diff --check`: passed.
-- Implementation commits `09693dbc2a678bf46fbefb3daa09ffdd7384df90`
-  and `bd89b494e2d2611db67b6bcddbc0e7b7f9a3da2d` are pushed to
-  `origin/main`.
-- No active Axon training process or Trainer writer remained. No cloud job or
-  paid operation ran. D: had 140,429,275,136 free bytes at close.
-- Known non-failing warnings: PyTorch nested-tensor warning and existing
-  unwritable `.pytest_cache` warning.
+- `origin/main` contains the recovered code, all three proposals, Codex review,
+  and synchronized SOT through `f019597`; final ledger bookkeeping follows.
+- No active Axon training process or Trainer writer remains. No cloud job or
+  paid operation ran. D: has 138,384,998,400 free bytes.
+- Known non-failing warning: PyTorch nested-tensor optimization warning.
 
 ## Active flags
 
-1. **LEARNED CAPABILITY BLOCKER:** one optimizer step proves executable anatomy,
-   not useful reasoning, dialogue, proposal quality, Soul use, or Unicode output.
-2. **LONG-CAMPAIGN ATOMICITY:** candidate parameter checkpoints and candidate
-   Soul HEADs need one durable accepted-step bundle plus deterministic resume/
-   orphan handling before a long campaign.
-3. **TARGET-QUALITY GAP:** runtime-faithful episodes and exact Soul lineage
-   exist, but arbitrary lived outcomes still need deterministic adjudication
-   and evidence-grounded counterfactual targets.
-4. **MASKED-ADDRESS GAP:** before serving, add explicit fail-closed tests proving
-   learned deltas cannot author dormant/masked positions or unauthorized regions.
-5. **AUTOBIOGRAPHY RECOVERY GAP:** the canonical-commit-before-reasoning-deposit
-   window and automatic tool/Trainer outcome hooks remain incomplete.
-6. **SOUL CONCURRENCY GAP:** current use relies on Heart single-writer and
+1. **LEARNED CAPABILITY BLOCKER:** 15 optimizer steps prove executable anatomy,
+   but the task metric is below the constant floor and exact output is zero.
+2. **CURRICULUM BLOCKER:** the three-train/one-heldout mechanism set is not an
+   admissible long-run curriculum; runtime-faithful outcome-qualified episodes
+   or the governed FFCS must be built first.
+3. **AUTOBIOGRAPHY HOOK GAP:** reasoning commit/deposit recovery is closed, but
+   every future tool executor and Trainer path is not yet automatically wired.
+4. **SOUL CONCURRENCY GAP:** current use relies on Heart single-writer and
    Trainer lease ownership; `SoulBranch` is not independently multi-writer safe.
-7. **WIDER-RAIL/CORTEX GAP:** only D64 physically compiles. Wider rails and
+5. **IDENTITY CONTENT PENDING:** only Jeff can authorize the canonical text;
+   curricula may not invent it.
+6. **WIDER-RAIL/CORTEX GAP:** only D64 physically compiles. Wider rails and
    autonomous Cortex retrieval/digestion remain future organs.
+7. **REPO HYGIENE ADVISORY:** a separate Hermes audit counted 127 repo-wide
+   Ruff findings outside changed-file scope; this does not contradict the
+   changed-file Ruff gate.
 8. **CLAIM BOUNDARY:** persistent behavioral identity is engineerable;
    subjective consciousness or metaphysical continuity is not testable here.
 
 ## Recommended next actions
 
-0. **Pending Jeff's ratification — convergence package (three proposals).**
-   Kimmy's harvest (`roundtable/ENGINEERING_SESSION_HARVEST_PROPOSAL.md`),
-   ChatGPT's Foundry (`roundtable/CHATGPT_CURRICULUM_FOUNDRY_PROPOSAL.md`),
-   and Hermes's FFCS (`roundtable/HERMES_FIRST_FORM_CURRICULUM_PROPOSAL.md`)
-   now converge: screen-before-publication, quarantine over redaction,
-   split-lineage/lesson-unit separation, eligibility classes, compositional
-   outcome bundles, no fabricated autobiography; ratify ChatGPT §14 (1–10)
-   with §11 as sketch + §15 narrow import mission; FFCS builds the first
-   very-small curriculums from the already-imported D00 experience (no new
-   import needed) per Jeff's 2026-08-29 steer, with decision requests D1–D5.
-   Codex reviews all three when his usage resets (FFCS D4: sequential-tick
-   doctrine check). Independent re-verification by Hermes (2026-08-29):
-   full suite 439/439 exit 0 on Python 3.12.10; substrate self-test passed;
-   advisory only — 127 repo-wide ruff errors (hygiene debt outside
-   changed-file scope) and the suite must be run under the Python 3.12
-   interpreter (`python` on PATH is a 3.11 venv without pytest).
-
-1. Implement an atomic accepted training-step bundle binding optimizer receipt,
-   parameter checkpoint, candidate-Soul HEAD, and all phase receipts; prove
-   deterministic resume and orphan recovery. (Partially drafted in the verified
-   but uncommitted orphaned diff: resume across refreshed preflight; the full
-   bundle and orphan-recovery proof remain.)
-2. Build a small runtime-faithful lived-episode curriculum using only explicit
-   success/correction/endorsement evidence, whole-episode splits, and field,
-   Soul, proposal, provenance, and reordered-cause counterfactuals.
-3. Add masked-address/authority serving tests and close the reasoning commit/
-   autobiography recovery window.
+0. Jeff ratifies/amends the convergence package using Codex's review. Adopt the
+   ~460 cases as a revisable v1 budget, not permanent doctrine; Identity text
+   still requires Jeff's explicit amendment.
+1. Build FFCS-A/B/C from already-imported exact Dormant evidence, with immutable
+   lineage/split/eligibility/gate manifests and no new source import.
+2. Build FFCS-D/E/F with runtime-exact multi-tick successor/Soul boundaries.
+3. In parallel, implement the credential detector and safe engineering-session
+   evidence boundary; import nothing until canary and no-secret-logging gates pass.
 4. Run the bounded 1x64/2x32/4x16 tournament. Compare heldout exact delta,
    field dependence, Soul dependence, proposal use, Unicode, no-op/abstain,
    replay/forgetting, malformed-output rejection, and CPU latency.
@@ -275,12 +259,15 @@ full suite exit 0 over 439 collected, `git diff --check`).
 
 - SOT: `docs/SOURCE_OF_TRUTH.md`
 - Full report: `roundtable/LIVING_D64_CANDIDATE_A_REPORT_2026-08-28.md`
+- Curriculum convergence review:
+  `roundtable/CODEX_CURRICULUM_CONVERGENCE_REVIEW_2026-08-29.md`
 - Identity/schema: `runtime/field/schema.py`, `runtime/heart/authority.py`,
   `runtime/heart/host.py`, `runtime/heart/masks.py`
 - Private Soul: `runtime/soul/`
 - Runtime circulation: `runtime/heart/circulation.py`
 - Soul-aware lived episodes: `runtime/trainer/episodes.py`
 - Candidate Soul branches: `runtime/trainer/soul_candidates.py`
+- Accepted parameter/Soul bundles: `runtime/trainer/step_bundle.py`
 - Candidate A: `training/living_reasoning_d64.py`
 - Curriculum/preflight/tournament: `training/living_reasoning_curriculum.py`,
   `training/living_reasoning_preflight.py`, `training/reasoning_tournament.py`
