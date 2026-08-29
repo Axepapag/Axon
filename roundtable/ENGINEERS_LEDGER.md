@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-29T12:10:43-05:00
-Current through event: `evt-20260829T171043597940Z-kimmy-foundry-review-and-recommendation`
+Updated: 2026-08-29T13:35:00-05:00
+Current through event: `evt-20260829T133228924075Z-hermes-ffcs-proposal`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -239,12 +239,22 @@ full suite exit 0 over 439 collected, `git diff --check`).
 
 ## Recommended next actions
 
-0. **Pending Jeff's ratification:** the engineering-session harvest +
-   Curriculum Foundry direction (`roundtable/ENGINEERING_SESSION_HARVEST_PROPOSAL.md`,
-   `roundtable/CHATGPT_CURRICULUM_FOUNDRY_PROPOSAL.md`). Kimmy concedes
-   ChatGPT's screen-before-publication correction and recommends ratifying the
-   ten §14 principles with §11 as sketch-only, then running §15's narrow
-   no-training import mission. Codex's review is still outstanding.
+0. **Pending Jeff's ratification — convergence package (three proposals).**
+   Kimmy's harvest (`roundtable/ENGINEERING_SESSION_HARVEST_PROPOSAL.md`),
+   ChatGPT's Foundry (`roundtable/CHATGPT_CURRICULUM_FOUNDRY_PROPOSAL.md`),
+   and Hermes's FFCS (`roundtable/HERMES_FIRST_FORM_CURRICULUM_PROPOSAL.md`)
+   now converge: screen-before-publication, quarantine over redaction,
+   split-lineage/lesson-unit separation, eligibility classes, compositional
+   outcome bundles, no fabricated autobiography; ratify ChatGPT §14 (1–10)
+   with §11 as sketch + §15 narrow import mission; FFCS builds the first
+   very-small curriculums from the already-imported D00 experience (no new
+   import needed) per Jeff's 2026-08-29 steer, with decision requests D1–D5.
+   Codex reviews all three when his usage resets (FFCS D4: sequential-tick
+   doctrine check). Independent re-verification by Hermes (2026-08-29):
+   full suite 439/439 exit 0 on Python 3.12.10; substrate self-test passed;
+   advisory only — 127 repo-wide ruff errors (hygiene debt outside
+   changed-file scope) and the suite must be run under the Python 3.12
+   interpreter (`python` on PATH is a 3.11 venv without pytest).
 
 1. Implement an atomic accepted training-step bundle binding optimizer receipt,
    parameter checkpoint, candidate-Soul HEAD, and all phase receipts; prove
