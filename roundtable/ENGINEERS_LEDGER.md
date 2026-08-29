@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-29T09:47:15-05:00
-Current through event: `evt-20260829T144715056348Z-kimmy-dormant-curriculum-briefing`
+Updated: 2026-08-29T10:14:12-05:00
+Current through event: `evt-20260829T151412655121Z-kimmy-engineering-session-harvest-proposal`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
