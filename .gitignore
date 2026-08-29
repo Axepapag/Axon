@@ -37,6 +37,7 @@ ssh_helper.py
 !/roundtable/FIXED_CHARACTER_POISON_AUDIT_2026-08-24.md
 !/roundtable/LIVING_D64_CANDIDATE_A_REPORT_2026-08-28.md
 !/roundtable/ENGINEERING_SESSION_HARVEST_PROPOSAL.md
+!/roundtable/CHATGPT_CURRICULUM_FOUNDRY_PROPOSAL.md
 
 # Operational state is local. Existing tracked table fixtures remain tracked,
 # but new machine-local runtime/acceptance artifacts are not promoted by default.
