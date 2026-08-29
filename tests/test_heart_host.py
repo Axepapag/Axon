@@ -127,6 +127,45 @@ def test_pending_ingress_survives_restart(tmp_path: Path) -> None:
         second.stop()
 
 
+def test_identity_amendment_uses_exceptional_steward_and_survives_restart(
+    tmp_path: Path,
+) -> None:
+    with _host(tmp_path) as host:
+        assert host.coordinator.current_field.region(LogicalRegion.IDENTITY).text == ""
+        commit = host.amend_identity(
+            "Axon identity v1 — exact Unicode 🧠",
+            amendment_id="identity-v1",
+            evidence_ids=("ratification:user:identity-v1",),
+            provenance="explicit-human-ratification",
+        )
+        assert commit.successor.region(LogicalRegion.IDENTITY).text == (
+            "Axon identity v1 — exact Unicode 🧠"
+        )
+        assert commit.to_canonical_dict()["authority_class"] == "identity_steward"
+        assert host.region_mask_state().policy_for(LogicalRegion.IDENTITY) == RegionMaskPolicy(
+            "all"
+        )
+        with pytest.raises(ValueError, match="no-op"):
+            host.amend_identity(
+                "Axon identity v1 — exact Unicode 🧠",
+                amendment_id="identity-v1-repeat",
+                evidence_ids=("ratification:user:identity-v1",),
+                provenance="explicit-human-ratification",
+            )
+
+    with _host(tmp_path) as reopened:
+        assert reopened.coordinator.current_field.region(LogicalRegion.IDENTITY).text == (
+            "Axon identity v1 — exact Unicode 🧠"
+        )
+        records = [
+            record
+            for record in reopened._autobiography.store.iter_records()
+            if record.record_kind == "canonical_identity_amendment"
+        ]
+        assert len(records) == 1
+        assert records[0].exact_text == "Axon identity v1 — exact Unicode 🧠"
+
+
 def test_commit_before_ack_recovery_does_not_duplicate_text(tmp_path: Path, monkeypatch) -> None:
     first = _host(tmp_path)
     first.start()

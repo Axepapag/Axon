@@ -29,6 +29,7 @@ from runtime.dormant import (
     DormantRelevancePolicy,
 )
 from runtime.field import (
+    SCHEMA_VERSION,
     CanonicalStateBranch,
     CompiledD64DualSurface,
     D64FieldCompiler,
@@ -216,7 +217,10 @@ class BeatCoordinator:
 
     def _load_field(self) -> SharedFieldSnapshot:
         if self._branch.initialized:
-            return self._branch.load_head()
+            field = self._branch.load_head()
+            if field.schema_version != SCHEMA_VERSION:
+                return self._branch.migrate_to_current_schema()
+            return field
         empty = SharedFieldSnapshot.empty(tick_id=0)
         self._branch.initialize(empty)
         return empty

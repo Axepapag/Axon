@@ -24,11 +24,13 @@ from runtime.field import (
     InsertText,
     LogicalRegion,
     RegionMaskPolicy,
+    ReplaceText,
     SharedFieldSnapshot,
 )
 from runtime.field.state_branch import DEFAULT_STATE_ROOT
+from runtime.soul import SoulStore
 
-from .authority import AuthorityClass
+from .authority import AuthorityClass, AuthorityGrant
 from .autobiography import HeartAutobiography
 from .circulation import (
     ReasoningCirculation,
@@ -137,6 +139,7 @@ class HeartHost:
         self._coordinator: BeatCoordinator | None = None
         self._circulation: ReasoningCirculation | None = None
         self._mask_controller: HeartRegionMaskController | None = None
+        self._soul_store: SoulStore | None = None
         self._mask_dirty = False
         self._last_circulated_view_id: str | None = None
         self._lease_record: dict | None = None
@@ -174,6 +177,12 @@ class HeartHost:
             raise HostStateError("Heart host has not been started")
         return self._identity_store
 
+    @property
+    def soul_store(self) -> SoulStore:
+        if self._soul_store is None:
+            raise HostStateError("Heart private-soul store has not been started")
+        return self._soul_store
+
     def start(self) -> None:
         """Acquire writer authority and bind to ``State/active``."""
 
@@ -203,6 +212,7 @@ class HeartHost:
                     mask_controller=mask_controller,
                 )
                 autobiography = HeartAutobiography(self.state_root)
+                soul_store = SoulStore.active(self.state_root)
                 circulation = (
                     None
                     if not self._reasoning_ports
@@ -210,6 +220,7 @@ class HeartHost:
                         coordinator,
                         self.cores,
                         self._reasoning_ports,
+                        soul_store=soul_store,
                     )
                 )
             except Exception:
@@ -222,6 +233,7 @@ class HeartHost:
             self._coordinator = coordinator
             self._circulation = circulation
             self._mask_controller = mask_controller
+            self._soul_store = soul_store
             self._lease_record = lease_record
             self._started = True
             self._stop_event.clear()
@@ -252,6 +264,7 @@ class HeartHost:
             self._coordinator = None
             self._circulation = None
             self._mask_controller = None
+            self._soul_store = None
             self._mask_dirty = False
             self._last_circulated_view_id = None
             self._spool = None
@@ -321,6 +334,86 @@ class HeartHost:
             region,
             RegionMaskPolicy("tail_percent", percent),
         )
+
+    def amend_identity(
+        self,
+        text: str,
+        *,
+        amendment_id: str,
+        evidence_ids: Iterable[str],
+        provenance: str,
+        occurred_at: datetime | None = None,
+    ) -> HeartCommit:
+        """Apply one exceptional, versioned canonical Identity amendment.
+
+        Identity is never writable through ordinary ingress, core, or
+        consolidator authority.  This explicit boundary runs only between
+        ticks and deposits the accepted amendment into exact autobiography.
+        """
+
+        if not isinstance(text, str) or not text:
+            raise ValueError("canonical identity text must be non-empty")
+        if not isinstance(amendment_id, str) or not amendment_id:
+            raise ValueError("amendment_id must be non-empty")
+        if not isinstance(provenance, str) or not provenance:
+            raise ValueError("identity amendment provenance must be non-empty")
+        evidence = tuple(sorted(set(map(str, evidence_ids))))
+        if not evidence or any(not item for item in evidence):
+            raise ValueError("identity amendments require explicit evidence ids")
+        with self._lock:
+            self._require_started()
+            if self.coordinator.tick_in_flight:
+                raise HostStateError("canonical identity cannot change during an in-flight tick")
+            base = self.coordinator.current_field
+            current = base.region(LogicalRegion.IDENTITY).text
+            if current == text:
+                raise ValueError("identity amendment cannot be a no-op")
+            delta = FieldDelta(
+                base_field_id=base.field_id,
+                base_tick_id=base.tick_id,
+                author_core_id="identity-steward",
+                pass_id=f"identity-amendment:{amendment_id}",
+                operations=(
+                    ReplaceText(
+                        region=LogicalRegion.IDENTITY,
+                        start=0,
+                        end=len(current),
+                        text=text,
+                        provenance=provenance,
+                    ),
+                ),
+                evidence=evidence,
+            )
+            commit = self.coordinator.commit_heart_delta(
+                base,
+                delta,
+                AuthorityGrant.identity_steward(),
+                valve_provenance={
+                    "authority_class": AuthorityClass.IDENTITY_STEWARD.value,
+                    "amendment_id": amendment_id,
+                    "provenance": provenance,
+                    "evidence_ids": list(evidence),
+                },
+            )
+            if self._autobiography is None:
+                raise HostStateError("Heart autobiography has not been started")
+            when = occurred_at or datetime.now(timezone.utc)
+            self._autobiography.deposit_event(
+                event_id=f"identity-{delta.delta_id}",
+                record_kind="canonical_identity_amendment",
+                exact_text=text,
+                payload={
+                    "amendment_id": amendment_id,
+                    "provenance": provenance,
+                    "evidence_ids": list(evidence),
+                    "base_field_id": base.field_id,
+                    "successor_field_id": commit.successor.field_id,
+                    "delta_id": delta.delta_id,
+                },
+                occurred_at=when.isoformat(),
+            )
+            self._wake_event.set()
+            return commit
 
     def submit_tool(self, text: str, *, provenance: str = "tool") -> ValveDecision:
         return self.submit(
@@ -430,7 +523,7 @@ class HeartHost:
             response_text=response_text,
             occurred_at=occurred_at.isoformat(),
             payload={
-                "schema": "axon-runtime-reasoning-episode-v1",
+                "schema": "axon-runtime-reasoning-episode-v2",
                 "conversation_id": self.identity_store.identity.heart_epoch_id,
                 "pre_action_field": base.to_dict(),
                 "circulation": result.to_canonical_dict(),

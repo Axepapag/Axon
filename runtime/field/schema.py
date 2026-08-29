@@ -15,8 +15,11 @@ from types import MappingProxyType
 from typing import Any, Iterator, Mapping
 
 LEGACY_SCHEMA_VERSION = "shared-field-v1"
-SCHEMA_VERSION = "shared-field-v2"
-SUPPORTED_SCHEMA_VERSIONS: frozenset[str] = frozenset({LEGACY_SCHEMA_VERSION, SCHEMA_VERSION})
+CORTEX_SCHEMA_VERSION = "shared-field-v2"
+SCHEMA_VERSION = "shared-field-v3"
+SUPPORTED_SCHEMA_VERSIONS: frozenset[str] = frozenset(
+    {LEGACY_SCHEMA_VERSION, CORTEX_SCHEMA_VERSION, SCHEMA_VERSION}
+)
 LEGACY_CORTEX_REGION_NAME = "structured_knowledge"
 
 
@@ -33,9 +36,10 @@ class LogicalRegion(str, Enum):
     SCRATCH = "scratch"
     RESPONSE_DRAFT = "response_draft"
     DIARY = "diary"
+    IDENTITY = "identity"
 
 
-CANONICAL_REGION_ORDER: tuple[LogicalRegion, ...] = (
+PRE_IDENTITY_REGION_ORDER: tuple[LogicalRegion, ...] = (
     LogicalRegion.CONVERSATION_HISTORY,
     LogicalRegion.USER_INPUT,
     LogicalRegion.CORTEX,
@@ -46,6 +50,11 @@ CANONICAL_REGION_ORDER: tuple[LogicalRegion, ...] = (
     LogicalRegion.SCRATCH,
     LogicalRegion.RESPONSE_DRAFT,
     LogicalRegion.DIARY,
+)
+
+CANONICAL_REGION_ORDER: tuple[LogicalRegion, ...] = (
+    *PRE_IDENTITY_REGION_ORDER,
+    LogicalRegion.IDENTITY,
 )
 
 LOGICAL_REGION_IDS: Mapping[LogicalRegion, int] = MappingProxyType(
@@ -185,6 +194,20 @@ def _serialized_region_name(region: LogicalRegion, schema_version: str) -> str:
     if schema_version == LEGACY_SCHEMA_VERSION and region is LogicalRegion.CORTEX:
         return LEGACY_CORTEX_REGION_NAME
     return region.value
+
+
+def canonical_region_order(schema_version: str = SCHEMA_VERSION) -> tuple[LogicalRegion, ...]:
+    """Return the immutable region order belonging to one field schema.
+
+    V1 and v2 hashes were defined over the original ten regions.  V3 appends
+    ``identity`` without reinterpreting any earlier numeric region identity.
+    """
+
+    if schema_version in {LEGACY_SCHEMA_VERSION, CORTEX_SCHEMA_VERSION}:
+        return PRE_IDENTITY_REGION_ORDER
+    if schema_version == SCHEMA_VERSION:
+        return CANONICAL_REGION_ORDER
+    raise ValueError(f"unsupported shared-field schema {schema_version!r}")
 
 
 def canonical_json_bytes(value: Any) -> bytes:
@@ -499,7 +522,14 @@ class SharedFieldSnapshot:
             if region_state.name in supplied:
                 raise ValueError(f"duplicate logical region {region_state.name.value!r}")
             supplied[region_state.name] = region_state
-        normalized = tuple(supplied.get(region, RegionState(name=region)) for region in CANONICAL_REGION_ORDER)
+        order = canonical_region_order(self.schema_version)
+        disallowed = set(supplied) - set(order)
+        if disallowed:
+            names = ", ".join(sorted(region.value for region in disallowed))
+            raise ValueError(
+                f"shared-field schema {self.schema_version!r} does not contain regions: {names}"
+            )
+        normalized = tuple(supplied.get(region, RegionState(name=region)) for region in order)
         object.__setattr__(self, "regions", normalized)
 
         manifests = tuple(sorted(set(str(item) for item in self.source_manifest_ids)))
@@ -513,7 +543,13 @@ class SharedFieldSnapshot:
 
     def region(self, name: LogicalRegion | str) -> RegionState:
         logical_name = _as_logical_region(name)
-        return self.regions[LOGICAL_REGION_IDS[logical_name]]
+        order = canonical_region_order(self.schema_version)
+        try:
+            return self.regions[order.index(logical_name)]
+        except ValueError as exc:
+            raise KeyError(
+                f"region {logical_name.value!r} is absent from schema {self.schema_version!r}"
+            ) from exc
 
     def to_canonical_dict(self) -> dict[str, Any]:
         regions = []
@@ -586,9 +622,11 @@ class SharedFieldSnapshot:
 __all__ = [
     "CANONICAL_REGION_ORDER",
     "CORE_WRITABLE_REGIONS",
+    "CORTEX_SCHEMA_VERSION",
     "LEGACY_CORTEX_REGION_NAME",
     "LEGACY_SCHEMA_VERSION",
     "LOGICAL_REGION_IDS",
+    "PRE_IDENTITY_REGION_ORDER",
     "SCHEMA_VERSION",
     "SUPPORTED_SCHEMA_VERSIONS",
     "AttendedInterval",
@@ -601,6 +639,7 @@ __all__ = [
     "SharedFieldSnapshot",
     "WritePolicy",
     "canonical_json_bytes",
+    "canonical_region_order",
     "canonical_sha256",
     "resolve_mask_policy",
 ]

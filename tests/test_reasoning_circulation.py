@@ -23,8 +23,10 @@ from runtime.heart import (
     ReasoningOperationEmission,
     ReasoningOperationKind,
     ReasoningPassRequest,
+    ReasoningPassResult,
     TickIdentity,
 )
+from runtime.soul import SoulLayer, SoulTemperature, SoulTransition
 from runtime.trainer import RuntimeEpisodeLoader, RuntimeEpisodeSessionCompiler
 
 
@@ -55,17 +57,41 @@ class FixtureCorePort:
             ),
         )
 
-    def emit(self, request: ReasoningPassRequest) -> ReasoningEmission:
+    @staticmethod
+    def _result(request: ReasoningPassRequest, emission: ReasoningEmission) -> ReasoningPassResult:
+        hot = SoulLayer(
+            SoulTemperature.HOT,
+            f"{request.descriptor.core_id}:{request.phase}:{request.soul.generation + 1}".encode(),
+            tensor_layout="fixture-hot-v1",
+        )
+        return ReasoningPassResult(
+            emission=emission,
+            soul_transition=SoulTransition(
+                core_id=request.descriptor.core_id,
+                architecture_id=request.descriptor.architecture_id,
+                parameter_generation=request.descriptor.parameter_generation,
+                before_soul_id=request.soul.soul_id,
+                before_generation=request.soul.generation,
+                tick_uid=request.image.identity.tick_uid,
+                request_id=request.request_id,
+                phase=request.phase,
+                updates=(hot,),
+            ),
+        )
+
+    def emit(self, request: ReasoningPassRequest) -> ReasoningPassResult:
         if request.phase == "consolidated":
             assert len(request.proposal_rails) == 2
             assert all(rail.text for rail in request.proposal_rails)
             current_response = request.rail.exact_surface.region_text(
                 LogicalRegion.RESPONSE_DRAFT.value
             )
-            return self._decision(
+            return self._result(
                 request,
-                decision=ReasoningDecision.DELTA,
-                operations=(
+                self._decision(
+                    request,
+                    decision=ReasoningDecision.DELTA,
+                    operations=(
                     ReasoningOperationEmission(
                         kind=ReasoningOperationKind.REPLACE,
                         region=LogicalRegion.RESPONSE_DRAFT,
@@ -76,13 +102,16 @@ class FixtureCorePort:
                             d_model=request.descriptor.d_model,
                         ),
                     ),
+                    ),
                 ),
             )
         if self.core_id == "core-beta" and request.phase == "first":
-            return self._decision(
+            return self._result(
                 request,
-                decision=ReasoningDecision.DELTA,
-                operations=(
+                self._decision(
+                    request,
+                    decision=ReasoningDecision.DELTA,
+                    operations=(
                     ReasoningOperationEmission(
                         kind=ReasoningOperationKind.INSERT,
                         region=LogicalRegion.SCRATCH,
@@ -93,32 +122,42 @@ class FixtureCorePort:
                             d_model=request.descriptor.d_model,
                         ),
                     ),
+                    ),
                 ),
             )
         if self.core_id == "core-beta" and request.phase == "refined":
             assert len(request.proposal_rails) == 1
-            return self._decision(
+            return self._result(
                 request,
-                decision=ReasoningDecision.ABSTAIN,
-                detail="no grounded refinement",
+                self._decision(
+                    request,
+                    decision=ReasoningDecision.ABSTAIN,
+                    detail="no grounded refinement",
+                ),
             )
-        return self._decision(
+        return self._result(
             request,
-            decision=ReasoningDecision.NO_OP,
-            detail="no independent edit",
+            self._decision(
+                request,
+                decision=ReasoningDecision.NO_OP,
+                detail="no independent edit",
+            ),
         )
 
 
 @dataclass
 class MalformedFixturePort(FixtureCorePort):
-    def emit(self, request: ReasoningPassRequest) -> ReasoningEmission:
-        return ReasoningEmission(
-            base_field_id=request.image.identity.base_field_id,
-            base_tick_id=request.image.identity.base_tick_id,
-            author_core_id="not-the-invoked-core",
-            pass_id=request.phase,
-            rail_d_model=request.descriptor.d_model,
-            decision=ReasoningDecision.NO_OP,
+    def emit(self, request: ReasoningPassRequest) -> ReasoningPassResult:
+        return self._result(
+            request,
+            ReasoningEmission(
+                base_field_id=request.image.identity.base_field_id,
+                base_tick_id=request.image.identity.base_tick_id,
+                author_core_id="not-the-invoked-core",
+                pass_id=request.phase,
+                rail_d_model=request.descriptor.d_model,
+                decision=ReasoningDecision.NO_OP,
+            ),
         )
 
 
@@ -165,6 +204,18 @@ def test_host_runs_both_barriers_finalizes_turn_and_deposits_loadable_episode(tm
         assert "hello λ🧠" in history
         assert "I received the exact Unicode: λ🧠" in history
         assert result.finalization_receipt is not None
+        assert [lineage.core_id for lineage in result.soul_lineages] == [
+            "core-alpha",
+            "core-beta",
+        ]
+        assert [len(lineage.transition_receipt_ids) for lineage in result.soul_lineages] == [
+            3,
+            2,
+        ]
+        assert [host.soul_store.branch(core).load_head().generation for core in ("core-alpha", "core-beta")] == [
+            3,
+            2,
+        ]
 
         episode_event_id = f"reasoning-{result.result_id}"
         host.record_episode_outcome(
@@ -184,6 +235,9 @@ def test_host_runs_both_barriers_finalizes_turn_and_deposits_loadable_episode(tm
         assert loaded[0].pre_action_field.region(LogicalRegion.USER_INPUT).text == "hello λ🧠"
         assert loaded[0].successor_field.field_id == field.field_id
         assert loaded[0].record.exact_text == "I received the exact Unicode: λ🧠"
+        assert loaded[0].soul_lineages == tuple(
+            lineage.to_canonical_dict() for lineage in result.soul_lineages
+        )
 
 
 def test_whole_conversation_split_is_stable_for_multiple_episode_records(tmp_path: Path) -> None:

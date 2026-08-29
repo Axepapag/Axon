@@ -7,7 +7,8 @@ Doctrine (docs/SOURCE_OF_TRUTH.md, "Authority Classes"):
 - the dormant valve may submit heart-governed materialization of governed
   ``cortex``; it never independently writes truth;
 - core proposals may target only the scopes their authority class permits;
-- the consolidator's proposal may address every canonical region as governed;
+- the consolidator's proposal may address every ordinary canonical region;
+- canonical identity amendments require the separate identity-steward class;
 - only the heart's transaction layer converts any proposal into canonical
   state.
 
@@ -41,6 +42,7 @@ class AuthorityClass(str, Enum):
     DORMANT_VALVE = "dormant_valve"
     CORE = "core"
     CONSOLIDATOR = "consolidator"
+    IDENTITY_STEWARD = "identity_steward"
 
 
 class IngressChannel(str, Enum):
@@ -66,7 +68,11 @@ DORMANT_VALVE_GOVERNED_REGIONS: frozenset[LogicalRegion] = frozenset(
 )
 
 CONSOLIDATOR_GOVERNED_REGIONS: frozenset[LogicalRegion] = frozenset(
-    CANONICAL_REGION_ORDER
+    region for region in CANONICAL_REGION_ORDER if region is not LogicalRegion.IDENTITY
+)
+
+IDENTITY_STEWARD_GOVERNED_REGIONS: frozenset[LogicalRegion] = frozenset(
+    {LogicalRegion.IDENTITY}
 )
 
 DEFAULT_CORE_GOVERNED_REGIONS: frozenset[LogicalRegion] = CORE_WRITABLE_REGIONS
@@ -177,6 +183,12 @@ class AuthorityGrant:
     def consolidator(cls) -> "AuthorityGrant":
         return cls(authority_class=AuthorityClass.CONSOLIDATOR)
 
+    @classmethod
+    def identity_steward(cls) -> "AuthorityGrant":
+        """Exceptional, explicit grant for versioned canonical identity amendments."""
+
+        return cls(authority_class=AuthorityClass.IDENTITY_STEWARD)
+
     @property
     def governed_regions(self) -> frozenset[LogicalRegion]:
         authority_class = self.authority_class
@@ -188,6 +200,8 @@ class AuthorityGrant:
         if authority_class is AuthorityClass.CORE:
             # __post_init__ guarantees permitted regions for core grants.
             return self.permitted_regions  # type: ignore[return-value]
+        if authority_class is AuthorityClass.IDENTITY_STEWARD:
+            return IDENTITY_STEWARD_GOVERNED_REGIONS
         return CONSOLIDATOR_GOVERNED_REGIONS
 
     def governs(self, region: LogicalRegion | str) -> bool:
@@ -215,6 +229,7 @@ __all__ = [
     "CONSOLIDATOR_GOVERNED_REGIONS",
     "DEFAULT_CORE_GOVERNED_REGIONS",
     "DORMANT_VALVE_GOVERNED_REGIONS",
+    "IDENTITY_STEWARD_GOVERNED_REGIONS",
     "INGRESS_OWNED_REGIONS",
     "AuthorityClass",
     "AuthorityGrant",

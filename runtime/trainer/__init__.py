@@ -119,6 +119,13 @@ from .sessions import (
     TrainerSessionManifest,
     TrainerSessionPolicy,
 )
+from .soul_candidates import (
+    SOUL_CANDIDATE_MANIFEST_SCHEMA,
+    SOUL_CANDIDATE_PROMOTION_PLAN_SCHEMA,
+    CandidateSoulManifest,
+    CandidateSoulPromotionPlan,
+    CandidateSoulWorkspace,
+)
 from .store import TrainerStateStore, TrainerStoreError
 from .telemetry import (
     PARAMETER_STAT_SCHEMA,
@@ -157,6 +164,8 @@ __all__ = [
     "RUNTIME_EPISODE_SESSION_SCHEMA",
     "RUNTIME_REASONING_EPISODE_SCHEMA",
     "SERVING_QUALITIES",
+    "SOUL_CANDIDATE_MANIFEST_SCHEMA",
+    "SOUL_CANDIDATE_PROMOTION_PLAN_SCHEMA",
     "TRAINER_INSPECTION_SCHEMA",
     "TRAINER_PARAMETER_SCHEMA",
     "TRAINER_SESSION_EXAMPLE_SCHEMA",
@@ -171,6 +180,9 @@ __all__ = [
     "CandidateCheckpointRecord",
     "CandidateLifecycleEvent",
     "CandidateOptimizationSession",
+    "CandidateSoulManifest",
+    "CandidateSoulPromotionPlan",
+    "CandidateSoulWorkspace",
     "CandidateStatus",
     "CompleteFieldTrainingContract",
     "DeclaredTrainingBound",

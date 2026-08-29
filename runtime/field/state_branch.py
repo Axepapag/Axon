@@ -21,6 +21,7 @@ from .delta import (
     apply_delta,
 )
 from .schema import (
+    CORTEX_SCHEMA_VERSION,
     LEGACY_CORTEX_REGION_NAME,
     LEGACY_SCHEMA_VERSION,
     SCHEMA_VERSION,
@@ -271,7 +272,10 @@ class CanonicalStateBranch:
         current = self.load_snapshot(current_record.field_id)
         if current.schema_version == SCHEMA_VERSION:
             return current
-        if current.schema_version != LEGACY_SCHEMA_VERSION:
+        if current.schema_version not in {
+            LEGACY_SCHEMA_VERSION,
+            CORTEX_SCHEMA_VERSION,
+        }:
             raise CanonicalStateBranchError(
                 f"cannot migrate unsupported shared-field schema {current.schema_version!r}"
             )
@@ -301,9 +305,12 @@ class CanonicalStateBranch:
                 "field_id": successor.field_id,
                 "tick_id": successor.tick_id,
                 "parent_field_id": successor.parent_field_id,
-                "region_rename": {
-                    LEGACY_CORTEX_REGION_NAME: LogicalRegion.CORTEX.value,
-                },
+                "region_rename": (
+                    {LEGACY_CORTEX_REGION_NAME: LogicalRegion.CORTEX.value}
+                    if current.schema_version == LEGACY_SCHEMA_VERSION
+                    else {}
+                ),
+                "regions_added": [LogicalRegion.IDENTITY.value],
             }
         )
         return successor
@@ -361,7 +368,11 @@ def _snapshot_from_dict(value: Mapping[str, Any]) -> SharedFieldSnapshot:
     if set(item) != required:
         raise BranchIntegrityError("serialized canonical snapshot fields are invalid")
     schema_version = str(item["schema"])
-    if schema_version not in {LEGACY_SCHEMA_VERSION, SCHEMA_VERSION}:
+    if schema_version not in {
+        LEGACY_SCHEMA_VERSION,
+        CORTEX_SCHEMA_VERSION,
+        SCHEMA_VERSION,
+    }:
         raise BranchIntegrityError("unsupported canonical snapshot schema")
     if not isinstance(item["regions"], list):
         raise BranchIntegrityError("serialized regions must be a list")

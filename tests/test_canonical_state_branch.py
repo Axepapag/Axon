@@ -6,7 +6,9 @@ from pathlib import Path
 import pytest
 
 from runtime.field import (
+    CORTEX_SCHEMA_VERSION,
     LEGACY_SCHEMA_VERSION,
+    LOGICAL_REGION_IDS,
     SCHEMA_VERSION,
     BranchAuthorityError,
     BranchIntegrityError,
@@ -80,7 +82,7 @@ def test_legacy_v1_snapshot_preserves_historical_cortex_name_and_hash(tmp_path: 
     assert reloaded.region(LogicalRegion.CORTEX).text == "legacy exact memory"
 
 
-def test_branch_migrates_v1_head_to_v2_cortex_without_rewriting_history(tmp_path: Path) -> None:
+def test_branch_migrates_v1_head_to_v3_identity_without_rewriting_history(tmp_path: Path) -> None:
     legacy = SharedFieldSnapshot(
         tick_id=7,
         regions=(RegionState.from_text(LogicalRegion.CORTEX, "exact remembered text"),),
@@ -103,6 +105,7 @@ def test_branch_migrates_v1_head_to_v2_cortex_without_rewriting_history(tmp_path
     assert migrated.parent_field_id == legacy.field_id
     assert migrated.source_manifest_ids == legacy.source_manifest_ids
     assert migrated.region(LogicalRegion.CORTEX).text == legacy.region(LogicalRegion.CORTEX).text
+    assert migrated.region(LogicalRegion.IDENTITY).text == ""
     assert legacy_path.read_bytes() == legacy_bytes
     assert branch.load_head_record().generation == 1
 
@@ -118,10 +121,50 @@ def test_branch_migrates_v1_head_to_v2_cortex_without_rewriting_history(tmp_path
     assert migration["from_schema"] == LEGACY_SCHEMA_VERSION
     assert migration["to_schema"] == SCHEMA_VERSION
     assert migration["region_rename"] == {"structured_knowledge": "cortex"}
+    assert migration["regions_added"] == ["identity"]
 
     compiled = D64FieldCompiler().compile(migrated)
     compiled.verify_roundtrip(migrated)
     assert compiled.region_text(LogicalRegion.CORTEX) == "exact remembered text"
+
+
+def test_v2_snapshot_hash_and_original_region_ids_survive_identity_schema_upgrade(
+    tmp_path: Path,
+) -> None:
+    previous = SharedFieldSnapshot(
+        tick_id=11,
+        regions=(
+            RegionState.from_text(LogicalRegion.USER_INPUT, "hello"),
+            RegionState.from_text(LogicalRegion.CORTEX, "structured fact"),
+        ),
+        schema_version=CORTEX_SCHEMA_VERSION,
+    )
+    previous_id = previous.field_id
+    branch = CanonicalStateBranch(
+        tmp_path / "v2-migrate",
+        branch_id="v2-migrate",
+        authority_root=tmp_path,
+    )
+    branch.initialize(previous)
+    previous_bytes = (branch.snapshots_dir / f"{previous_id}.json").read_bytes()
+
+    reloaded = branch.load_head()
+    assert reloaded.field_id == previous_id
+    assert reloaded.schema_version == CORTEX_SCHEMA_VERSION
+    with pytest.raises(KeyError):
+        reloaded.region(LogicalRegion.IDENTITY)
+
+    migrated = branch.migrate_to_current_schema()
+    assert migrated.schema_version == SCHEMA_VERSION
+    assert migrated.parent_field_id == previous_id
+    assert migrated.region(LogicalRegion.USER_INPUT).text == "hello"
+    assert migrated.region(LogicalRegion.CORTEX).text == "structured fact"
+    assert migrated.region(LogicalRegion.IDENTITY).text == ""
+    assert (branch.snapshots_dir / f"{previous_id}.json").read_bytes() == previous_bytes
+    assert tuple(LOGICAL_REGION_IDS[region] for region in LogicalRegion if region is not LogicalRegion.IDENTITY) == tuple(
+        range(10)
+    )
+    assert LOGICAL_REGION_IDS[LogicalRegion.IDENTITY] == 10
 
 
 def test_branch_rejects_stale_commit(tmp_path: Path) -> None:

@@ -31,10 +31,11 @@ from runtime.heart import (
     ReasoningEmission,
     frame_completed_turn,
 )
+from runtime.soul import SoulCommitReceipt, SoulStore
 
-RUNTIME_EPISODE_EXAMPLE_SCHEMA = "axon-runtime-episode-example-v1"
-RUNTIME_EPISODE_SESSION_SCHEMA = "axon-runtime-episode-session-v1"
-RUNTIME_REASONING_EPISODE_SCHEMA = "axon-runtime-reasoning-episode-v1"
+RUNTIME_EPISODE_EXAMPLE_SCHEMA = "axon-runtime-episode-example-v2"
+RUNTIME_EPISODE_SESSION_SCHEMA = "axon-runtime-episode-session-v2"
+RUNTIME_REASONING_EPISODE_SCHEMA = "axon-runtime-reasoning-episode-v2"
 
 
 class EpisodeOutcomeQuality(str, Enum):
@@ -68,6 +69,62 @@ def whole_episode_split(conversation_id: str) -> str:
     return "regression"
 
 
+def _validated_soul_lineages(
+    circulation: Mapping[str, Any],
+    soul_store: SoulStore,
+) -> tuple[tuple[Mapping[str, Any], ...], str]:
+    """Verify every serialized receipt and exact per-core causal soul chain."""
+
+    try:
+        raw_receipts = tuple(circulation["soul_transition_receipts"])
+        raw_lineages = tuple(circulation["soul_lineages"])
+    except (KeyError, TypeError) as exc:
+        raise ValueError("runtime episode lacks private-soul lineage") from exc
+    receipts = tuple(SoulCommitReceipt.from_mapping(item) for item in raw_receipts)
+    receipt_map = {item.receipt_id: item for item in receipts}
+    if len(receipt_map) != len(receipts):
+        raise ValueError("runtime episode contains duplicate soul receipts")
+    lineages: list[Mapping[str, Any]] = []
+    consumed: set[str] = set()
+    for raw in raw_lineages:
+        lineage = dict(raw)
+        required = {
+            "schema",
+            "core_id",
+            "initial_soul_id",
+            "final_soul_id",
+            "transition_receipt_ids",
+            "lineage_id",
+        }
+        if set(lineage) != required or lineage["schema"] != "axon-reasoning-soul-lineage-v1":
+            raise ValueError("runtime soul lineage fields are invalid")
+        body = dict(lineage)
+        lineage_id = body.pop("lineage_id")
+        if canonical_sha256(body) != lineage_id:
+            raise ValueError("runtime soul lineage identity mismatch")
+        core_id = str(lineage["core_id"])
+        branch = soul_store.branch(core_id)
+        initial = branch.load_snapshot(str(lineage["initial_soul_id"]))
+        cursor = initial.soul_id
+        for receipt_id in tuple(lineage["transition_receipt_ids"]):
+            receipt = receipt_map.get(str(receipt_id))
+            if receipt is None or receipt.core_id != core_id or receipt.before_soul_id != cursor:
+                raise ValueError("runtime soul receipt chain is missing, foreign, or discontinuous")
+            durable = branch.load_receipt(receipt.transition_id)
+            if durable.receipt_id != receipt.receipt_id:
+                raise ValueError("runtime soul receipt disagrees with durable private state")
+            branch.load_snapshot(receipt.after_soul_id)
+            cursor = receipt.after_soul_id
+            consumed.add(receipt.receipt_id)
+        if cursor != lineage["final_soul_id"]:
+            raise ValueError("runtime soul lineage final snapshot mismatch")
+        lineages.append(lineage)
+    if consumed != set(receipt_map):
+        raise ValueError("runtime episode contains unbound soul transition receipts")
+    ordered = tuple(sorted(lineages, key=lambda item: str(item["core_id"])))
+    return ordered, canonical_sha256(ordered)
+
+
 @dataclass(frozen=True, slots=True)
 class RuntimeEpisodeExample:
     source_import_id: str
@@ -77,6 +134,7 @@ class RuntimeEpisodeExample:
     base_field_id: str
     base_tick_id: int
     circulation_result_id: str
+    soul_trajectory_id: str
     response_text_sha256: str
     outcome_quality: EpisodeOutcomeQuality
     outcome_evidence_ids: tuple[str, ...]
@@ -93,12 +151,19 @@ class RuntimeEpisodeExample:
             "conversation_id",
             "base_field_id",
             "circulation_result_id",
+            "soul_trajectory_id",
             "response_text_sha256",
         ):
             value = getattr(self, name)
             if not isinstance(value, str) or not value:
                 raise ValueError(f"{name} must be non-empty")
-        for name in ("source_import_id", "source_record_id", "base_field_id", "circulation_result_id"):
+        for name in (
+            "source_import_id",
+            "source_record_id",
+            "base_field_id",
+            "circulation_result_id",
+            "soul_trajectory_id",
+        ):
             if len(getattr(self, name)) != 64:
                 raise ValueError(f"{name} must be a content identity")
         if len(self.response_text_sha256) != 64:
@@ -132,6 +197,7 @@ class RuntimeEpisodeExample:
             "base_field_id": self.base_field_id,
             "base_tick_id": self.base_tick_id,
             "circulation_result_id": self.circulation_result_id,
+            "soul_trajectory_id": self.soul_trajectory_id,
             "response_text_sha256": self.response_text_sha256,
             "outcome_quality": self.outcome_quality.value,
             "outcome_evidence_ids": list(self.outcome_evidence_ids),
@@ -183,6 +249,7 @@ class RuntimeEpisodeSessionManifest:
             "split_policy": "whole-conversation-sha256-v1:80-train-10-heldout-10-regression",
             "source_capacity": "complete-runtime-episode-no-character-truncation",
             "quality_policy": "explicit-outcome-evidence-required-for-serving-promotion",
+            "soul_policy": "exact-private-soul-lineage-and-causal-whole-trajectory-v1",
             "example_count": len(self.examples),
             "serving_eligible_count": self.serving_eligible_count,
             "split_counts": [list(item) for item in self.split_counts],
@@ -203,6 +270,7 @@ class LoadedRuntimeEpisode:
     materialized_delta: FieldDelta
     successor_field: SharedFieldSnapshot
     circulation: Mapping[str, Any]
+    soul_lineages: tuple[Mapping[str, Any], ...]
 
 
 class RuntimeEpisodeSessionCompiler:
@@ -212,6 +280,7 @@ class RuntimeEpisodeSessionCompiler:
         if not isinstance(experience, DormantExperienceStore):
             raise TypeError("experience must be DormantExperienceStore")
         self.experience = experience
+        self.soul_store = SoulStore.active(experience.state_root)
 
     def _selected_records(
         self,
@@ -258,6 +327,10 @@ class RuntimeEpisodeSessionCompiler:
                 base_field_id = str(pre_action["field_id"])
                 base_tick_id = int(pre_action["tick_id"])
                 result_id = str(circulation["result_id"])
+                _, soul_trajectory_id = _validated_soul_lineages(
+                    circulation,
+                    self.soul_store,
+                )
             except (KeyError, TypeError, ValueError):
                 excluded["incomplete_runtime_episode"] = excluded.get("incomplete_runtime_episode", 0) + 1
                 continue
@@ -290,6 +363,7 @@ class RuntimeEpisodeSessionCompiler:
                     base_field_id=base_field_id,
                     base_tick_id=base_tick_id,
                     circulation_result_id=result_id,
+                    soul_trajectory_id=soul_trajectory_id,
                     response_text_sha256=response_sha256,
                     outcome_quality=quality,
                     outcome_evidence_ids=evidence_ids,
@@ -300,6 +374,27 @@ class RuntimeEpisodeSessionCompiler:
             )
         if not examples:
             raise ValueError("no complete runtime reasoning episodes were found")
+        by_conversation: dict[str, list[RuntimeEpisodeExample]] = {}
+        for example in examples:
+            by_conversation.setdefault(example.conversation_id, []).append(example)
+        record_by_id = {record.record_id: record for _, record in records.values()}
+        for conversation_examples in by_conversation.values():
+            prior_final: dict[str, str] = {}
+            for example in sorted(
+                conversation_examples,
+                key=lambda item: (item.base_tick_id, item.episode_event_id),
+            ):
+                circulation = dict(record_by_id[example.source_record_id].payload["circulation"])
+                lineages, observed_id = _validated_soul_lineages(circulation, self.soul_store)
+                if observed_id != example.soul_trajectory_id:
+                    raise ValueError("runtime episode soul trajectory identity changed")
+                for lineage in lineages:
+                    core_id = str(lineage["core_id"])
+                    if core_id in prior_final and prior_final[core_id] != lineage["initial_soul_id"]:
+                        raise ValueError(
+                            "runtime conversation contains a discontinuous or future-leaked soul trajectory"
+                        )
+                    prior_final[core_id] = str(lineage["final_soul_id"])
         return RuntimeEpisodeSessionManifest(
             source_import_ids=selected,
             examples=tuple(sorted(examples, key=lambda item: item.example_id)),
@@ -314,6 +409,7 @@ class RuntimeEpisodeLoader:
         if not isinstance(experience, DormantExperienceStore):
             raise TypeError("experience must be DormantExperienceStore")
         self.experience = experience
+        self.soul_store = SoulStore.active(experience.state_root)
 
     @staticmethod
     def _verify_workspace(
@@ -418,6 +514,12 @@ class RuntimeEpisodeLoader:
                 raise ValueError("runtime reasoning circulation identity mismatch")
             if observed_result_id != example.circulation_result_id:
                 raise ValueError("session example circulation identity mismatch")
+            soul_lineages, soul_trajectory_id = _validated_soul_lineages(
+                circulation,
+                self.soul_store,
+            )
+            if soul_trajectory_id != example.soul_trajectory_id:
+                raise ValueError("session example soul trajectory identity mismatch")
             image_identity = dict(dict(circulation["image"])["identity"])
             image_id = canonical_sha256(dict(circulation["image"]))
             tick_uid = canonical_sha256(image_identity)
@@ -509,6 +611,7 @@ class RuntimeEpisodeLoader:
                     materialized_delta=materialized_delta,
                     successor_field=successor,
                     circulation=circulation,
+                    soul_lineages=soul_lineages,
                 )
             )
         return tuple(loaded)

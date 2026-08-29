@@ -10,6 +10,7 @@ from .authority import (
     CONSOLIDATOR_GOVERNED_REGIONS,
     DEFAULT_CORE_GOVERNED_REGIONS,
     DORMANT_VALVE_GOVERNED_REGIONS,
+    IDENTITY_STEWARD_GOVERNED_REGIONS,
     INGRESS_OWNED_REGIONS,
     AuthorityClass,
     AuthorityGrant,
@@ -30,12 +31,16 @@ from .board import (
 )
 from .circulation import (
     REASONING_CIRCULATION_SCHEMA,
+    REASONING_PASS_RESULT_SCHEMA,
     REASONING_REQUEST_SCHEMA,
+    REASONING_SOUL_LINEAGE_SCHEMA,
     RailRuntimeView,
     ReasoningCirculation,
     ReasoningCirculationResult,
     ReasoningCorePort,
     ReasoningPassRequest,
+    ReasoningPassResult,
+    SoulCoreLineage,
 )
 from .coordinator import (
     BeatConfig,
@@ -110,6 +115,8 @@ from .intelligence import (
 from .lease import SingleWriterLease
 from .masks import (
     HEART_REGION_MASK_SCHEMA,
+    IDENTITY_MASK_POLICY,
+    LEGACY_HEART_REGION_MASK_SCHEMA,
     HeartRegionMaskController,
     HeartRegionMaskState,
 )
@@ -198,7 +205,10 @@ __all__ = [
     "HEART_SEMANTIC_LABELS",
     "HEART_TRANSLATION_ARCHITECTURE",
     "HEART_TRANSLATOR_SCHEMA",
+    "IDENTITY_MASK_POLICY",
+    "IDENTITY_STEWARD_GOVERNED_REGIONS",
     "INGRESS_OWNED_REGIONS",
+    "LEGACY_HEART_REGION_MASK_SCHEMA",
     "LIVE_EVENT_SOURCE_SCHEMA",
     "LIVE_INGRESS_SOURCE_SCHEMA",
     "PROPOSAL_RAIL_SCHEMA",
@@ -206,7 +216,9 @@ __all__ = [
     "REASONING_CATEGORY_COUNT",
     "REASONING_CIRCULATION_SCHEMA",
     "REASONING_EMISSION_SCHEMA",
+    "REASONING_PASS_RESULT_SCHEMA",
     "REASONING_REQUEST_SCHEMA",
+    "REASONING_SOUL_LINEAGE_SCHEMA",
     "REASONING_TEXT_FRAME_SCHEMA",
     "TICK_IDENTITY_SCHEMA",
     "TICK_IMAGE_SCHEMA",
@@ -303,9 +315,11 @@ __all__ = [
     "ReasoningOperationKind",
     "ReasoningOutputError",
     "ReasoningPassRequest",
+    "ReasoningPassResult",
     "RenderedProposalRail",
     "ReplayEventError",
     "SingleWriterLease",
+    "SoulCoreLineage",
     "StaleBaseProposalError",
     "StaleRailBindingError",
     "TickBindingError",

@@ -2,8 +2,8 @@
 
 Day Zero active surface only. Historical 384-slot views, schedule cursors,
 and unrelated experimental schemas live under ``archive/day_zero_legacy_2026-08-20``
-and are not imported here. The active canonical schema is shared-field-v2; its
-Cortex-region migration retains read-only compatibility with persisted v1 history.
+and are not imported here. The active canonical schema is shared-field-v3; its
+additive Identity/Cortex migration retains byte/hash compatibility with v1/v2 history.
 """
 
 from .compiler_d64 import (
@@ -45,9 +45,11 @@ from .delta import (
 from .schema import (
     CANONICAL_REGION_ORDER,
     CORE_WRITABLE_REGIONS,
+    CORTEX_SCHEMA_VERSION,
     LEGACY_CORTEX_REGION_NAME,
     LEGACY_SCHEMA_VERSION,
     LOGICAL_REGION_IDS,
+    PRE_IDENTITY_REGION_ORDER,
     SCHEMA_VERSION,
     SUPPORTED_SCHEMA_VERSIONS,
     AttendedInterval,
@@ -60,6 +62,7 @@ from .schema import (
     SharedFieldSnapshot,
     WritePolicy,
     canonical_json_bytes,
+    canonical_region_order,
     canonical_sha256,
     resolve_mask_policy,
 )
@@ -96,6 +99,7 @@ __all__ = [
     "BRANCH_SCHEMA",
     "CANONICAL_REGION_ORDER",
     "CORE_WRITABLE_REGIONS",
+    "CORTEX_SCHEMA_VERSION",
     "D64_COMPILER_SCHEMA",
     "D64_LANES_PER_ROW",
     "D64_LEGACY_COMPILER_SCHEMA",
@@ -107,6 +111,7 @@ __all__ = [
     "LEGACY_CORTEX_REGION_NAME",
     "LEGACY_SCHEMA_VERSION",
     "LOGICAL_REGION_IDS",
+    "PRE_IDENTITY_REGION_ORDER",
     "SCHEMA_VERSION",
     "SUBSTRATE_WIDTH",
     "SUPPORTED_SCHEMA_VERSIONS",
@@ -156,6 +161,7 @@ __all__ = [
     "apply_compiled_delta",
     "apply_delta",
     "canonical_json_bytes",
+    "canonical_region_order",
     "canonical_sha256",
     "field_delta_from_canonical_dict",
     "replacement_delta",

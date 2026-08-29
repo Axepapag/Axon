@@ -11,7 +11,6 @@ from runtime.field import (
     LogicalRegion,
     OverlappingDeltaError,
     ReplaceText,
-    SealedRegionWriteError,
     SharedFieldSnapshot,
 )
 from runtime.heart import (
@@ -154,7 +153,11 @@ def test_authority_matrix_governs_exact_regions_per_class() -> None:
 
     consolidator = AuthorityGrant.consolidator()
     for region in LogicalRegion:
-        assert consolidator.governs(region)
+        assert consolidator.governs(region) is (region is not LogicalRegion.IDENTITY)
+
+    identity_steward = AuthorityGrant.identity_steward()
+    for region in LogicalRegion:
+        assert identity_steward.governs(region) is (region is LogicalRegion.IDENTITY)
 
 
 def test_invalid_grants_fail_closed() -> None:

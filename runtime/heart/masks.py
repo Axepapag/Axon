@@ -17,6 +17,7 @@ from typing import Any, Mapping
 
 from runtime.field import (
     CANONICAL_REGION_ORDER,
+    PRE_IDENTITY_REGION_ORDER,
     LogicalRegion,
     RegionMaskPolicy,
     canonical_sha256,
@@ -24,7 +25,9 @@ from runtime.field import (
 
 from .errors import MaskStateCorruptionError
 
-HEART_REGION_MASK_SCHEMA = "axon-heart-region-masks-v1"
+LEGACY_HEART_REGION_MASK_SCHEMA = "axon-heart-region-masks-v1"
+HEART_REGION_MASK_SCHEMA = "axon-heart-region-masks-v2"
+IDENTITY_MASK_POLICY = RegionMaskPolicy("all")
 
 
 def _normalize_policies(
@@ -49,13 +52,16 @@ def _normalize_policies(
                 raise MaskStateCorruptionError(f"mask policy for {region.value!r} is invalid") from exc
         else:
             raise TypeError("region mask policies must be RegionMaskPolicy or mappings")
+        if region is LogicalRegion.IDENTITY and policy != IDENTITY_MASK_POLICY:
+            raise ValueError("the canonical identity region is always attended")
         normalized[region] = policy
+    normalized[LogicalRegion.IDENTITY] = IDENTITY_MASK_POLICY
     return normalized
 
 
 @dataclass(frozen=True, slots=True)
 class HeartRegionMaskState:
-    """One durable revision of the complete ten-region mask-control set."""
+    """One durable revision of the complete canonical mask-control set."""
 
     revision: int
     policies: Mapping[LogicalRegion, RegionMaskPolicy]
@@ -136,6 +142,8 @@ class HeartRegionMaskController:
         logical = region if isinstance(region, LogicalRegion) else LogicalRegion(region)
         if not isinstance(policy, RegionMaskPolicy):
             raise TypeError("set_policy requires a RegionMaskPolicy")
+        if logical is LogicalRegion.IDENTITY and policy != IDENTITY_MASK_POLICY:
+            raise ValueError("the canonical identity region cannot be masked")
         if self._state.policy_for(logical) == policy:
             return self._state
         policies = self.policies()
@@ -180,7 +188,8 @@ class HeartRegionMaskController:
             "state_id",
         }:
             raise MaskStateCorruptionError("serialized region-mask fields are invalid")
-        if value.get("schema") != HEART_REGION_MASK_SCHEMA:
+        schema = value.get("schema")
+        if schema not in {LEGACY_HEART_REGION_MASK_SCHEMA, HEART_REGION_MASK_SCHEMA}:
             raise MaskStateCorruptionError("unsupported Heart region-mask schema")
         raw_policies = value.get("policies")
         if not isinstance(raw_policies, list):
@@ -203,11 +212,33 @@ class HeartRegionMaskController:
                     policy_value["kind"],
                     policy_value["limit"],
                 )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise MaskStateCorruptionError("invalid Heart region-mask state") from exc
+        if schema == LEGACY_HEART_REGION_MASK_SCHEMA:
+            if set(parsed) != set(PRE_IDENTITY_REGION_ORDER):
+                raise MaskStateCorruptionError(
+                    "legacy region-mask state must contain the original ten regions exactly once"
+                )
+            legacy_body = {
+                "schema": LEGACY_HEART_REGION_MASK_SCHEMA,
+                "revision": value["revision"],
+                "policies": raw_policies,
+            }
+            if canonical_sha256(legacy_body) != value["state_id"]:
+                raise MaskStateCorruptionError("legacy Heart region-mask state identity mismatch")
+            parsed[LogicalRegion.IDENTITY] = IDENTITY_MASK_POLICY
+            state = HeartRegionMaskState(
+                revision=value["revision"] + 1,
+                policies=parsed,
+            )
+            self._save(state)
+            return state
+        try:
             state = HeartRegionMaskState(
                 revision=value["revision"],
                 policies=parsed,
             )
-        except (KeyError, TypeError, ValueError) as exc:
+        except (TypeError, ValueError) as exc:
             raise MaskStateCorruptionError("invalid Heart region-mask state") from exc
         if len(parsed) != len(CANONICAL_REGION_ORDER):
             raise MaskStateCorruptionError("region-mask state must contain every canonical region exactly once")
@@ -229,6 +260,8 @@ class HeartRegionMaskController:
 
 __all__ = [
     "HEART_REGION_MASK_SCHEMA",
+    "IDENTITY_MASK_POLICY",
+    "LEGACY_HEART_REGION_MASK_SCHEMA",
     "HeartRegionMaskController",
     "HeartRegionMaskState",
 ]

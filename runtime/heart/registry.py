@@ -37,6 +37,8 @@ class CoreDescriptor:
     d_model: int
     status: CoreStatus = CoreStatus.ACTIVE
     writable_regions: frozenset[LogicalRegion] | None = None
+    architecture_id: str = "untrained-reasoning-core-v1"
+    parameter_generation: str = "untrained"
 
     def __post_init__(self) -> None:
         if not isinstance(self.core_id, str) or not self.core_id:
@@ -45,6 +47,10 @@ class CoreDescriptor:
             raise TypeError("CoreDescriptor.d_model must be an integer")
         if self.d_model <= 0:
             raise ValueError("CoreDescriptor.d_model must be positive")
+        if not isinstance(self.architecture_id, str) or not self.architecture_id:
+            raise ValueError("CoreDescriptor.architecture_id must be non-empty")
+        if not isinstance(self.parameter_generation, str) or not self.parameter_generation:
+            raise ValueError("CoreDescriptor.parameter_generation must be non-empty")
         status = (
             self.status
             if isinstance(self.status, CoreStatus)

@@ -18,6 +18,7 @@ from runtime.field import (
     resolve_mask_policy,
 )
 from runtime.heart import (
+    LEGACY_HEART_REGION_MASK_SCHEMA,
     BeatConfig,
     CoreDescriptor,
     CoreRegistry,
@@ -78,6 +79,33 @@ def test_durable_controller_owns_every_region_independently(tmp_path: Path) -> N
     assert reopened.state.state_id == updated.state_id
     assert reopened.state.revision == 1
     assert reopened.state.policy_for(LogicalRegion.CONVERSATION_HISTORY).limit == 25
+
+
+def test_identity_is_always_attended_and_cannot_be_masked(tmp_path: Path) -> None:
+    controller = HeartRegionMaskController(tmp_path / "region_masks.json")
+    assert controller.state.policy_for(LogicalRegion.IDENTITY) == RegionMaskPolicy("all")
+    with pytest.raises(ValueError, match="identity"):
+        controller.set_unmasked_percent(LogicalRegion.IDENTITY, 99)
+
+
+def test_legacy_mask_state_migrates_by_adding_always_attended_identity(tmp_path: Path) -> None:
+    path = tmp_path / "region_masks.json"
+    controller = HeartRegionMaskController(path)
+    value = json.loads(path.read_text(encoding="utf-8"))
+    value["schema"] = LEGACY_HEART_REGION_MASK_SCHEMA
+    value["policies"] = [
+        item for item in value["policies"] if item["region"] != LogicalRegion.IDENTITY.value
+    ]
+    value_without_id = {key: item for key, item in value.items() if key != "state_id"}
+    from runtime.field import canonical_sha256
+
+    value["state_id"] = canonical_sha256(value_without_id)
+    path.write_text(json.dumps(value), encoding="utf-8")
+
+    migrated = HeartRegionMaskController(path).state
+    assert migrated.revision == controller.state.revision + 1
+    assert migrated.policy_for(LogicalRegion.IDENTITY) == RegionMaskPolicy("all")
+    assert tuple(migrated.policies) == CANONICAL_REGION_ORDER
 
 
 def test_durable_controller_fails_closed_on_tampering(tmp_path: Path) -> None:
