@@ -20,29 +20,21 @@ from torch import nn
 
 from runtime.field import (
     CANONICAL_REGION_ORDER,
+    PRE_IDENTITY_REGION_ORDER,
     CompiledD64Field,
     D64CharacterPage,
     D64FieldCompiler,
     LogicalRegion,
     SharedFieldSnapshot,
     apply_compiled_delta,
+    canonical_sha256,
     replacement_delta,
 )
-from substrate import NATIVE_TOKEN_COUNT, assert_supported_text, encode_unicode_text, get_letter_bank
+from substrate import assert_supported_text, encode_unicode_text, get_letter_bank
 
-REGION_ORDER: tuple[str, ...] = (
-    "conversation_history",
-    "user_input",
-    "cortex",
-    "situation_awareness",
-    "tool_results",
-    "advisor_input",
-    "task_state",
-    "scratch",
-    "response_draft",
-    "diary",
-)
+REGION_ORDER: tuple[str, ...] = tuple(region.value for region in CANONICAL_REGION_ORDER)
 REGION_TO_ID = {name: index for index, name in enumerate(REGION_ORDER)}
+IDENTITY_REGION_EMBEDDING_MIGRATION_SCHEMA = "axon-d64-identity-region-embedding-migration-v1"
 
 
 @dataclass(frozen=True)
@@ -181,6 +173,56 @@ def frozen_orthogonal_lift(d_model: int = 64, seed: int = 7) -> torch.Tensor:
     return q.T.contiguous().to(torch.float32)
 
 
+def migrate_identity_region_embedding_state(
+    model: "CompleteField64D",
+    state_dict: Mapping[str, torch.Tensor],
+) -> tuple[dict[str, torch.Tensor], dict[str, Any] | None]:
+    """Append one exact zero Identity row to a pre-v3 model state.
+
+    Old region ids and weights remain byte-for-byte unchanged.  Any other
+    anatomy mismatch fails closed through the subsequent strict state load.
+    """
+
+    key = "region_embedding.weight"
+    if key not in state_dict:
+        raise ValueError("checkpoint lacks region_embedding.weight")
+    source = state_dict[key]
+    target = model.state_dict()[key]
+    if tuple(source.shape) == tuple(target.shape):
+        return dict(state_dict), None
+    expected_old = (len(PRE_IDENTITY_REGION_ORDER), model.cfg.d_model)
+    expected_new = (len(CANONICAL_REGION_ORDER), model.cfg.d_model)
+    if tuple(source.shape) != expected_old or tuple(target.shape) != expected_new:
+        raise ValueError(
+            "region embedding mismatch is not the supported ten-to-eleven Identity migration"
+        )
+    migrated_weight = torch.cat(
+        (
+            source,
+            torch.zeros((1, model.cfg.d_model), dtype=source.dtype, device=source.device),
+        ),
+        dim=0,
+    )
+    migrated = dict(state_dict)
+    migrated[key] = migrated_weight
+    receipt = {
+        "schema": IDENTITY_REGION_EMBEDDING_MIGRATION_SCHEMA,
+        "parameter": key,
+        "old_shape": list(expected_old),
+        "new_shape": list(expected_new),
+        "old_rows_preserved_exactly": bool(torch.equal(migrated_weight[:-1], source)),
+        "identity_row_initialization": "exact_zero",
+        "source_sha256": hashlib.sha256(
+            source.detach().to(device="cpu").contiguous().numpy().tobytes()
+        ).hexdigest(),
+        "migrated_sha256": hashlib.sha256(
+            migrated_weight.detach().to(device="cpu").contiguous().numpy().tobytes()
+        ).hexdigest(),
+    }
+    receipt["migration_id"] = canonical_sha256(receipt)
+    return migrated, receipt
+
+
 def sinusoidal_positions(
     positions: torch.Tensor,
     d_model: int,
@@ -303,9 +345,21 @@ class CompleteField64D(nn.Module):
         global_features = torch.tensor([start, end], device=self.device).expand(length, 2)
         return chars + region + local_pos + page_pos + self.global_position(global_features)
 
+    def _copy_token_id(self, transport_token_id: int) -> int:
+        """Map an exact transport token into this decoder's copy vocabulary.
+
+        Historical CompleteField64D tissue has a native-character decoder.
+        Living Unicode-capable descendants override the decoder vocabulary;
+        the paging and address contract does not change.
+        """
+
+        return transport_token_id if transport_token_id < self.vocab_size else -1
+
     def read_compiled_with_memory(
         self,
         compiled: CompiledD64Field,
+        *,
+        initial_state: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, AddressableMemory, CoverageManifest]:
         """Read every exact character from a complete canonical D64 rail."""
         if not isinstance(compiled, CompiledD64Field):
@@ -317,7 +371,18 @@ class CompleteField64D(nn.Module):
         if not manifest.complete:
             raise RuntimeError("coverage manifest is incomplete; decoder finalization denied")
 
-        state = self.initial_state.unsqueeze(0)
+        if initial_state is None:
+            state = self.initial_state.unsqueeze(0)
+        else:
+            state = initial_state
+            if state.ndim == 2:
+                state = state.unsqueeze(0)
+            expected_shape = (1, self.cfg.state_tokens, self.cfg.d_model)
+            if tuple(state.shape) != expected_shape:
+                raise ValueError(
+                    f"initial recurrent state must have shape {expected_shape}, got {tuple(state.shape)}"
+                )
+            state = state.to(device=self.device, dtype=self.initial_state.dtype)
         memory_states: list[torch.Tensor] = []
         memory_char_indices: list[torch.Tensor] = []
         memory_region_ids: list[torch.Tensor] = []
@@ -331,7 +396,7 @@ class CompleteField64D(nn.Module):
             if page.text:
                 page_chars = torch.tensor(
                     [
-                        address.transport_token_id if address.transport_token_id < NATIVE_TOKEN_COUNT else -1
+                        self._copy_token_id(address.transport_token_id)
                         for address in page.addresses
                     ],
                     dtype=torch.long,
@@ -369,12 +434,16 @@ class CompleteField64D(nn.Module):
         snapshot: SharedFieldSnapshot,
         *,
         compiler: D64FieldCompiler | None = None,
+        initial_state: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, AddressableMemory, CoverageManifest, CompiledD64Field]:
         """Canonical runtime/training entry point for one complete D64 read."""
         active_compiler = D64FieldCompiler() if compiler is None else compiler
         compiled = active_compiler.compile(snapshot)
         compiled.verify_roundtrip(snapshot)
-        state, memory, manifest = self.read_compiled_with_memory(compiled)
+        state, memory, manifest = self.read_compiled_with_memory(
+            compiled,
+            initial_state=initial_state,
+        )
         return state, memory, manifest, compiled
 
     def _target_indices(self, text: str) -> torch.Tensor:
@@ -918,6 +987,7 @@ def teacher_char_accuracy(logits: torch.Tensor, targets: torch.Tensor) -> float:
 
 
 __all__ = [
+    "IDENTITY_REGION_EMBEDDING_MIGRATION_SCHEMA",
     "REGION_ORDER",
     "CompleteField64D",
     "CoverageManifest",
@@ -925,6 +995,7 @@ __all__ = [
     "canonical_field",
     "coverage_manifest_from_compiled",
     "frozen_orthogonal_lift",
+    "migrate_identity_region_embedding_state",
     "sequence_cross_entropy",
     "teacher_char_accuracy",
 ]

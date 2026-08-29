@@ -12,7 +12,14 @@ def test_authority_mirrors_are_byte_identical() -> None:
 
 def test_day_zero_active_python_surface_is_narrow() -> None:
     runtime_dirs = {path.name for path in (ROOT / "runtime").iterdir() if path.is_dir() and path.name != "__pycache__"}
-    assert runtime_dirs == {"axon_runtime", "field", "dormant", "heart", "trainer"}
+    assert runtime_dirs == {
+        "axon_runtime",
+        "field",
+        "dormant",
+        "heart",
+        "soul",
+        "trainer",
+    }
 
     field_files = {path.name for path in (ROOT / "runtime" / "field").glob("*.py")}
     assert field_files == {
@@ -88,7 +95,11 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "preflight.py",
         "sessions.py",
         "episodes.py",
+        "soul_candidates.py",
     }
+
+    soul_files = {path.name for path in (ROOT / "runtime" / "soul").glob("*.py")}
+    assert soul_files == {"__init__.py", "contracts.py", "store.py"}
 
     training_files = {path.name for path in (ROOT / "training").glob("*.py")}
     assert training_files == {
@@ -97,6 +108,10 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "complete_field_64d.py",
         "heart_preflight.py",
         "heart_translation.py",
+        "living_reasoning_curriculum.py",
+        "living_reasoning_d64.py",
+        "living_reasoning_preflight.py",
+        "reasoning_tournament.py",
         "train_complete_field_64d.py",
     }
 
@@ -152,6 +167,8 @@ def test_active_d64_code_cannot_import_archived_anatomy() -> None:
         ROOT / "runtime" / "axon_runtime",
         ROOT / "runtime" / "dormant",
         ROOT / "runtime" / "heart",
+        ROOT / "runtime" / "soul",
+        ROOT / "runtime" / "trainer",
         ROOT / "training",
     )
     for source_root in roots:

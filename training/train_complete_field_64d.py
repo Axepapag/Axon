@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import math
@@ -31,6 +32,7 @@ from runtime.field import (  # noqa: E402
     LogicalRegion,
     SharedFieldSnapshot,
     apply_compiled_delta,
+    canonical_sha256,
     replacement_delta,
 )
 from substrate import assert_supported_text, default_alphabet, roundtrip_check  # noqa: E402
@@ -41,9 +43,57 @@ from training.complete_field_64d import (  # noqa: E402
     ReaderConfig,
     canonical_field,
     coverage_manifest_from_compiled,
+    migrate_identity_region_embedding_state,
     sequence_cross_entropy,
     teacher_char_accuracy,
 )
+
+
+def migrate_identity_region_optimizer_state(
+    model: CompleteField64D,
+    optimizer_state: Mapping[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Zero-extend Adam/SGD state for the explicitly added Identity row."""
+
+    migrated = copy.deepcopy(dict(optimizer_state))
+    parameter_names = [name for name, _ in model.named_parameters()]
+    try:
+        parameter_index = parameter_names.index("region_embedding.weight")
+    except ValueError as exc:
+        raise ValueError("model lacks region_embedding.weight") from exc
+    groups = migrated.get("param_groups")
+    states = migrated.get("state")
+    if not isinstance(groups, list) or not isinstance(states, dict):
+        raise ValueError("optimizer checkpoint has invalid state/param_groups anatomy")
+    parameter_ids = [parameter_id for group in groups for parameter_id in group.get("params", ())]
+    if len(parameter_ids) != len(parameter_names):
+        raise ValueError("optimizer parameter order differs from the model parameter surface")
+    parameter_id = parameter_ids[parameter_index]
+    entry = states.get(parameter_id, {})
+    if not isinstance(entry, dict):
+        raise ValueError("region embedding optimizer state must be a mapping")
+    old_shape = (len(REGION_ORDER) - 1, model.cfg.d_model)
+    new_shape = (len(REGION_ORDER), model.cfg.d_model)
+    extended: list[str] = []
+    for name, value in tuple(entry.items()):
+        if not isinstance(value, torch.Tensor) or tuple(value.shape) != old_shape:
+            continue
+        entry[name] = torch.cat(
+            (
+                value,
+                torch.zeros((1, model.cfg.d_model), dtype=value.dtype, device=value.device),
+            ),
+            dim=0,
+        )
+        if tuple(entry[name].shape) != new_shape:
+            raise ValueError("optimizer Identity-row migration produced the wrong shape")
+        extended.append(name)
+    return migrated, {
+        "parameter": "region_embedding.weight",
+        "optimizer_parameter_id": parameter_id,
+        "extended_state_tensors": sorted(extended),
+        "new_shape": list(new_shape),
+    }
 
 
 def atomic_json(path: Path, value: Mapping[str, Any]) -> None:
@@ -650,8 +700,26 @@ def restore(
         )
         if observed_compiler not in accepted_compilers:
             raise ValueError(f"checkpoint compiler schema mismatch in {path}; refusing unsafe resume")
-    model.load_state_dict(payload["model_state"])
-    optimizer.load_state_dict(payload["optimizer_state"])
+    model_state, migration = migrate_identity_region_embedding_state(
+        model,
+        payload["model_state"],
+    )
+    optimizer_state = payload["optimizer_state"]
+    if migration is not None:
+        optimizer_state, optimizer_migration = migrate_identity_region_optimizer_state(
+            model,
+            optimizer_state,
+        )
+        migration = {key: value for key, value in migration.items() if key != "migration_id"}
+        migration["optimizer"] = optimizer_migration
+        migration["checkpoint"] = str(path.resolve())
+        migration["migration_id"] = canonical_sha256(migration)
+        atomic_json(
+            path.parent / f"identity_region_migration_{migration['migration_id']}.json",
+            migration,
+        )
+    model.load_state_dict(model_state, strict=True)
+    optimizer.load_state_dict(optimizer_state)
     scaler.load_state_dict(payload.get("scaler_state", {}))
     rng = payload.get("rng", {})
     if rng.get("python") is not None:

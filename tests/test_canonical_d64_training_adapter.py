@@ -3,11 +3,16 @@ from __future__ import annotations
 import torch
 
 from runtime.field import FieldDelta, SharedFieldSnapshot
-from training.complete_field_64d import CompleteField64D, ReaderConfig
+from training.complete_field_64d import (
+    CompleteField64D,
+    ReaderConfig,
+    migrate_identity_region_embedding_state,
+)
 from training.train_complete_field_64d import (
     _forward_record,
     _read_record_with_scratch,
     _run_record,
+    migrate_identity_region_optimizer_state,
 )
 
 
@@ -88,3 +93,53 @@ def test_canonical_greedy_path_survives_empty_noop_outputs() -> None:
     assert result["coverage_tick1"]["complete"] is True
     assert result["coverage_tick2"]["complete"] is True
     assert result["typed_delta"]["schema"] == "axon-canonical-d64-transaction-v1"
+
+
+def test_pre_identity_checkpoint_state_migrates_without_discarding_old_rows() -> None:
+    source = CompleteField64D(ReaderConfig(ffn_dim=128, dropout=0.0))
+    optimizer = torch.optim.AdamW(source.parameters(), lr=1e-3)
+    source.region_embedding.weight.sum().backward()
+    optimizer.step()
+
+    legacy_model_state = dict(source.state_dict())
+    legacy_model_state["region_embedding.weight"] = legacy_model_state[
+        "region_embedding.weight"
+    ][:-1].clone()
+    legacy_optimizer_state = optimizer.state_dict()
+    parameter_names = [name for name, _ in source.named_parameters()]
+    region_index = parameter_names.index("region_embedding.weight")
+    parameter_ids = [
+        parameter_id
+        for group in legacy_optimizer_state["param_groups"]
+        for parameter_id in group["params"]
+    ]
+    region_parameter_id = parameter_ids[region_index]
+    for name, value in tuple(legacy_optimizer_state["state"][region_parameter_id].items()):
+        if isinstance(value, torch.Tensor) and tuple(value.shape) == tuple(
+            source.region_embedding.weight.shape
+        ):
+            legacy_optimizer_state["state"][region_parameter_id][name] = value[:-1].clone()
+
+    destination = CompleteField64D(ReaderConfig(ffn_dim=128, dropout=0.0))
+    destination_optimizer = torch.optim.AdamW(destination.parameters(), lr=1e-3)
+    migrated_model, receipt = migrate_identity_region_embedding_state(
+        destination,
+        legacy_model_state,
+    )
+    assert receipt is not None
+    assert receipt["old_rows_preserved_exactly"]
+    assert torch.equal(
+        migrated_model["region_embedding.weight"][:-1],
+        legacy_model_state["region_embedding.weight"],
+    )
+    assert torch.count_nonzero(migrated_model["region_embedding.weight"][-1]) == 0
+    migrated_optimizer, optimizer_receipt = migrate_identity_region_optimizer_state(
+        destination,
+        legacy_optimizer_state,
+    )
+    assert set(optimizer_receipt["extended_state_tensors"]) == {"exp_avg", "exp_avg_sq"}
+    destination.load_state_dict(migrated_model, strict=True)
+    destination_optimizer.load_state_dict(migrated_optimizer)
+    destination_optimizer.zero_grad(set_to_none=True)
+    destination.region_embedding.weight.sum().backward()
+    destination_optimizer.step()
