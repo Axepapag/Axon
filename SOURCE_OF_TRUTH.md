@@ -1,6 +1,6 @@
 # Axon Source Of Truth
 
-Last updated: 2026-08-28 (canonical Identity, private layered Souls, and the first living D64 candidate implemented)
+Last updated: 2026-08-29 (reasoning continuity hardened and first-form curriculum convergence reviewed)
 
 ## Core Doctrine
 
@@ -165,6 +165,18 @@ for later outcome evidence, completed tool invocations/results, and governed
 Trainer outcomes. Those hooks are permanent evidence boundaries, but not every
 future tool executor or Trainer path is automatically connected to them yet;
 therefore complete lifelong capture of every event class is not yet claimed.
+
+Runtime reasoning episode v3 also freezes the exact per-region attended
+intervals and D64 rail identity used by the tick. The Trainer loader rebuilds
+that derived view from the complete canonical pre-action field, proves the
+rail identity and complete region accounting, and rejects any categorical
+delta that addresses a masked/dormant position. Before the Heart commits a
+reasoning successor it writes an immutable recovery preparation containing the
+complete circulation and pending consolidator-Soul transition. If the process
+fails after canonical commit but before Soul finalization or autobiographical
+deposit, startup reconstructs and verifies the committed circulation,
+finalizes the exact Soul transition, deposits the same episode idempotently,
+and only then marks the preparation complete.
 
 ## Semantic Cortex Organ
 
@@ -719,6 +731,15 @@ sessions. Automatic target-quality adjudication for arbitrary lived outcomes
 and complete wiring from every future tool/Trainer executor remain open work;
 historical assistant output is observation, never presumed truth.
 
+`training/lived_reasoning_curriculum.py` is the evidence-qualified target
+boundary for those loaded episodes. An observed or failed trajectory carries
+zero target weight. Success or endorsement supervises only the final accepted
+consolidator outcome unless an exact outcome record explicitly grants
+`full_trajectory` scope. A correction teaches only its exact corrected typed
+delta. Missing outcome records, missing evidence identities, unverifiable
+corrected deltas, and attempts to bless an entire trajectory implicitly fail
+closed.
+
 `runtime/trainer/soul_candidates.py` implements isolated candidate-Soul
 branching. A candidate binds an exact live base Soul, architecture identity,
 base and candidate parameter generations, deep-cold hash, whole-episode split,
@@ -726,6 +747,16 @@ and trajectory identities. It inherits the exact layer bytes into an isolated
 candidate namespace and never mutates or merges into the live Soul. Promotion
 is either exact-base-ready or requires an explicit replay of every intervening
 live receipt; opaque private state is never heuristically merged.
+
+`runtime/trainer/step_bundle.py` makes a parameter checkpoint and candidate
+Soul HEAD one accepted boundary. It records an immutable intent, verifies the
+optimizer receipt, content-addressed checkpoint, complete FIRST/REFINED/
+CONSOLIDATED Soul transition triples, and lineage, then publishes one rolling
+pointer plus completion sentinel. Restart either completes an idempotent
+pending bundle or preserves conflicting/orphan evidence without advancing the
+accepted pointer. A renewed Complete-Field preflight may resume the checkpoint
+only when its stable grant/plan/inventory/module/generation/tensor scope is
+exactly identical; refreshed evidence never widens mutation authority.
 
 The first load-bearing neural reasoning candidate is
 `training/living_reasoning_d64.py`. Candidate A is exactly `d_model=64`, one
@@ -754,14 +785,18 @@ needed by a 1x64 six-layer/4096-FFN and 2x32 four-layer/16384-FFN comparison.
 These mechanism curricula and counterfactuals do not establish useful learned
 reasoning or outcome quality.
 
-On 2026-08-28 the exact full Candidate-A architecture passed preflight and one
-Trainer-governed CPU optimizer step on an isolated candidate branch. The smoke
-committed three causal Soul phase transitions and an exact checkpoint; training
-loss was 7.445512 and mean held-out loss was 7.443815. No serving activation or
-capability claim occurred. This proves the full anatomy can instantiate,
-forward/backpropagate, checkpoint, and carry a private Soul across the real
-three-phase surface on this machine. It does not prove that the core can yet
-reason, converse, choose valid deltas reliably, or benefit from its Soul.
+On 2026-08-28 and 2026-08-29 the exact full Candidate-A architecture passed
+preflight and a sequence of bounded Trainer-governed diagnostics on an isolated
+candidate branch. Fifteen accepted CUDA optimizer steps now have atomic
+checkpoint/Soul bundles. Campaign-baseline held-out loss fell from
+7.409373760223389 to 4.788444995880127 and field/proposal/Soul counterfactual
+deltas remained nonzero. However, teacher-forced transport-token accuracy is
+only 0.06896551724137931 against the held-out strongest constant-category
+floor of 0.13793103448275862; free-running typed-delta exactness and complete
+Unicode-payload exactness both remain 0.0. The honest task gate and exact-output
+gate therefore both fail. No serving activation, promotion proposal, overnight
+run, or learned-capability claim occurred. These diagnostics prove executable,
+restart-safe anatomy and some loss movement, not useful reasoning.
 
 The purpose of lived-experience training is primarily **procedural compression**: reasoning habits, tool-use instincts, error avoidance, planning patterns, semantic discrimination, confidence calibration, and other generalized intuition that should become easier because Axon has encountered similar situations before. Parameters are not required to memorize every factual detail. Exact facts, versions, identities, conversations, source material, and auditable outcomes remain in Dormant State and can be surfaced by Cortex when needed. In mature operation, weights should answer roughly "how have situations like this tended to work?" while Dormant State + Cortex answer "what exactly happened, what is known now, and what evidence supports it?"
 
@@ -1025,11 +1060,14 @@ Current Day Zero D64 trainer:
 - training workspaces live beneath `State/training`; branch-backed episode journaling and canonical split/resume proof remain required before a new training campaign is authorized.
 
 The current synthetic curriculum is a mechanism bootstrap, not the ultimate
-lived-experience curriculum. Before a long or promotion-bearing campaign,
-runtime episodes must have whole-episode splits, source-complete Soul lineage,
-explicit outcome quality, field/Soul/proposal counterfactuals, regression and
-forgetting suites, and a deterministic resume bundle that treats the candidate
-parameter checkpoint and candidate-Soul HEAD as one accepted step boundary.
+lived-experience curriculum. Atomic parameter/Soul resume, exact attention-view
+loading, explicit outcome qualification, and field/Soul/proposal
+counterfactuals now exist. A long or promotion-bearing campaign remains blocked
+until admissible runtime-faithful episodes or a separately governed first-form
+curriculum provide whole-lineage splits, enough target diversity, regression
+and forgetting suites, and task metrics that beat the strongest constant
+output. The current three-train/one-heldout synthetic mechanism set may not be
+repeated for thousands of steps and represented as learned reasoning.
 
 The archived 461,500-step Bible-trained 64D checkpoint family remains historical evidence only. A bounded compatibility/donor experiment was performed during development, then explicitly rejected as the future initialization path. Fresh reasoning-core and semantic-core training begins from clean current anatomy; legacy 384-slot checkpoints are not imported, resumed, or used as seed weights.
 

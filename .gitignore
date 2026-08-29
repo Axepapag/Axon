@@ -39,6 +39,7 @@ ssh_helper.py
 !/roundtable/ENGINEERING_SESSION_HARVEST_PROPOSAL.md
 !/roundtable/CHATGPT_CURRICULUM_FOUNDRY_PROPOSAL.md
 !/roundtable/HERMES_FIRST_FORM_CURRICULUM_PROPOSAL.md
+!/roundtable/CODEX_CURRICULUM_CONVERGENCE_REVIEW_2026-08-29.md
 
 # Operational state is local. Existing tracked table fixtures remain tracked,
 # but new machine-local runtime/acceptance artifacts are not promoted by default.
