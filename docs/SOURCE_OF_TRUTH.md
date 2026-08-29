@@ -1,6 +1,6 @@
 # Axon Source Of Truth
 
-Last updated: 2026-08-28 (exact additive 16D Unicode transport ratified and implemented)
+Last updated: 2026-08-28 (canonical Identity, private layered Souls, and the first living D64 candidate implemented)
 
 ## Core Doctrine
 
@@ -43,12 +43,23 @@ The shared field is organized into regions. Regions can include:
 - `advisor_input`
 - `task_state`
 - `diary`
+- `identity`
 
-As of Shared Field schema `shared-field-v2`, the canonical semantic-context region is named **`cortex`**. The old `structured_knowledge` concept is a subset of Cortex function: exact dormant material recovered by semantic relevance belongs inside the Cortex picture, but Cortex is not merely a retrieval bucket. The region is the Heart-governed, auditable textual/materialized surface of Axon's broader Semantic Cortex organ: relevant dormant evidence, grounded semantic relationships, concepts, entity/relation context, and other semantic interpretation that reasoning cores should be able to inspect alongside the exact rest of the Shared Field.
+As of Shared Field schema `shared-field-v3`, the canonical semantic-context region is named **`cortex`** and the append-only region registry also contains **`identity`** at ID 10. The old `structured_knowledge` concept is a subset of Cortex function: exact dormant material recovered by semantic relevance belongs inside the Cortex picture, but Cortex is not merely a retrieval bucket. The region is the Heart-governed, auditable textual/materialized surface of Axon's broader Semantic Cortex organ: relevant dormant evidence, grounded semantic relationships, concepts, entity/relation context, and other semantic interpretation that reasoning cores should be able to inspect alongside the exact rest of the Shared Field.
 
 The canonical `cortex` region is not the whole Semantic Cortex organ. The organ may maintain richer derived/noncanonical working state and semantic-core outputs between canonical materializations. It never becomes a second canonical body and never bypasses Heart authority. The separate `semantic_cortex` Heart valve is the governed organ-to-Heart boundary and remains CLOSED until a real autonomous Cortex service earns activation.
 
-Persisted `shared-field-v1` history is immutable. Historical v1 snapshots keep their original serialized region name `structured_knowledge` and therefore keep their original `field_id`/hash. `CanonicalStateBranch.migrate_to_current_schema()` advances a branch by creating a new v2 successor with the exact same spans, provenance, manifests, and text, parented to the v1 HEAD; it never rewrites the historical snapshot. New v2 snapshots serialize the region as `cortex`.
+Persisted `shared-field-v1` and `shared-field-v2` history is immutable. Historical v1 snapshots keep their original serialized region name `structured_knowledge`; historical v2 snapshots keep their ten-region form; both retain their original `field_id`/hash. `CanonicalStateBranch.migrate_to_current_schema()` advances a branch by creating a new v3 successor parented to the historical HEAD. It preserves every existing span, provenance record, manifest, character, address, and region ID, performs the v1 `structured_knowledge` to `cortex` rename only in the successor, and appends an initially empty `identity` region at ID 10. It never rewrites historical snapshots.
+
+`identity` is part of the canonical body, is always in the attended Shared Field,
+and may not be masked. It contains Axon's explicit identity and constitution,
+not a core's private experiential state. Ordinary ingress, reasoning cores,
+consolidators, tools, and recall cannot write it. Only the exceptional
+`IDENTITY_STEWARD` authority may propose an amendment, and the permanent Heart
+host accepts one only between ticks with an amendment identity, nonempty
+evidence identities, provenance, canonical validation, atomic commit, and an
+autobiographical record. This is deliberate friction, not immutability by
+accident.
 
 Each region contains one position-stable ordered sequence of exact character
 cells plus metadata spans. Words, sentences, paragraphs, and semantic edges are
@@ -147,8 +158,9 @@ Every successful configured reasoning circulation now deposits a complete
 `runtime_reasoning_episode`: exact pre-action canonical field, frozen tick
 image, first/refined participant accounting, exact per-rail proposal
 workspaces, categorical emissions, source and materialized consolidator
-deltas, finalization receipt, canonical commit, exact accepted response, and
-an explicit initial quality of `observed`. Heart exposes exact deposit hooks
+deltas, each participant's exact private-Soul lineage and durable receipts,
+finalization receipt, canonical commit, exact accepted response, and an
+explicit initial quality of `observed`. Heart exposes exact deposit hooks
 for later outcome evidence, completed tool invocations/results, and governed
 Trainer outcomes. Those hooks are permanent evidence boundaries, but not every
 future tool executor or Trainer path is automatically connected to them yet;
@@ -486,12 +498,13 @@ appends an exact readable length-delimited user/response frame to
 delta. During this first form those two bookkeeping regions are reserved from
 simultaneous consolidator edits to avoid ambiguous overlapping authorship.
 
-`runtime/heart/masks.py` implements the first durable complete ten-region mask
+`runtime/heart/masks.py` implements the durable complete eleven-region mask
 controller beneath `State/active/heart/region_masks.json`. The permanent host
 exposes independent policy and 0–100% newest-suffix controls, wakes circulation
 for a mask-only change, preserves an already frozen in-flight tick, and records
 mask revision/state identity plus every policy in Heart health. A restart
 reloads and verifies the content-addressed mask state before circulation.
+Identity is hard-wired to `all` and rejects any masking attempt.
 
 Primitive but real organs are acceptable progress; fake organs are not. An
 organ may be noisy or weak in its first form provided it is real permanent
@@ -576,11 +589,17 @@ deliberation round against a frozen canonical base:
 
 The current runtime implements this complete barrier/transaction mechanism
 synchronously through a permanent `ReasoningCorePort`; future local-thread,
-process, or remote executors implement the same boundary. The port is
-responsible for core-local inhale/exhale and soul handling. Deterministic
-fixture ports prove the organism mechanism in tests, but no learned D64
-reasoning core is serving yet. This is mechanism-functional circulation, not a
-claim of learned reasoning or conversational intelligence.
+process, or remote executors implement the same boundary. Every request carries
+that core's exact private Soul snapshot. FIRST and REFINED each require and
+durably commit a HOT-layer Soul transition before their barrier can close. The
+consolidator's transition is prepared before the canonical field transaction,
+then finalized against the exact successor `field_id`; restart recovery binds
+an already-committed field journal entry to the prepared Soul transition rather
+than double-applying it. Deterministic fixture ports prove this organism
+mechanism, and the first neural D64 candidate implements the same causal phase
+surface in training. No learned reasoning core is serving yet. This is
+mechanism-functional circulation, not a claim of learned reasoning or
+conversational intelligence.
 
 "Against the entire shared field" means authored against the exact frozen
 base with field-wide addressability as permitted by authority class; it never
@@ -598,9 +617,33 @@ Input does not enter the soul first. The shared field is the input interface.
 
 ## Souls
 
-Soul state is private per core. It is not the canonical knowledge store.
+Each core owns one completely private layered Soul. Soul bytes are opaque,
+architecture-bound, parameter-generation-bound, and not required to be human
+readable. They are never placed on proposal boards, translated for another
+core, merged across siblings, or substituted for canonical state. Brothers
+communicate only through their governed proposals. Axon's shared identity and
+constitution belong in the canonical `identity` region, not in any private
+Soul.
 
-Soul writes move hot to warm to cold over time. The soul carries private per-core experiential state and short-to-medium-horizon habits/intuition. Slower generalized procedural intuition may also be distilled into governed core parameters by the Trainer from repeated lived episodes. Auditable factual/episodic knowledge belongs in Dormant State; neither soul state nor weights are allowed to become the only copy of evidence that should be recoverable exactly.
+The permanent layers are `HOT`, `WARM`, `COLD`, and `DEEP_COLD`. HOT may change
+on every causal inhale-think-exhale boundary. A runtime FIRST pass inhales the
+pre-pass Soul and must exhale its successor before REFINED may inhale; REFINED
+does the same before a consolidator pass. The consolidator's final Soul is
+committed with the canonical successor field. A colder layer may change only
+through an evidence-vetted promotion from its adjacent hotter layer. Deep-cold
+promotion additionally requires validation evidence and is the only Soul layer
+eligible as a future LoRA/adapter distillation source. Distillation creates a
+new governed parameter generation; it never deletes the source Soul or exact
+lived evidence.
+
+`runtime/soul/` implements content-addressed snapshots, transitions,
+promotions, prepared records, commit receipts, HEAD publication, lineage
+inspection, and restart recovery. There is no byte-size ceiling in the Soul
+contract. A concrete core codec may define its own exact tensor layout, but a
+layout change is an explicit architecture migration rather than forgiving
+deserialization. Auditable factual and episodic knowledge remains in canonical
+or Dormant State; neither Souls nor weights may become the only copy of evidence
+that should be recoverable exactly.
 
 ## Trainer Organ (Parameter Guardian)
 
@@ -669,10 +712,56 @@ eligibility only when a separate exact outcome record supplies success,
 correction, or endorsement plus nonempty evidence identities. Its loader
 strictly reconstructs the pre-action `SharedFieldSnapshot`, categorical
 emissions and proposal workspaces, source/materialized typed deltas, completed
-turn, and accepted successor field. Trainer state and control-plane APIs can
-publish these immutable sessions. Model-specific batching, counterfactual
-generation, preflight binding, and the first learned reasoning-core campaign
-remain future work.
+turn, accepted successor field, and every private-Soul snapshot, transition,
+receipt, and causal lineage. It rejects a discontinuous or future-leaking Soul
+trajectory. Trainer state and control-plane APIs can publish these immutable
+sessions. Automatic target-quality adjudication for arbitrary lived outcomes
+and complete wiring from every future tool/Trainer executor remain open work;
+historical assistant output is observation, never presumed truth.
+
+`runtime/trainer/soul_candidates.py` implements isolated candidate-Soul
+branching. A candidate binds an exact live base Soul, architecture identity,
+base and candidate parameter generations, deep-cold hash, whole-episode split,
+and trajectory identities. It inherits the exact layer bytes into an isolated
+candidate namespace and never mutates or merges into the live Soul. Promotion
+is either exact-base-ready or requires an explicit replay of every intervening
+live receipt; opaque private state is never heuristically merged.
+
+The first load-bearing neural reasoning candidate is
+`training/living_reasoning_d64.py`. Candidate A is exactly `d_model=64`, one
+64D attention head, two Transformer layers, `ffn_dim=131072`, and four
+persistent Soul-state tokens. It has 33,981,879 trainable parameters
+(135,927,516 bytes in FP32; 67,963,758 bytes in FP16). Its source pages are
+bounded compute units only: a recurrent state containing the inhaled private
+Soul traverses every canonical page in order and then every proposal-workspace
+page. All four Soul layers can influence that initial recurrent state; each
+runtime phase exhales an exact safe `f32le` HOT-layer state and the next phase
+re-inhales it. The typed output surface predicts decision, operation, region,
+dynamic exact boundary addresses, and 351 Unicode transport categories plus
+EMPTY/EOS. An untrained or malformed emission fails closed and is never
+registered live.
+
+`training/living_reasoning_curriculum.py` supplies deterministic synthetic
+mechanism cases for exact addressed edits, Unicode payloads, no-op/abstain,
+proposal refinement, conflict handling, and current-field authority.
+`training/living_reasoning_preflight.py` binds static capacity, architecture,
+curriculum distribution, boundary coverage, Soul/field counterfactual
+dependence, and strict checkpoint-compatibility evidence into the Trainer's
+existing preflight receipt. `training/reasoning_tournament.py` fixes the first
+architecture comparison at 1x64 versus 2x32 versus 4x16 heads with identical
+two-layer/131072-FFN anatomy and identical evaluation gates, followed only if
+needed by a 1x64 six-layer/4096-FFN and 2x32 four-layer/16384-FFN comparison.
+These mechanism curricula and counterfactuals do not establish useful learned
+reasoning or outcome quality.
+
+On 2026-08-28 the exact full Candidate-A architecture passed preflight and one
+Trainer-governed CPU optimizer step on an isolated candidate branch. The smoke
+committed three causal Soul phase transitions and an exact checkpoint; training
+loss was 7.445512 and mean held-out loss was 7.443815. No serving activation or
+capability claim occurred. This proves the full anatomy can instantiate,
+forward/backpropagate, checkpoint, and carry a private Soul across the real
+three-phase surface on this machine. It does not prove that the core can yet
+reason, converse, choose valid deltas reliably, or benefit from its Soul.
 
 The purpose of lived-experience training is primarily **procedural compression**: reasoning habits, tool-use instincts, error avoidance, planning patterns, semantic discrimination, confidence calibration, and other generalized intuition that should become easier because Axon has encountered similar situations before. Parameters are not required to memorize every factual detail. Exact facts, versions, identities, conversations, source material, and auditable outcomes remain in Dormant State and can be surfaced by Cortex when needed. In mature operation, weights should answer roughly "how have situations like this tended to work?" while Dormant State + Cortex answer "what exactly happened, what is known now, and what evidence supports it?"
 
@@ -927,7 +1016,20 @@ Current Day Zero D64 trainer:
 - the current D64 reader deterministically unpacks every exact 16D transport lane before its neural lift,
 - scratch changes are ordinary typed deltas followed by canonical successor compilation and a second complete read,
 - response-draft learning remains observable and exact-position/copy-gate evaluation remains available,
+- the living D64 path executes FIRST, REFINED, and CONSOLIDATED against one
+  frozen field image, exhales and re-inhales exact private HOT Soul state at
+  every phase boundary, and trains the same typed decision/delta/Unicode heads
+  exposed at runtime,
+- isolated candidate Soul branches inherit exact live layers without mutating
+  live state; no opaque Soul merge is permitted at promotion,
 - training workspaces live beneath `State/training`; branch-backed episode journaling and canonical split/resume proof remain required before a new training campaign is authorized.
+
+The current synthetic curriculum is a mechanism bootstrap, not the ultimate
+lived-experience curriculum. Before a long or promotion-bearing campaign,
+runtime episodes must have whole-episode splits, source-complete Soul lineage,
+explicit outcome quality, field/Soul/proposal counterfactuals, regression and
+forgetting suites, and a deterministic resume bundle that treats the candidate
+parameter checkpoint and candidate-Soul HEAD as one accepted step boundary.
 
 The archived 461,500-step Bible-trained 64D checkpoint family remains historical evidence only. A bounded compatibility/donor experiment was performed during development, then explicitly rejected as the future initialization path. Fresh reasoning-core and semantic-core training begins from clean current anatomy; legacy 384-slot checkpoints are not imported, resumed, or used as seed weights.
 
@@ -954,7 +1056,8 @@ Binding invariants:
 - every valid lane retains exact region position, global canonical-body position,
   source span, span position, source, provenance, attended-interval identity,
   transport token kind/value, unit index/count, row, and lane identity;
-- all ten logical regions are visited on every compile, including empty or
+- all eleven logical regions are visited on every current-schema compile,
+  including empty or
   explicitly masked regions; masked text remains canonical state but is not an
   attended rail character; attended intervals are sorted, non-overlapping,
   half-open ranges over the region's full span text and are compiled exactly;
@@ -1215,17 +1318,21 @@ evaluated and explicitly promoted.
 
 The active implementation surface is intentionally narrow:
 
-- `runtime/field/schema.py` ? canonical ten-region exact field schema,
+- `runtime/field/schema.py` ? canonical eleven-region exact field schema with
+  append-only Identity at ID 10 and immutable v1/v2 history,
 - `runtime/field/delta.py` ? typed canonical deltas and validation/apply/replay,
 - `substrate/unicode_transport.py`, `runtime/field/compiler_d64.py`, and `runtime/field/semantic_d64.py` ? exact additive typed 16D Unicode transport, deterministic D64 compiler, and grounded deterministic first-form semantic-slot surface,
 - `runtime/field/state_branch.py` ? canonical branch persistence,
 - `runtime/axon_runtime/d64_adapter.py` ? runtime-facing exact and dual-surface D64 adapter,
 - `runtime/dormant/experience.py`, `runtime/dormant/evidence_bridge.py`, `runtime/dormant/relevance.py`, `runtime/dormant/generations.py`, `runtime/dormant/incremental.py`, and `runtime/dormant/evaluation.py` ? immutable content-addressed exact experience/source snapshots plus read-only manifest/hash-bound dormant retrieval, exact dereference, bounded graph/relation relevance, verified derived-index generations, transactional append/layout-preserving update maintenance, and held-out evaluation,
 - `Cortext/contracts.py` ? grounded Semantic Cortex service contract only; no active specialist/training authority and the `semantic_cortex` valve remains CLOSED,
-- `runtime/heart/` ? heart anatomy: authority/core control plane, canonical transaction boundary, beat coordinator, proposal/refinement barriers, exact categorical reasoning-output decoder, width-generic derived proposal workspaces with a physical D64 renderer, rotating consolidator circulation, deterministic completed-turn materialization, sovereign 20-slot valve plane, OS single-writer lease, restart-safe cardiac identity, durable ingress/replay/quarantine spool, exact ingress/reasoning autobiography plus outcome/tool/Trainer hooks, durable independent per-region mask control, health observability, explicit derived-view identity, relevance-gated dormant recall, permanent Heart host, `runtime/heart/intelligence.py` for learned Heart identity/fidelity/promotion contracts, `runtime/heart/d64_codec.py` for literal real-field D64 framing, and `runtime/heart/translation_core.py` for preserved non-authoritative 64D neural translator tissue; circulation is mechanism-functional but no learned reasoning core or Heart translator is serving yet;
-- `runtime/trainer/` ? permanent Trainer parameter-authority anatomy: heterogeneous parameter+buffer inventory, OS single-writer lease, scoped mutation grants, immutable content-addressed learning policies, isolated candidate optimizer execution with governed accumulation/scheduling/precision/budgets, per-parameter telemetry, exact mid-accumulation checkpoint/restore, deterministic promotion gates, atomic active-generation pointers, exact activation/rollback snapshots and receipts, restart hydration, historical record-reference sessions plus whole-conversation runtime-faithful episode compilation/loading with explicit outcome quality, immutable lifecycle records, and read-only inspection; no model is trained or activated without an explicit governed plan/policy/gate/activation path;
+- `runtime/heart/` ? heart anatomy: authority/core control plane, canonical transaction boundary, beat coordinator, proposal/refinement barriers, exact categorical reasoning-output decoder, width-generic derived proposal workspaces with a physical D64 renderer, rotating consolidation, deterministic completed-turn materialization, sovereign 20-slot valve plane, OS single-writer lease, restart-safe cardiac identity, exceptional evidence-bound Identity amendment, durable ingress/replay/quarantine spool, exact ingress/reasoning autobiography plus private-Soul lineage and outcome/tool/Trainer hooks, durable independent per-region mask control with Identity always attended, health observability, explicit derived-view identity, relevance-gated dormant recall, permanent Heart host, `runtime/heart/intelligence.py` for learned Heart identity/fidelity/promotion contracts, `runtime/heart/d64_codec.py` for literal real-field D64 framing, and `runtime/heart/translation_core.py` for preserved non-authoritative 64D neural translator tissue; circulation is mechanism-functional but no learned reasoning core or Heart translator is serving yet;
+- `runtime/soul/` ? permanent opaque private layered-Soul store, exact
+  transitions/promotions/receipts, prepared/finalized commit protocol, and
+  restart recovery,
+- `runtime/trainer/` ? permanent Trainer parameter-authority anatomy: heterogeneous parameter+buffer inventory, OS single-writer lease, scoped mutation grants, immutable content-addressed learning policies, isolated candidate optimizer execution with governed accumulation/scheduling/precision/budgets, per-parameter telemetry, exact mid-accumulation checkpoint/restore, deterministic promotion gates, atomic active-generation pointers, exact activation/rollback snapshots and receipts, restart hydration, historical record-reference sessions plus whole-conversation runtime-faithful episode compilation/loading with explicit outcome quality and private-Soul lineage, isolated candidate-Soul branches, immutable lifecycle records, and read-only inspection; no model is activated without an explicit governed plan/policy/gate/activation path;
 - `scripts/run_axon_heart.py`, `scripts/evaluate_dormant_relevance.py`, `scripts/maintain_dormant_index.py`, and `scripts/verify_d64_dual_surface.py` ? permanent Heart runtime, deterministic dormant semantic/relevance evaluation, explicit derived-index maintenance/recovery, and read-only live D64 dual-surface verification entry points;
-- `training/canonical_d64.py`, `training/complete_field_64d.py`, and `training/train_complete_field_64d.py` ? developmental canonical D64 reasoning path; `training/heart_translation.py` plus `scripts/train_heart_translation_smoke.py` ? real-field-D64 Heart translation curriculum/evaluation and Trainer-governed bounded candidate smoke path with content-addressed task objective and no activation,
+- `training/canonical_d64.py`, `training/complete_field_64d.py`, and `training/train_complete_field_64d.py` ? developmental canonical D64 reasoning path with explicit v2-to-v3 region-embedding and optimizer-state migration; `training/living_reasoning_d64.py`, `training/living_reasoning_curriculum.py`, `training/living_reasoning_preflight.py`, `training/reasoning_tournament.py`, and `scripts/train_living_reasoning_smoke.py` ? exact Candidate-A anatomy, causal Soul/runtime unroll, deterministic mechanism curriculum, six-part launch evidence, head-isolation tournament, and one-step governed non-serving smoke; `training/heart_translation.py` plus `scripts/train_heart_translation_smoke.py` ? preserved real-field-D64 Heart translation curriculum/evaluation and Trainer-governed bounded candidate smoke path with no activation,
 - `curator/import_d00_memories.py` and the remaining `curator/` recovered-corpus utilities ? protected-source, byte-exact autobiographical import plus offline exact dormant-memory schema/materialization/building tooling; `scripts/compile_lived_experience_sessions.py` ? deterministic governed session compilation from exact Dormant experience,
 
 The former council, old core/soul implementation, ExactV4/identity-v2 runtime stack, 384-slot views/schedules, legacy trainers/curricula, launchers, policies, and dedicated tests are archived beneath `archive/day_zero_legacy_2026-08-20/`. Local historical runs, datasets, checkpoint bundles, and generated distributions are preserved beneath `State/archive/day_zero_legacy_20260820/local_artifacts/`. They may be inspected for provenance or mechanism recovery but may not be imported, launched, resumed, or presented as current Axon without a new explicit convener decision.
