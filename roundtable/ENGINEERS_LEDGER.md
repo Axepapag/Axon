@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-29T09:23:48-05:00
-Current through event: `evt-20260829T142348899548Z-kimmy-next-steps-briefing`
+Updated: 2026-08-29T09:35:14-05:00
+Current through event: `evt-20260829T143514647299Z-kimmy-orphan-commit-trainer-soul-briefing`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -175,11 +175,13 @@ candidate-generation name exceeded Windows path length. The launcher now uses
 a short content-derived identity and the corrected diagnostic passed. The
 failure remains recorded rather than hidden.
 
-## Orphaned interrupted work (recovered 2026-08-29)
+## Orphaned interrupted work (recovered and committed 2026-08-29)
 
 Codex's usage ended mid-turn after the Candidate-A closeout. Recovery event
-`evt-20260829T135430850645Z-kimmy-codex-orphan-recovery` records an
-uncommitted, author-unrecorded diff (+192/-22 across 8 files) that:
+`evt-20260829T135430850645Z-kimmy-codex-orphan-recovery` recorded the
+uncommitted diff; Jeff directed Kimmy to commit it as Codex's recovered work.
+It landed as commit `5aaa4e0` (local main, not pushed; Co-Authored-By Codex
+and Kimmy), followed by ledger bookkeeping commit `0dc17e1`. The diff:
 
 - lets `restore_checkpoint` accept a refreshed-preflight authorization when the
   stable resume scope (grant/plan/inventory/module/generations/tensors/count)
@@ -192,8 +194,8 @@ uncommitted, author-unrecorded diff (+192/-22 across 8 files) that:
 - adds `test_checkpoint_resume_accepts_fresh_preflight_with_identical_mutation_scope`
   and `test_teacher_forced_gate_uses_the_strongest_constant_category_floor`.
 
-The orphan is verified green (compile, Ruff, 19/19 targeted, full suite exit 0,
-`git diff --check`) but deliberately left UNCOMMITTED pending Jeff's decision.
+The orphan was verified green before commit (compile, Ruff, 19/19 targeted,
+full suite exit 0 over 439 collected, `git diff --check`).
 
 ## Verification and Git
 
