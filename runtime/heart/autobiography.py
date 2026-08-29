@@ -183,9 +183,20 @@ class HeartAutobiography:
         evidence_ids: tuple[str, ...],
         detail: str,
         occurred_at: str,
+        target_scope: str = "final_delta",
+        corrected_source_delta: Mapping[str, Any] | None = None,
     ) -> HeartAutobiographyReceipt:
         if not evidence_ids:
             raise ValueError("episode outcomes require explicit evidence_ids")
+        if target_scope not in {"final_delta", "full_trajectory", "corrected_delta"}:
+            raise ValueError("unsupported episode outcome target_scope")
+        if outcome_quality == "corrected":
+            if target_scope != "corrected_delta" or corrected_source_delta is None:
+                raise ValueError(
+                    "corrected outcomes require target_scope='corrected_delta' and an exact corrected_source_delta"
+                )
+        elif corrected_source_delta is not None:
+            raise ValueError("only corrected outcomes may carry corrected_source_delta")
         return self.deposit_event(
             event_id=event_id,
             record_kind="runtime_episode_outcome",
@@ -194,6 +205,10 @@ class HeartAutobiography:
                 "episode_event_id": episode_event_id,
                 "outcome_quality": outcome_quality,
                 "evidence_ids": list(evidence_ids),
+                "target_scope": target_scope,
+                "corrected_source_delta": (
+                    None if corrected_source_delta is None else dict(corrected_source_delta)
+                ),
             },
             occurred_at=occurred_at,
             evidence_class="explicit_outcome_evidence",

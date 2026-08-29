@@ -126,6 +126,16 @@ from .soul_candidates import (
     CandidateSoulPromotionPlan,
     CandidateSoulWorkspace,
 )
+from .step_bundle import (
+    ACCEPTED_STEP_POINTER_SCHEMA,
+    ACCEPTED_STEP_SENTINEL_SCHEMA,
+    ACCEPTED_TRAINING_STEP_SCHEMA,
+    TRAINING_STEP_INTENT_SCHEMA,
+    AcceptedStepPointer,
+    AcceptedTrainingStepBundle,
+    CandidateStepBundleCoordinator,
+    CandidateTrainingStepIntent,
+)
 from .store import TrainerStateStore, TrainerStoreError
 from .telemetry import (
     PARAMETER_STAT_SCHEMA,
@@ -136,6 +146,9 @@ from .telemetry import (
 )
 
 __all__ = [
+    "ACCEPTED_STEP_POINTER_SCHEMA",
+    "ACCEPTED_STEP_SENTINEL_SCHEMA",
+    "ACCEPTED_TRAINING_STEP_SCHEMA",
     "ACTIVE_GENERATION_POINTER_SCHEMA",
     "AUTHORIZED_MUTATION_SCHEMA",
     "CANDIDATE_CHECKPOINT_SCHEMA",
@@ -175,6 +188,9 @@ __all__ = [
     "TRAINING_CAPACITY_CONTRACT_SCHEMA",
     "TRAINING_PREFLIGHT_EVIDENCE_SCHEMA",
     "TRAINING_PREFLIGHT_RECEIPT_SCHEMA",
+    "TRAINING_STEP_INTENT_SCHEMA",
+    "AcceptedStepPointer",
+    "AcceptedTrainingStepBundle",
     "ActiveGenerationPointer",
     "AuthorizedParameterMutation",
     "CandidateCheckpointRecord",
@@ -184,6 +200,8 @@ __all__ = [
     "CandidateSoulPromotionPlan",
     "CandidateSoulWorkspace",
     "CandidateStatus",
+    "CandidateStepBundleCoordinator",
+    "CandidateTrainingStepIntent",
     "CompleteFieldTrainingContract",
     "DeclaredTrainingBound",
     "EpisodeOutcomeQuality",

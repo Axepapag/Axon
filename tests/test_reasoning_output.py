@@ -2,7 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-from runtime.field import LogicalRegion, SealedRegionWriteError, SharedFieldSnapshot
+from runtime.field import (
+    D64FieldCompiler,
+    LogicalRegion,
+    RegionMaskPolicy,
+    SealedRegionWriteError,
+    SharedFieldSnapshot,
+)
 from runtime.heart import (
     EMPTY_CATEGORY_ID,
     EOS_CATEGORY_ID,
@@ -128,3 +134,43 @@ def test_no_op_and_abstain_are_explicit_non_delta_decisions() -> None:
     assert abstain.decode_delta(base, AuthorityGrant.core()) is None
     assert no_op.detail is not None and no_op.detail.text == "nothing grounded to change"
     assert abstain.detail is not None and abstain.detail.text == "insufficient evidence"
+
+
+def test_reasoning_delta_cannot_address_masked_dormant_cells() -> None:
+    base = _base()
+    surface = D64FieldCompiler().compile(
+        base,
+        region_masks={LogicalRegion.SCRATCH: RegionMaskPolicy("tail_percent", 50)},
+    )
+
+    def replace_scratch(start: int, end: int) -> ReasoningEmission:
+        return ReasoningEmission(
+            base_field_id=base.field_id,
+            base_tick_id=base.tick_id,
+            author_core_id="core-a",
+            pass_id="first",
+            rail_d_model=64,
+            decision=ReasoningDecision.DELTA,
+            operations=(
+                ReasoningOperationEmission(
+                    kind=ReasoningOperationKind.REPLACE,
+                    region=LogicalRegion.SCRATCH,
+                    start=start,
+                    end=end,
+                    payload=CategoricalTextFrame.from_text("ok", d_model=64),
+                ),
+            ),
+        )
+
+    with pytest.raises(ReasoningOutputError, match="masked canonical cells"):
+        replace_scratch(0, 2).decode_delta(
+            base,
+            AuthorityGrant.core(),
+            attended_surface=surface,
+        )
+    visible = replace_scratch(2, 4).decode_delta(
+        base,
+        AuthorityGrant.core(),
+        attended_surface=surface,
+    )
+    assert visible is not None

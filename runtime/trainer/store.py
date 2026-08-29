@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import tempfile
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -214,9 +215,9 @@ class TrainerStateStore:
         manifest = capture_module_manifest(descriptor, module, exact_value_hashes=True)
         candidate_root = self.candidates_dir / descriptor.module_id / descriptor.generation_id
         checkpoints_dir = candidate_root / "checkpoints"
+        staging_dir = candidate_root / "checkpoint_staging"
         checkpoints_dir.mkdir(parents=True, exist_ok=True)
-        artifact_path = checkpoints_dir / f"step_{step:09d}_micro_{micro_step:012d}.pt"
-        temporary = artifact_path.with_name(artifact_path.name + ".tmp")
+        staging_dir.mkdir(parents=True, exist_ok=True)
         gradients = None
         if gradient_state is not None:
             gradients = {
@@ -243,12 +244,25 @@ class TrainerStateStore:
             "scaler_state_dict": None if scaler_state is None else dict(scaler_state),
             "gradient_state_dict": gradients,
         }
-        with temporary.open("wb") as handle:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            prefix=f"step_{step:09d}_micro_{micro_step:012d}_",
+            suffix=".pt.tmp",
+            dir=staging_dir,
+            delete=False,
+        ) as handle:
+            temporary = Path(handle.name)
             torch.save(payload, handle)
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(temporary, artifact_path)
-        digest = self._file_sha256(artifact_path)
+        digest = self._file_sha256(temporary)
+        artifact_path = checkpoints_dir / f"{digest}.pt"
+        if artifact_path.exists():
+            if self._file_sha256(artifact_path) != digest:
+                raise TrainerStoreError("content-addressed checkpoint path collision")
+            temporary.unlink()
+        else:
+            os.replace(temporary, artifact_path)
         size = artifact_path.stat().st_size
         relpath = artifact_path.relative_to(self.root).as_posix()
         record = CandidateCheckpointRecord(

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
+import pytest
+
 from runtime.dormant import DormantExperienceStore
-from runtime.field import LogicalRegion
+from runtime.field import FieldDelta, LogicalRegion, ReplaceText
 from runtime.heart import (
     BeatConfig,
     CategoricalTextFrame,
@@ -27,7 +29,12 @@ from runtime.heart import (
     TickIdentity,
 )
 from runtime.soul import SoulLayer, SoulTemperature, SoulTransition
-from runtime.trainer import RuntimeEpisodeLoader, RuntimeEpisodeSessionCompiler
+from runtime.trainer import (
+    EpisodeOutcomeQuality,
+    RuntimeEpisodeLoader,
+    RuntimeEpisodeSessionCompiler,
+)
+from training import EvidenceQualifiedLivedCurriculumCompiler
 
 
 @dataclass
@@ -235,9 +242,76 @@ def test_host_runs_both_barriers_finalizes_turn_and_deposits_loadable_episode(tm
         assert loaded[0].pre_action_field.region(LogicalRegion.USER_INPUT).text == "hello λ🧠"
         assert loaded[0].successor_field.field_id == field.field_id
         assert loaded[0].record.exact_text == "I received the exact Unicode: λ🧠"
+        assert loaded[0].outcome_record is not None
         assert loaded[0].soul_lineages == tuple(
             lineage.to_canonical_dict() for lineage in result.soul_lineages
         )
+        compilation = EvidenceQualifiedLivedCurriculumCompiler().compile(loaded)
+        assert len(compilation.episodes) == 1
+        lived = compilation.episodes[0]
+        assert lived.source_example_id == loaded[0].example.example_id
+        assert [item.supervision_weight for item in lived.targets] == [0.0, 0.0, 1.0]
+        assert lived.targets[-1].payload == "I received the exact Unicode: λ🧠"
+
+        full_outcome = replace(
+            loaded[0].outcome_record,
+            payload={
+                **loaded[0].outcome_record.payload,
+                "target_scope": "full_trajectory",
+            },
+        )
+        full_example = replace(
+            loaded[0].example,
+            outcome_record_id=full_outcome.record_id,
+        )
+        full_compilation = EvidenceQualifiedLivedCurriculumCompiler().compile(
+            (replace(loaded[0], example=full_example, outcome_record=full_outcome),)
+        )
+        assert [item.supervision_weight for item in full_compilation.episodes[0].targets] == [
+            1.0,
+            1.0,
+            1.0,
+        ]
+
+        corrected_delta = FieldDelta(
+            base_field_id=loaded[0].pre_action_field.field_id,
+            base_tick_id=loaded[0].pre_action_field.tick_id,
+            author_core_id="human-correction",
+            pass_id="corrected",
+            operations=(
+                ReplaceText(
+                    region=LogicalRegion.RESPONSE_DRAFT,
+                    start=0,
+                    end=0,
+                    text="Corrected λ🧠",
+                ),
+            ),
+            evidence=("human-correction-1",),
+        )
+        corrected_outcome = replace(
+            loaded[0].outcome_record,
+            payload={
+                **loaded[0].outcome_record.payload,
+                "outcome_quality": "corrected",
+                "target_scope": "corrected_delta",
+                "corrected_source_delta": corrected_delta.to_canonical_dict(),
+            },
+        )
+        corrected_example = replace(
+            loaded[0].example,
+            outcome_quality=EpisodeOutcomeQuality.CORRECTED,
+            outcome_record_id=corrected_outcome.record_id,
+        )
+        corrected_compilation = EvidenceQualifiedLivedCurriculumCompiler().compile(
+            (
+                replace(
+                    loaded[0],
+                    example=corrected_example,
+                    outcome_record=corrected_outcome,
+                ),
+            )
+        )
+        assert corrected_compilation.episodes[0].targets[-1].payload == "Corrected λ🧠"
 
 
 def test_whole_conversation_split_is_stable_for_multiple_episode_records(tmp_path: Path) -> None:
@@ -255,6 +329,43 @@ def test_whole_conversation_split_is_stable_for_multiple_episode_records(tmp_pat
     assert len({item.conversation_id for item in session.examples}) == 1
     assert len({item.split for item in session.examples}) == 1
     assert session.serving_eligible_count == 0
+
+
+def test_reasoning_autobiography_recovers_commit_before_deposit_crash(tmp_path: Path) -> None:
+    host = _host(tmp_path)
+    host.start()
+    host.submit_user("recover this exact λ🧠 turn")
+
+    def crash_after_commit(*args, **kwargs):
+        raise RuntimeError("injected autobiography outage")
+
+    host._deposit_reasoning_episode = crash_after_commit  # type: ignore[method-assign]
+    with pytest.raises(RuntimeError, match="injected autobiography outage"):
+        host.heartbeat()
+    committed_field_id = host.coordinator.current_field.field_id
+    assert tuple(
+        (tmp_path / "active" / "heart" / "reasoning_recovery" / "prepared").glob("*.json")
+    )
+    host.stop()
+
+    with _host(tmp_path) as recovered:
+        assert recovered.coordinator.current_field.field_id == committed_field_id
+        completed = tuple(
+            (
+                tmp_path
+                / "active"
+                / "heart"
+                / "reasoning_recovery"
+                / "completed"
+            ).glob("*.json")
+        )
+        assert len(completed) == 1
+
+    experience = DormantExperienceStore(tmp_path)
+    session = RuntimeEpisodeSessionCompiler(experience).compile()
+    loaded = RuntimeEpisodeLoader(experience).load(session)
+    assert len(loaded) == 1
+    assert loaded[0].record.exact_text == "I received the exact Unicode: λ🧠"
 
 
 def test_malformed_core_output_is_rejected_but_accounted_at_both_barriers(tmp_path: Path) -> None:

@@ -28,7 +28,7 @@ from runtime.heart import (
     ReasoningDecision,
     ReasoningOperationKind,
 )
-from runtime.soul import SoulSnapshot
+from runtime.soul import SoulSnapshot, SoulTemperature
 
 from .complete_field_64d import sequence_cross_entropy
 from .living_reasoning_d64 import (
@@ -51,6 +51,7 @@ class LivingReasoningTarget:
     start: int | None = None
     end: int | None = None
     payload: str = ""
+    supervision_weight: float = 1.0
     target_id: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -60,6 +61,10 @@ class LivingReasoningTarget:
             else ReasoningDecision(self.decision)
         )
         object.__setattr__(self, "decision", decision)
+        weight = float(self.supervision_weight)
+        if not 0.0 <= weight < float("inf"):
+            raise ValueError("supervision_weight must be finite and non-negative")
+        object.__setattr__(self, "supervision_weight", weight)
         if self.phase not in {"first", "refined", "consolidated"}:
             raise ValueError("unsupported living reasoning target phase")
         if decision is ReasoningDecision.DELTA:
@@ -96,6 +101,7 @@ class LivingReasoningTarget:
             "start": self.start,
             "end": self.end,
             "payload": self.payload,
+            "supervision_weight": self.supervision_weight,
         }
         if include_id:
             value["target_id"] = self.target_id
@@ -112,16 +118,25 @@ class LivingReasoningEpisode:
     targets: tuple[LivingReasoningTarget, ...]
     mechanism_tags: tuple[str, ...]
     outcome_quality: str = "synthetic_mechanism"
+    source_example_id: str | None = None
+    outcome_evidence_ids: tuple[str, ...] = ()
+    target_basis: str = "synthetic_mechanism"
     episode_id: str = field(init=False)
 
     def __post_init__(self) -> None:
-        if self.split not in {"train", "heldout"}:
-            raise ValueError("living reasoning split must be train or heldout")
+        if self.split not in {"train", "heldout", "regression"}:
+            raise ValueError("living reasoning split must be train, heldout, or regression")
         targets = tuple(self.targets)
         if tuple(item.phase for item in targets) != ("first", "refined", "consolidated"):
             raise ValueError("living episode requires exact three-phase target order")
         object.__setattr__(self, "targets", targets)
         object.__setattr__(self, "mechanism_tags", tuple(sorted(set(self.mechanism_tags))))
+        if self.source_example_id is not None and len(self.source_example_id) != 64:
+            raise ValueError("source_example_id must be None or a content identity")
+        evidence = tuple(sorted(set(map(str, self.outcome_evidence_ids))))
+        object.__setattr__(self, "outcome_evidence_ids", evidence)
+        if not isinstance(self.target_basis, str) or not self.target_basis:
+            raise ValueError("target_basis must be non-empty")
         object.__setattr__(self, "episode_id", canonical_sha256(self.to_canonical_dict(False)))
 
     def to_canonical_dict(self, include_id: bool = True) -> dict[str, Any]:
@@ -135,6 +150,9 @@ class LivingReasoningEpisode:
             "targets": [item.to_canonical_dict() for item in self.targets],
             "mechanism_tags": list(self.mechanism_tags),
             "outcome_quality": self.outcome_quality,
+            "source_example_id": self.source_example_id,
+            "outcome_evidence_ids": list(self.outcome_evidence_ids),
+            "target_basis": self.target_basis,
         }
         if include_id:
             value["episode_id"] = self.episode_id
@@ -148,7 +166,9 @@ class LivingReasoningCurriculum:
 
     def __post_init__(self) -> None:
         episodes = tuple(self.episodes)
-        if not episodes or {item.split for item in episodes} != {"train", "heldout"}:
+        if not episodes or not {"train", "heldout"}.issubset(
+            {item.split for item in episodes}
+        ):
             raise ValueError("living curriculum requires train and heldout episodes")
         if len({item.episode_id for item in episodes}) != len(episodes):
             raise ValueError("living curriculum contains duplicate episodes")
@@ -397,8 +417,156 @@ def living_episode_objective(
         living_phase_objective(model, output, target)
         for output, target in zip(unroll.outputs, episode.targets, strict=True)
     )
-    total = torch.stack([item[0] for item in phase_results]).mean()
+    weights = torch.tensor(
+        [item.supervision_weight for item in episode.targets],
+        dtype=phase_results[0][0].dtype,
+        device=model.device,
+    )
+    if not bool(weights.gt(0).any()):
+        raise ValueError("living episode has no supervised phase")
+    total = (torch.stack([item[0] for item in phase_results]) * weights).sum() / weights.sum()
     return total, unroll, tuple(item[1] for item in phase_results)
+
+
+@torch.no_grad()
+def evaluate_living_episode(
+    model: LivingReasoningCoreD64,
+    episode: LivingReasoningEpisode,
+    initial_soul: SoulSnapshot,
+    *,
+    core_id: str,
+    parameter_generation: str,
+) -> dict[str, float]:
+    """Measure free-running exact typed emissions on one complete episode."""
+
+    compiled = D64FieldCompiler().compile(episode.snapshot)
+    unroll = model.unroll_runtime_phases(
+        initial_soul=initial_soul,
+        expected_core_id=core_id,
+        parameter_generation=parameter_generation,
+        tick_uid=f"evaluation-episode:{episode.episode_id}",
+        canonical=compiled,
+        first_workspace_text=episode.first_workspace_text,
+        refined_workspace_text=episode.refined_workspace_text,
+    )
+    supervised = 0
+    typed_exact = 0
+    payload_count = 0
+    payload_exact = 0
+    for output, target in zip(unroll.outputs, episode.targets, strict=True):
+        if target.supervision_weight <= 0:
+            continue
+        supervised += 1
+        decision = tuple(ReasoningDecision)[
+            int(output.decision_logits.argmax(dim=-1).item())
+        ]
+        exact = decision is target.decision
+        if target.decision is ReasoningDecision.DELTA:
+            payload_count += 1
+            operation = tuple(ReasoningOperationKind)[
+                int(output.operation_logits.argmax(dim=-1).item())
+            ]
+            region = tuple(LogicalRegion)[int(output.region_logits.argmax(dim=-1).item())]
+            candidates, start_logits, end_logits = model.boundary_logits(output, region)
+            start = candidates[int(start_logits.argmax(dim=-1).item())]
+            end = candidates[int(end_logits.argmax(dim=-1).item())]
+            if operation is ReasoningOperationKind.INSERT:
+                end = start
+            payload, terminated = model.decode_transport_greedy(output)
+            payload_match = terminated and payload == target.payload
+            payload_exact += int(payload_match)
+            exact = exact and all(
+                (
+                    operation is target.operation,
+                    region is target.region,
+                    start == target.start,
+                    end == target.end,
+                    payload_match,
+                )
+            )
+        typed_exact += int(exact)
+    coverage = sum(item.canonical_coverage.complete for item in unroll.outputs) / len(
+        unroll.outputs
+    )
+    return {
+        "supervised_phase_count": float(supervised),
+        "typed_emission_exact_rate": typed_exact / max(1, supervised),
+        "payload_transport_exact_rate": payload_exact / max(1, payload_count),
+        "complete_field_coverage_rate": coverage,
+        "constant_typed_emission_exact_floor": 0.0,
+        "constant_payload_transport_exact_floor": 0.0,
+    }
+
+
+@torch.no_grad()
+def living_source_counterfactuals(
+    model: LivingReasoningCoreD64,
+    episode: LivingReasoningEpisode,
+    initial_soul: SoulSnapshot,
+    *,
+    core_id: str,
+    parameter_generation: str,
+) -> dict[str, float]:
+    """Prove field, proposals, and private Soul all affect consolidated state."""
+
+    compiled = D64FieldCompiler().compile(episode.snapshot)
+    unroll = model.unroll_runtime_phases(
+        initial_soul=initial_soul,
+        expected_core_id=core_id,
+        parameter_generation=parameter_generation,
+        tick_uid=f"counterfactual-episode:{episode.episode_id}",
+        canonical=compiled,
+        first_workspace_text=episode.first_workspace_text,
+        refined_workspace_text=episode.refined_workspace_text,
+    )
+    consolidated_soul = unroll.souls[2]
+
+    def forward(canonical, proposals, *, ablate=()):
+        return model.forward_surfaces(
+            soul=consolidated_soul,
+            expected_core_id=core_id,
+            parameter_generation=parameter_generation,
+            phase="consolidated",
+            canonical=canonical,
+            proposal_texts=proposals,
+            ablate_temperatures=ablate,
+        )
+
+    proposals = (episode.first_workspace_text, episode.refined_workspace_text)
+    baseline = forward(compiled, proposals)
+    changed_texts = {state.name: state.text for state in episode.snapshot.regions}
+    changed_texts[LogicalRegion.USER_INPUT] += "\n[counterfactual-field-change]"
+    changed_snapshot = SharedFieldSnapshot.from_texts(
+        changed_texts,
+        tick_id=episode.snapshot.tick_id,
+        source_manifest_ids=episode.snapshot.source_manifest_ids,
+    )
+    changed_field = forward(D64FieldCompiler().compile(changed_snapshot), proposals)
+    changed_proposals = forward(
+        compiled,
+        (*proposals[:-1], proposals[-1] + "\n[counterfactual-proposal-change]"),
+    )
+    ablated_soul = forward(compiled, proposals, ablate=tuple(SoulTemperature))
+
+    def signature(output: LivingReasoningForward) -> torch.Tensor:
+        return torch.cat(
+            (
+                output.reader_state.mean(dim=1),
+                output.decision_logits,
+                output.operation_logits,
+                output.region_logits,
+            ),
+            dim=-1,
+        )
+
+    reference = signature(baseline)
+    return {
+        "field_counterfactual_l2": float((signature(changed_field) - reference).norm().item()),
+        "proposal_counterfactual_l2": float(
+            (signature(changed_proposals) - reference).norm().item()
+        ),
+        "soul_counterfactual_l2": float((signature(ablated_soul) - reference).norm().item()),
+    }
 
 
 def curriculum_manifest_bytes(curriculum: LivingReasoningCurriculum) -> bytes:
@@ -414,6 +582,8 @@ __all__ = [
     "LivingReasoningTarget",
     "build_living_reasoning_smoke_curriculum",
     "curriculum_manifest_bytes",
+    "evaluate_living_episode",
     "living_episode_objective",
     "living_phase_objective",
+    "living_source_counterfactuals",
 ]

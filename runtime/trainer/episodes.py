@@ -16,6 +16,9 @@ from typing import Any, Mapping, Sequence
 
 from runtime.dormant import DormantExperienceStore, ExperienceRecord
 from runtime.field import (
+    CANONICAL_REGION_ORDER,
+    AttendedInterval,
+    D64FieldCompiler,
     FieldDelta,
     LogicalRegion,
     SharedFieldSnapshot,
@@ -35,7 +38,7 @@ from runtime.soul import SoulCommitReceipt, SoulStore
 
 RUNTIME_EPISODE_EXAMPLE_SCHEMA = "axon-runtime-episode-example-v2"
 RUNTIME_EPISODE_SESSION_SCHEMA = "axon-runtime-episode-session-v2"
-RUNTIME_REASONING_EPISODE_SCHEMA = "axon-runtime-reasoning-episode-v2"
+RUNTIME_REASONING_EPISODE_SCHEMA = "axon-runtime-reasoning-episode-v3"
 
 
 class EpisodeOutcomeQuality(str, Enum):
@@ -265,6 +268,7 @@ class RuntimeEpisodeSessionManifest:
 class LoadedRuntimeEpisode:
     example: RuntimeEpisodeExample
     record: ExperienceRecord
+    outcome_record: ExperienceRecord | None
     pre_action_field: SharedFieldSnapshot
     source_delta: FieldDelta
     materialized_delta: FieldDelta
@@ -412,6 +416,61 @@ class RuntimeEpisodeLoader:
         self.soul_store = SoulStore.active(experience.state_root)
 
     @staticmethod
+    def _attention_surface(
+        base: SharedFieldSnapshot,
+        value: Mapping[str, Any],
+        circulation: Mapping[str, Any],
+    ):
+        view = dict(value)
+        required = {
+            "schema",
+            "source_field_id",
+            "source_tick_id",
+            "view_id",
+            "rail_id",
+            "regions",
+        }
+        if set(view) != required or view["schema"] != "axon-runtime-attention-view-v1":
+            raise ValueError("runtime attention view fields/schema are invalid")
+        if (
+            view["source_field_id"] != base.field_id
+            or view["source_tick_id"] != base.tick_id
+        ):
+            raise ValueError("runtime attention view is stale for its base")
+        image = dict(circulation["image"])
+        if view["view_id"] != image.get("view_id"):
+            raise ValueError("runtime attention view identity disagrees with the tick image")
+        regions = dict(view["regions"])
+        if set(regions) != {region.value for region in CANONICAL_REGION_ORDER}:
+            raise ValueError("runtime attention view does not account for every region")
+        view_snapshot = SharedFieldSnapshot(
+            schema_version=base.schema_version,
+            tick_id=base.tick_id,
+            parent_field_id=base.parent_field_id,
+            source_manifest_ids=base.source_manifest_ids,
+            regions=tuple(
+                base.region(region).with_intervals(
+                    tuple(
+                        AttendedInterval(int(item["start"]), int(item["end"]))
+                        for item in regions[region.value]
+                    )
+                )
+                for region in CANONICAL_REGION_ORDER
+            ),
+        )
+        if view_snapshot.field_id != base.field_id:
+            raise ValueError("derived attention intervals changed canonical identity")
+        surface = D64FieldCompiler().compile(view_snapshot)
+        if surface.rail_id != view["rail_id"]:
+            raise ValueError("runtime attention view does not reproduce its exact rail")
+        d64_rails = tuple(
+            rail for rail in image.get("rails", ()) if rail.get("d_model") == 64
+        )
+        if len(d64_rails) != 1 or d64_rails[0].get("rail_id") != surface.rail_id:
+            raise ValueError("runtime tick image does not bind the reproduced exact rail")
+        return surface
+
+    @staticmethod
     def _verify_workspace(
         value: Mapping[str, Any],
         *,
@@ -507,6 +566,11 @@ class RuntimeEpisodeLoader:
             if pre_action.field_id != example.base_field_id or pre_action.tick_id != example.base_tick_id:
                 raise ValueError("runtime episode base snapshot identity mismatch")
             circulation = dict(payload["circulation"])
+            exact_surface = self._attention_surface(
+                pre_action,
+                dict(payload["attention_view"]),
+                circulation,
+            )
             observed_result_id = str(circulation.get("result_id", ""))
             result_body = dict(circulation)
             result_body.pop("result_id", None)
@@ -564,6 +628,7 @@ class RuntimeEpisodeLoader:
             decoded_source = consolidator_emission.decode_delta(
                 pre_action,
                 AuthorityGrant.consolidator(),
+                attended_surface=exact_surface,
             )
             if decoded_source is None or decoded_source.delta_id != source_delta.delta_id:
                 raise ValueError("runtime consolidator emission does not reproduce its source delta")
@@ -606,6 +671,11 @@ class RuntimeEpisodeLoader:
                 LoadedRuntimeEpisode(
                     example=example,
                     record=record,
+                    outcome_record=(
+                        None
+                        if example.outcome_record_id is None
+                        else record_map[example.outcome_record_id]
+                    ),
                     pre_action_field=pre_action,
                     source_delta=source_delta,
                     materialized_delta=materialized_delta,

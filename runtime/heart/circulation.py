@@ -32,6 +32,11 @@ from .proposal_workspace import (
     RenderedProposalRail,
 )
 from .reasoning_output import ReasoningDecision, ReasoningEmission
+from .reasoning_recovery import (
+    REASONING_RECOVERY_PREPARATION_SCHEMA,
+    ReasoningAutobiographyRecoveryStore,
+    attention_view_from_surface,
+)
 from .registry import CoreDescriptor, CoreRegistry
 from .tick import FrozenTickImage, RailBinding
 from .transaction import HeartCommit
@@ -256,6 +261,7 @@ class ReasoningCirculation:
         *,
         soul_store: SoulStore,
         renderer: ExactProposalWorkspaceRenderer | None = None,
+        recovery_store: ReasoningAutobiographyRecoveryStore | None = None,
     ) -> None:
         if not isinstance(coordinator, BeatCoordinator):
             raise TypeError("ReasoningCirculation requires BeatCoordinator")
@@ -278,6 +284,7 @@ class ReasoningCirculation:
         self._ports = port_map
         self._soul_store = soul_store
         self._renderer = renderer or D64ProposalWorkspaceRenderer()
+        self._recovery_store = recovery_store
 
     def _external_soul_commit_bindings(self) -> dict[str, str]:
         bindings: dict[str, str] = {}
@@ -399,7 +406,11 @@ class ReasoningCirculation:
                 proposal: Proposal | None = None
                 detail = "" if emission.detail is None else emission.detail.text
                 if emission.decision is ReasoningDecision.DELTA:
-                    delta = emission.decode_delta(base, descriptor.authority_grant())
+                    delta = emission.decode_delta(
+                        base,
+                        descriptor.authority_grant(),
+                        attended_surface=request.rail.exact_surface,
+                    )
                     if delta is None:
                         raise ReasoningCirculationError("delta decision decoded to no delta")
                     proposal = Proposal(
@@ -431,7 +442,7 @@ class ReasoningCirculation:
         index = (image.identity.tick_sequence - 1) % len(participants)
         return participants[index]
 
-    def run(self) -> ReasoningCirculationResult:
+    def run(self, *, occurred_at: str = "") -> ReasoningCirculationResult:
         image = self._coordinator.open_tick_image
         if image is None:
             raise ReasoningCirculationError("reasoning circulation requires an in-flight tick")
@@ -491,7 +502,11 @@ class ReasoningCirculation:
             self._assert_soul_transition_binding(pass_result.soul_transition, request)
             if emission.decision is not ReasoningDecision.DELTA:
                 raise ReasoningCirculationError("consolidator must return a non-empty delta decision")
-            source_delta = emission.decode_delta(base, AuthorityGrant.consolidator())
+            source_delta = emission.decode_delta(
+                base,
+                AuthorityGrant.consolidator(),
+                attended_surface=request.rail.exact_surface,
+            )
             if source_delta is None:
                 raise ReasoningCirculationError("consolidator delta decoded to no delta")
             materialized_delta, finalization = materialize_completed_turn(base, source_delta)
@@ -500,19 +515,61 @@ class ReasoningCirculation:
                 pass_result.soul_transition,
                 requires_external_commit=True,
             )
+            circulation_metadata = {
+                "reasoning_image_id": image.image_id,
+                "first_workspace_id": first_workspace.workspace_id,
+                "refined_workspace_id": refined_workspace.workspace_id,
+                "consolidator_emission_id": emission.emission_id,
+                "source_delta_id": source_delta.delta_id,
+                "soul_transition_id": pass_result.soul_transition.transition_id,
+                "turn_finalization_receipt_id": (
+                    None if finalization is None else finalization.receipt_id
+                ),
+            }
+            recovery_preparation_id = None
+            if self._recovery_store is not None:
+                preparation = self._recovery_store.prepare(
+                    {
+                        "schema": REASONING_RECOVERY_PREPARATION_SCHEMA,
+                        "occurred_at": str(occurred_at),
+                        "pre_action_field": base.to_dict(),
+                        "attention_view": attention_view_from_surface(
+                            request.rail.exact_surface,
+                            view_id=image.view_id,
+                        ),
+                        "image": image.to_canonical_dict(),
+                        "first_records": [_record_dict(item) for item in first_records],
+                        "refined_records": [_record_dict(item) for item in refined_records],
+                        "first_workspace": first_workspace.to_canonical_dict(),
+                        "refined_workspace": refined_workspace.to_canonical_dict(),
+                        "first_emissions": [item.to_canonical_dict() for item in first_emissions],
+                        "refined_emissions": [item.to_canonical_dict() for item in refined_emissions],
+                        "prior_soul_receipts": [
+                            item.to_canonical_dict()
+                            for item in (*first_receipts, *refined_receipts)
+                        ],
+                        "initial_souls": dict(sorted(initial_souls.items())),
+                        "consolidator_core_id": consolidator.core_id,
+                        "consolidator_emission": emission.to_canonical_dict(),
+                        "consolidator_soul_transition": pass_result.soul_transition.to_canonical_dict(),
+                        "source_delta": source_delta.to_canonical_dict(),
+                        "materialized_delta": materialized_delta.to_canonical_dict(),
+                        "materialized_delta_id": materialized_delta.delta_id,
+                        "finalization_receipt": (
+                            None
+                            if finalization is None
+                            else finalization.to_canonical_dict()
+                        ),
+                        "circulation_metadata": circulation_metadata,
+                    }
+                )
+                recovery_preparation_id = preparation.preparation_id
             commit = self._coordinator.commit_consolidator_delta(
                 materialized_delta,
                 tick=image.identity,
                 metadata={
-                    "reasoning_image_id": image.image_id,
-                    "first_workspace_id": first_workspace.workspace_id,
-                    "refined_workspace_id": refined_workspace.workspace_id,
-                    "consolidator_emission_id": emission.emission_id,
-                    "source_delta_id": source_delta.delta_id,
-                    "soul_transition_id": pass_result.soul_transition.transition_id,
-                    "turn_finalization_receipt_id": (
-                        None if finalization is None else finalization.receipt_id
-                    ),
+                    **circulation_metadata,
+                    "recovery_preparation_id": recovery_preparation_id,
                 },
             )
             consolidator_soul_receipt = soul_branch.finalize_transition(

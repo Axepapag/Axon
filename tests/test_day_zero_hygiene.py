@@ -67,6 +67,7 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "masks.py",
         "proposal_workspace.py",
         "reasoning_output.py",
+        "reasoning_recovery.py",
         "intelligence.py",
         "translation_core.py",
         "turns.py",
@@ -96,6 +97,7 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "sessions.py",
         "episodes.py",
         "soul_candidates.py",
+        "step_bundle.py",
     }
 
     soul_files = {path.name for path in (ROOT / "runtime" / "soul").glob("*.py")}
@@ -111,6 +113,7 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "living_reasoning_curriculum.py",
         "living_reasoning_d64.py",
         "living_reasoning_preflight.py",
+        "lived_reasoning_curriculum.py",
         "reasoning_tournament.py",
         "train_complete_field_64d.py",
     }

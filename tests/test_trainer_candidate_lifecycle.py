@@ -17,11 +17,9 @@ from runtime.trainer import (
     ParameterMutationPlan,
     ParameterMutationPolicy,
     ParameterPromotionProposal,
-    ParameterRegistry,
     PromotionGate,
     TrainerControlPlane,
     TrainerExecutionError,
-    TrainerStateStore,
     TrainerStoreError,
     inspect_trainer_state,
     parameter_value_sha256,
@@ -118,6 +116,7 @@ def test_candidate_checkpoint_is_hash_verified_and_restorable(tmp_path: Path) ->
     assert all(torch.isfinite(parameter).all() for parameter in live.parameters())
 
     artifact = tmp_path / "training" / "trainer" / record.artifact_relpath
+    assert artifact.name == f"{record.artifact_sha256}.pt"
     data = bytearray(artifact.read_bytes())
     data[-1] ^= 0x01
     artifact.write_bytes(data)

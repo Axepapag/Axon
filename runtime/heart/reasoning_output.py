@@ -12,6 +12,7 @@ from enum import Enum
 from typing import Any, Mapping
 
 from runtime.field import (
+    CompiledD64Field,
     DeleteText,
     FieldDelta,
     InsertText,
@@ -50,6 +51,47 @@ class ReasoningOperationKind(str, Enum):
     INSERT = "insert"
     DELETE = "delete"
     REPLACE = "replace"
+
+
+def _validate_attended_addresses(
+    base: SharedFieldSnapshot,
+    delta: FieldDelta,
+    surface: CompiledD64Field,
+) -> None:
+    """Reject canonical edits outside the exact view supplied to the core."""
+
+    surface.assert_fresh(base)
+    for operation in delta.operations:
+        region = base.region(operation.region)
+        intervals = tuple(
+            sorted(
+                {
+                    (
+                        address.attended_interval_start,
+                        address.attended_interval_end,
+                    )
+                    for address in surface.region_character_addresses(operation.region)
+                }
+            )
+        )
+        start = operation.start
+        end = operation.end
+        insertion = isinstance(operation, InsertText) or start == end
+        if insertion:
+            allowed = (not region.text and start == 0) or any(
+                interval_start <= start <= interval_end
+                for interval_start, interval_end in intervals
+            )
+        else:
+            allowed = any(
+                interval_start <= start and end <= interval_end
+                for interval_start, interval_end in intervals
+            )
+        if not allowed:
+            raise ReasoningOutputError(
+                "reasoning emission addresses masked canonical cells outside its attended rail view: "
+                f"{operation.region.value}[{start}:{end}]"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -345,6 +387,8 @@ class ReasoningEmission:
         self,
         base: SharedFieldSnapshot,
         grant: AuthorityGrant,
+        *,
+        attended_surface: CompiledD64Field | None = None,
     ) -> FieldDelta | None:
         if self.base_field_id != base.field_id or self.base_tick_id != base.tick_id:
             raise ReasoningOutputError("reasoning emission is stale for the supplied frozen base")
@@ -374,6 +418,8 @@ class ReasoningEmission:
             evidence=self.evidence,
         )
         validate_delta(base, delta, permitted_regions=grant.governed_regions)
+        if attended_surface is not None:
+            _validate_attended_addresses(base, delta, attended_surface)
         return delta
 
     def to_canonical_dict(self, *, include_id: bool = True) -> dict[str, Any]:

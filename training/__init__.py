@@ -1,3 +1,8 @@
+from .lived_reasoning_curriculum import (
+    LIVED_REASONING_COMPILATION_SCHEMA,
+    EvidenceQualifiedLivedCurriculumCompiler,
+    LivedReasoningCompilation,
+)
 from .living_reasoning_curriculum import (
     LIVING_REASONING_CURRICULUM_SCHEMA,
     LIVING_REASONING_EPISODE_SCHEMA,
@@ -7,8 +12,10 @@ from .living_reasoning_curriculum import (
     LivingReasoningTarget,
     build_living_reasoning_smoke_curriculum,
     curriculum_manifest_bytes,
+    evaluate_living_episode,
     living_episode_objective,
     living_phase_objective,
+    living_source_counterfactuals,
 )
 from .living_reasoning_d64 import (
     D64_SOUL_CODEC_VERSION,
@@ -41,6 +48,7 @@ __all__ = [
     "D64_SOUL_MEDIA_TYPE",
     "D64_TOURNAMENT_RESULT_SCHEMA",
     "D64_TOURNAMENT_SCHEMA",
+    "LIVED_REASONING_COMPILATION_SCHEMA",
     "LIVING_REASONING_ARCHITECTURE_SCHEMA",
     "LIVING_REASONING_CURRICULUM_SCHEMA",
     "LIVING_REASONING_EPISODE_SCHEMA",
@@ -51,6 +59,8 @@ __all__ = [
     "D64Tournament",
     "D64TournamentCandidate",
     "D64TournamentResult",
+    "EvidenceQualifiedLivedCurriculumCompiler",
+    "LivedReasoningCompilation",
     "LivingReasoningCoreConfig",
     "LivingReasoningCoreD64",
     "LivingReasoningCurriculum",
@@ -63,7 +73,9 @@ __all__ = [
     "candidate_a_config",
     "curriculum_manifest_bytes",
     "d64_head_geometry_tournament",
+    "evaluate_living_episode",
     "living_episode_objective",
     "living_phase_objective",
+    "living_source_counterfactuals",
     "recommended_followup_d64_candidates",
 ]

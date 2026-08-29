@@ -20,6 +20,7 @@ from typing import Any, Iterable, Mapping
 
 from runtime.field import (
     CanonicalStateBranch,
+    CompiledD64Field,
     FieldDelta,
     InsertText,
     LogicalRegion,
@@ -48,6 +49,10 @@ from .health import HealthJournal, HeartHealth
 from .identity import HeartIdentityStore
 from .lease import SingleWriterLease
 from .masks import HeartRegionMaskController, HeartRegionMaskState
+from .reasoning_recovery import (
+    ReasoningAutobiographyRecoveryStore,
+    attention_view_from_surface,
+)
 from .registry import CoreRegistry
 from .tick import FrozenTickImage, TickIdentity
 from .transaction import HeartCommit
@@ -140,6 +145,7 @@ class HeartHost:
         self._circulation: ReasoningCirculation | None = None
         self._mask_controller: HeartRegionMaskController | None = None
         self._soul_store: SoulStore | None = None
+        self._reasoning_recovery: ReasoningAutobiographyRecoveryStore | None = None
         self._mask_dirty = False
         self._last_circulated_view_id: str | None = None
         self._lease_record: dict | None = None
@@ -213,6 +219,7 @@ class HeartHost:
                 )
                 autobiography = HeartAutobiography(self.state_root)
                 soul_store = SoulStore.active(self.state_root)
+                reasoning_recovery = ReasoningAutobiographyRecoveryStore(self.state_root)
                 circulation = (
                     None
                     if not self._reasoning_ports
@@ -221,6 +228,7 @@ class HeartHost:
                         self.cores,
                         self._reasoning_ports,
                         soul_store=soul_store,
+                        recovery_store=reasoning_recovery,
                     )
                 )
             except Exception:
@@ -234,8 +242,14 @@ class HeartHost:
             self._circulation = circulation
             self._mask_controller = mask_controller
             self._soul_store = soul_store
+            self._reasoning_recovery = reasoning_recovery
             self._lease_record = lease_record
             self._started = True
+            try:
+                self._recover_reasoning_autobiography()
+            except Exception:
+                self.stop()
+                raise
             self._stop_event.clear()
             self._wake_event.clear()
             latest = health.latest()
@@ -265,6 +279,7 @@ class HeartHost:
             self._circulation = None
             self._mask_controller = None
             self._soul_store = None
+            self._reasoning_recovery = None
             self._mask_dirty = False
             self._last_circulated_view_id = None
             self._spool = None
@@ -512,20 +527,25 @@ class HeartHost:
         self,
         base: SharedFieldSnapshot,
         result: ReasoningCirculationResult,
+        exact_surface: CompiledD64Field,
         *,
         occurred_at: datetime,
-    ) -> None:
+    ):
         if self._autobiography is None:
             raise HostStateError("Heart autobiography has not been started")
         response_text = result.commit.successor.region(LogicalRegion.RESPONSE_DRAFT).text
-        self._autobiography.deposit_reasoning_episode(
+        return self._autobiography.deposit_reasoning_episode(
             event_id=f"reasoning-{result.result_id}",
             response_text=response_text,
             occurred_at=occurred_at.isoformat(),
             payload={
-                "schema": "axon-runtime-reasoning-episode-v2",
+                "schema": "axon-runtime-reasoning-episode-v3",
                 "conversation_id": self.identity_store.identity.heart_epoch_id,
                 "pre_action_field": base.to_dict(),
+                "attention_view": attention_view_from_surface(
+                    exact_surface,
+                    view_id=result.image.view_id,
+                ),
                 "circulation": result.to_canonical_dict(),
                 "response_text_sha256": hashlib.sha256(
                     response_text.encode("utf-8")
@@ -543,9 +563,61 @@ class HeartHost:
         if self._circulation is None:
             raise HostStateError("active reasoning cores have no configured runtime ports")
         base = self.coordinator.current_field
-        result = self._circulation.run()
-        self._deposit_reasoning_episode(base, result, occurred_at=occurred_at)
+        exact_surface = self.coordinator.rail_surface(64).exact
+        result = self._circulation.run(occurred_at=occurred_at.isoformat())
+        receipt = self._deposit_reasoning_episode(
+            base,
+            result,
+            exact_surface,
+            occurred_at=occurred_at,
+        )
+        if self._reasoning_recovery is None:
+            raise HostStateError("reasoning recovery store has not been started")
+        preparation = self._reasoning_recovery.for_materialized_delta(
+            result.materialized_delta.delta_id
+        )
+        self._reasoning_recovery.mark_completed(
+            preparation.preparation_id,
+            result_id=result.result_id,
+            event_id=receipt.event_id,
+            record_id=receipt.record_id,
+            import_id=receipt.import_id,
+        )
         return result
+
+    def _recover_reasoning_autobiography(self) -> None:
+        """Finish any canonical commit whose autobiography deposit was interrupted."""
+
+        if (
+            self._reasoning_recovery is None
+            or self._autobiography is None
+            or self._coordinator is None
+            or self._soul_store is None
+            or self._identity_store is None
+        ):
+            raise HostStateError("reasoning autobiography recovery dependencies are unavailable")
+        for preparation in self._reasoning_recovery.pending():
+            recovered = self._reasoning_recovery.reconstruct_if_committed(
+                preparation,
+                branch=self._coordinator.branch,
+                soul_store=self._soul_store,
+                conversation_id=self._identity_store.identity.heart_epoch_id,
+            )
+            if recovered is None:
+                continue
+            receipt = self._autobiography.deposit_reasoning_episode(
+                event_id=recovered.event_id,
+                response_text=recovered.response_text,
+                payload=recovered.payload,
+                occurred_at=recovered.occurred_at,
+            )
+            self._reasoning_recovery.mark_completed(
+                preparation.preparation_id,
+                result_id=recovered.result_id,
+                event_id=receipt.event_id,
+                record_id=receipt.record_id,
+                import_id=receipt.import_id,
+            )
 
     def record_episode_outcome(
         self,
@@ -556,6 +628,8 @@ class HeartHost:
         evidence_ids: Iterable[str],
         detail: str,
         occurred_at: datetime | None = None,
+        target_scope: str = "final_delta",
+        corrected_source_delta: Mapping[str, Any] | None = None,
     ) -> None:
         """Attach explicit outcome evidence without relabeling observation as truth."""
 
@@ -571,6 +645,8 @@ class HeartHost:
                 evidence_ids=tuple(evidence_ids),
                 detail=detail,
                 occurred_at=when.isoformat(),
+                target_scope=target_scope,
+                corrected_source_delta=corrected_source_delta,
             )
 
     def record_tool_invocation(

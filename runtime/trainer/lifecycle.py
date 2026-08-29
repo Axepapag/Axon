@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, Mapping
 
 from runtime.field import canonical_sha256
 
@@ -169,6 +169,20 @@ class CandidateCheckpointRecord:
             value["checkpoint_id"] = self.checkpoint_id
         return value
 
+    @classmethod
+    def from_mapping(cls, value: Mapping[str, Any]) -> "CandidateCheckpointRecord":
+        item = dict(value)
+        if item.pop("schema", None) != CANDIDATE_CHECKPOINT_SCHEMA:
+            raise ValueError("unsupported candidate checkpoint schema")
+        checkpoint_id = item.pop("checkpoint_id", None)
+        try:
+            record = cls(**item)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("candidate checkpoint record is invalid") from exc
+        if record.checkpoint_id != checkpoint_id:
+            raise ValueError("candidate checkpoint record identity mismatch")
+        return record
+
 
 @dataclass(frozen=True, slots=True)
 class LearningMicrostepReceipt:
@@ -312,15 +326,31 @@ class OptimizationStepReceipt:
             value["receipt_id"] = self.receipt_id
         return value
 
+    @classmethod
+    def from_mapping(cls, value: Mapping[str, Any]) -> "OptimizationStepReceipt":
+        item = dict(value)
+        if item.pop("schema", None) != OPTIMIZATION_STEP_SCHEMA:
+            raise ValueError("unsupported optimization-step schema")
+        receipt_id = item.pop("receipt_id", None)
+        try:
+            item["changed_tensor_names"] = tuple(item["changed_tensor_names"])
+            item["unchanged_tensor_names"] = tuple(item["unchanged_tensor_names"])
+            receipt = cls(**item)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("optimization-step receipt is invalid") from exc
+        if receipt.receipt_id != receipt_id:
+            raise ValueError("optimization-step receipt identity mismatch")
+        return receipt
+
 
 __all__ = [
-    "CANDIDATE_LIFECYCLE_SCHEMA",
     "CANDIDATE_CHECKPOINT_SCHEMA",
+    "CANDIDATE_LIFECYCLE_SCHEMA",
     "LEARNING_MICROSTEP_SCHEMA",
     "OPTIMIZATION_STEP_SCHEMA",
-    "CandidateStatus",
-    "CandidateLifecycleEvent",
     "CandidateCheckpointRecord",
+    "CandidateLifecycleEvent",
+    "CandidateStatus",
     "LearningMicrostepReceipt",
     "OptimizationStepReceipt",
 ]
