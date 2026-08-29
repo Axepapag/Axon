@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-29T11:17:38-05:00
-Current through event: `evt-20260829T161738000000Z-chatgpt-curriculum-foundry-proposal`
+Updated: 2026-08-29T12:10:43-05:00
+Current through event: `evt-20260829T171043597940Z-kimmy-foundry-review-and-recommendation`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -238,6 +238,13 @@ full suite exit 0 over 439 collected, `git diff --check`).
    subjective consciousness or metaphysical continuity is not testable here.
 
 ## Recommended next actions
+
+0. **Pending Jeff's ratification:** the engineering-session harvest +
+   Curriculum Foundry direction (`roundtable/ENGINEERING_SESSION_HARVEST_PROPOSAL.md`,
+   `roundtable/CHATGPT_CURRICULUM_FOUNDRY_PROPOSAL.md`). Kimmy concedes
+   ChatGPT's screen-before-publication correction and recommends ratifying the
+   ten §14 principles with §11 as sketch-only, then running §15's narrow
+   no-training import mission. Codex's review is still outstanding.
 
 1. Implement an atomic accepted training-step bundle binding optimizer receipt,
    parameter checkpoint, candidate-Soul HEAD, and all phase receipts; prove
