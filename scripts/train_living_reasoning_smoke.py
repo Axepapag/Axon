@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import random
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -12,7 +14,7 @@ from typing import Any
 import numpy as np
 import torch
 
-from runtime.field import canonical_sha256
+from runtime.field import CanonicalStateBranch, LogicalRegion, canonical_sha256
 from runtime.soul import SoulStore
 from runtime.trainer import (
     CandidateSoulWorkspace,
@@ -26,12 +28,14 @@ from runtime.trainer import (
 )
 from training import (
     LivingReasoningCoreD64,
+    LivingReasoningCurriculum,
     build_living_reasoning_preflight,
     build_living_reasoning_smoke_curriculum,
     candidate_a_config,
     evaluate_living_episode,
     living_episode_objective,
     living_source_counterfactuals,
+    load_first_form_curriculum,
 )
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -61,6 +65,25 @@ def _arguments() -> argparse.Namespace:
         help="accepted parameter+Soul checkpoint segment length in optimizer steps",
     )
     parser.add_argument("--preflight-only", action="store_true")
+    parser.add_argument(
+        "--candidate-label",
+        default=None,
+        help=(
+            "stable core identity for an isolated tournament lane; omission preserves "
+            "the pre-tournament synthetic-smoke lineage"
+        ),
+    )
+    parser.add_argument(
+        "--curriculum-manifest",
+        type=Path,
+        help="immutable FFCS manifest; omit only for the synthetic mechanism smoke",
+    )
+    parser.add_argument(
+        "--evaluation-case-limit",
+        type=int,
+        default=None,
+        help="bounded complete heldout cases for this diagnostic; deferred cases are counted",
+    )
     parser.add_argument(
         "--resume",
         action="store_true",
@@ -93,6 +116,12 @@ def main() -> int:
         raise ValueError("--checkpoint-interval must be positive")
     if args.run_steps is not None and args.run_steps < 1:
         raise ValueError("--run-steps must be positive when supplied")
+    if args.evaluation_case_limit is not None and args.evaluation_case_limit < 1:
+        raise ValueError("--evaluation-case-limit must be positive when supplied")
+    if args.candidate_label is not None and re.fullmatch(
+        r"[a-z0-9][a-z0-9-]{0,63}", args.candidate_label
+    ) is None:
+        raise ValueError("--candidate-label must be a short lowercase slug")
     _seed_everything(args.seed)
     device = _device(args.device)
     config = candidate_a_config(
@@ -103,26 +132,57 @@ def main() -> int:
         dropout=0.0,
     )
     model = LivingReasoningCoreD64(config).to(device)
-    curriculum = build_living_reasoning_smoke_curriculum()
-    module_id = "reasoning-d64-candidate-a"
-    base_generation = "reasoning-d64-untrained-base-v1"
-    candidate_generation = "r64a-smoke-" + canonical_sha256(
-        {
-            "architecture_id": config.architecture_id,
-            "seed": args.seed,
-            "max_steps": args.max_steps,
-            "learning_rate": args.learning_rate,
-            "checkpoint_interval": args.checkpoint_interval,
-            "curriculum_id": curriculum.curriculum_id,
-        }
-    )[:16]
+    ffcs = (
+        None
+        if args.curriculum_manifest is None
+        else load_first_form_curriculum(args.curriculum_manifest)
+    )
+    mechanism_curriculum = build_living_reasoning_smoke_curriculum()
+    curriculum = mechanism_curriculum
+    if ffcs is not None:
+        active = CanonicalStateBranch.active_runtime(state_root=args.state_root).load_head()
+        active_identity = active.region(LogicalRegion.IDENTITY).text
+        if hashlib.sha256(active_identity.encode("utf-8")).hexdigest() != ffcs.identity_text_sha256:
+            raise RuntimeError("FFCS manifest Identity is stale for active canonical state")
+        curriculum = LivingReasoningCurriculum(
+            ffcs.living_curriculum.episodes + mechanism_curriculum.episodes
+        )
+    if args.candidate_label is None:
+        module_id = "reasoning-d64-candidate-a"
+        base_generation = "reasoning-d64-untrained-base-v1"
+        candidate_generation = "r64a-smoke-" + canonical_sha256(
+            {
+                "architecture_id": config.architecture_id,
+                "seed": args.seed,
+                "max_steps": args.max_steps,
+                "learning_rate": args.learning_rate,
+                "checkpoint_interval": args.checkpoint_interval,
+                "curriculum_id": curriculum.curriculum_id,
+            }
+        )[:16]
+        candidate_label = "legacy-candidate-a"
+    else:
+        candidate_label = args.candidate_label
+        module_id = f"reasoning-d64-{candidate_label}"
+        base_generation = f"{module_id}-untrained-base-v1"
+        candidate_generation = "r64t-" + canonical_sha256(
+            {
+                "candidate_label": candidate_label,
+                "architecture_id": config.architecture_id,
+                "seed": args.seed,
+                "max_steps": args.max_steps,
+                "learning_rate": args.learning_rate,
+                "checkpoint_interval": args.checkpoint_interval,
+                "curriculum_id": curriculum.curriculum_id,
+            }
+        )[:16]
     descriptor = ParameterModuleDescriptor(
         module_id=module_id,
         organ_kind=OrganKind.REASONING_CORE,
         generation_id=base_generation,
         architecture=config.architecture_id,
         d_model=64,
-        tags=("living", "private-soul", "complete-field", "candidate-a"),
+        tags=("living", "private-soul", "complete-field", candidate_label),
     )
 
     report: dict[str, Any] = {
@@ -134,6 +194,14 @@ def main() -> int:
         "curriculum_id": curriculum.curriculum_id,
         "train_manifest_id": curriculum.train_manifest_id,
         "heldout_manifest_id": curriculum.heldout_manifest_id,
+        "candidate_label": candidate_label,
+        "ffcs_manifest_id": None if ffcs is None else ffcs.manifest_id,
+        "mechanism_curriculum_id": mechanism_curriculum.curriculum_id,
+        "curriculum_composition": (
+            "synthetic_mechanism_only"
+            if ffcs is None
+            else "ffcs_plus_synthetic_mechanism"
+        ),
     }
     with TrainerControlPlane.active(state_root=args.state_root) as control:
         control.declare_expected((descriptor,))
@@ -175,8 +243,46 @@ def main() -> int:
             print(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2))
             return 0
 
+        step_bundles = CandidateStepBundleCoordinator(args.state_root)
+        latest_bundle = step_bundles.latest_bundle(module_id, candidate_generation)
+        campaign_report_dir = (
+            args.state_root.resolve()
+            / "training"
+            / "reasoning"
+            / candidate_generation
+        )
+        if latest_bundle is not None and latest_bundle.step >= args.max_steps:
+            if not args.resume:
+                raise RuntimeError(
+                    "candidate campaign is complete; pass --resume for idempotent report recovery"
+                )
+            prior_reports = sorted(campaign_report_dir.glob("segment_*.json"))
+            if not prior_reports:
+                raise RuntimeError("complete candidate has no immutable segment report")
+            prior_path = prior_reports[-1]
+            prior = json.loads(prior_path.read_text(encoding="utf-8"))
+            observed_report_id = prior.get("report_id")
+            report_body = {key: value for key, value in prior.items() if key != "report_id"}
+            if (
+                canonical_sha256(report_body) != observed_report_id
+                or observed_report_id is None
+                or prior.get("candidate_generation_id") != candidate_generation
+                or prior.get("final_checkpoint_id") != latest_bundle.checkpoint_id
+                or prior.get("segment_end_step") != latest_bundle.step
+            ):
+                raise RuntimeError("complete candidate report does not bind the accepted bundle")
+            print(
+                json.dumps(
+                    {**prior, "report_path": str(prior_path)},
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    indent=2,
+                )
+            )
+            return 0
+
         grant = ParameterMutationGrant(
-            grant_id=f"candidate-a-smoke:{plan.plan_id}",
+            grant_id=f"living-reasoning-smoke:{plan.plan_id}",
             module_id=module_id,
             generation_id=base_generation,
             policy=ParameterMutationPolicy.FULL,
@@ -199,13 +305,12 @@ def main() -> int:
         soul_manifest = soul_workspace.prepare(
             candidate_id=candidate_generation,
             core_id=module_id,
-            runtime_episode_session_id=f"synthetic-mechanism:{curriculum.curriculum_id}",
+            runtime_episode_session_id=f"living-curriculum:{curriculum.curriculum_id}",
             whole_episode_split="train",
             soul_trajectory_ids=tuple(item.episode_id for item in curriculum.split("train")),
             candidate_parameter_generation=candidate_generation,
         )
         soul_branch = soul_workspace.branch(candidate_generation, module_id)
-        step_bundles = CandidateStepBundleCoordinator(args.state_root)
         recovered_bundles = step_bundles.recover_pending(module_id, candidate_generation)
         latest_bundle = step_bundles.latest_bundle(module_id, candidate_generation)
         if latest_bundle is not None:
@@ -224,7 +329,13 @@ def main() -> int:
         steps: list[dict[str, Any]] = []
         checkpoints = []
         train_episodes = curriculum.split("train")
-        heldout_episodes = curriculum.split("heldout")
+        all_heldout_episodes = curriculum.split("heldout")
+        heldout_episodes = (
+            all_heldout_episodes
+            if args.evaluation_case_limit is None
+            else all_heldout_episodes[: args.evaluation_case_limit]
+        )
+        complete_heldout_evaluation = len(heldout_episodes) == len(all_heldout_episodes)
 
         def evaluate_candidate() -> dict[str, Any]:
             session.candidate_module.eval()
@@ -286,12 +397,6 @@ def main() -> int:
             }
 
         initial_evaluation = evaluate_candidate()
-        campaign_report_dir = (
-            args.state_root.resolve()
-            / "training"
-            / "reasoning"
-            / candidate_generation
-        )
         prior_reports = sorted(campaign_report_dir.glob("segment_*.json"))
         campaign_baseline_evaluation = (
             initial_evaluation
@@ -403,7 +508,8 @@ def main() -> int:
             value > 1e-8 for value in final_evaluation["counterfactuals"].values()
         )
         task_gate_passed = (
-            final_evaluation["heldout_mean_loss"]
+            complete_heldout_evaluation
+            and final_evaluation["heldout_mean_loss"]
             < campaign_baseline_evaluation["heldout_mean_loss"]
             and final_evaluation["payload_teacher_forced_token_accuracy"]
             > final_evaluation["constant_payload_token_accuracy_floor"]
@@ -428,6 +534,12 @@ def main() -> int:
                 "segment_end_step": end_step,
                 "campaign_max_steps": args.max_steps,
                 "campaign_complete": end_step == args.max_steps,
+                "heldout_case_count": len(all_heldout_episodes),
+                "evaluated_heldout_case_count": len(heldout_episodes),
+                "deferred_heldout_case_count": (
+                    len(all_heldout_episodes) - len(heldout_episodes)
+                ),
+                "complete_heldout_evaluation": complete_heldout_evaluation,
                 "initial_evaluation": initial_evaluation,
                 "campaign_baseline_evaluation": campaign_baseline_evaluation,
                 "segment_heldout_loss_fell": (
@@ -444,7 +556,7 @@ def main() -> int:
                 "task_gate_policy": (
                     "heldout loss falls; teacher-forced transport token accuracy exceeds "
                     "the strongest heldout constant-category floor; field/proposal/Soul "
-                    "counterfactuals are nonzero"
+                    "counterfactuals are nonzero; every heldout case is evaluated"
                 ),
                 "exact_serving_gate_passed": exact_gate_passed,
                 "exact_serving_gate_policy": (

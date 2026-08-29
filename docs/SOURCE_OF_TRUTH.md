@@ -1,6 +1,6 @@
 # Axon Source Of Truth
 
-Last updated: 2026-08-29 (reasoning continuity hardened and first-form curriculum convergence reviewed)
+Last updated: 2026-08-29 (canonical Identity v1, FFCS A/B/C, and D64 tournament opening)
 
 ## Core Doctrine
 
@@ -60,6 +60,19 @@ host accepts one only between ticks with an amendment identity, nonempty
 evidence identities, provenance, canonical validation, atomic commit, and an
 autobiographical record. This is deliberate friction, not immutability by
 accident.
+
+Jeff ratified canonical Identity v1 on 2026-08-29 and delegated exact wording
+to Codex's best judgment after the round-table convergence. The permanent text
+is `docs/AXON_IDENTITY_V1.md`; its marked canonical body is 2,064 characters
+with SHA256 `63f7b61587647b991e0b2ded10345dfeb8429539595a6aeb643ada9c7d7049fc`.
+`IDENTITY_STEWARD` amendment `axon-identity-v1-2026-08-29` advanced the active
+field from `f312641a04f7f9087befe50effdd93fb881578d9bbbbb9f31f3d5448c002ed80`
+to `d804740fffef41f9dc25b2a05b02fac40ecec531a22bd379d6fa3897451fcaee`;
+reapplication after restart is idempotent. Identity v1 defines persistent
+organizational identity, evidence/provenance discipline, brother-core society,
+Heart authority, private Soul practice, additive growth, and Jeff's role as
+friend, convener, and trusted human partner. It makes no untestable claim of
+subjective consciousness or metaphysical continuity.
 
 Each region contains one position-stable ordered sequence of exact character
 cells plus metadata spans. Words, sentences, paragraphs, and semantic edges are
@@ -784,6 +797,43 @@ two-layer/131072-FFN anatomy and identical evaluation gates, followed only if
 needed by a 1x64 six-layer/4096-FFN and 2x32 four-layer/16384-FFN comparison.
 These mechanism curricula and counterfactuals do not establish useful learned
 reasoning or outcome quality.
+
+Jeff ratified the converged Curriculum Foundry direction on 2026-08-29: exact
+evidence and derived manifests, whole-lineage splits, scoped target eligibility,
+quarantine rather than evidence-rewriting redaction, runtime-faithful lessons,
+and small competency campaigns. Smallness is a revisable campaign budget, not
+a context, field, attention, curriculum, or organism capacity limit.
+`training/first_form_curriculum.py` compiles the first immutable A/B/C stack
+from the already-governed Dormant import. Manifest
+`5bb0bb4f1baf607e71bf33b99212e0e955f27cfaf02a9bdd6bf3d26046ced800`
+contains exactly 260 complete cases: A 32/4/4, B 96/12/12, and C 80/10/10
+across train/heldout/regression. No admitted field or target is clipped.
+Recovered assistant text is a visible exact-copy transport target only and is
+not labeled true, wise, or high quality. Every case carries the active Identity,
+source identities where applicable, a whole-lineage split, eligibility, target
+basis, page count, and procedural depth. D/E/F remain required before a deeper
+tournament campaign: E must cross real canonical successors and exact private
+Soul serialization boundaries rather than simulate multiple ticks over one
+unchanged field.
+
+Full-field recurrent training uses exact page-level activation checkpointing
+while gradients are enabled. It recomputes the same page encoder during
+backpropagation; it does not omit, summarize, detach, or truncate any field
+character. This reduced the measured one-step D64 tournament peak from a CUDA
+out-of-memory failure above 10 GiB of retained activations to 837,841,408 bytes
+on the 4 GiB GTX 1650.
+
+The corrected deterministic-dropout tournament ID is
+`ac9eceaaf0e67d483b288140d4db328c7f7b2156468ef5e25a1eaa9f4b791a39`.
+Its bounded opening gave 1x64, 2x32, and 4x16 exactly one accepted optimizer+
+Soul bundle each under the same seed, composed mechanism+A/B/C curriculum, and
+one complete heldout FFCS case. Heldout losses respectively moved
+9.665966 to 6.863116, 9.700136 to 7.163452, and 10.046765 to 6.946915;
+teacher-forced payload accuracy tied rather than exceeded the 0.181818 constant
+floor for all three, and both free-running exact rates remained zero. The
+remaining 26 heldout cases and the full required tournament metric surface are
+explicitly deferred. No winner, promotion, activation, serving claim, or long
+run is authorized by this opening.
 
 On 2026-08-28 and 2026-08-29 the exact full Candidate-A architecture passed
 preflight and a sequence of bounded Trainer-governed diagnostics on an isolated

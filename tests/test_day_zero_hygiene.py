@@ -108,6 +108,7 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "__init__.py",
         "canonical_d64.py",
         "complete_field_64d.py",
+        "first_form_curriculum.py",
         "heart_preflight.py",
         "heart_translation.py",
         "living_reasoning_curriculum.py",

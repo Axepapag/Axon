@@ -17,6 +17,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
+from torch.utils.checkpoint import checkpoint
 
 from runtime.field import (
     CANONICAL_REGION_ORDER,
@@ -389,7 +390,15 @@ class CompleteField64D(nn.Module):
         memory_region_positions: list[torch.Tensor] = []
         for page in pages:
             tokens = self._compiled_page_tensor(page).unsqueeze(0)
-            encoded = self.page_encoder(torch.cat((state, tokens), dim=1))
+            page_input = torch.cat((state, tokens), dim=1)
+            if self.training and torch.is_grad_enabled():
+                encoded = checkpoint(
+                    self.page_encoder,
+                    page_input,
+                    use_reentrant=False,
+                )
+            else:
+                encoded = self.page_encoder(page_input)
             state = encoded[:, : self.cfg.state_tokens]
             page_memory = encoded[:, self.cfg.state_tokens :]
             memory_states.append(page_memory)

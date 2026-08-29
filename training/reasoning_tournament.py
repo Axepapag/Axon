@@ -131,6 +131,7 @@ def d64_head_geometry_tournament() -> D64Tournament:
         "ffn_dim": 131_072,
         "state_tokens": 4,
         "page_size": 32,
+        "dropout": 0.0,
     }
     return D64Tournament(
         candidates=tuple(
