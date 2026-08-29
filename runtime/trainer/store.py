@@ -128,6 +128,14 @@ class TrainerStateStore:
         self._write_immutable(path, authorization.to_canonical_dict())
         return path
 
+    def read_authorization(self, authorization_id: str) -> AuthorizedParameterMutation:
+        path = self.authorizations_dir / f"{authorization_id}.json"
+        if not path.is_file():
+            raise TrainerStoreError("candidate checkpoint authorization record is missing")
+        return AuthorizedParameterMutation.from_mapping(
+            json.loads(path.read_text(encoding="utf-8"))
+        )
+
     def write_promotion_proposal(self, proposal: ParameterPromotionProposal) -> Path:
         if not isinstance(proposal, ParameterPromotionProposal):
             raise TypeError("proposal must be ParameterPromotionProposal")

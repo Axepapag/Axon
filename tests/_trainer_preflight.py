@@ -18,6 +18,8 @@ from runtime.trainer import (
 def unit_preflight_receipt(
     inventory: ParameterInventory,
     plan: ParameterMutationPlan,
+    *,
+    fixture_label: str = "trainer-unit-preflight-v1",
 ) -> TrainingPreflightReceipt:
     """Create explicit launch evidence for a synthetic authority-path test.
 
@@ -49,7 +51,7 @@ def unit_preflight_receipt(
     evidence = tuple(
         TrainingPreflightEvidence.from_payload(
             kind=kind,
-            payload={"fixture": "trainer-unit-preflight-v1", "kind": kind.value, "plan_id": plan.plan_id},
+            payload={"fixture": fixture_label, "kind": kind.value, "plan_id": plan.plan_id},
             summary=f"Synthetic Trainer enforcement fixture: {kind.value}",
         )
         for kind in PreflightEvidenceKind

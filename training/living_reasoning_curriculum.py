@@ -436,7 +436,7 @@ def evaluate_living_episode(
     *,
     core_id: str,
     parameter_generation: str,
-) -> dict[str, float]:
+) -> dict[str, Any]:
     """Measure free-running exact typed emissions on one complete episode."""
 
     compiled = D64FieldCompiler().compile(episode.snapshot)
@@ -453,6 +453,13 @@ def evaluate_living_episode(
     typed_exact = 0
     payload_count = 0
     payload_exact = 0
+    payload_token_count = 0
+    payload_token_correct = 0
+    payload_target_counts = torch.zeros(
+        model.eos_index + 1,
+        dtype=torch.long,
+        device=model.device,
+    )
     for output, target in zip(unroll.outputs, episode.targets, strict=True):
         if target.supervision_weight <= 0:
             continue
@@ -475,6 +482,21 @@ def evaluate_living_episode(
             payload, terminated = model.decode_transport_greedy(output)
             payload_match = terminated and payload == target.payload
             payload_exact += int(payload_match)
+            teacher_logits, teacher_targets = model.decode_teacher(
+                output.reader_state,
+                target.payload,
+                head=1,
+                memory=output.complete_memory,
+            )
+            teacher_predictions = teacher_logits.argmax(dim=-1)
+            payload_token_count += int(teacher_targets.numel())
+            payload_token_correct += int(
+                teacher_predictions.eq(teacher_targets).sum().item()
+            )
+            payload_target_counts += torch.bincount(
+                teacher_targets.reshape(-1),
+                minlength=model.eos_index + 1,
+            )
             exact = exact and all(
                 (
                     operation is target.operation,
@@ -488,13 +510,21 @@ def evaluate_living_episode(
     coverage = sum(item.canonical_coverage.complete for item in unroll.outputs) / len(
         unroll.outputs
     )
+    constant_token_correct = int(payload_target_counts.max().item())
     return {
         "supervised_phase_count": float(supervised),
         "typed_emission_exact_rate": typed_exact / max(1, supervised),
         "payload_transport_exact_rate": payload_exact / max(1, payload_count),
+        "payload_teacher_forced_token_accuracy": payload_token_correct
+        / max(1, payload_token_count),
+        "payload_teacher_forced_token_count": payload_token_count,
+        "payload_teacher_forced_token_correct": payload_token_correct,
+        "payload_teacher_forced_target_counts": payload_target_counts.tolist(),
         "complete_field_coverage_rate": coverage,
         "constant_typed_emission_exact_floor": 0.0,
         "constant_payload_transport_exact_floor": 0.0,
+        "constant_payload_token_accuracy_floor": constant_token_correct
+        / max(1, payload_token_count),
     }
 
 

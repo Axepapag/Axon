@@ -394,12 +394,16 @@ class CandidateOptimizationSession:
         update_l2: float | None = None
         if update_before is not None:
             squared = 0.0
-            for previous, parameter in zip(update_before, self._selected):
+            for previous, parameter in zip(update_before, self._selected, strict=True):
                 squared += float(torch.sum((parameter.detach().float() - previous.detach().float()) ** 2).item())
             update_l2 = float(math.sqrt(squared))
             if update_l2 > float(self.policy.max_update_l2):
                 with torch.no_grad():
-                    for previous, parameter in zip(update_before, self._selected):
+                    for previous, parameter in zip(
+                        update_before,
+                        self._selected,
+                        strict=True,
+                    ):
                         parameter.copy_(previous)
                 self._reject("parameter update L2 exceeded governed budget", step=self.step_index)
                 raise ParameterAuthorityError(
@@ -508,8 +512,12 @@ class CandidateOptimizationSession:
         self._assert_open()
         if record.module_id != self.base_descriptor.module_id or record.candidate_generation_id != self.candidate_descriptor.generation_id:
             raise TrainerExecutionError("checkpoint belongs to another candidate generation")
-        if record.plan_id != self.plan.plan_id or record.authorization_id != self.authorization.authorization_id:
-            raise TrainerExecutionError("checkpoint plan/authorization lineage mismatch")
+        if record.plan_id != self.plan.plan_id:
+            raise TrainerExecutionError("checkpoint plan lineage mismatch")
+        if record.authorization_id != self.authorization.authorization_id:
+            prior_authorization = self.store.read_authorization(record.authorization_id)
+            if prior_authorization.resume_scope() != self.authorization.resume_scope():
+                raise TrainerExecutionError("checkpoint authorization resume scope mismatch")
         if record.learning_policy_id != self.policy.policy_id:
             raise TrainerExecutionError("checkpoint learning-policy lineage mismatch")
         if (record.step > 0 or record.accumulation_index > 0) and not record.optimizer_included:
@@ -559,7 +567,7 @@ class CandidateOptimizationSession:
 
 
 __all__ = [
-    "TrainerExecutionError",
-    "OptimizerExecutionPolicy",
     "CandidateOptimizationSession",
+    "OptimizerExecutionPolicy",
+    "TrainerExecutionError",
 ]

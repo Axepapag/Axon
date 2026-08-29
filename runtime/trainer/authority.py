@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Mapping
 
 from runtime.field import canonical_sha256
 
@@ -47,6 +47,36 @@ class AuthorizedParameterMutation:
             "parameter_count": self.parameter_count,
             "preflight_receipt_id": self.preflight_receipt_id,
             "authorization_id": self.authorization_id,
+        }
+
+    @classmethod
+    def from_mapping(cls, value: Mapping[str, Any]) -> "AuthorizedParameterMutation":
+        item = dict(value)
+        if item.pop("schema", None) != AUTHORIZED_MUTATION_SCHEMA:
+            raise ParameterAuthorityError("unsupported authorized mutation schema")
+        try:
+            item["tensor_names"] = tuple(item["tensor_names"])
+            authorization = cls(**item)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ParameterAuthorityError("authorized mutation record is invalid") from exc
+        core = authorization.to_canonical_dict()
+        core.pop("authorization_id")
+        if canonical_sha256(core) != authorization.authorization_id:
+            raise ParameterAuthorityError("authorized mutation identity mismatch")
+        return authorization
+
+    def resume_scope(self) -> dict[str, Any]:
+        """Stable mutation authority excluding refreshable preflight evidence."""
+
+        return {
+            "grant_id": self.grant_id,
+            "plan_id": self.plan_id,
+            "inventory_id": self.inventory_id,
+            "module_id": self.module_id,
+            "base_generation_id": self.base_generation_id,
+            "candidate_generation_id": self.candidate_generation_id,
+            "tensor_names": self.tensor_names,
+            "parameter_count": self.parameter_count,
         }
 
 
@@ -153,7 +183,7 @@ def authorize_parameter_mutation(
 
 __all__ = [
     "AUTHORIZED_MUTATION_SCHEMA",
-    "ParameterAuthorityError",
     "AuthorizedParameterMutation",
+    "ParameterAuthorityError",
     "authorize_parameter_mutation",
 ]

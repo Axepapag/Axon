@@ -22,6 +22,7 @@ from runtime.trainer import (
 from substrate import TRANSPORT_VOCAB_SIZE, encode_unicode_text
 from training.living_reasoning_curriculum import (
     build_living_reasoning_smoke_curriculum,
+    evaluate_living_episode,
     living_episode_objective,
 )
 from training.living_reasoning_d64 import (
@@ -221,6 +222,26 @@ def test_mechanism_curriculum_backpropagates_through_field_soul_and_typed_heads(
     assert model.decoder_output.weight.grad is not None
     assert unroll.souls[-1].generation == 3
     assert len(metrics) == 3
+
+
+def test_teacher_forced_gate_uses_the_strongest_constant_category_floor() -> None:
+    model = _small_model()
+    episode = build_living_reasoning_smoke_curriculum().split("heldout")[0]
+    result = evaluate_living_episode(
+        model,
+        episode,
+        _soul(model),
+        core_id="core-a",
+        parameter_generation="g0",
+    )
+    counts = result["payload_teacher_forced_target_counts"]
+    assert result["payload_teacher_forced_token_count"] == sum(counts)
+    assert result["constant_payload_token_accuracy_floor"] == pytest.approx(
+        max(counts) / sum(counts)
+    )
+    assert result["constant_payload_token_accuracy_floor"] > 1.0 / (
+        model.eos_index + 1
+    )
 
 
 def test_living_reasoning_preflight_binds_all_launch_evidence(tmp_path: Path) -> None:

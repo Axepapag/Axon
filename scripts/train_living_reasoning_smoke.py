@@ -254,6 +254,16 @@ def main() -> int:
                 "payload_transport_exact_rate",
                 "complete_field_coverage_rate",
             )
+            payload_token_count = sum(
+                row["payload_teacher_forced_token_count"] for row in exact_rows
+            )
+            payload_token_correct = sum(
+                row["payload_teacher_forced_token_correct"] for row in exact_rows
+            )
+            payload_target_counts = [
+                sum(row["payload_teacher_forced_target_counts"][index] for row in exact_rows)
+                for index in range(session.candidate_module.eos_index + 1)
+            ]
             return {
                 "heldout_mean_loss": sum(losses) / len(losses),
                 **{
@@ -262,6 +272,10 @@ def main() -> int:
                 },
                 "constant_typed_emission_exact_floor": 0.0,
                 "constant_payload_transport_exact_floor": 0.0,
+                "payload_teacher_forced_token_accuracy": payload_token_correct
+                / max(1, payload_token_count),
+                "constant_payload_token_accuracy_floor": max(payload_target_counts)
+                / max(1, payload_token_count),
                 "counterfactuals": living_source_counterfactuals(
                     session.candidate_module,
                     heldout_episodes[0],
@@ -272,6 +286,20 @@ def main() -> int:
             }
 
         initial_evaluation = evaluate_candidate()
+        campaign_report_dir = (
+            args.state_root.resolve()
+            / "training"
+            / "reasoning"
+            / candidate_generation
+        )
+        prior_reports = sorted(campaign_report_dir.glob("segment_*.json"))
+        campaign_baseline_evaluation = (
+            initial_evaluation
+            if not prior_reports
+            else json.loads(prior_reports[0].read_text(encoding="utf-8"))[
+                "initial_evaluation"
+            ]
+        )
         start_step = 0 if latest_bundle is None else latest_bundle.step
         end_step = min(
             args.max_steps,
@@ -376,12 +404,16 @@ def main() -> int:
         )
         task_gate_passed = (
             final_evaluation["heldout_mean_loss"]
-            < initial_evaluation["heldout_mean_loss"]
-            and final_evaluation["typed_emission_exact_rate"]
+            < campaign_baseline_evaluation["heldout_mean_loss"]
+            and final_evaluation["payload_teacher_forced_token_accuracy"]
+            > final_evaluation["constant_payload_token_accuracy_floor"]
+            and counterfactuals_passed
+        )
+        exact_gate_passed = (
+            final_evaluation["typed_emission_exact_rate"]
             > final_evaluation["constant_typed_emission_exact_floor"]
             and final_evaluation["payload_transport_exact_rate"]
             > final_evaluation["constant_payload_transport_exact_floor"]
-            and counterfactuals_passed
         )
         promotion_plan = soul_workspace.promotion_plan(soul_manifest)
         report.update(
@@ -397,6 +429,11 @@ def main() -> int:
                 "campaign_max_steps": args.max_steps,
                 "campaign_complete": end_step == args.max_steps,
                 "initial_evaluation": initial_evaluation,
+                "campaign_baseline_evaluation": campaign_baseline_evaluation,
+                "segment_heldout_loss_fell": (
+                    final_evaluation["heldout_mean_loss"]
+                    < initial_evaluation["heldout_mean_loss"]
+                ),
                 "final_evaluation": final_evaluation,
                 "final_checkpoint_id": (
                     checkpoints[-1].checkpoint_id
@@ -405,21 +442,21 @@ def main() -> int:
                 ),
                 "task_gate_passed": task_gate_passed,
                 "task_gate_policy": (
-                    "heldout loss falls; free-running typed and payload exact rates exceed "
-                    "constant zero floors; field/proposal/Soul counterfactuals are nonzero"
+                    "heldout loss falls; teacher-forced transport token accuracy exceeds "
+                    "the strongest heldout constant-category floor; field/proposal/Soul "
+                    "counterfactuals are nonzero"
+                ),
+                "exact_serving_gate_passed": exact_gate_passed,
+                "exact_serving_gate_policy": (
+                    "free-running typed emission and complete Unicode payload exact rates "
+                    "must both exceed their constant zero floors"
                 ),
                 "serving_promotion_claimed": False,
             }
         )
 
     report["report_id"] = canonical_sha256(report)
-    report_path = (
-        args.state_root.resolve()
-        / "training"
-        / "reasoning"
-        / candidate_generation
-        / f"segment_{start_step + 1:09d}_{end_step:09d}.json"
-    )
+    report_path = campaign_report_dir / f"segment_{start_step + 1:09d}_{end_step:09d}.json"
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(
         json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n",

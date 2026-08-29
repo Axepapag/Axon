@@ -124,6 +124,40 @@ def test_candidate_checkpoint_is_hash_verified_and_restorable(tmp_path: Path) ->
         control.store.load_verified_candidate_checkpoint(record)
 
 
+def test_checkpoint_resume_accepts_fresh_preflight_with_identical_mutation_scope(
+    tmp_path: Path,
+) -> None:
+    control, _live, _descriptor, inventory, grant, plan = _setup(tmp_path)
+    first = control.begin_candidate(
+        inventory,
+        grant,
+        plan,
+        preflight_receipt=unit_preflight_receipt(
+            inventory,
+            plan,
+            fixture_label="initial-preflight",
+        ),
+    )
+    x = torch.ones(1, 4)
+    first.step(lambda candidate: candidate(x).square().mean())
+    checkpoint = first.checkpoint(include_optimizer=True)
+    first.complete(reason="restart boundary")
+
+    resumed = control.begin_candidate(
+        inventory,
+        grant,
+        plan,
+        preflight_receipt=unit_preflight_receipt(
+            inventory,
+            plan,
+            fixture_label="refreshed-preflight",
+        ),
+    )
+    assert resumed.authorization.authorization_id != checkpoint.authorization_id
+    resumed.restore_checkpoint(checkpoint)
+    assert resumed.step_index == checkpoint.step
+
+
 def test_nonfinite_loss_rejects_candidate_before_optimizer_step(tmp_path: Path) -> None:
     control, live, _descriptor, inventory, grant, plan = _setup(tmp_path)
     live_before = {name: parameter_value_sha256(parameter) for name, parameter in live.named_parameters()}
