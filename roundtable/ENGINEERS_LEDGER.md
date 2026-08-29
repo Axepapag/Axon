@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-28T22:29:44-05:00
-Current through event: `evt-20260829T0329449934138Z-codex-sot-hash-correction`
+Updated: 2026-08-29T09:23:48-05:00
+Current through event: `evt-20260829T142348899548Z-kimmy-next-steps-briefing`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -175,9 +175,29 @@ candidate-generation name exceeded Windows path length. The launcher now uses
 a short content-derived identity and the corrected diagnostic passed. The
 failure remains recorded rather than hidden.
 
+## Orphaned interrupted work (recovered 2026-08-29)
+
+Codex's usage ended mid-turn after the Candidate-A closeout. Recovery event
+`evt-20260829T135430850645Z-kimmy-codex-orphan-recovery` records an
+uncommitted, author-unrecorded diff (+192/-22 across 8 files) that:
+
+- lets `restore_checkpoint` accept a refreshed-preflight authorization when the
+  stable resume scope (grant/plan/inventory/module/generations/tensors/count)
+  matches — `AuthorizedParameterMutation.from_mapping`/`resume_scope`,
+  `TrainerStateStore.read_authorization`;
+- hardens the smoke task gate to teacher-forced payload token accuracy above
+  the strongest heldout constant-category floor, compares heldout loss against
+  the campaign baseline across resumed segments, and splits free-running exact
+  rates into a separate `exact_serving_gate`;
+- adds `test_checkpoint_resume_accepts_fresh_preflight_with_identical_mutation_scope`
+  and `test_teacher_forced_gate_uses_the_strongest_constant_category_floor`.
+
+The orphan is verified green (compile, Ruff, 19/19 targeted, full suite exit 0,
+`git diff --check`) but deliberately left UNCOMMITTED pending Jeff's decision.
+
 ## Verification and Git
 
-- Full repository suite: 431/431 passed.
+- Full repository suite: 439/439 passed (exit 0) over the orphaned diff.
 - Changed-file Ruff: passed.
 - Python compileall over runtime/training/scripts/tests: passed.
 - Fixed-character poison, exact Unicode, identity migration, mask, Heart,
@@ -219,7 +239,9 @@ failure remains recorded rather than hidden.
 
 1. Implement an atomic accepted training-step bundle binding optimizer receipt,
    parameter checkpoint, candidate-Soul HEAD, and all phase receipts; prove
-   deterministic resume and orphan recovery.
+   deterministic resume and orphan recovery. (Partially drafted in the verified
+   but uncommitted orphaned diff: resume across refreshed preflight; the full
+   bundle and orphan-recovery proof remain.)
 2. Build a small runtime-faithful lived-episode curriculum using only explicit
    success/correction/endorsement evidence, whole-episode splits, and field,
    Soul, proposal, provenance, and reordered-cause counterfactuals.
