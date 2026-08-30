@@ -1,6 +1,6 @@
 # Axon Source Of Truth
 
-Last updated: 2026-08-29 (Identity v1, FFCS A-F, governed campaign wiring and tournament opening)
+Last updated: 2026-08-30 (Identity v1, FFCS A-F, governed campaign wiring and symmetric 16-step diagnostic)
 
 ## Core Doctrine
 
@@ -861,6 +861,38 @@ floor for all three, and both free-running exact rates remained zero. The
 remaining 26 heldout cases and the full required tournament metric surface are
 explicitly deferred. No winner, promotion, activation, serving claim, or long
 run is authorized by this opening.
+
+The first composed mechanism+A/B/C/D/E/F campaign is content-addressed as
+`b39bc91b69e5d8ce3395ff826e15f3413da7c9f48376f831f037743205a4a7cd`.
+Its first attempted pass failed closed on FFCS-E because the harness supplied
+only the final tick's three private-Soul transitions to an atomic step bundle
+instead of the complete three-tick, nine-transition lineage. No invalid bundle
+was accepted. The repaired harness returns and verifies the complete lineage;
+the repository regression test reconstructs all nine transitions from the
+initial Soul and proves the exact final Soul identity.
+
+The bounded local-CUDA diagnostic subsequently reached exactly 16 accepted
+optimizer+Soul steps for every head geometry. On the same 40-standard-plus-six-
+sequential heldout surface, final heldout loss was `6.07003877473914` for 1x64,
+`5.994862172914588` for 2x32, and `6.006355773193193` for 4x16. Respective
+teacher-forced payload-token accuracies were `0.0128467153284672`,
+`0.012408759124087591`, and `0.0125547445255474`, all far below the identical
+`0.10875912408759124` strongest constant-category floor. Full-field coverage
+was `1.0`; typed-emission and complete-payload exact rates were `0.0` for all
+three. One standard heldout case remains explicitly deferred, so the formal
+tournament metric surface is incomplete and no comparison result, winner,
+promotion, activation, or learned-capability claim exists. The closing
+observation is
+`068867c5f1e4b693f00625d30c3a718feea5a40030a4ff41758e54d865f012ab`.
+
+The 16-step authorization ceiling is currently part of both the immutable
+Trainer mutation plan and the candidate-generation identity. Therefore these
+exact generations cannot be extended in place merely by increasing
+`max_steps`; doing so names a new candidate generation and would restart from
+its governed base. Further optimizer work on this tournament is halted until a
+governed additive continuation/succession contract preserves checkpoint,
+optimizer, private-Soul, curriculum, and authorization lineage without
+weakening the original ceiling or relabeling a new generation as the old one.
 
 On 2026-08-28 and 2026-08-29 the exact full Candidate-A architecture passed
 preflight and a sequence of bounded Trainer-governed diagnostics on an isolated

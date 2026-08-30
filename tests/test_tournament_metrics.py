@@ -4,8 +4,12 @@ from __future__ import annotations
 
 import pytest
 
-from runtime.soul import SoulSnapshot, empty_soul_layers
-from scripts.train_living_reasoning_smoke import _scheduled_material, _training_lanes
+from runtime.soul import SoulSnapshot, apply_soul_transition, empty_soul_layers
+from scripts.train_living_reasoning_smoke import (
+    _material_objective,
+    _scheduled_material,
+    _training_lanes,
+)
 from training import (
     LivingReasoningCoreD64,
     candidate_a_config,
@@ -79,6 +83,34 @@ def test_evaluate_sequential_case_measures_real_tick_chain(sequential_case) -> N
     assert row["complete_field_coverage_rate"] == 1.0
     assert row["constant_typed_emission_exact_floor"] == 0.0
     assert row["payload_teacher_forced_token_count"] >= 1
+
+
+def test_material_objective_returns_complete_sequential_soul_lineage(
+    sequential_case,
+) -> None:
+    """The atomic step bundle must receive all phases from all real ticks."""
+
+    model = _tiny_model()
+    core_id = "metrics-core"
+    generation = "metrics-generation"
+    initial = _soul(model, core_id, generation)
+    loss, final_unroll, phase_metrics, transitions = _material_objective(
+        model,
+        kind="sequential",
+        material=sequential_case,
+        soul=initial,
+        core_id=core_id,
+        parameter_generation=generation,
+    )
+
+    assert loss.requires_grad is True
+    assert phase_metrics == ()
+    assert len(transitions) == len(sequential_case.ticks) * 3
+    cursor = initial
+    for transition in transitions:
+        assert transition.before_soul_id == cursor.soul_id
+        cursor = apply_soul_transition(cursor, transition)
+    assert cursor.soul_id == final_unroll.souls[-1].soul_id
 
 
 def test_tournament_metrics_cover_the_exact_required_surface(tmp_path) -> None:

@@ -236,6 +236,47 @@ def _publish_campaign_split_scope(
     return scope_id, path
 
 
+def _material_objective(
+    candidate: LivingReasoningCoreD64,
+    *,
+    kind: str,
+    material: Any,
+    soul: Any,
+    core_id: str,
+    parameter_generation: str,
+) -> tuple[torch.Tensor, Any, tuple[dict[str, float], ...], tuple[Any, ...]]:
+    """Run one scheduled lesson and return its complete Soul lineage."""
+
+    if kind == "sequential":
+        loss, unrolls, _final_soul = sequential_living_objective(
+            candidate,
+            material,
+            soul,
+            core_id=core_id,
+            parameter_generation=parameter_generation,
+        )
+        return (
+            loss,
+            unrolls[-1],
+            (),
+            tuple(
+                transition
+                for tick_unroll in unrolls
+                for transition in tick_unroll.transitions
+            ),
+        )
+    if kind != "episode":
+        raise ValueError(f"unsupported scheduled material kind {kind!r}")
+    loss, unroll, phase_metrics = living_episode_objective(
+        candidate,
+        material,
+        soul,
+        core_id=core_id,
+        parameter_generation=parameter_generation,
+    )
+    return loss, unroll, phase_metrics, unroll.transitions
+
+
 def main() -> int:
     args = _arguments()
     if args.max_steps < 1:
@@ -734,29 +775,20 @@ def main() -> int:
                 if not isinstance(candidate, LivingReasoningCoreD64):
                     raise TypeError("governed candidate clone has the wrong architecture")
                 candidate.train()
-                if kind == "sequential":
-                    loss, unrolls, _final_soul = sequential_living_objective(
-                        candidate,
-                        material,
-                        soul,
-                        core_id=module_id,
-                        parameter_generation=candidate_generation,
-                    )
-                    unroll = unrolls[-1]
-                    phase_metrics = ()
-                else:
-                    loss, unroll, phase_metrics = living_episode_objective(
-                        candidate,
-                        material,
-                        soul,
-                        core_id=module_id,
-                        parameter_generation=candidate_generation,
-                    )
+                loss, unroll, phase_metrics, transitions = _material_objective(
+                    candidate,
+                    kind=kind,
+                    material=material,
+                    soul=soul,
+                    core_id=module_id,
+                    parameter_generation=candidate_generation,
+                )
                 captured.update(
                     {
                         "loss": float(loss.detach().item()),
                         "unroll": unroll,
                         "phase_metrics": phase_metrics,
+                        "transitions": transitions,
                     }
                 )
                 return loss
@@ -771,7 +803,7 @@ def main() -> int:
             wall_seconds = time.perf_counter() - started_at
             unroll = captured["unroll"]
             ephemeral_soul = unroll.souls[-1]
-            segment_transitions.extend(unroll.transitions)
+            segment_transitions.extend(captured["transitions"])
             segment_receipt_ids.append(optimizer_receipt.receipt_id)
             checkpoint_due = (
                 (step + 1) % args.checkpoint_interval == 0
