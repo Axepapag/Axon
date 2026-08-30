@@ -96,4 +96,3 @@ be added before the next campaign.
 4. Only then decide whether these lineages deserve a larger bounded budget or
    whether curriculum/output architecture needs adjustment. No serving decision
    is currently admissible.
-

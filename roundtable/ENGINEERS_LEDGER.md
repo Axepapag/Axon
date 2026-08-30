@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-29T16:47:00-05:00
-Current through event: `evt-20260829T164649610368Z-hermes-pretraining-gap-analysis`
+Updated: 2026-08-30T09:42:51-05:00
+Current through event: `evt-20260830T144251309395Z-codex-hermes-campaign-recovery`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -23,37 +23,27 @@ real trainable D64 reasoning candidate:
 - the first full neural Candidate A and a predeclared attention-head
   tournament.
 
-The exact Candidate-A architecture has completed 15 bounded, accepted CUDA
-optimizer steps with atomic parameter-checkpoint/private-Soul boundaries. This
-is a real restart-safe anatomy proof, not a learned-capability proof: the honest
-task gate and exact-output gate both fail. No learned reasoning core, Heart
-translator, or Semantic Cortex is serving; no active-generation pointer exists.
+Canonical Identity v1 is applied; FFCS A/B/C/D/E/F are immutable and bound to
+it; and commit `617989b` wires all standard and sequential manifests into one
+content-addressed campaign with honest count-weighted tournament metrics.
+FFCS-E stays grouped as real three-tick chains and family round-robin reaches
+mechanism/A/B/C/D/F/E within seven global steps.
 
-Since the convergence turn: canonical Identity v1 is applied
-(`docs/AXON_IDENTITY_V1.md`, body hash `63f7b615...`, via
-`HeartHost.amend_identity`), FFCS A/B/C/D/E/F are all compiled and published
-as immutable manifests (260 + 140 + 60 cases, all bound to the applied
-identity), and the governed D64 head-geometry tournament
-`ac9eceaaf0e67d483b288140d4db328c7f7b2156468ef5e25a1eaa9f4b791a39` completed
-one symmetric opening step per candidate (1x64 / 2x32 / 4x16; loss fell,
-token accuracy sits at the constant floor 0.1818, all exact-output gates
-false; no winner, no promotion). Codex's orphaned FFCS-D/E/F implementation
-was verified and recovered as commit `733e5d4` by Hermes (all three groups
-recompile byte-identically to their published manifests; full suite
-448/448 exit 0). Commit `733e5d4` is local; push decision pending Jeff.
+The governed D64 head-geometry tournament
+`ac9eceaaf0e67d483b288140d4db328c7f7b2156468ef5e25a1eaa9f4b791a39`
+now has exactly 16 accepted CUDA optimizer+private-Soul steps for each 1x64,
+2x32, and 4x16 candidate. A sequential-lineage defect failed closed before an
+invalid bundle was accepted; the harness now supplies all nine Soul transitions
+and a regression test proves the exact lineage. Final token accuracies are only
+1.24-1.28% against a 10.88% constant floor, and both free-running exact rates
+are zero. One standard heldout case remains deferred, so the formal metric
+surface is incomplete. No winner, promotion, activation, or learned-capability
+claim exists.
 
-Pre-training gap analysis (Hermes, event 131, code-grounded): training has
-already taken one governed opening step; no doctrinal blocker remains. Open
-items before a sustained campaign: (1) wire the FFCS-E sequential manifest
-into the training harness (`train_living_reasoning_smoke.py` /
-`run_d64_tournament.py` currently load only the standard FFCS schema;
-`sequential_living_objective` exists and is tested but unconsumed);
-(2) emit the ten required tournament metrics the launcher already records
-as missing (soul-ablation differentials, swapped-soul rejection,
-current-field override, proposal-refinement gain, retained regression);
-(3) exercise full heldout evaluation (opening used a single-case bound);
-(4) declare the bounded resumable segment ceiling. Then launch identical
-segments for all three head candidates under the existing gates.
+Further optimizer work is blocked: the immutable `max_steps=16` authorization
+is also part of candidate identity, so increasing it creates a fresh generation
+from the governed base instead of continuing these checkpoints. An explicit
+additive continuation/succession contract is required before training resumes.
 
 ## Binding architecture
 
@@ -183,6 +173,28 @@ routing; the tournament decides by evidence.
 
 ## Latest empirical evidence
 
+Composed campaign curriculum:
+`b39bc91b69e5d8ce3395ff826e15f3413da7c9f48376f831f037743205a4a7cd`.
+Closing observation:
+`068867c5f1e4b693f00625d30c3a718feea5a40030a4ff41758e54d865f012ab`.
+
+- 1x64 step 16: loss `6.07003877473914`, token accuracy
+  `0.0128467153284672`;
+- 2x32 step 16: loss `5.994862172914588`, token accuracy
+  `0.012408759124087591`;
+- 4x16 step 16: loss `6.006355773193193`, token accuracy
+  `0.0125547445255474`;
+- common constant floor `0.10875912408759124`, coverage `1.0`, typed exact
+  `0.0`, payload exact `0.0`;
+- 40 standard plus all six sequential heldout cases evaluated; one standard
+  heldout case deferred; regression complete; nine formal metrics missing;
+- all gates false; no winner or promotion.
+
+Detailed recovery report:
+`roundtable/CODEX_HERMES_CAMPAIGN_RECOVERY_2026-08-30.md`.
+
+The earlier isolated Candidate-A diagnostic remains preserved:
+
 Candidate `r64a-smoke-da5a45a1e78ef20f` is an isolated D64 mechanism campaign
 with a declared 10,000-step maximum. Only 15 bounded steps have executed. Its
 accepted reports are under
@@ -223,63 +235,64 @@ counterfactuals, and small competency gates.
 Codex approves sequential-tick FFCS only through real canonical successors,
 fresh complete-field compilation, tick-scoped board reset, exact same-core Soul
 serialization/re-inhale with runtime gradient breaks, and no future leakage.
-Codex rejects a permanent `<=500` doctrine; the ~460-case FFCS v1 is a declared,
-revisable campaign budget and never a context/content limit. Jeff's ratification
-and Identity text remain pending.
+Codex rejects a permanent `<=500` doctrine; the 460-case FFCS v1 is a declared,
+revisable campaign budget and never a context/content limit. Jeff ratified and
+applied canonical Identity v1 on 2026-08-29.
 
 ## Verification and Git
 
-- Full repository suite: 439/439 passed (exit 0) on Python 3.12.10, independently
-  rerun by Codex after reviewing the recovered diff.
+- Full repository suite passed after the sequential-lineage repair; 461 tests
+  collected on Python 3.12.10.
 - Changed-file Ruff: passed.
 - Python compileall over runtime/training/scripts/tests: passed.
 - Fixed-character poison, exact Unicode, identity migration, mask, Heart,
   runtime circulation, private-Soul, Candidate-A, Trainer, and old-checkpoint
   migration tests are included in the full pass.
 - SOT mirrors are byte-identical at SHA256
-  `085875A17FAEC91E0F5FED1C274575C2B308D6BD1919E05BE30E2FB1745F41F4`.
+  `1CC61F65CCE03A58CC0F9A1A5CB867E97F0190D925D3BA91911560DC718B2FE1`.
 - `git diff --check`: passed.
-- `origin/main` contains the recovered code, all three proposals, Codex review,
-  and synchronized SOT through `f019597`; final ledger bookkeeping follows.
+- `origin/main` contains recovered FFCS-D/E/F (`733e5d4`), campaign wiring
+  (`617989b`), and the Soul-lineage repair/evidence (`0ca90c5`); final ledger
+  bookkeeping follows.
 - No active Axon training process or Trainer writer remains. No cloud job or
-  paid operation ran. D: has 138,384,998,400 free bytes.
+  paid operation ran.
 - Known non-failing warning: PyTorch nested-tensor optimization warning.
 
 ## Active flags
 
-1. **LEARNED CAPABILITY BLOCKER:** 15 optimizer steps prove executable anatomy,
-   but the task metric is below the constant floor and exact output is zero.
-2. **CURRICULUM BLOCKER:** the three-train/one-heldout mechanism set is not an
-   admissible long-run curriculum; runtime-faithful outcome-qualified episodes
-   or the governed FFCS must be built first.
-3. **AUTOBIOGRAPHY HOOK GAP:** reasoning commit/deposit recovery is closed, but
+1. **CONTINUATION BLOCKER:** the 16-step ceiling is immutable plan and candidate
+   identity. A larger `max_steps` restarts from base; no further optimizer work
+   until governed additive succession preserves checkpoint/optimizer/Soul and
+   authorization lineage.
+2. **LEARNED CAPABILITY BLOCKER:** all candidates are far below the constant
+   floor and both exact-output rates are zero.
+3. **EVALUATION BLOCKER:** one heldout case is deferred, leaving nine formal
+   tournament metrics missing and comparison inadmissible.
+4. **REPORT RECOVERY GAP:** accepted state is safe if post-step evaluation
+   crashes, but a complete-campaign resume cannot yet regenerate the missing
+   segment report.
+5. **AUTOBIOGRAPHY HOOK GAP:** reasoning commit/deposit recovery is closed, but
    every future tool executor and Trainer path is not yet automatically wired.
-4. **SOUL CONCURRENCY GAP:** current use relies on Heart single-writer and
+6. **SOUL CONCURRENCY GAP:** current use relies on Heart single-writer and
    Trainer lease ownership; `SoulBranch` is not independently multi-writer safe.
-5. **IDENTITY CONTENT PENDING:** only Jeff can authorize the canonical text;
-   curricula may not invent it.
-6. **WIDER-RAIL/CORTEX GAP:** only D64 physically compiles. Wider rails and
+7. **WIDER-RAIL/CORTEX GAP:** only D64 physically compiles. Wider rails and
    autonomous Cortex retrieval/digestion remain future organs.
-7. **REPO HYGIENE ADVISORY:** a separate Hermes audit counted 127 repo-wide
+8. **REPO HYGIENE ADVISORY:** a separate Hermes audit counted 127 repo-wide
    Ruff findings outside changed-file scope; this does not contradict the
    changed-file Ruff gate.
-8. **CLAIM BOUNDARY:** persistent behavioral identity is engineerable;
+9. **CLAIM BOUNDARY:** persistent behavioral identity is engineerable;
    subjective consciousness or metaphysical continuity is not testable here.
 
 ## Recommended next actions
 
-0. Jeff ratifies/amends the convergence package using Codex's review. Adopt the
-   ~460 cases as a revisable v1 budget, not permanent doctrine; Identity text
-   still requires Jeff's explicit amendment.
-1. Build FFCS-A/B/C from already-imported exact Dormant evidence, with immutable
-   lineage/split/eligibility/gate manifests and no new source import.
-2. Build FFCS-D/E/F with runtime-exact multi-tick successor/Soul boundaries.
-3. In parallel, implement the credential detector and safe engineering-session
-   evidence boundary; import nothing until canary and no-secret-logging gates pass.
-4. Run the bounded 1x64/2x32/4x16 tournament. Compare heldout exact delta,
-   field dependence, Soul dependence, proposal use, Unicode, no-op/abstain,
-   replay/forgetting, malformed-output rejection, and CPU latency.
-5. Promote nothing until the learned candidate passes the complete serving gate.
+0. Ratify and implement governed candidate continuation/succession without
+   weakening the prior ceiling or restarting from base.
+1. Add crash-safe post-step report regeneration and evaluation-only operation.
+2. Evaluate the one deferred heldout case for all three candidates with no
+   optimizer mutation; close the formal metric surface.
+3. Decide from complete evidence whether to extend these lineages or adjust the
+   curriculum/output architecture.
+4. Promote nothing until a candidate passes the complete serving gate.
 
 ## Important paths
 
@@ -287,6 +300,8 @@ and Identity text remain pending.
 - Full report: `roundtable/LIVING_D64_CANDIDATE_A_REPORT_2026-08-28.md`
 - Curriculum convergence review:
   `roundtable/CODEX_CURRICULUM_CONVERGENCE_REVIEW_2026-08-29.md`
+- Campaign recovery report:
+  `roundtable/CODEX_HERMES_CAMPAIGN_RECOVERY_2026-08-30.md`
 - Identity/schema: `runtime/field/schema.py`, `runtime/heart/authority.py`,
   `runtime/heart/host.py`, `runtime/heart/masks.py`
 - Private Soul: `runtime/soul/`
