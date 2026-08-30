@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-30T09:42:51-05:00
-Current through event: `evt-20260830T144251309395Z-codex-hermes-campaign-recovery`
+Updated: 2026-08-30T10:19:52-05:00
+Current through event: `evt-20260830T151952847616Z-codex-trainer-curriculum-review`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -40,10 +40,15 @@ are zero. One standard heldout case remains deferred, so the formal metric
 surface is incomplete. No winner, promotion, activation, or learned-capability
 claim exists.
 
-Further optimizer work is blocked: the immutable `max_steps=16` authorization
-is also part of candidate identity, so increasing it creates a fresh generation
-from the governed base instead of continuing these checkpoints. An explicit
-additive continuation/succession contract is required before training resumes.
+Further optimizer work is technically blocked by a design defect, not project
+doctrine: the immutable `max_steps=16` authorization is also part of candidate
+identity, so increasing it creates a fresh generation from the governed base.
+Jeff explicitly rejected step ceilings as core identity. The proposed Trainer
+v2 separation keeps core lineage, parameter checkpoint, curriculum stage,
+learning recipe, and renewable resource authorization distinct. Competency
+gates decide stage completion; renewable time/step/cost tranches only pause and
+checkpoint work. Implementing that separation is the next prerequisite to
+training.
 
 ## Binding architecture
 
@@ -239,6 +244,30 @@ Codex rejects a permanent `<=500` doctrine; the 460-case FFCS v1 is a declared,
 revisable campaign budget and never a context/content limit. Jeff ratified and
 applied canonical Identity v1 on 2026-08-29.
 
+FFCS v1 is now classified more precisely as a useful anatomy, transport, Soul,
+society, and regression schoolhouse, not a sufficient conversational education.
+Its 371 unique train items are scheduled across seven family lanes. Sixteen
+optimizer steps expose only two or three items per lane; one balanced scheduler
+super-cycle requires 672 steps, and even one pass is exposure rather than
+mastery. FFCS-A copies visible Identity evidence, FFCS-B copies a visible
+historical answer, and FFCS-C quotes visible Dormant evidence. Those are honest
+mechanism targets, but they do not teach free next-response generation, Axon's
+voice, conversational judgment, or autobiographical synthesis.
+
+Jeff directed communication before broad reasoning: first teach exact typed
+response-draft control, then grounded conversation, shared Axon identity and
+voice, autobiographical grounding, multi-turn continuity with private Soul,
+and brother-proposal society; only then broaden into reasoning, tools, code,
+math, and science. Each core's Soul remains private perspective and continuity,
+while canonical Identity defines the single shared Axon identity.
+
+The current Trainer has portable foundations—CPU-loadable PyTorch state,
+content-addressed parameter/Soul bundles, checkpoints, and fail-closed gates—
+but no active cloud training capsule, provider adapter, dependency lock, or
+user-facing launcher. Only archived batch files exist. The proposed surface is
+one provider-neutral job manifest and CLI, with thin local/Kaggle/Colab/
+Docker-SSH adapters plus a double-click launcher and local selection UI.
+
 ## Verification and Git
 
 - Full repository suite passed after the sequential-lineage repair; 461 tests
@@ -260,10 +289,10 @@ applied canonical Identity v1 on 2026-08-29.
 
 ## Active flags
 
-1. **CONTINUATION BLOCKER:** the 16-step ceiling is immutable plan and candidate
-   identity. A larger `max_steps` restarts from base; no further optimizer work
-   until governed additive succession preserves checkpoint/optimizer/Soul and
-   authorization lineage.
+1. **TRAINER CONTROL BLOCKER:** the 16-step ceiling is immutable plan and
+   candidate identity. This is an implemented defect, not a desired limit. No
+   further optimizer work until candidate lineage is separated from renewable
+   resource tranches and continuation preserves checkpoint/optimizer/Soul.
 2. **LEARNED CAPABILITY BLOCKER:** all candidates are far below the constant
    floor and both exact-output rates are zero.
 3. **EVALUATION BLOCKER:** one heldout case is deferred, leaving nine formal
@@ -282,17 +311,25 @@ applied canonical Identity v1 on 2026-08-29.
    changed-file Ruff gate.
 9. **CLAIM BOUNDARY:** persistent behavioral identity is engineerable;
    subjective consciousness or metaphysical continuity is not testable here.
+10. **CURRICULUM GAP:** FFCS proves mechanisms but does not yet provide a real
+    free-response, identity-and-voice, or conversational learning progression.
+11. **PORTABILITY/OPERABILITY GAP:** no active cloud capsule/provider adapter,
+    environment lock, double-click launcher, or training selection UI exists.
 
 ## Recommended next actions
 
-0. Ratify and implement governed candidate continuation/succession without
-   weakening the prior ceiling or restarting from base.
-1. Add crash-safe post-step report regeneration and evaluation-only operation.
-2. Evaluate the one deferred heldout case for all three candidates with no
-   optimizer mutation; close the formal metric surface.
-3. Decide from complete evidence whether to extend these lineages or adjust the
-   curriculum/output architecture.
-4. Promote nothing until a candidate passes the complete serving gate.
+0. Ratify and implement Trainer v2 identity/control separation: stable core
+   lineage, evolving checkpoint state, immutable curriculum stage and recipe,
+   and renewable resource tranches that pause rather than redefine tissue.
+1. Define the communication-first curriculum and gates; preserve FFCS as its
+   mechanism/regression prerequisite rather than Axon's whole education.
+2. Add crash-safe report regeneration, evaluation-only operation, and the one
+   deferred heldout evaluation without optimizer mutation.
+3. Build a provider-neutral training capsule/CLI, a thin double-click local
+   launcher/UI, and Kaggle, Colab, and generic Docker/SSH adapters.
+4. Resume a controlled head-geometry tournament only on complete communication-
+   first gates; compare mastery, sample efficiency, compute, and regression.
+5. Promote nothing until a candidate passes the complete serving gate.
 
 ## Important paths
 
