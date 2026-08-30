@@ -401,6 +401,7 @@ def living_episode_objective(
     *,
     core_id: str,
     parameter_generation: str,
+    ablate_temperatures: tuple[SoulTemperature, ...] = (),
 ) -> tuple[torch.Tensor, CausalLivingUnroll, tuple[dict[str, float], ...]]:
     compiled = D64FieldCompiler().compile(episode.snapshot)
     compiled.verify_roundtrip(episode.snapshot)
@@ -412,6 +413,7 @@ def living_episode_objective(
         canonical=compiled,
         first_workspace_text=episode.first_workspace_text,
         refined_workspace_text=episode.refined_workspace_text,
+        ablate_temperatures=ablate_temperatures,
     )
     phase_results = tuple(
         living_phase_objective(model, output, target)
@@ -436,6 +438,7 @@ def evaluate_living_episode(
     *,
     core_id: str,
     parameter_generation: str,
+    ablate_temperatures: tuple[SoulTemperature, ...] = (),
 ) -> dict[str, Any]:
     """Measure free-running exact typed emissions on one complete episode."""
 
@@ -448,6 +451,7 @@ def evaluate_living_episode(
         canonical=compiled,
         first_workspace_text=episode.first_workspace_text,
         refined_workspace_text=episode.refined_workspace_text,
+        ablate_temperatures=ablate_temperatures,
     )
     supervised = 0
     typed_exact = 0
@@ -513,6 +517,13 @@ def evaluate_living_episode(
     constant_token_correct = int(payload_target_counts.max().item())
     return {
         "supervised_phase_count": float(supervised),
+        "typed_emission_exact_count": float(typed_exact),
+        "payload_supervised_phase_count": float(payload_count),
+        "payload_transport_exact_count": float(payload_exact),
+        "phase_output_count": float(len(unroll.outputs)),
+        "complete_field_coverage_count": float(
+            sum(item.canonical_coverage.complete for item in unroll.outputs)
+        ),
         "typed_emission_exact_rate": typed_exact / max(1, supervised),
         "payload_transport_exact_rate": payload_exact / max(1, payload_count),
         "payload_teacher_forced_token_accuracy": payload_token_correct
@@ -599,6 +610,69 @@ def living_source_counterfactuals(
     }
 
 
+@torch.no_grad()
+def living_phase_breakdown(
+    model: LivingReasoningCoreD64,
+    episode: LivingReasoningEpisode,
+    initial_soul: SoulSnapshot,
+    *,
+    core_id: str,
+    parameter_generation: str,
+) -> dict[str, dict[str, float]]:
+    """Per-phase free-running exactness for one episode.
+
+    Returns one row per phase target (``first``, ``refined``,
+    ``consolidated``).  A supervised weight of zero still produces a row —
+    the emission is measured, it simply never becomes a training target.
+    Callers use the FIRST-vs-REFINED rows to measure proposal-board use and
+    the CONSOLIDATED row for final-authority exactness.
+    """
+
+    compiled = D64FieldCompiler().compile(episode.snapshot)
+    unroll = model.unroll_runtime_phases(
+        initial_soul=initial_soul,
+        expected_core_id=core_id,
+        parameter_generation=parameter_generation,
+        tick_uid=f"phase-breakdown:{episode.episode_id}",
+        canonical=compiled,
+        first_workspace_text=episode.first_workspace_text,
+        refined_workspace_text=episode.refined_workspace_text,
+    )
+    rows: dict[str, dict[str, float]] = {}
+    for output, target in zip(unroll.outputs, episode.targets, strict=True):
+        decision = tuple(ReasoningDecision)[
+            int(output.decision_logits.argmax(dim=-1).item())
+        ]
+        decision_match = float(decision is target.decision)
+        payload_match = 0.0
+        if target.decision is ReasoningDecision.DELTA:
+            operation = tuple(ReasoningOperationKind)[
+                int(output.operation_logits.argmax(dim=-1).item())
+            ]
+            region = tuple(LogicalRegion)[int(output.region_logits.argmax(dim=-1).item())]
+            candidates, start_logits, end_logits = model.boundary_logits(output, region)
+            start = candidates[int(start_logits.argmax(dim=-1).item())]
+            end = candidates[int(end_logits.argmax(dim=-1).item())]
+            if operation is ReasoningOperationKind.INSERT:
+                end = start
+            payload, terminated = model.decode_transport_greedy(output)
+            payload_match = float(terminated and payload == target.payload)
+            decision_match = float(
+                decision_match
+                and operation is target.operation
+                and region is target.region
+                and start == target.start
+                and end == target.end
+                and payload_match
+            )
+        rows[target.phase] = {
+            "decision_match": decision_match,
+            "payload_match": payload_match,
+            "supervision_weight": float(target.supervision_weight),
+        }
+    return rows
+
+
 def curriculum_manifest_bytes(curriculum: LivingReasoningCurriculum) -> bytes:
     return canonical_json_bytes(curriculum.to_canonical_dict())
 
@@ -614,6 +688,7 @@ __all__ = [
     "curriculum_manifest_bytes",
     "evaluate_living_episode",
     "living_episode_objective",
+    "living_phase_breakdown",
     "living_phase_objective",
     "living_source_counterfactuals",
 ]

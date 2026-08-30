@@ -459,6 +459,7 @@ class LivingReasoningCoreD64(CompleteField64D):
         canonical: CompiledD64Field,
         first_workspace_text: str,
         refined_workspace_text: str,
+        ablate_temperatures: Iterable[SoulTemperature | str] = (),
     ) -> CausalLivingUnroll:
         """Run the service phase order without a training-only Soul shortcut.
 
@@ -483,6 +484,7 @@ class LivingReasoningCoreD64(CompleteField64D):
                 phase=phase,
                 canonical=canonical,
                 proposal_texts=proposal_texts,
+                ablate_temperatures=ablate_temperatures,
             )
             request_id = canonical_sha256(
                 {

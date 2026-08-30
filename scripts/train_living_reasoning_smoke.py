@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import random
 import re
 import time
@@ -32,10 +33,14 @@ from training import (
     build_living_reasoning_preflight,
     build_living_reasoning_smoke_curriculum,
     candidate_a_config,
+    d64_tournament_metric_computation,
     evaluate_living_episode,
+    evaluate_sequential_case,
     living_episode_objective,
     living_source_counterfactuals,
     load_first_form_curriculum,
+    load_sequential_first_form,
+    sequential_living_objective,
 )
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -76,7 +81,11 @@ def _arguments() -> argparse.Namespace:
     parser.add_argument(
         "--curriculum-manifest",
         type=Path,
-        help="immutable FFCS manifest; omit only for the synthetic mechanism smoke",
+        action="append",
+        help=(
+            "immutable FFCS manifest (standard or sequential schema); repeatable; "
+            "omit only for the synthetic mechanism smoke"
+        ),
     )
     parser.add_argument(
         "--evaluation-case-limit",
@@ -108,6 +117,125 @@ def _seed_everything(seed: int) -> None:
         torch.cuda.manual_seed_all(seed)
 
 
+def _training_lanes(
+    mechanism_curriculum: LivingReasoningCurriculum,
+    standard_ffcs: list[Any],
+    sequential_ffcs: list[Any],
+) -> tuple[tuple[str, tuple[tuple[str, Any, str], ...]], ...]:
+    """Build deterministic family lanes without flattening sequential cases."""
+
+    lanes: list[tuple[str, tuple[tuple[str, Any, str], ...]]] = [
+        (
+            "mechanism",
+            tuple(
+                ("episode", episode, mechanism_curriculum.train_manifest_id)
+                for episode in mechanism_curriculum.split("train")
+            ),
+        )
+    ]
+    for item in standard_ffcs:
+        for family, _counts in item.requested_family_split_counts:
+            lanes.append(
+                (
+                    f"ffcs-{family}",
+                    tuple(
+                        (
+                            "episode",
+                            case.episode,
+                            item.living_curriculum.train_manifest_id,
+                        )
+                        for case in item.cases
+                        if case.family == family and case.episode.split == "train"
+                    ),
+                )
+            )
+    for item in sequential_ffcs:
+        lanes.append(
+            (
+                "ffcs-E",
+                tuple(
+                    ("sequential", case, item.train_manifest_id)
+                    for case in item.split("train")
+                ),
+            )
+        )
+    return tuple((name, rows) for name, rows in lanes if rows)
+
+
+def _scheduled_material(
+    lanes: tuple[tuple[str, tuple[tuple[str, Any, str], ...]], ...],
+    step: int,
+) -> tuple[str, str, Any, str]:
+    """Select one material item by global-step family round robin."""
+
+    if not lanes:
+        raise ValueError("governed campaign has no supervised training material")
+    lane_index = step % len(lanes)
+    lane_name, lane = lanes[lane_index]
+    lane_cycle = step // len(lanes)
+    kind, material, source_manifest_id = lane[lane_cycle % len(lane)]
+    return lane_name, kind, material, source_manifest_id
+
+
+def _publish_campaign_curriculum(
+    state_root: Path,
+    body: dict[str, Any],
+) -> tuple[str, Path]:
+    """Publish one immutable identity for the complete mixed curriculum."""
+
+    manifest_id = canonical_sha256(body)
+    path = (
+        state_root.resolve()
+        / "training"
+        / "reasoning"
+        / "campaign_curricula"
+        / manifest_id
+        / "manifest.json"
+    )
+    document = {**body, "manifest_id": manifest_id}
+    if path.is_file():
+        if json.loads(path.read_text(encoding="utf-8")) != document:
+            raise RuntimeError("campaign curriculum manifest identity collision")
+        return manifest_id, path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f"manifest.{os.getpid()}.tmp")
+    payload = json.dumps(document, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+    with temporary.open("x", encoding="utf-8", newline="\n") as handle:
+        handle.write(payload)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, path)
+    return manifest_id, path
+
+
+def _publish_campaign_split_scope(
+    campaign_path: Path,
+    campaign_curriculum_id: str,
+    split: str,
+) -> tuple[str, Path]:
+    body = {
+        "schema": "axon-d64-reasoning-campaign-split-v1",
+        "campaign_curriculum_id": campaign_curriculum_id,
+        "split": split,
+    }
+    scope_id = canonical_sha256(body)
+    path = campaign_path.parent / "splits" / f"{split}.json"
+    document = {**body, "manifest_id": scope_id}
+    if path.is_file():
+        if json.loads(path.read_text(encoding="utf-8")) != document:
+            raise RuntimeError("campaign split manifest identity collision")
+        return scope_id, path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f"{split}.{os.getpid()}.tmp")
+    payload = json.dumps(document, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+    with temporary.open("x", encoding="utf-8", newline="\n") as handle:
+        handle.write(payload)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, path)
+    return scope_id, path
+
+
 def main() -> int:
     args = _arguments()
     if args.max_steps < 1:
@@ -132,21 +260,76 @@ def main() -> int:
         dropout=0.0,
     )
     model = LivingReasoningCoreD64(config).to(device)
-    ffcs = (
-        None
-        if args.curriculum_manifest is None
-        else load_first_form_curriculum(args.curriculum_manifest)
+    standard_ffcs = []
+    sequential_ffcs = []
+    for manifest_path in args.curriculum_manifest or ():
+        manifest_body = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest_schema = manifest_body.get("schema")
+        if manifest_schema == "axon-first-form-curriculum-v1":
+            standard_ffcs.append(load_first_form_curriculum(manifest_path))
+        elif manifest_schema == "axon-first-form-sequential-curriculum-v1":
+            sequential_ffcs.append(load_sequential_first_form(manifest_path))
+        else:
+            raise RuntimeError(
+                f"unsupported curriculum manifest schema {manifest_schema!r}; expected "
+                "axon-first-form-curriculum-v1 or "
+                "axon-first-form-sequential-curriculum-v1"
+            )
+    standard_ffcs = sorted(standard_ffcs, key=lambda item: item.manifest_id)
+    sequential_ffcs = sorted(sequential_ffcs, key=lambda item: item.manifest_id)
+    all_ffcs = [*standard_ffcs, *sequential_ffcs]
+    ffcs_manifest_ids = tuple(item.manifest_id for item in all_ffcs)
+    if len(set(ffcs_manifest_ids)) != len(ffcs_manifest_ids):
+        raise RuntimeError("duplicate FFCS manifest identity")
+    manifest_identity_hashes = tuple(
+        item.identity_text_sha256 for item in all_ffcs
     )
     mechanism_curriculum = build_living_reasoning_smoke_curriculum()
     curriculum = mechanism_curriculum
-    if ffcs is not None:
+    if all_ffcs:
         active = CanonicalStateBranch.active_runtime(state_root=args.state_root).load_head()
         active_identity = active.region(LogicalRegion.IDENTITY).text
-        if hashlib.sha256(active_identity.encode("utf-8")).hexdigest() != ffcs.identity_text_sha256:
+        active_hash = hashlib.sha256(active_identity.encode("utf-8")).hexdigest()
+        if any(observed != active_hash for observed in manifest_identity_hashes):
             raise RuntimeError("FFCS manifest Identity is stale for active canonical state")
         curriculum = LivingReasoningCurriculum(
-            ffcs.living_curriculum.episodes + mechanism_curriculum.episodes
+            tuple(
+                episode
+                for item in standard_ffcs
+                for episode in item.living_curriculum.episodes
+            )
+            + mechanism_curriculum.episodes
         )
+    campaign_curriculum_id, campaign_curriculum_path = _publish_campaign_curriculum(
+        args.state_root,
+        {
+            "schema": "axon-d64-reasoning-campaign-curriculum-v1",
+            "standard_ffcs_manifest_ids": [item.manifest_id for item in standard_ffcs],
+            "sequential_ffcs_manifest_ids": [
+                item.manifest_id for item in sequential_ffcs
+            ],
+            "mechanism_curriculum_id": mechanism_curriculum.curriculum_id,
+            "mechanism_train_manifest_id": mechanism_curriculum.train_manifest_id,
+            "mechanism_heldout_manifest_id": mechanism_curriculum.heldout_manifest_id,
+            "scheduler": "family-round-robin-v1",
+            "sequential_cases_remain_grouped": True,
+            "content_limit": None,
+        },
+    )
+    campaign_train_scope_id, campaign_train_scope_path = (
+        _publish_campaign_split_scope(
+            campaign_curriculum_path,
+            campaign_curriculum_id,
+            "train",
+        )
+    )
+    campaign_heldout_scope_id, campaign_heldout_scope_path = (
+        _publish_campaign_split_scope(
+            campaign_curriculum_path,
+            campaign_curriculum_id,
+            "heldout",
+        )
+    )
     if args.candidate_label is None:
         module_id = "reasoning-d64-candidate-a"
         base_generation = "reasoning-d64-untrained-base-v1"
@@ -158,6 +341,7 @@ def main() -> int:
                 "learning_rate": args.learning_rate,
                 "checkpoint_interval": args.checkpoint_interval,
                 "curriculum_id": curriculum.curriculum_id,
+                "campaign_curriculum_id": campaign_curriculum_id,
             }
         )[:16]
         candidate_label = "legacy-candidate-a"
@@ -174,6 +358,7 @@ def main() -> int:
                 "learning_rate": args.learning_rate,
                 "checkpoint_interval": args.checkpoint_interval,
                 "curriculum_id": curriculum.curriculum_id,
+                "campaign_curriculum_id": campaign_curriculum_id,
             }
         )[:16]
     descriptor = ParameterModuleDescriptor(
@@ -192,15 +377,32 @@ def main() -> int:
         "preflight_only": bool(args.preflight_only),
         "architecture": model.architecture_report(),
         "curriculum_id": curriculum.curriculum_id,
+        "campaign_curriculum_id": campaign_curriculum_id,
+        "campaign_curriculum_path": str(campaign_curriculum_path),
+        "campaign_train_scope_id": campaign_train_scope_id,
+        "campaign_heldout_scope_id": campaign_heldout_scope_id,
+        "campaign_train_scope_path": str(campaign_train_scope_path),
+        "campaign_heldout_scope_path": str(campaign_heldout_scope_path),
         "train_manifest_id": curriculum.train_manifest_id,
         "heldout_manifest_id": curriculum.heldout_manifest_id,
         "candidate_label": candidate_label,
-        "ffcs_manifest_id": None if ffcs is None else ffcs.manifest_id,
+        "ffcs_manifest_ids": list(ffcs_manifest_ids),
+        "standard_ffcs_manifest_ids": [item.manifest_id for item in standard_ffcs],
+        "sequential_ffcs_manifest_ids": [
+            item.manifest_id for item in sequential_ffcs
+        ],
+        "ffcs_manifest_id": (
+            standard_ffcs[0].manifest_id if len(standard_ffcs) == 1 else None
+        ),
+        "sequential_ffcs_manifest_id": (
+            sequential_ffcs[0].manifest_id if len(sequential_ffcs) == 1 else None
+        ),
+        "sequential_case_count": sum(len(item.cases) for item in sequential_ffcs),
         "mechanism_curriculum_id": mechanism_curriculum.curriculum_id,
         "curriculum_composition": (
             "synthetic_mechanism_only"
-            if ffcs is None
-            else "ffcs_plus_synthetic_mechanism"
+            if not all_ffcs
+            else "governed_ffcs_campaign_plus_synthetic_mechanism"
         ),
     }
     with TrainerControlPlane.active(state_root=args.state_root) as control:
@@ -209,6 +411,20 @@ def main() -> int:
         inventory = control.snapshot_inventory(exact_value_hashes=True)
         manifest = inventory.module(module_id)
         tensor_names = tuple(item.name for item in manifest.tensors if item.requires_grad)
+        source_manifest_ids = tuple(
+            [campaign_train_scope_id, mechanism_curriculum.train_manifest_id]
+            + [
+                item.living_curriculum.train_manifest_id for item in standard_ffcs
+            ]
+            + [item.train_manifest_id for item in sequential_ffcs]
+        )
+        holdout_manifest_ids = tuple(
+            [campaign_heldout_scope_id, mechanism_curriculum.heldout_manifest_id]
+            + [
+                item.living_curriculum.heldout_manifest_id for item in standard_ffcs
+            ]
+            + [item.heldout_manifest_id for item in sequential_ffcs]
+        )
         plan = ParameterMutationPlan(
             base_inventory_id=inventory.inventory_id,
             module_id=module_id,
@@ -218,8 +434,8 @@ def main() -> int:
             optimizer_name="AdamW",
             learning_rate=args.learning_rate,
             max_steps=args.max_steps,
-            source_manifest_ids=(curriculum.train_manifest_id,),
-            holdout_manifest_ids=(curriculum.heldout_manifest_id,),
+            source_manifest_ids=source_manifest_ids,
+            holdout_manifest_ids=holdout_manifest_ids,
         )
         preflight = build_living_reasoning_preflight(
             model=model,
@@ -228,11 +444,14 @@ def main() -> int:
             plan=plan,
             state_root=args.state_root,
             repo_root=ROOT,
+            sequential_curricula=sequential_ffcs,
         )
         report.update(
             {
                 "inventory_id": inventory.inventory_id,
                 "plan_id": plan.plan_id,
+                "source_manifest_ids": list(plan.source_manifest_ids),
+                "holdout_manifest_ids": list(plan.holdout_manifest_ids),
                 "preflight_receipt_id": preflight.receipt_id,
                 "preflight_passed": preflight.passed,
             }
@@ -302,12 +521,41 @@ def main() -> int:
             parameter_generation=base_generation,
         )
         soul_workspace = CandidateSoulWorkspace(args.state_root)
+        sequential_train_cases = tuple(
+            case for item in sequential_ffcs for case in item.split("train")
+        )
+        sequential_heldout_cases = tuple(
+            case for item in sequential_ffcs for case in item.split("heldout")
+        )
+        sequential_regression_cases = tuple(
+            case for item in sequential_ffcs for case in item.split("regression")
+        )
+        all_regression_episodes = curriculum.split("regression")
+        regression_episodes = (
+            all_regression_episodes
+            if args.evaluation_case_limit is None
+            else all_regression_episodes[: args.evaluation_case_limit]
+        )
+        all_sequential_regression = sequential_regression_cases
+        sequential_regression = (
+            all_sequential_regression
+            if args.evaluation_case_limit is None
+            else all_sequential_regression[: args.evaluation_case_limit]
+        )
+        sequential_trajectory_ids = tuple(
+            item.case_id for item in sequential_train_cases
+        )
         soul_manifest = soul_workspace.prepare(
             candidate_id=candidate_generation,
             core_id=module_id,
-            runtime_episode_session_id=f"living-curriculum:{curriculum.curriculum_id}",
+            runtime_episode_session_id=(
+                f"living-campaign-curriculum:{campaign_curriculum_id}"
+            ),
             whole_episode_split="train",
-            soul_trajectory_ids=tuple(item.episode_id for item in curriculum.split("train")),
+            soul_trajectory_ids=tuple(
+                item.episode_id for item in curriculum.split("train")
+            )
+            + sequential_trajectory_ids,
             candidate_parameter_generation=candidate_generation,
         )
         soul_branch = soul_workspace.branch(candidate_generation, module_id)
@@ -328,14 +576,26 @@ def main() -> int:
             )
         steps: list[dict[str, Any]] = []
         checkpoints = []
-        train_episodes = curriculum.split("train")
         all_heldout_episodes = curriculum.split("heldout")
         heldout_episodes = (
             all_heldout_episodes
             if args.evaluation_case_limit is None
             else all_heldout_episodes[: args.evaluation_case_limit]
         )
-        complete_heldout_evaluation = len(heldout_episodes) == len(all_heldout_episodes)
+        all_sequential_heldout = sequential_heldout_cases
+        sequential_heldout = (
+            all_sequential_heldout
+            if args.evaluation_case_limit is None
+            else all_sequential_heldout[: args.evaluation_case_limit]
+        )
+        complete_heldout_evaluation = (
+            len(heldout_episodes) == len(all_heldout_episodes)
+            and len(sequential_heldout) == len(all_sequential_heldout)
+        )
+        complete_regression_evaluation = (
+            len(regression_episodes) == len(all_regression_episodes)
+            and len(sequential_regression) == len(all_sequential_regression)
+        )
 
         def evaluate_candidate() -> dict[str, Any]:
             session.candidate_module.eval()
@@ -349,6 +609,17 @@ def main() -> int:
                 )
                 for episode in heldout_episodes
             ]
+            sequential_rows = [
+                evaluate_sequential_case(
+                    session.candidate_module,
+                    case,
+                    soul_branch.load_head(),
+                    core_id=module_id,
+                    parameter_generation=candidate_generation,
+                )
+                for case in sequential_heldout
+            ]
+            combined_rows = exact_rows + sequential_rows
             losses = []
             with torch.no_grad():
                 for episode in heldout_episodes:
@@ -360,27 +631,51 @@ def main() -> int:
                         parameter_generation=candidate_generation,
                     )
                     losses.append(float(loss.item()))
-            names = (
-                "typed_emission_exact_rate",
-                "payload_transport_exact_rate",
-                "complete_field_coverage_rate",
+                for case in sequential_heldout:
+                    loss, _unrolls, _soul = sequential_living_objective(
+                        session.candidate_module,
+                        case,
+                        soul_branch.load_head(),
+                        core_id=module_id,
+                        parameter_generation=candidate_generation,
+                    )
+                    losses.append(float(loss.item()))
+            supervised_phase_count = sum(
+                row["supervised_phase_count"] for row in combined_rows
+            )
+            payload_supervised_phase_count = sum(
+                row["payload_supervised_phase_count"] for row in combined_rows
+            )
+            phase_output_count = sum(
+                row["phase_output_count"] for row in combined_rows
             )
             payload_token_count = sum(
-                row["payload_teacher_forced_token_count"] for row in exact_rows
+                row["payload_teacher_forced_token_count"] for row in combined_rows
             )
             payload_token_correct = sum(
-                row["payload_teacher_forced_token_correct"] for row in exact_rows
+                row["payload_teacher_forced_token_correct"] for row in combined_rows
             )
             payload_target_counts = [
-                sum(row["payload_teacher_forced_target_counts"][index] for row in exact_rows)
+                sum(row["payload_teacher_forced_target_counts"][index] for row in combined_rows)
                 for index in range(session.candidate_module.eos_index + 1)
             ]
             return {
-                "heldout_mean_loss": sum(losses) / len(losses),
-                **{
-                    name: sum(row[name] for row in exact_rows) / len(exact_rows)
-                    for name in names
-                },
+                "heldout_mean_loss": sum(losses) / max(1, len(losses)),
+                "typed_emission_exact_rate": sum(
+                    row["typed_emission_exact_count"] for row in combined_rows
+                )
+                / max(1.0, supervised_phase_count),
+                "payload_transport_exact_rate": sum(
+                    row["payload_transport_exact_count"] for row in combined_rows
+                )
+                / max(1.0, payload_supervised_phase_count),
+                "complete_field_coverage_rate": sum(
+                    row["complete_field_coverage_count"] for row in combined_rows
+                )
+                / max(1.0, phase_output_count),
+                "supervised_phase_count": supervised_phase_count,
+                "payload_supervised_phase_count": payload_supervised_phase_count,
+                "phase_output_count": phase_output_count,
                 "constant_typed_emission_exact_floor": 0.0,
                 "constant_payload_transport_exact_floor": 0.0,
                 "payload_teacher_forced_token_accuracy": payload_token_correct
@@ -415,26 +710,48 @@ def main() -> int:
         segment_transitions = []
         segment_receipt_ids = []
         ephemeral_soul = soul_branch.load_head()
+        segment_start_soul = ephemeral_soul
+        curriculum_lanes = _training_lanes(
+            mechanism_curriculum,
+            standard_ffcs,
+            sequential_ffcs,
+        )
+        if not curriculum_lanes:  # pragma: no cover - mechanism always supplies train
+            raise RuntimeError("governed campaign has no supervised training material")
         for step in range(start_step, end_step):
-            episode = train_episodes[step % len(train_episodes)]
+            lane_name, kind, material, source_manifest_id = _scheduled_material(
+                curriculum_lanes, step
+            )
             captured: dict[str, Any] = {}
 
             def loss_fn(
                 candidate: torch.nn.Module,
-                episode=episode,
+                kind=kind,
+                material=material,
                 captured=captured,
                 soul=ephemeral_soul,
             ) -> torch.Tensor:
                 if not isinstance(candidate, LivingReasoningCoreD64):
                     raise TypeError("governed candidate clone has the wrong architecture")
                 candidate.train()
-                loss, unroll, phase_metrics = living_episode_objective(
-                    candidate,
-                    episode,
-                    soul,
-                    core_id=module_id,
-                    parameter_generation=candidate_generation,
-                )
+                if kind == "sequential":
+                    loss, unrolls, _final_soul = sequential_living_objective(
+                        candidate,
+                        material,
+                        soul,
+                        core_id=module_id,
+                        parameter_generation=candidate_generation,
+                    )
+                    unroll = unrolls[-1]
+                    phase_metrics = ()
+                else:
+                    loss, unroll, phase_metrics = living_episode_objective(
+                        candidate,
+                        material,
+                        soul,
+                        core_id=module_id,
+                        parameter_generation=candidate_generation,
+                    )
                 captured.update(
                     {
                         "loss": float(loss.detach().item()),
@@ -480,7 +797,14 @@ def main() -> int:
             steps.append(
                 {
                     "step": step + 1,
-                    "episode_id": episode.episode_id,
+                    "material_kind": kind,
+                    "curriculum_lane": lane_name,
+                    "source_manifest_id": source_manifest_id,
+                    "material_id": (
+                        material.episode_id
+                        if kind == "episode"
+                        else material.case_id
+                    ),
                     "loss": captured["loss"],
                     "optimization_receipt_id": optimizer_receipt.receipt_id,
                     "accepted_step_bundle_id": (
@@ -522,6 +846,25 @@ def main() -> int:
             > final_evaluation["constant_payload_transport_exact_floor"]
         )
         promotion_plan = soul_workspace.promotion_plan(soul_manifest)
+        tournament_metric_computation = d64_tournament_metric_computation(
+            session.candidate_module,
+            episodes=heldout_episodes,
+            sequential_cases=sequential_heldout,
+            initial_soul=soul_branch.load_head(),
+            regression_episodes=regression_episodes,
+            regression_sequential_cases=sequential_regression,
+            stale_soul=(
+                segment_start_soul
+                if segment_start_soul.soul_id != soul_branch.load_head().soul_id
+                else None
+            ),
+            core_id=module_id,
+            parameter_generation=candidate_generation,
+            heldout_surface_complete=complete_heldout_evaluation,
+            regression_surface_complete=complete_regression_evaluation,
+        )
+        tournament_metrics = tournament_metric_computation.metric_mapping
+        metric_surface_complete = tournament_metric_computation.complete
         report.update(
             {
                 "candidate_generation_id": candidate_generation,
@@ -539,7 +882,29 @@ def main() -> int:
                 "deferred_heldout_case_count": (
                     len(all_heldout_episodes) - len(heldout_episodes)
                 ),
+                "sequential_heldout_case_count": len(all_sequential_heldout),
+                "evaluated_sequential_heldout_case_count": len(
+                    sequential_heldout
+                ),
+                "deferred_sequential_heldout_case_count": (
+                    len(all_sequential_heldout) - len(sequential_heldout)
+                ),
+                "regression_case_count": len(all_regression_episodes),
+                "evaluated_regression_case_count": len(regression_episodes),
+                "deferred_regression_case_count": (
+                    len(all_regression_episodes) - len(regression_episodes)
+                ),
+                "sequential_regression_case_count": len(
+                    all_sequential_regression
+                ),
+                "evaluated_sequential_regression_case_count": len(
+                    sequential_regression
+                ),
+                "deferred_sequential_regression_case_count": (
+                    len(all_sequential_regression) - len(sequential_regression)
+                ),
                 "complete_heldout_evaluation": complete_heldout_evaluation,
+                "complete_regression_evaluation": complete_regression_evaluation,
                 "initial_evaluation": initial_evaluation,
                 "campaign_baseline_evaluation": campaign_baseline_evaluation,
                 "segment_heldout_loss_fell": (
@@ -564,6 +929,14 @@ def main() -> int:
                     "must both exceed their constant zero floors"
                 ),
                 "serving_promotion_claimed": False,
+                "tournament_metrics": tournament_metrics,
+                "tournament_metric_computation": (
+                    tournament_metric_computation.to_canonical_dict()
+                ),
+                "missing_tournament_metrics": list(
+                    tournament_metric_computation.missing_metrics
+                ),
+                "tournament_metric_surface_complete": metric_surface_complete,
             }
         )
 

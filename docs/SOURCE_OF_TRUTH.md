@@ -1,6 +1,6 @@
 # Axon Source Of Truth
 
-Last updated: 2026-08-29 (canonical Identity v1, FFCS A/B/C, and D64 tournament opening)
+Last updated: 2026-08-29 (Identity v1, FFCS A-F, governed campaign wiring and tournament opening)
 
 ## Core Doctrine
 
@@ -804,17 +804,44 @@ quarantine rather than evidence-rewriting redaction, runtime-faithful lessons,
 and small competency campaigns. Smallness is a revisable campaign budget, not
 a context, field, attention, curriculum, or organism capacity limit.
 `training/first_form_curriculum.py` compiles the first immutable A/B/C stack
-from the already-governed Dormant import. Manifest
+from the already-governed Dormant import. The initial immutable manifest
 `5bb0bb4f1baf607e71bf33b99212e0e955f27cfaf02a9bdd6bf3d26046ced800`
-contains exactly 260 complete cases: A 32/4/4, B 96/12/12, and C 80/10/10
-across train/heldout/regression. No admitted field or target is clipped.
+preserves an incorrect difficulty-only page count that divided packed D64 rows
+instead of counting real character pages; it never clipped model input. The
+corrected manifest is
+`67055e5419c660bddd6abb98b39798f7d3bbdbe5e7b6b40934550455c9b0afe4`.
+It contains the same 260 complete lessons and the same living-curriculum
+identity: A 32/4/4, B 96/12/12, and C 80/10/10 across
+train/heldout/regression. No admitted field or target is clipped.
 Recovered assistant text is a visible exact-copy transport target only and is
 not labeled true, wise, or high quality. Every case carries the active Identity,
 source identities where applicable, a whole-lineage split, eligibility, target
-basis, page count, and procedural depth. D/E/F remain required before a deeper
-tournament campaign: E must cross real canonical successors and exact private
-Soul serialization boundaries rather than simulate multiple ticks over one
-unchanged field.
+basis, correct character-page count, and procedural depth. FFCS-D/F manifest
+`b69b5a16815735b372381243b6d4c34195301a626fb7c91450900361460961b1`
+adds 140 derived cases: D 64/8/8 uses real typed proposal workspaces, frozen
+current-field evidence, brother refinement, and consolidator targets; F
+48/6/6 composes exact distant Unicode facts across complete multi-page fields.
+FFCS-E manifest
+`351fea3535749cf773aa31ff36220f78f770969fb7674270ea7cfc8bfe2781df`
+adds 60 grouped sequential cases (48/6/6). Every three-tick chain crosses real
+Heart turn-finalization receipts, typed canonical successors and user ingress;
+the same core's serialized private Soul is re-inhaled at every tick with the
+service-faithful gradient break, and no future field is exposed early.
+
+The governed reasoning harness accepts multiple immutable standard and
+sequential manifests without flattening sequential cases. It publishes one
+content-addressed campaign-curriculum manifest, includes that identity and all
+component split identities in the candidate generation and Trainer mutation
+plan, and schedules mechanism/A/B/C/D/F/E as deterministic family round-robin
+lanes. Thus a seven-step first cycle reaches every family, rather than delaying
+E behind hundreds of ordinary cases. Tournament metrics are count-weighted and
+content-addressed with exact probe IDs and definitions. A metric with no
+admissible stale-Soul, FFCS-D counterfactual, or regression surface remains
+explicitly missing; the harness never imputes a neutral-looking zero or perfect
+one. Current-field override holds the stale board fixed while changing the
+canonical D signal and exact targets; proposal refinement compares the same
+refined target with and without the first board. Hidden-state movement is not
+reported as learned exact-rate improvement.
 
 Full-field recurrent training uses exact page-level activation checkpointing
 while gradients are enabled. It recomputes the same page encoder during

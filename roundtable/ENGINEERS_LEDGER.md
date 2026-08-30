@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-29T13:51:01.7019274-05:00
-Current through event: `evt-20260829T1851017019274Z-codex-curriculum-convergence`
+Updated: 2026-08-29T16:47:00-05:00
+Current through event: `evt-20260829T164649610368Z-hermes-pretraining-gap-analysis`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -28,6 +28,32 @@ optimizer steps with atomic parameter-checkpoint/private-Soul boundaries. This
 is a real restart-safe anatomy proof, not a learned-capability proof: the honest
 task gate and exact-output gate both fail. No learned reasoning core, Heart
 translator, or Semantic Cortex is serving; no active-generation pointer exists.
+
+Since the convergence turn: canonical Identity v1 is applied
+(`docs/AXON_IDENTITY_V1.md`, body hash `63f7b615...`, via
+`HeartHost.amend_identity`), FFCS A/B/C/D/E/F are all compiled and published
+as immutable manifests (260 + 140 + 60 cases, all bound to the applied
+identity), and the governed D64 head-geometry tournament
+`ac9eceaaf0e67d483b288140d4db328c7f7b2156468ef5e25a1eaa9f4b791a39` completed
+one symmetric opening step per candidate (1x64 / 2x32 / 4x16; loss fell,
+token accuracy sits at the constant floor 0.1818, all exact-output gates
+false; no winner, no promotion). Codex's orphaned FFCS-D/E/F implementation
+was verified and recovered as commit `733e5d4` by Hermes (all three groups
+recompile byte-identically to their published manifests; full suite
+448/448 exit 0). Commit `733e5d4` is local; push decision pending Jeff.
+
+Pre-training gap analysis (Hermes, event 131, code-grounded): training has
+already taken one governed opening step; no doctrinal blocker remains. Open
+items before a sustained campaign: (1) wire the FFCS-E sequential manifest
+into the training harness (`train_living_reasoning_smoke.py` /
+`run_d64_tournament.py` currently load only the standard FFCS schema;
+`sequential_living_objective` exists and is tested but unconsumed);
+(2) emit the ten required tournament metrics the launcher already records
+as missing (soul-ablation differentials, swapped-soul rejection,
+current-field override, proposal-refinement gain, retained regression);
+(3) exercise full heldout evaluation (opening used a single-case bound);
+(4) declare the bounded resumable segment ceiling. Then launch identical
+segments for all three head candidates under the existing gates.
 
 ## Binding architecture
 

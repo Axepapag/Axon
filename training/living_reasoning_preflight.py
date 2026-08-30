@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 import torch
 from torch import nn
@@ -74,7 +74,11 @@ def _architecture_capacity(model: LivingReasoningCoreD64) -> dict[str, Any]:
     }
 
 
-def _curriculum_distribution(curriculum: LivingReasoningCurriculum, page_size: int) -> dict[str, Any]:
+def _curriculum_distribution(
+    curriculum: LivingReasoningCurriculum,
+    page_size: int,
+    sequential_curricula: Sequence[Any] = (),
+) -> dict[str, Any]:
     tags = {
         split: sorted({tag for episode in curriculum.split(split) for tag in episode.mechanism_tags})
         for split in ("train", "heldout")
@@ -101,6 +105,23 @@ def _curriculum_distribution(curriculum: LivingReasoningCurriculum, page_size: i
     passed = required.issubset(all_tags) and all(
         any(length > page_size for length in lengths[split]) for split in lengths
     )
+    sequential_rows = [
+        {
+            "manifest_id": item.manifest_id,
+            "train_manifest_id": item.train_manifest_id,
+            "heldout_manifest_id": item.heldout_manifest_id,
+            "case_counts": {
+                split: len(item.split(split))
+                for split in ("train", "heldout", "regression")
+            },
+            "tick_counts": {
+                split: sum(len(case.ticks) for case in item.split(split))
+                for split in ("train", "heldout", "regression")
+            },
+            "runtime_exact_chain_validated": True,
+        }
+        for item in sequential_curricula
+    ]
     return {
         "schema": LIVING_REASONING_PREFLIGHT_SCHEMA,
         "check": PreflightEvidenceKind.CURRICULUM_DISTRIBUTION.value,
@@ -112,6 +133,7 @@ def _curriculum_distribution(curriculum: LivingReasoningCurriculum, page_size: i
         "mechanism_tags": tags,
         "required_tags": sorted(required),
         "outcome_quality": sorted({item.outcome_quality for item in curriculum.episodes}),
+        "sequential_curricula": sequential_rows,
         "serving_quality_claimed": False,
         "passed": passed,
     }
@@ -319,6 +341,7 @@ def build_living_reasoning_preflight(
     state_root: Path | str,
     repo_root: Path | str,
     batch_size: int = 1,
+    sequential_curricula: Sequence[Any] = (),
 ) -> TrainingPreflightReceipt:
     if batch_size < 1:
         raise ValueError("batch_size must be positive")
@@ -328,7 +351,9 @@ def build_living_reasoning_preflight(
         PreflightEvidenceKind.STATIC_CAPACITY_SCAN: static,
         PreflightEvidenceKind.ARCHITECTURE_CAPACITY: _architecture_capacity(model),
         PreflightEvidenceKind.CURRICULUM_DISTRIBUTION: _curriculum_distribution(
-            curriculum, model.living_config.page_size
+            curriculum,
+            model.living_config.page_size,
+            sequential_curricula,
         ),
         PreflightEvidenceKind.BOUNDARY_COVERAGE: _boundary_coverage(model),
         PreflightEvidenceKind.COUNTERFACTUAL_DEPENDENCE: _counterfactual_dependence(

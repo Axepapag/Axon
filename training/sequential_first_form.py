@@ -37,12 +37,13 @@ from runtime.heart import (
     TurnFinalizationReceipt,
     materialize_completed_turn,
 )
-from runtime.soul import SoulSnapshot
+from runtime.soul import SoulSnapshot, SoulTemperature
 
 from .first_form_curriculum import _episode_from_dict, _episode_to_dict
 from .living_reasoning_curriculum import (
     LivingReasoningEpisode,
     LivingReasoningTarget,
+    evaluate_living_episode,
     living_episode_objective,
 )
 from .living_reasoning_d64 import CausalLivingUnroll, LivingReasoningCoreD64
@@ -253,6 +254,27 @@ class SequentialFirstFormCurriculum:
 
     def split(self, name: str) -> tuple[SequentialFirstFormCase, ...]:
         return tuple(item for item in self.cases if item.split == name)
+
+    def split_manifest_id(self, name: str) -> str:
+        cases = self.split(name)
+        if not cases:
+            raise KeyError(f"sequential curriculum has no split {name!r}")
+        return canonical_sha256(
+            {
+                "schema": "axon-first-form-sequential-split-manifest-v1",
+                "curriculum_id": self.manifest_id,
+                "split": name,
+                "case_ids": [item.case_id for item in cases],
+            }
+        )
+
+    @property
+    def train_manifest_id(self) -> str:
+        return self.split_manifest_id("train")
+
+    @property
+    def heldout_manifest_id(self) -> str:
+        return self.split_manifest_id("heldout")
 
     def to_canonical_dict(self, include_id: bool = True) -> dict[str, Any]:
         value = {
@@ -546,6 +568,112 @@ def sequential_living_objective(
     return torch.stack(losses).mean(), tuple(unrolls), soul
 
 
+@torch.no_grad()
+def evaluate_sequential_case(
+    model: LivingReasoningCoreD64,
+    case: SequentialFirstFormCase,
+    initial_soul: SoulSnapshot,
+    *,
+    core_id: str,
+    parameter_generation: str,
+    ablate_temperatures: tuple[SoulTemperature, ...] = (),
+) -> dict[str, Any]:
+    """Measure free-running exactness across a case's real tick chain.
+
+    Every tick consumes only the serialized Soul exhaled by the previous
+    tick, exactly like ``sequential_living_objective`` in service.  Emissions
+    are judged per tick against that tick's supervised targets; consolidated
+    phase targets carry the mechanical turn-authorship weight.
+    """
+
+    soul = initial_soul
+    tick_rows = []
+    tick_loss_rows = []
+    for tick in case.ticks:
+        row = evaluate_living_episode(
+            model,
+            tick.episode,
+            soul,
+            core_id=core_id,
+            parameter_generation=parameter_generation,
+            ablate_temperatures=ablate_temperatures,
+        )
+        tick_rows.append(row)
+        with torch.no_grad():
+            loss, unroll, _metrics = living_episode_objective(
+                model,
+                tick.episode,
+                soul,
+                core_id=core_id,
+                parameter_generation=parameter_generation,
+                ablate_temperatures=ablate_temperatures,
+            )
+        tick_loss_rows.append(float(loss.item()))
+        soul = unroll.souls[-1]
+    supervised = sum(row["supervised_phase_count"] for row in tick_rows)
+    return {
+        "supervised_phase_count": supervised,
+        "typed_emission_exact_count": sum(
+            row["typed_emission_exact_count"] for row in tick_rows
+        ),
+        "payload_supervised_phase_count": sum(
+            row["payload_supervised_phase_count"] for row in tick_rows
+        ),
+        "payload_transport_exact_count": sum(
+            row["payload_transport_exact_count"] for row in tick_rows
+        ),
+        "phase_output_count": sum(row["phase_output_count"] for row in tick_rows),
+        "complete_field_coverage_count": sum(
+            row["complete_field_coverage_count"] for row in tick_rows
+        ),
+        "tick_count": float(len(tick_rows)),
+        "heldout_mean_loss": sum(tick_loss_rows) / len(tick_loss_rows),
+        "typed_emission_exact_rate": sum(
+            row["typed_emission_exact_rate"] for row in tick_rows
+        ) / max(1, len(tick_rows)),
+        "payload_transport_exact_rate": sum(
+            row["payload_transport_exact_rate"] for row in tick_rows
+        ) / max(1, len(tick_rows)),
+        "complete_field_coverage_rate": sum(
+            row["complete_field_coverage_rate"] for row in tick_rows
+        ) / max(1, len(tick_rows)),
+        "payload_teacher_forced_token_accuracy": (
+            sum(row["payload_teacher_forced_token_correct"] for row in tick_rows)
+            / max(
+                1,
+                sum(row["payload_teacher_forced_token_count"] for row in tick_rows),
+            )
+        ),
+        "constant_payload_token_accuracy_floor": (
+            sum(max(row["payload_teacher_forced_target_counts"]) for row in tick_rows)
+            / max(
+                1,
+                sum(row["payload_teacher_forced_token_count"] for row in tick_rows),
+            )
+        ),
+        "constant_typed_emission_exact_floor": 0.0,
+        "constant_payload_transport_exact_floor": 0.0,
+        "tick_typed_emission_exact": sum(
+            row["typed_emission_exact_rate"] >= 1.0 for row in tick_rows
+        )
+        / max(1, len(tick_rows)),
+        "tick_payload_transport_exact": sum(
+            row["payload_transport_exact_rate"] >= 1.0 for row in tick_rows
+        )
+        / max(1, len(tick_rows)),
+        "payload_teacher_forced_token_count": sum(
+            row["payload_teacher_forced_token_count"] for row in tick_rows
+        ),
+        "payload_teacher_forced_token_correct": sum(
+            row["payload_teacher_forced_token_correct"] for row in tick_rows
+        ),
+        "payload_teacher_forced_target_counts": [
+            sum(row["payload_teacher_forced_target_counts"][index] for row in tick_rows)
+            for index in range(model.eos_index + 1)
+        ],
+    }
+
+
 __all__ = [
     "DEFAULT_E_SPLIT_COUNTS",
     "FFCS_E_CASE_SCHEMA",
@@ -555,6 +683,7 @@ __all__ = [
     "SequentialFirstFormCurriculum",
     "SequentialFirstFormTick",
     "compile_sequential_first_form",
+    "evaluate_sequential_case",
     "load_sequential_first_form",
     "publish_sequential_first_form",
     "sequential_living_objective",
