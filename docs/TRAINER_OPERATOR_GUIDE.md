@@ -1,6 +1,6 @@
 # Axon Trainer Operator Guide
 
-Status: current bounded interface, 2026-08-30
+Status: current bounded interface, 2026-08-31
 
 ## What is safe and available now
 
@@ -16,10 +16,13 @@ checkpoints, latest lifecycle, and latest optimizer step. Full mode includes
 per-tensor telemetry. Neither command creates an optimizer, changes a Soul,
 starts training, promotes tissue, or spends cloud money.
 
-The transport-neutral organ declares future commands for inventory, preflight,
+The transport-neutral organ declares commands for inventory, preflight,
 configure, start, pause, resume, evaluate, cloud export/import, comparison,
-promotion, and rollback. Only `status` is connected today. Every unwired
-mutation fails closed with `unavailable`; there is no hidden shell fallback.
+promotion, and rollback. The generic local status client connects only
+`status`. The Kaggle control surface registers governed cloud-export, start,
+and result-import handlers against this same organ for the lifetime of that
+client. Every other unwired mutation fails closed with `unavailable`; there is
+no hidden shell fallback.
 
 ## Renewable training semantics
 
@@ -67,17 +70,19 @@ Continuation repeats the exact architecture, seed, curriculum, and learning
 policy and adds `--resume --tranche-steps <allowance>`. These commands are an
 engineering surface, not yet the promised clickable Trainer UI.
 
-## Why no overnight communication run is launched yet
+## Current curriculum warning
 
-The real Dormant State currently has 59,876 exact records but no recorded
-runtime reasoning episodes and no explicit episode outcomes. Recovered
-user/assistant adjacency is observable evidence, not automatic answer-quality
-supervision. The communication-first contract therefore requires an endorsed,
-corrected, or otherwise evidence-qualified C1 target manifest before sustained
-training. Repeating the existing FFCS mechanism/copy schoolhouse for tens of
-thousands of steps would train the wrong objective.
+Recovered user/assistant adjacency is observable evidence, not automatic
+answer-quality supervision. C1 is now a governed communication-first manifest
+and has supported bounded tournament diagnostics, but no learned reasoning
+candidate has passed its serving gates. Large campaigns still require explicit
+target-quality review and exact held-out gates; repetition alone is not
+evidence of intelligence.
 
-Cloud packets, Kaggle/Colab/SimplePod adapters, mid-segment interactive pause,
-and clickable core/checkpoint/curriculum selection remain future handlers on
-the same organ boundary. No provider credential or cloud spend is required by
-the present local interface.
+The private Kaggle adapter and independent observable launchers are now
+implemented. Double-click `AXON_KAGGLE.bat`; see
+`docs/KAGGLE_TRAINING_GUIDE.md`. Colab/SimplePod adapters, mid-segment
+interactive pause, and runtime-native clickable core/checkpoint/curriculum
+selection remain future handlers on the same organ boundary. Packet
+preparation spends nothing; Kaggle submission remains an explicit operator
+action.

@@ -29,6 +29,7 @@ from runtime.trainer import (
     ParameterMutationPolicy,
     ResourceTranche,
     TrainerControlPlane,
+    TrainingProgressJournal,
     TrancheContinuation,
     TrancheStore,
 )
@@ -97,9 +98,10 @@ def _prior_consumed_tranche_id(
     for path in sorted(campaign_report_dir.glob("segment_*.json")):
         body = json.loads(path.read_text(encoding="utf-8"))
         observed_report_id = body.get("report_id")
-        if observed_report_id is None or canonical_sha256(
-            {key: value for key, value in body.items() if key != "report_id"}
-        ) != observed_report_id:
+        if (
+            observed_report_id is None
+            or canonical_sha256({key: value for key, value in body.items() if key != "report_id"}) != observed_report_id
+        ):
             raise RuntimeError(f"immutable segment report identity mismatch: {path}")
         if (
             body.get("evaluation_only")
@@ -216,6 +218,17 @@ def _arguments() -> argparse.Namespace:
             "transition, no accepted step. Requires an existing accepted bundle."
         ),
     )
+    parser.add_argument(
+        "--progress-dir",
+        type=Path,
+        default=None,
+        help="durable JSONL/current.json observability directory (also mirrors to stdout)",
+    )
+    parser.add_argument(
+        "--external-job-id",
+        default=None,
+        help="provider-neutral durable job identity used only for progress correlation",
+    )
     return parser.parse_args()
 
 
@@ -271,10 +284,7 @@ def _training_lanes(
         lanes.append(
             (
                 "ffcs-E",
-                tuple(
-                    ("sequential", case, item.train_manifest_id)
-                    for case in item.split("train")
-                ),
+                tuple(("sequential", case, item.train_manifest_id) for case in item.split("train")),
             )
         )
     return tuple((name, rows) for name, rows in lanes if rows)
@@ -302,14 +312,7 @@ def _publish_campaign_curriculum(
     """Publish one immutable identity for the complete mixed curriculum."""
 
     manifest_id = canonical_sha256(body)
-    path = (
-        state_root.resolve()
-        / "training"
-        / "reasoning"
-        / "campaign_curricula"
-        / manifest_id
-        / "manifest.json"
-    )
+    path = state_root.resolve() / "training" / "reasoning" / "campaign_curricula" / manifest_id / "manifest.json"
     document = {**body, "manifest_id": manifest_id}
     if path.is_file():
         if json.loads(path.read_text(encoding="utf-8")) != document:
@@ -377,11 +380,7 @@ def _material_objective(
             loss,
             unrolls[-1],
             (),
-            tuple(
-                transition
-                for tick_unroll in unrolls
-                for transition in tick_unroll.transitions
-            ),
+            tuple(transition for tick_unroll in unrolls for transition in tick_unroll.transitions),
         )
     if kind != "episode":
         raise ValueError(f"unsupported scheduled material kind {kind!r}")
@@ -397,6 +396,16 @@ def _material_objective(
 
 def main() -> int:
     args = _arguments()
+    if args.external_job_id is not None and not str(args.external_job_id).strip():
+        raise ValueError("--external-job-id must be non-empty when supplied")
+    progress = (
+        None
+        if args.progress_dir is None
+        else TrainingProgressJournal(
+            args.progress_dir,
+            job_id=args.external_job_id or f"local-{os.getpid()}",
+        )
+    )
     if args.legacy_plan_v1 and args.max_steps < 1:
         raise ValueError("--max-steps must be positive")
     if args.checkpoint_interval < 1:
@@ -411,8 +420,7 @@ def main() -> int:
         raise ValueError("--tranche-steps requires --resume with an accepted parent bundle")
     if args.tranche_steps is not None and args.run_steps is not None:
         raise ValueError(
-            "--tranche-steps is already the complete segment allowance; "
-            "do not combine it with --run-steps"
+            "--tranche-steps is already the complete segment allowance; do not combine it with --run-steps"
         )
     if args.evaluate_only and not args.resume:
         raise ValueError("--evaluate-only requires --resume with an accepted bundle")
@@ -423,9 +431,7 @@ def main() -> int:
             "resource-independent v2 training requires --tranche-steps; "
             "resource allowance is never part of candidate identity"
         )
-    if args.candidate_label is not None and re.fullmatch(
-        r"[a-z0-9][a-z0-9-]{0,63}", args.candidate_label
-    ) is None:
+    if args.candidate_label is not None and re.fullmatch(r"[a-z0-9][a-z0-9-]{0,63}", args.candidate_label) is None:
         raise ValueError("--candidate-label must be a short lowercase slug")
     _seed_everything(args.seed)
     device = _device(args.device)
@@ -458,9 +464,7 @@ def main() -> int:
     ffcs_manifest_ids = tuple(item.manifest_id for item in all_ffcs)
     if len(set(ffcs_manifest_ids)) != len(ffcs_manifest_ids):
         raise RuntimeError("duplicate FFCS manifest identity")
-    manifest_identity_hashes = tuple(
-        item.identity_text_sha256 for item in all_ffcs
-    )
+    manifest_identity_hashes = tuple(item.identity_text_sha256 for item in all_ffcs)
     mechanism_curriculum = build_living_reasoning_smoke_curriculum()
     curriculum = mechanism_curriculum
     if all_ffcs:
@@ -470,11 +474,7 @@ def main() -> int:
         if any(observed != active_hash for observed in manifest_identity_hashes):
             raise RuntimeError("FFCS manifest Identity is stale for active canonical state")
         curriculum = LivingReasoningCurriculum(
-            tuple(
-                episode
-                for item in standard_ffcs
-                for episode in item.living_curriculum.episodes
-            )
+            tuple(episode for item in standard_ffcs for episode in item.living_curriculum.episodes)
             + mechanism_curriculum.episodes
         )
     campaign_curriculum_id, campaign_curriculum_path = _publish_campaign_curriculum(
@@ -482,9 +482,7 @@ def main() -> int:
         {
             "schema": "axon-d64-reasoning-campaign-curriculum-v1",
             "standard_ffcs_manifest_ids": [item.manifest_id for item in standard_ffcs],
-            "sequential_ffcs_manifest_ids": [
-                item.manifest_id for item in sequential_ffcs
-            ],
+            "sequential_ffcs_manifest_ids": [item.manifest_id for item in sequential_ffcs],
             "mechanism_curriculum_id": mechanism_curriculum.curriculum_id,
             "mechanism_train_manifest_id": mechanism_curriculum.train_manifest_id,
             "mechanism_heldout_manifest_id": mechanism_curriculum.heldout_manifest_id,
@@ -493,19 +491,15 @@ def main() -> int:
             "content_limit": None,
         },
     )
-    campaign_train_scope_id, campaign_train_scope_path = (
-        _publish_campaign_split_scope(
-            campaign_curriculum_path,
-            campaign_curriculum_id,
-            "train",
-        )
+    campaign_train_scope_id, campaign_train_scope_path = _publish_campaign_split_scope(
+        campaign_curriculum_path,
+        campaign_curriculum_id,
+        "train",
     )
-    campaign_heldout_scope_id, campaign_heldout_scope_path = (
-        _publish_campaign_split_scope(
-            campaign_curriculum_path,
-            campaign_curriculum_id,
-            "heldout",
-        )
+    campaign_heldout_scope_id, campaign_heldout_scope_path = _publish_campaign_split_scope(
+        campaign_curriculum_path,
+        campaign_curriculum_id,
+        "heldout",
     )
     if args.candidate_label is None:
         module_id = "reasoning-d64-candidate-a"
@@ -526,9 +520,7 @@ def main() -> int:
         legacy_identity = dict(candidate_identity)
         if args.candidate_label is None:
             legacy_identity.pop("candidate_label")
-        candidate_generation = (
-            "r64a-smoke-" if args.candidate_label is None else "r64t-"
-        ) + canonical_sha256(
+        candidate_generation = ("r64a-smoke-" if args.candidate_label is None else "r64t-") + canonical_sha256(
             {
                 **legacy_identity,
                 "max_steps": args.max_steps,
@@ -538,6 +530,17 @@ def main() -> int:
         )[:16]
     else:
         candidate_generation = "r64v2-" + canonical_sha256(candidate_identity)[:16]
+    if progress is not None:
+        progress.emit(
+            "starting",
+            candidate_generation_id=candidate_generation,
+            candidate_label=candidate_label,
+            device=str(device),
+            accelerator=device.type,
+            tranche_steps=args.tranche_steps,
+            evaluate_only=bool(args.evaluate_only),
+            curriculum_manifest_count=len(all_ffcs),
+        )
     descriptor = ParameterModuleDescriptor(
         module_id=module_id,
         organ_kind=OrganKind.REASONING_CORE,
@@ -565,21 +568,13 @@ def main() -> int:
         "candidate_label": candidate_label,
         "ffcs_manifest_ids": list(ffcs_manifest_ids),
         "standard_ffcs_manifest_ids": [item.manifest_id for item in standard_ffcs],
-        "sequential_ffcs_manifest_ids": [
-            item.manifest_id for item in sequential_ffcs
-        ],
-        "ffcs_manifest_id": (
-            standard_ffcs[0].manifest_id if len(standard_ffcs) == 1 else None
-        ),
-        "sequential_ffcs_manifest_id": (
-            sequential_ffcs[0].manifest_id if len(sequential_ffcs) == 1 else None
-        ),
+        "sequential_ffcs_manifest_ids": [item.manifest_id for item in sequential_ffcs],
+        "ffcs_manifest_id": (standard_ffcs[0].manifest_id if len(standard_ffcs) == 1 else None),
+        "sequential_ffcs_manifest_id": (sequential_ffcs[0].manifest_id if len(sequential_ffcs) == 1 else None),
         "sequential_case_count": sum(len(item.cases) for item in sequential_ffcs),
         "mechanism_curriculum_id": mechanism_curriculum.curriculum_id,
         "curriculum_composition": (
-            "synthetic_mechanism_only"
-            if not all_ffcs
-            else "governed_ffcs_campaign_plus_synthetic_mechanism"
+            "synthetic_mechanism_only" if not all_ffcs else "governed_ffcs_campaign_plus_synthetic_mechanism"
         ),
     }
     with TrainerControlPlane.active(state_root=args.state_root) as control:
@@ -590,16 +585,12 @@ def main() -> int:
         tensor_names = tuple(item.name for item in manifest.tensors if item.requires_grad)
         source_manifest_ids = tuple(
             [campaign_train_scope_id, mechanism_curriculum.train_manifest_id]
-            + [
-                item.living_curriculum.train_manifest_id for item in standard_ffcs
-            ]
+            + [item.living_curriculum.train_manifest_id for item in standard_ffcs]
             + [item.train_manifest_id for item in sequential_ffcs]
         )
         holdout_manifest_ids = tuple(
             [campaign_heldout_scope_id, mechanism_curriculum.heldout_manifest_id]
-            + [
-                item.living_curriculum.heldout_manifest_id for item in standard_ffcs
-            ]
+            + [item.living_curriculum.heldout_manifest_id for item in standard_ffcs]
             + [item.heldout_manifest_id for item in sequential_ffcs]
         )
         if args.legacy_plan_v1:
@@ -631,24 +622,15 @@ def main() -> int:
         )
         step_bundles = CandidateStepBundleCoordinator(args.state_root)
         latest_bundle = step_bundles.latest_bundle(module_id, candidate_generation)
-        campaign_report_dir = (
-            args.state_root.resolve()
-            / "training"
-            / "reasoning"
-            / candidate_generation
-        )
+        campaign_report_dir = args.state_root.resolve() / "training" / "reasoning" / candidate_generation
         tranche_store = TrancheStore(args.state_root / "training" / "trainer")
         tranche = None
         prior_tranche_id = None
         if args.tranche_steps is not None:
             if latest_bundle is not None and not args.resume:
-                raise RuntimeError(
-                    "candidate already has accepted work; continuation requires --resume"
-                )
+                raise RuntimeError("candidate already has accepted work; continuation requires --resume")
             if latest_bundle is None and args.resume:
-                raise RuntimeError(
-                    "--resume requested but this candidate has no accepted parent bundle"
-                )
+                raise RuntimeError("--resume requested but this candidate has no accepted parent bundle")
             if latest_bundle is not None:
                 prior_tranche_id = _prior_consumed_tranche_id(
                     campaign_report_dir=campaign_report_dir,
@@ -660,9 +642,7 @@ def main() -> int:
                     learning_policy_id=policy.policy_id,
                 )
             base_global_step = 0 if latest_bundle is None else latest_bundle.step
-            parent_bundle_id = (
-                None if latest_bundle is None else latest_bundle.bundle_id
-            )
+            parent_bundle_id = None if latest_bundle is None else latest_bundle.bundle_id
             tranche = ResourceTranche(
                 module_id=module_id,
                 candidate_generation_id=candidate_generation,
@@ -674,16 +654,13 @@ def main() -> int:
                 purpose=(
                     "renewable base-zero training tranche"
                     if parent_bundle_id is None
-                    else "renewable continuation tranche "
-                    f"(parent bundle {parent_bundle_id[:16]})"
+                    else f"renewable continuation tranche (parent bundle {parent_bundle_id[:16]})"
                 ),
             )
             tranche_store.write_tranche(tranche)
             report["resource_tranche"] = tranche.to_canonical_dict()
         elif args.evaluate_only and latest_bundle is None:
-            raise RuntimeError(
-                "--evaluate-only requires an existing accepted bundle; none exists"
-            )
+            raise RuntimeError("--evaluate-only requires an existing accepted bundle; none exists")
         preflight = build_living_reasoning_preflight(
             model=model,
             curriculum=curriculum,
@@ -710,21 +687,24 @@ def main() -> int:
         if not preflight.passed:
             raise RuntimeError("living reasoning preflight failed; optimizer creation denied")
         if args.preflight_only:
+            if progress is not None:
+                progress.emit(
+                    "completed",
+                    preflight_only=True,
+                    preflight_receipt_id=preflight.receipt_id,
+                )
             print(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2))
             return 0
 
         if (
             args.legacy_plan_v1
-            and
-            latest_bundle is not None
+            and latest_bundle is not None
             and latest_bundle.step >= args.max_steps
             and tranche is None
             and not args.evaluate_only
         ):
             if not args.resume:
-                raise RuntimeError(
-                    "candidate campaign is complete; pass --resume for idempotent report recovery"
-                )
+                raise RuntimeError("candidate campaign is complete; pass --resume for idempotent report recovery")
             prior_reports = sorted(campaign_report_dir.glob("segment_*.json"))
             if not prior_reports:
                 raise RuntimeError("complete candidate has no immutable segment report")
@@ -773,15 +753,9 @@ def main() -> int:
             parameter_generation=base_generation,
         )
         soul_workspace = CandidateSoulWorkspace(args.state_root)
-        sequential_train_cases = tuple(
-            case for item in sequential_ffcs for case in item.split("train")
-        )
-        sequential_heldout_cases = tuple(
-            case for item in sequential_ffcs for case in item.split("heldout")
-        )
-        sequential_regression_cases = tuple(
-            case for item in sequential_ffcs for case in item.split("regression")
-        )
+        sequential_train_cases = tuple(case for item in sequential_ffcs for case in item.split("train"))
+        sequential_heldout_cases = tuple(case for item in sequential_ffcs for case in item.split("heldout"))
+        sequential_regression_cases = tuple(case for item in sequential_ffcs for case in item.split("regression"))
         all_regression_episodes = curriculum.split("regression")
         regression_episodes = (
             all_regression_episodes
@@ -794,19 +768,13 @@ def main() -> int:
             if args.evaluation_case_limit is None
             else all_sequential_regression[: args.evaluation_case_limit]
         )
-        sequential_trajectory_ids = tuple(
-            item.case_id for item in sequential_train_cases
-        )
+        sequential_trajectory_ids = tuple(item.case_id for item in sequential_train_cases)
         soul_manifest = soul_workspace.prepare(
             candidate_id=candidate_generation,
             core_id=module_id,
-            runtime_episode_session_id=(
-                f"living-campaign-curriculum:{campaign_curriculum_id}"
-            ),
+            runtime_episode_session_id=(f"living-campaign-curriculum:{campaign_curriculum_id}"),
             whole_episode_split="train",
-            soul_trajectory_ids=tuple(
-                item.episode_id for item in curriculum.split("train")
-            )
+            soul_trajectory_ids=tuple(item.episode_id for item in curriculum.split("train"))
             + sequential_trajectory_ids,
             candidate_parameter_generation=candidate_generation,
         )
@@ -819,9 +787,7 @@ def main() -> int:
                     "candidate already has accepted work; pass --resume or choose a different governed campaign"
                 )
             if tranche is not None and latest_bundle.bundle_id != tranche.parent_bundle_id:
-                raise RuntimeError(
-                    "accepted parent advanced during recovery; issue a fresh resource tranche"
-                )
+                raise RuntimeError("accepted parent advanced during recovery; issue a fresh resource tranche")
             parent_checkpoint = step_bundles.checkpoint_for_bundle(latest_bundle)
             session.restore_checkpoint(parent_checkpoint)
             if soul_branch.load_head().soul_id != latest_bundle.after_soul_id:
@@ -861,14 +827,12 @@ def main() -> int:
             if args.evaluation_case_limit is None
             else all_sequential_heldout[: args.evaluation_case_limit]
         )
-        complete_heldout_evaluation = (
-            len(heldout_episodes) == len(all_heldout_episodes)
-            and len(sequential_heldout) == len(all_sequential_heldout)
-        )
-        complete_regression_evaluation = (
-            len(regression_episodes) == len(all_regression_episodes)
-            and len(sequential_regression) == len(all_sequential_regression)
-        )
+        complete_heldout_evaluation = len(heldout_episodes) == len(all_heldout_episodes) and len(
+            sequential_heldout
+        ) == len(all_sequential_heldout)
+        complete_regression_evaluation = len(regression_episodes) == len(all_regression_episodes) and len(
+            sequential_regression
+        ) == len(all_sequential_regression)
 
         def evaluate_candidate() -> dict[str, Any]:
             session.candidate_module.eval()
@@ -913,48 +877,30 @@ def main() -> int:
                         parameter_generation=candidate_generation,
                     )
                     losses.append(float(loss.item()))
-            supervised_phase_count = sum(
-                row["supervised_phase_count"] for row in combined_rows
-            )
-            payload_supervised_phase_count = sum(
-                row["payload_supervised_phase_count"] for row in combined_rows
-            )
-            phase_output_count = sum(
-                row["phase_output_count"] for row in combined_rows
-            )
-            payload_token_count = sum(
-                row["payload_teacher_forced_token_count"] for row in combined_rows
-            )
-            payload_token_correct = sum(
-                row["payload_teacher_forced_token_correct"] for row in combined_rows
-            )
+            supervised_phase_count = sum(row["supervised_phase_count"] for row in combined_rows)
+            payload_supervised_phase_count = sum(row["payload_supervised_phase_count"] for row in combined_rows)
+            phase_output_count = sum(row["phase_output_count"] for row in combined_rows)
+            payload_token_count = sum(row["payload_teacher_forced_token_count"] for row in combined_rows)
+            payload_token_correct = sum(row["payload_teacher_forced_token_correct"] for row in combined_rows)
             payload_target_counts = [
                 sum(row["payload_teacher_forced_target_counts"][index] for row in combined_rows)
                 for index in range(session.candidate_module.eos_index + 1)
             ]
             return {
                 "heldout_mean_loss": sum(losses) / max(1, len(losses)),
-                "typed_emission_exact_rate": sum(
-                    row["typed_emission_exact_count"] for row in combined_rows
-                )
+                "typed_emission_exact_rate": sum(row["typed_emission_exact_count"] for row in combined_rows)
                 / max(1.0, supervised_phase_count),
-                "payload_transport_exact_rate": sum(
-                    row["payload_transport_exact_count"] for row in combined_rows
-                )
+                "payload_transport_exact_rate": sum(row["payload_transport_exact_count"] for row in combined_rows)
                 / max(1.0, payload_supervised_phase_count),
-                "complete_field_coverage_rate": sum(
-                    row["complete_field_coverage_count"] for row in combined_rows
-                )
+                "complete_field_coverage_rate": sum(row["complete_field_coverage_count"] for row in combined_rows)
                 / max(1.0, phase_output_count),
                 "supervised_phase_count": supervised_phase_count,
                 "payload_supervised_phase_count": payload_supervised_phase_count,
                 "phase_output_count": phase_output_count,
                 "constant_typed_emission_exact_floor": 0.0,
                 "constant_payload_transport_exact_floor": 0.0,
-                "payload_teacher_forced_token_accuracy": payload_token_correct
-                / max(1, payload_token_count),
-                "constant_payload_token_accuracy_floor": max(payload_target_counts)
-                / max(1, payload_token_count),
+                "payload_teacher_forced_token_accuracy": payload_token_correct / max(1, payload_token_count),
+                "constant_payload_token_accuracy_floor": max(payload_target_counts) / max(1, payload_token_count),
                 "counterfactuals": living_source_counterfactuals(
                     session.candidate_module,
                     heldout_episodes[0],
@@ -964,14 +910,16 @@ def main() -> int:
                 ),
             }
 
+        if progress is not None:
+            progress.emit(
+                "evaluating", phase="initial", global_step=(0 if latest_bundle is None else latest_bundle.step)
+            )
         initial_evaluation = evaluate_candidate()
         prior_reports = sorted(campaign_report_dir.glob("segment_*.json"))
         campaign_baseline_evaluation = (
             initial_evaluation
             if not prior_reports
-            else json.loads(prior_reports[0].read_text(encoding="utf-8"))[
-                "initial_evaluation"
-            ]
+            else json.loads(prior_reports[0].read_text(encoding="utf-8"))["initial_evaluation"]
         )
         start_step = 0 if latest_bundle is None else latest_bundle.step
         if args.evaluate_only:
@@ -997,9 +945,7 @@ def main() -> int:
         if not curriculum_lanes:  # pragma: no cover - mechanism always supplies train
             raise RuntimeError("governed campaign has no supervised training material")
         for step in range(start_step, end_step):
-            lane_name, kind, material, source_manifest_id = _scheduled_material(
-                curriculum_lanes, step
-            )
+            lane_name, kind, material, source_manifest_id = _scheduled_material(curriculum_lanes, step)
             captured: dict[str, Any] = {}
 
             def loss_fn(
@@ -1042,10 +988,7 @@ def main() -> int:
             ephemeral_soul = unroll.souls[-1]
             segment_transitions.extend(captured["transitions"])
             segment_receipt_ids.append(optimizer_receipt.receipt_id)
-            checkpoint_due = (
-                (step + 1) % args.checkpoint_interval == 0
-                or step + 1 == end_step
-            )
+            checkpoint_due = (step + 1) % args.checkpoint_interval == 0 or step + 1 == end_step
             checkpoint = None
             accepted_bundle = None
             accepted_segment_receipt_ids = []
@@ -1069,46 +1012,46 @@ def main() -> int:
                     "material_kind": kind,
                     "curriculum_lane": lane_name,
                     "source_manifest_id": source_manifest_id,
-                    "material_id": (
-                        material.episode_id
-                        if kind == "episode"
-                        else material.case_id
-                    ),
+                    "material_id": (material.episode_id if kind == "episode" else material.case_id),
                     "loss": captured["loss"],
                     "optimization_receipt_id": optimizer_receipt.receipt_id,
-                    "accepted_step_bundle_id": (
-                        None if accepted_bundle is None else accepted_bundle.bundle_id
-                    ),
+                    "accepted_step_bundle_id": (None if accepted_bundle is None else accepted_bundle.bundle_id),
                     "accepted_segment_optimizer_receipt_ids": accepted_segment_receipt_ids,
-                    "soul_receipt_ids": (
-                        [] if accepted_bundle is None else list(accepted_bundle.soul_receipt_ids)
-                    ),
+                    "soul_receipt_ids": ([] if accepted_bundle is None else list(accepted_bundle.soul_receipt_ids)),
                     "soul_id": ephemeral_soul.soul_id,
                     "checkpoint_id": None if checkpoint is None else checkpoint.checkpoint_id,
                     "phase_metrics": captured["phase_metrics"],
                     "wall_seconds": wall_seconds,
-                    "peak_cuda_bytes": (
-                        0
-                        if device.type != "cuda"
-                        else int(torch.cuda.max_memory_allocated(device))
-                    ),
+                    "peak_cuda_bytes": (0 if device.type != "cuda" else int(torch.cuda.max_memory_allocated(device))),
                 }
             )
+            if progress is not None:
+                progress.emit(
+                    "training",
+                    global_step=step + 1,
+                    segment_start_step=start_step + 1,
+                    segment_end_step=end_step,
+                    loss=captured["loss"],
+                    learning_rate=args.learning_rate,
+                    material_kind=kind,
+                    curriculum_lane=lane_name,
+                    wall_seconds=wall_seconds,
+                    checkpoint_id=None if checkpoint is None else checkpoint.checkpoint_id,
+                    accepted_step_bundle_id=(None if accepted_bundle is None else accepted_bundle.bundle_id),
+                )
+        if progress is not None:
+            progress.emit("evaluating", phase="final", global_step=end_step)
         final_evaluation = evaluate_candidate()
-        counterfactuals_passed = all(
-            value > 1e-8 for value in final_evaluation["counterfactuals"].values()
-        )
+        counterfactuals_passed = all(value > 1e-8 for value in final_evaluation["counterfactuals"].values())
         task_gate_passed = (
             complete_heldout_evaluation
-            and final_evaluation["heldout_mean_loss"]
-            < campaign_baseline_evaluation["heldout_mean_loss"]
+            and final_evaluation["heldout_mean_loss"] < campaign_baseline_evaluation["heldout_mean_loss"]
             and final_evaluation["payload_teacher_forced_token_accuracy"]
             > final_evaluation["constant_payload_token_accuracy_floor"]
             and counterfactuals_passed
         )
         exact_gate_passed = (
-            final_evaluation["typed_emission_exact_rate"]
-            > final_evaluation["constant_typed_emission_exact_floor"]
+            final_evaluation["typed_emission_exact_rate"] > final_evaluation["constant_typed_emission_exact_floor"]
             and final_evaluation["payload_transport_exact_rate"]
             > final_evaluation["constant_payload_transport_exact_floor"]
         )
@@ -1120,11 +1063,7 @@ def main() -> int:
             initial_soul=soul_branch.load_head(),
             regression_episodes=regression_episodes,
             regression_sequential_cases=sequential_regression,
-            stale_soul=(
-                segment_start_soul
-                if segment_start_soul.soul_id != soul_branch.load_head().soul_id
-                else None
-            ),
+            stale_soul=(segment_start_soul if segment_start_soul.soul_id != soul_branch.load_head().soul_id else None),
             core_id=module_id,
             parameter_generation=candidate_generation,
             heldout_surface_complete=complete_heldout_evaluation,
@@ -1132,15 +1071,11 @@ def main() -> int:
         )
         tournament_metrics = tournament_metric_computation.metric_mapping
         metric_surface_complete = tournament_metric_computation.complete
-        curriculum_stage_complete = (
-            task_gate_passed and exact_gate_passed and metric_surface_complete
-        )
+        curriculum_stage_complete = task_gate_passed and exact_gate_passed and metric_surface_complete
         final_checkpoint_id = (
             checkpoints[-1].checkpoint_id
             if checkpoints
-            else step_bundles.latest_bundle(
-                module_id, candidate_generation
-            ).checkpoint_id
+            else step_bundles.latest_bundle(module_id, candidate_generation).checkpoint_id
         )
         if curriculum_stage_complete:
             lifecycle_event = session.complete(
@@ -1162,49 +1097,27 @@ def main() -> int:
                 "soul_promotion_plan": promotion_plan.to_canonical_dict(),
                 "steps": steps,
                 "checkpoint_interval": args.checkpoint_interval,
-                "segment_start_step": (
-                    start_step if args.evaluate_only else start_step + 1
-                ),
+                "segment_start_step": (start_step if args.evaluate_only else start_step + 1),
                 "segment_end_step": end_step,
-                "campaign_max_steps": (
-                    args.max_steps if args.legacy_plan_v1 else None
-                ),
+                "campaign_max_steps": (args.max_steps if args.legacy_plan_v1 else None),
                 "evaluation_only": bool(args.evaluate_only),
                 "campaign_complete": curriculum_stage_complete,
                 "curriculum_stage_complete": curriculum_stage_complete,
-                "legacy_plan_envelope_exhausted": (
-                    end_step >= args.max_steps if args.legacy_plan_v1 else None
-                ),
-                "resource_tranche_consumed": (
-                    tranche is not None and end_step == tranche.final_global_step
-                ),
+                "legacy_plan_envelope_exhausted": (end_step >= args.max_steps if args.legacy_plan_v1 else None),
+                "resource_tranche_consumed": (tranche is not None and end_step == tranche.final_global_step),
                 "paused_for_next_tranche": not curriculum_stage_complete,
-                "resource_tranche": (
-                    None if tranche is None else tranche.to_canonical_dict()
-                ),
+                "resource_tranche": (None if tranche is None else tranche.to_canonical_dict()),
                 "heldout_case_count": len(all_heldout_episodes),
                 "evaluated_heldout_case_count": len(heldout_episodes),
-                "deferred_heldout_case_count": (
-                    len(all_heldout_episodes) - len(heldout_episodes)
-                ),
+                "deferred_heldout_case_count": (len(all_heldout_episodes) - len(heldout_episodes)),
                 "sequential_heldout_case_count": len(all_sequential_heldout),
-                "evaluated_sequential_heldout_case_count": len(
-                    sequential_heldout
-                ),
-                "deferred_sequential_heldout_case_count": (
-                    len(all_sequential_heldout) - len(sequential_heldout)
-                ),
+                "evaluated_sequential_heldout_case_count": len(sequential_heldout),
+                "deferred_sequential_heldout_case_count": (len(all_sequential_heldout) - len(sequential_heldout)),
                 "regression_case_count": len(all_regression_episodes),
                 "evaluated_regression_case_count": len(regression_episodes),
-                "deferred_regression_case_count": (
-                    len(all_regression_episodes) - len(regression_episodes)
-                ),
-                "sequential_regression_case_count": len(
-                    all_sequential_regression
-                ),
-                "evaluated_sequential_regression_case_count": len(
-                    sequential_regression
-                ),
+                "deferred_regression_case_count": (len(all_regression_episodes) - len(regression_episodes)),
+                "sequential_regression_case_count": len(all_sequential_regression),
+                "evaluated_sequential_regression_case_count": len(sequential_regression),
                 "deferred_sequential_regression_case_count": (
                     len(all_sequential_regression) - len(sequential_regression)
                 ),
@@ -1213,8 +1126,7 @@ def main() -> int:
                 "initial_evaluation": initial_evaluation,
                 "campaign_baseline_evaluation": campaign_baseline_evaluation,
                 "segment_heldout_loss_fell": (
-                    final_evaluation["heldout_mean_loss"]
-                    < initial_evaluation["heldout_mean_loss"]
+                    final_evaluation["heldout_mean_loss"] < initial_evaluation["heldout_mean_loss"]
                 ),
                 "final_evaluation": final_evaluation,
                 "final_checkpoint_id": final_checkpoint_id,
@@ -1233,12 +1145,8 @@ def main() -> int:
                 ),
                 "serving_promotion_claimed": False,
                 "tournament_metrics": tournament_metrics,
-                "tournament_metric_computation": (
-                    tournament_metric_computation.to_canonical_dict()
-                ),
-                "missing_tournament_metrics": list(
-                    tournament_metric_computation.missing_metrics
-                ),
+                "tournament_metric_computation": (tournament_metric_computation.to_canonical_dict()),
+                "missing_tournament_metrics": list(tournament_metric_computation.missing_metrics),
                 "tournament_metric_surface_complete": metric_surface_complete,
             }
         )
@@ -1250,6 +1158,17 @@ def main() -> int:
         else campaign_report_dir / f"segment_{start_step + 1:09d}_{end_step:09d}.json"
     )
     _write_immutable_json(report_path, report)
+    if progress is not None:
+        progress.emit(
+            "completed" if report["curriculum_stage_complete"] else "paused",
+            global_step=report["segment_end_step"],
+            curriculum_stage_complete=report["curriculum_stage_complete"],
+            task_gate_passed=report["task_gate_passed"],
+            exact_serving_gate_passed=report["exact_serving_gate_passed"],
+            heldout_mean_loss=report["final_evaluation"]["heldout_mean_loss"],
+            report_path=str(report_path),
+            report_id=report["report_id"],
+        )
     print(json.dumps({**report, "report_path": str(report_path)}, ensure_ascii=False, sort_keys=True, indent=2))
     return 0
 

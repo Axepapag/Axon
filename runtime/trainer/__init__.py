@@ -116,6 +116,11 @@ from .preflight import (
     TrainingPreflightReceipt,
     build_training_preflight_receipt,
 )
+from .progress import (
+    TRAINING_PROGRESS_EVENT_SCHEMA,
+    TrainingProgressEvent,
+    TrainingProgressJournal,
+)
 from .registry import (
     IncompleteParameterInventoryError,
     ParameterRegistry,
@@ -215,6 +220,7 @@ __all__ = [
     "TRAINING_CAPACITY_CONTRACT_SCHEMA",
     "TRAINING_PREFLIGHT_EVIDENCE_SCHEMA",
     "TRAINING_PREFLIGHT_RECEIPT_SCHEMA",
+    "TRAINING_PROGRESS_EVENT_SCHEMA",
     "TRAINING_STEP_INTENT_SCHEMA",
     "TRANCHE_CONTINUATION_SCHEMA",
     "AcceptedStepPointer",
@@ -292,6 +298,8 @@ __all__ = [
     "TrainingBoundCategory",
     "TrainingPreflightEvidence",
     "TrainingPreflightReceipt",
+    "TrainingProgressEvent",
+    "TrainingProgressJournal",
     "TrancheContinuation",
     "TrancheError",
     "TrancheStore",

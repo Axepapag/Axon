@@ -955,6 +955,21 @@ closed. Its default read-only status is a concise operator summary; full tensor
 inspection is explicit. Training remains offline and isolated from serving
 until the existing promotion authority accepts complete gate evidence.
 
+The private Kaggle transport is a current adapter, not an alternate Trainer.
+`runtime/trainer/cloud_jobs.py` exports only committed executable tissue plus
+explicitly selected State into a content-addressed packet;
+`runtime/trainer/kaggle_adapter.py` registers cloud export/start/result-import
+handlers on the same organ boundary. Provider, accelerator, and execution
+tranche belong to external job/resource identity and never rewrite candidate,
+plan, curriculum, or learning-policy identity. Export refuses dirty tracked
+source, path escape, symlinks, credential filenames, and unacknowledged State.
+Generated datasets and kernels are private, internet-disabled, and launch only
+after explicit operator confirmation. Cloud output is noncanonical evidence
+until verified and imported; it cannot activate learned tissue. Training emits
+flushed per-step progress to provider logs plus an append-only JSONL journal
+and atomic latest-event file so observation and execution survive any
+engineering-agent or terminal lifetime.
+
 On 2026-08-28 and 2026-08-29 the exact full Candidate-A architecture passed
 preflight and a sequence of bounded Trainer-governed diagnostics on an isolated
 candidate branch. Fifteen accepted CUDA optimizer steps now have atomic
@@ -1538,8 +1553,8 @@ The active implementation surface is intentionally narrow:
 - `runtime/soul/` ? permanent opaque private layered-Soul store, exact
   transitions/promotions/receipts, prepared/finalized commit protocol, and
   restart recovery,
-- `runtime/trainer/` ? permanent Trainer parameter-authority anatomy: heterogeneous parameter+buffer inventory, OS single-writer lease, scoped mutation grants, immutable content-addressed learning policies, isolated candidate optimizer execution with governed accumulation/scheduling/precision/budgets, per-parameter telemetry, exact mid-accumulation checkpoint/restore, deterministic promotion gates, atomic active-generation pointers, exact activation/rollback snapshots and receipts, restart hydration, historical record-reference sessions plus whole-conversation runtime-faithful episode compilation/loading with explicit outcome quality and private-Soul lineage, isolated candidate-Soul branches, immutable lifecycle records, and read-only inspection; no model is activated without an explicit governed plan/policy/gate/activation path;
-- `scripts/run_axon_heart.py`, `scripts/evaluate_dormant_relevance.py`, `scripts/maintain_dormant_index.py`, and `scripts/verify_d64_dual_surface.py` ? permanent Heart runtime, deterministic dormant semantic/relevance evaluation, explicit derived-index maintenance/recovery, and read-only live D64 dual-surface verification entry points;
+- `runtime/trainer/` ? permanent Trainer parameter-authority anatomy: heterogeneous parameter+buffer inventory, OS single-writer lease, scoped mutation grants, immutable content-addressed learning policies, isolated candidate optimizer execution with governed accumulation/scheduling/precision/budgets, per-parameter telemetry, exact mid-accumulation checkpoint/restore, deterministic promotion gates, atomic active-generation pointers, exact activation/rollback snapshots and receipts, restart hydration, historical record-reference sessions plus whole-conversation runtime-faithful episode compilation/loading with explicit outcome quality and private-Soul lineage, isolated candidate-Soul branches, immutable lifecycle records, durable per-step progress journals, content-addressed cloud packets, a private Kaggle adapter, and read-only inspection; no model is activated without an explicit governed plan/policy/gate/activation path;
+- `scripts/run_axon_heart.py`, `scripts/evaluate_dormant_relevance.py`, `scripts/maintain_dormant_index.py`, `scripts/verify_d64_dual_surface.py`, and `scripts/axon_kaggle.py` ? permanent Heart runtime, deterministic dormant semantic/relevance evaluation, explicit derived-index maintenance/recovery, read-only live D64 dual-surface verification, and private persistent Kaggle training control entry points;
 - `training/canonical_d64.py`, `training/complete_field_64d.py`, and `training/train_complete_field_64d.py` ? developmental canonical D64 reasoning path with explicit v2-to-v3 region-embedding and optimizer-state migration; `training/living_reasoning_d64.py`, `training/living_reasoning_curriculum.py`, `training/living_reasoning_preflight.py`, `training/reasoning_tournament.py`, and `scripts/train_living_reasoning_smoke.py` ? exact Candidate-A anatomy, causal Soul/runtime unroll, deterministic mechanism curriculum, six-part launch evidence, head-isolation tournament, and one-step governed non-serving smoke; `training/heart_translation.py` plus `scripts/train_heart_translation_smoke.py` ? preserved real-field-D64 Heart translation curriculum/evaluation and Trainer-governed bounded candidate smoke path with no activation,
 - `curator/import_d00_memories.py` and the remaining `curator/` recovered-corpus utilities ? protected-source, byte-exact autobiographical import plus offline exact dormant-memory schema/materialization/building tooling; `scripts/compile_lived_experience_sessions.py` ? deterministic governed session compilation from exact Dormant experience,
 

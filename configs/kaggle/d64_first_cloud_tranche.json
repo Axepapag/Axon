@@ -1,0 +1,36 @@
+{
+  "accelerator": "gpu",
+  "allow_sensitive_state_upload": true,
+  "entrypoint_argv": [
+    "python",
+    "scripts/train_living_reasoning_smoke.py",
+    "--state-root",
+    "State",
+    "--device",
+    "cuda",
+    "--candidate-label",
+    "kaggle-d64-a",
+    "--curriculum-manifest",
+    "State/training/curricula/c1/c04ae8c6815e93b31136fdf833a525388c8439e74fd5317268cb1e1ba1233212/manifest.json",
+    "--heads",
+    "4",
+    "--layers",
+    "2",
+    "--ffn-dim",
+    "131072",
+    "--checkpoint-interval",
+    "8",
+    "--tranche-steps",
+    "64",
+    "--seed",
+    "20260831"
+  ],
+  "include_paths": [
+    "State/active/branches/active",
+    "State/training/curricula/c1/c04ae8c6815e93b31136fdf833a525388c8439e74fd5317268cb1e1ba1233212/manifest.json"
+  ],
+  "name": "D64 first private Kaggle tranche",
+  "notes": "Fresh governed D64 tournament lane. Sixty-four steps are a renewable resource tranche, not a candidate ceiling. Identity-bearing canonical State is explicitly authorized for this private job packet only.",
+  "provider": "kaggle",
+  "schema": "axon-cloud-training-job-config-v1"
+}
