@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-30T11:22:56-05:00
-Current through event: `evt-20260830T112256000333Z-hermes-post-handoff-sweep`
+Updated: 2026-08-30T21:36:53-05:00
+Current through event: `evt-20260831T023653384141Z-kimmy-hermes-tranche-verification`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -40,15 +40,20 @@ are zero. One standard heldout case remains deferred, so the formal metric
 surface is incomplete. No winner, promotion, activation, or learned-capability
 claim exists.
 
-Further optimizer work is technically blocked by a design defect, not project
-doctrine: the immutable `max_steps=16` authorization is also part of candidate
-identity, so increasing it creates a fresh generation from the governed base.
-Jeff explicitly rejected step ceilings as core identity. The proposed Trainer
-v2 separation keeps core lineage, parameter checkpoint, curriculum stage,
-learning recipe, and renewable resource authorization distinct. Competency
-gates decide stage completion; renewable time/step/cost tranches only pause and
-checkpoint work. Implementing that separation is the next prerequisite to
-training.
+Further optimizer work WAS technically blocked by a design defect, not project
+doctrine: the immutable `max_steps=16` authorization was also part of candidate
+identity, so increasing it created a fresh generation from the governed base.
+**That blocker is now CLOSED** (commit `962c8f1`, joint Hermes/Codex): the
+renewable resource-tranche law is doctrine in both SOT mirrors and code.
+`ResourceTranche`/`TrancheContinuation` records are durable beneath
+`State/training/trainer/tranches/`; `ParameterMutationPlanV2` has resource-free
+identity; sessions enforce exact-parent-restore and pause at the tranche bound;
+the harness and v2 launcher require tranches for v2 training; the headless
+TrainerOrgan surface, thin CLI, and TRAIN_AXON.bat exist. REAL-TISSUE PROOF:
+lineage `r64t-21a315397f232525` (candidate-a-1x64) executed accepted global
+step 17 from its exact step-16 parent bundle under a 1-step tranche — same
+plan_id, same generation, `paused_for_next_tranche=true`. Lineages now continue
+additively; no candidate is ever restarted for wanting more compute.
 
 ## Binding architecture
 
