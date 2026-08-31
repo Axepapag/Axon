@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-31T09:08:07-05:00
-Current through event: `evt-20260831T140807000000Z-kimmy-checkpoint-retention-policy`
+Updated: 2026-08-31T11:42:25-05:00
+Current through event: `evt-20260831T164225650785Z-codex-concurrent-ledger-correction`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -58,19 +58,42 @@ additively; no candidate is ever restarted for wanting more compute.
 ## Current campaign: C1 decisive run and checkpoint retention
 
 The C1 communication-first curriculum (36 cases, 7 lesson classes, manifest
-`c04ae8c6...`) is published and the decisive bounded campaign is running on
-fresh v2 lineages under predeclared falsification thresholds
-(`roundtable/C1_DECISIVE_CAMPAIGN_FALSIFICATION_2026-08-31.md`). Tranche 1
-(steps 2-65) completed for all three head geometries: heldout loss roughly
-halved and soul counterfactuals are nonzero, but token accuracy fell below
-the constant floor — no SIGNAL yet; falsification only at the 640-step
-ceiling. Tranche 2 exposed a disk-exhaustion defect (D: at 100% during
-candidate-b's step-88 checkpoint save; staging held, no corrupt artifact
-promoted). Per Jeff's direction the trainer now enforces keep-3 checkpoint
-retention per candidate generation (`CHECKPOINT_RETENTION`, auto-pruned at
-every accepted session checkpoint; immutable records retained forever);
-`scripts/prune_trainer_checkpoints.py` reclaimed 126.1 GB. Candidate realign
-to the shared step-129 boundary is in flight before aligned tranches resume.
+`c04ae8c6...`) is published and a bounded local-CUDA campaign is active on
+fresh v2 lineages. Candidates 1x64 and 2x32 have complete durable reports
+through accepted step 193. Candidate 4x16 was advancing inside tranche
+129->193 under Trainer lease PID 3924 at the 2026-08-31 11:36 CDT audit; its
+last complete report ends at step 129. Do not run a competing Trainer writer.
+
+At step 193, 1x64 and 2x32 both show heldout loss near 3.70, nonzero field/
+proposal/Soul counterfactuals, teacher-forced token accuracy 0.030075 against
+a 0.161654 strongest-constant floor, and zero typed/payload exactness. Loss is
+falling, but no SIGNAL or learned communication capability exists.
+
+The run is **not admissible as the predeclared C1 falsification verdict** until
+two contract defects are governed. First, the manifest labels 14 authored
+open-response cases PROCESS_EVIDENCE (9 train / 3 heldout / 2 regression), but
+the unchanged tournament loader ignores eligibility and supervises all of
+their exact target strings. All 36 cases have empty source-record identities.
+Second, the reported heldout metric combines six C1 cases with one synthetic
+mechanism case instead of isolating C1 as the falsification contract states.
+The current artifacts remain useful mechanism/optimization diagnostics; they
+cannot answer the declared evidence-qualified C1 question.
+
+Tranche 2 exposed disk exhaustion (D: 100% during candidate-b step 88; no
+corrupt artifact promoted). Per Jeff's direction, keep-3 checkpoint retention
+now auto-prunes at every accepted checkpoint while retaining immutable records.
+The one-time pruner reclaimed 126.1 GB; roughly 300 GiB was free at the audit.
+Accepted work is restartable, but mid-tranche interruption still needs a
+manual residual allowance and has no explicit abandonment/residual receipt.
+
+Hermes also added eight legal/IP support documents in commit `f40137c`:
+confidentiality posture, invention disclosures, evidence registrar, publication
+readiness, trademark notes, patent roadmap, and attorney brief. They correctly
+state that they are engineering support rather than legal advice. That commit
+is now covered by Hermes event
+`evt-20260831T113454290921Z-hermes-legal-scaffolding`. It arrived concurrently
+while Codex was preparing the audit; the later Codex correction event preserves
+both the original race observation and the corrected ledger truth.
 
 ## Binding architecture
 
@@ -296,8 +319,10 @@ authored conversational classes are PROCESS_EVIDENCE. All v1 cases are
 authored fixtures with synthetic provenance (`C1_AUTHORED_SOURCE_ID`); no
 Dormant records supervise. The manifest uses schema
 `axon-first-form-curriculum-v1` and loads through the unchanged tournament
-loader path. No C1 training run has launched; CPU preflight and tranche
-tournaments remain ahead.
+loader path. That unchanged loader does not enforce eligibility: PROCESS_EVIDENCE
+targets currently receive the same consolidated-response supervision as
+VERIFIED_TARGET. The current campaign therefore diagnoses the neural mechanism
+but does not establish evidence-qualified conversational education.
 
 The current Trainer has portable foundations—CPU-loadable PyTorch state,
 content-addressed parameter/Soul bundles, checkpoints, and fail-closed gates—
@@ -321,59 +346,65 @@ Docker-SSH adapters plus a double-click launcher and local selection UI.
 - SOT mirrors are byte-identical at SHA256
   `1CC61F65CCE03A58CC0F9A1A5CB867E97F0190D925D3BA91911560DC718B2FE1`.
 - `git diff --check`: passed.
-- `origin/main` contains recovered FFCS-D/E/F (`733e5d4`), campaign wiring
-  (`617989b`), and the Soul-lineage repair/evidence (`0ca90c5`); final ledger
-  bookkeeping follows.
-- No active Axon training process or Trainer writer remains. No cloud job or
-  paid operation ran.
+- Before this ledger closeout, local `main` was four commits ahead of
+  `origin/main`: C1 curriculum, falsification contract, keep-3 retention, and
+  legal/IP scaffolding. Three Hermes events plus the Codex audit/correction are
+  preserved in the pending ledger closeout.
+- A local Axon CUDA Trainer writer is active under PID 3924 on candidate 4x16.
+  No cloud job or paid operation ran. Tests were deliberately not rerun during
+  this audit to avoid competing with the active GPU mission.
 - Known non-failing warning: PyTorch nested-tensor optimization warning.
 
 ## Active flags
 
-1. **TRAINER CONTROL BLOCKER:** the 16-step ceiling is immutable plan and
-   candidate identity. This is an implemented defect, not a desired limit. No
-   further optimizer work until candidate lineage is separated from renewable
-   resource tranches and continuation preserves checkpoint/optimizer/Soul.
-2. **LEARNED CAPABILITY BLOCKER:** all candidates are far below the constant
-   floor and both exact-output rates are zero.
-3. **EVALUATION BLOCKER:** one heldout case is deferred, leaving nine formal
-   tournament metrics missing and comparison inadmissible.
-4. **REPORT RECOVERY GAP:** accepted state is safe if post-step evaluation
-   crashes, but a complete-campaign resume cannot yet regenerate the missing
+1. **C1 TARGET-QUALITY BLOCKER:** PROCESS_EVIDENCE is metadata only; the
+   harness currently supervises all 14 authored open-response targets despite
+   the communication contract requiring explicit outcome-qualified evidence.
+2. **C1 METRIC-SCOPE BLOCKER:** the predeclared SIGNAL concerns C1 heldout
+   material, but durable reports aggregate six C1 heldout cases with one
+   mechanism case. No current report can issue the declared C1 verdict.
+3. **LEARNED CAPABILITY BLOCKER:** A/B at step 193 remain far below the
+   constant floor and exact-output rates are zero.
+4. **MID-TRANCHE RECOVERY GAP:** a crash does not strand accepted state, but
+   the operator must calculate a residual tranche manually; no durable
+   abandonment/residual receipt or dedicated recovery test exists.
+5. **REPORT RECOVERY GAP:** accepted state is safe if post-step evaluation
+   crashes, but a complete-campaign resume cannot yet regenerate a missing
    segment report.
-5. **AUTOBIOGRAPHY HOOK GAP:** reasoning commit/deposit recovery is closed, but
+6. **AUTOBIOGRAPHY HOOK GAP:** reasoning commit/deposit recovery is closed, but
    every future tool executor and Trainer path is not yet automatically wired.
-6. **SOUL CONCURRENCY GAP:** current use relies on Heart single-writer and
+7. **SOUL CONCURRENCY GAP:** current use relies on Heart single-writer and
    Trainer lease ownership; `SoulBranch` is not independently multi-writer safe.
-7. **WIDER-RAIL/CORTEX GAP:** only D64 physically compiles. Wider rails and
+8. **WIDER-RAIL/CORTEX GAP:** only D64 physically compiles. Wider rails and
    autonomous Cortex retrieval/digestion remain future organs.
-8. **REPO HYGIENE ADVISORY:** a separate Hermes audit counted 127 repo-wide
+9. **REPO HYGIENE ADVISORY:** a separate Hermes audit counted 127 repo-wide
    Ruff findings outside changed-file scope; this does not contradict the
    changed-file Ruff gate.
-9. **CLAIM BOUNDARY:** persistent behavioral identity is engineerable;
+10. **PUBLICATION HYGIENE ADVISORY:** `f40137c` retains Jeff's personal email
+    in Git metadata; the repository must remain private pending governed
+    hygiene and Jeff's legal decisions.
+11. **CLAIM BOUNDARY:** persistent behavioral identity is engineerable;
    subjective consciousness or metaphysical continuity is not testable here.
-10. **CURRICULUM GAP (PARTIALLY CLOSED):** the C1 hidden-target single-turn
-    curriculum now exists and is published (36 authored cases, leakage-
-    verified), but C2-C6 do not, no C1 gate has been declared, and no C1
-    training run has executed. FFCS remains the mechanism/regression
-    schoolhouse.
-11. **PORTABILITY/OPERABILITY GAP:** no active cloud capsule/provider adapter,
+12. **CURRICULUM GAP (PARTIALLY CLOSED):** C1 exists and has produced optimizer
+    evidence, but its target qualification and metric isolation are not yet
+    admissible; C2-C6 do not exist. FFCS remains the mechanism schoolhouse.
+13. **PORTABILITY/OPERABILITY GAP:** no active cloud capsule/provider adapter,
     environment lock, double-click launcher, or training selection UI exists.
 
 ## Recommended next actions
 
-0. Run CPU preflight and one-step mechanism checks over the published C1
-   manifest; declare the C1 stage gate before any tournament tranche.
-1. Extend the communication-first curriculum through C2-C6 and gates; preserve
-   FFCS as its mechanism/regression prerequisite rather than Axon's whole
-   education.
-2. Add crash-safe report regeneration, evaluation-only operation, and the one
-   deferred heldout evaluation without optimizer mutation.
-3. Build a provider-neutral training capsule/CLI, a thin double-click local
-   launcher/UI, and Kaggle, Colab, and generic Docker/SSH adapters.
-4. Resume a controlled head-geometry tournament only on complete communication-
-   first gates; compare mastery, sample efficiency, compute, and regression.
-5. Promote nothing until a candidate passes the complete serving gate.
+0. Let the already-authorized C tranche close at step 193 and preserve its
+   report, but issue no subsequent tournament tranche.
+1. Replace C1 with accepted/corrected/endorsed targets or explicitly record
+   human endorsement of a reviewed authored batch; publish a new immutable
+   manifest and fresh campaign identity.
+2. Add C1-only heldout/regression metrics and predeclare the corrected decision
+   surface. Treat the current campaign as mechanism evidence, not falsification.
+3. Add exact mid-tranche interruption/residual-allowance recovery plus a
+   regression test, then run focused and full suites after the GPU writer exits.
+4. Extend communication-first C2-C6 only after C1 evidence is admissible.
+5. Build the provider-neutral cloud capsule/CLI and local launcher/UI.
+6. Promote nothing until a candidate passes the complete serving gate.
 
 ## Important paths
 
