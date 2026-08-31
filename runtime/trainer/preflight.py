@@ -13,8 +13,11 @@ from typing import Any, Iterable
 
 from runtime.field import canonical_sha256
 
-from .contracts import ParameterInventory, ParameterMutationPlan
-
+from .contracts import (
+    ParameterInventory,
+    ParameterMutationPlanLike,
+    is_parameter_mutation_plan,
+)
 
 TRAINING_CAPACITY_CONTRACT_SCHEMA = "axon-training-capacity-contract-v1"
 TRAINING_BOUND_SCHEMA = "axon-training-declared-bound-v1"
@@ -237,9 +240,9 @@ class TrainingPreflightReceipt:
         object.__setattr__(self, "passed", all(item.passed for item in evidence))
         object.__setattr__(self, "receipt_id", canonical_sha256(self.to_canonical_dict(include_id=False)))
 
-    def assert_authorizes(self, inventory: ParameterInventory, plan: ParameterMutationPlan) -> None:
-        if not isinstance(inventory, ParameterInventory) or not isinstance(plan, ParameterMutationPlan):
-            raise TypeError("preflight authorization requires ParameterInventory and ParameterMutationPlan")
+    def assert_authorizes(self, inventory: ParameterInventory, plan: ParameterMutationPlanLike) -> None:
+        if not isinstance(inventory, ParameterInventory) or not is_parameter_mutation_plan(plan):
+            raise TypeError("preflight authorization requires ParameterInventory and a governed mutation plan")
         manifest = inventory.module(plan.module_id)
         descriptor = manifest.descriptor
         mismatches: list[str] = []
@@ -291,7 +294,7 @@ def build_training_preflight_receipt(
     *,
     contract: CompleteFieldTrainingContract,
     inventory: ParameterInventory,
-    plan: ParameterMutationPlan,
+    plan: ParameterMutationPlanLike,
     evidence: Iterable[TrainingPreflightEvidence],
 ) -> TrainingPreflightReceipt:
     manifest = inventory.module(plan.module_id)
@@ -312,15 +315,15 @@ def build_training_preflight_receipt(
 
 
 __all__ = [
-    "TRAINING_CAPACITY_CONTRACT_SCHEMA",
+    "REQUIRED_PREFLIGHT_EVIDENCE",
     "TRAINING_BOUND_SCHEMA",
+    "TRAINING_CAPACITY_CONTRACT_SCHEMA",
     "TRAINING_PREFLIGHT_EVIDENCE_SCHEMA",
     "TRAINING_PREFLIGHT_RECEIPT_SCHEMA",
-    "TrainingBoundCategory",
-    "PreflightEvidenceKind",
-    "REQUIRED_PREFLIGHT_EVIDENCE",
-    "DeclaredTrainingBound",
     "CompleteFieldTrainingContract",
+    "DeclaredTrainingBound",
+    "PreflightEvidenceKind",
+    "TrainingBoundCategory",
     "TrainingPreflightEvidence",
     "TrainingPreflightReceipt",
     "build_training_preflight_receipt",

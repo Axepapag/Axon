@@ -45,9 +45,10 @@ def _finite_positive(value: float, label: str) -> float:
 class GovernedLearningPolicy:
     """Complete deterministic policy for one candidate optimizer lifecycle.
 
-    The mutation plan still declares *what* may learn and its maximum optimizer
-    steps.  This policy declares *how* those authorized parameters learn.  Its
-    content hash is persisted and bound into every candidate checkpoint/step.
+    The mutation plan declares *what* may learn.  This policy declares *how*
+    those authorized parameters learn. Historical v1 plans also contain a
+    maximum step envelope; v2 execution allowance lives only in renewable
+    tranches. The policy content hash is bound into every checkpoint/step.
     """
 
     optimizer: OptimizerKind | str
@@ -60,6 +61,7 @@ class GovernedLearningPolicy:
     scheduler: SchedulerKind | str = SchedulerKind.CONSTANT
     warmup_steps: int = 0
     min_lr_ratio: float = 0.0
+    schedule_steps: int | None = None
     gradient_accumulation_steps: int = 1
     gradient_clip_norm: float | None = 1.0
     max_gradient_l2: float | None = None
@@ -100,6 +102,13 @@ class GovernedLearningPolicy:
         object.__setattr__(self, "min_lr_ratio", ratio)
         if scheduler is SchedulerKind.CONSTANT and self.warmup_steps:
             raise ValueError("constant scheduler cannot declare warmup_steps")
+        if self.schedule_steps is not None:
+            if isinstance(self.schedule_steps, bool) or not isinstance(self.schedule_steps, int):
+                raise ValueError("schedule_steps must be an integer or None")
+            if self.schedule_steps < 1:
+                raise ValueError("schedule_steps must be positive when declared")
+            if self.warmup_steps > self.schedule_steps:
+                raise ValueError("warmup_steps cannot exceed schedule_steps")
 
         accumulation = self.gradient_accumulation_steps
         if isinstance(accumulation, bool) or not isinstance(accumulation, int) or accumulation <= 0:
@@ -115,28 +124,41 @@ class GovernedLearningPolicy:
 
     @classmethod
     def from_plan(cls, plan: Any) -> "GovernedLearningPolicy":
+        if not hasattr(plan, "optimizer_name") or not hasattr(plan, "learning_rate"):
+            raise ValueError("resource-independent v2 plans require an explicit learning policy")
         return cls(optimizer=plan.optimizer_name, learning_rate=plan.learning_rate)
 
     def assert_plan_compatible(self, plan: Any) -> None:
-        if str(plan.optimizer_name).strip().lower() != self.optimizer.value:
-            raise ValueError("learning policy optimizer differs from mutation plan")
-        if not math.isclose(float(plan.learning_rate), self.learning_rate, rel_tol=0.0, abs_tol=0.0):
-            raise ValueError("learning policy base learning rate differs from mutation plan")
-        if self.warmup_steps > int(plan.max_steps):
-            raise ValueError("learning policy warmup exceeds authorized optimizer-step budget")
+        if hasattr(plan, "optimizer_name") and hasattr(plan, "learning_rate"):
+            if str(plan.optimizer_name).strip().lower() != self.optimizer.value:
+                raise ValueError("learning policy optimizer differs from mutation plan")
+            if not math.isclose(float(plan.learning_rate), self.learning_rate, rel_tol=0.0, abs_tol=0.0):
+                raise ValueError("learning policy base learning rate differs from mutation plan")
+            if self.warmup_steps > int(plan.max_steps):
+                raise ValueError("learning policy warmup exceeds authorized optimizer-step budget")
+            return
+        if self.scheduler is SchedulerKind.WARMUP_COSINE and self.schedule_steps is None:
+            raise ValueError(
+                "resource-independent plans require schedule_steps for warmup_cosine policy"
+            )
 
-    def learning_rate_for_step(self, completed_optimizer_steps: int, max_optimizer_steps: int) -> float:
+    def learning_rate_for_step(
+        self,
+        completed_optimizer_steps: int,
+        max_optimizer_steps: int | None = None,
+    ) -> float:
         if isinstance(completed_optimizer_steps, bool) or not isinstance(completed_optimizer_steps, int) or completed_optimizer_steps < 0:
             raise ValueError("completed_optimizer_steps must be a non-negative integer")
-        if isinstance(max_optimizer_steps, bool) or not isinstance(max_optimizer_steps, int) or max_optimizer_steps <= 0:
-            raise ValueError("max_optimizer_steps must be a positive integer")
-        if completed_optimizer_steps >= max_optimizer_steps:
-            return self.learning_rate * self.min_lr_ratio if self.scheduler is SchedulerKind.WARMUP_COSINE else self.learning_rate
+        horizon = self.schedule_steps if self.schedule_steps is not None else max_optimizer_steps
         if self.scheduler is SchedulerKind.CONSTANT:
             return self.learning_rate
+        if isinstance(horizon, bool) or not isinstance(horizon, int) or horizon <= 0:
+            raise ValueError("warmup_cosine requires a positive schedule horizon")
+        if completed_optimizer_steps >= horizon:
+            return self.learning_rate * self.min_lr_ratio if self.scheduler is SchedulerKind.WARMUP_COSINE else self.learning_rate
         if self.warmup_steps and completed_optimizer_steps < self.warmup_steps:
             return self.learning_rate * float(completed_optimizer_steps + 1) / float(self.warmup_steps)
-        remaining = max_optimizer_steps - self.warmup_steps
+        remaining = horizon - self.warmup_steps
         if remaining <= 1:
             progress = 1.0
         else:
@@ -167,6 +189,8 @@ class GovernedLearningPolicy:
             "exact_scope_verification_each_step": bool(self.exact_scope_verification_each_step),
             "full_parameter_telemetry_each_step": bool(self.full_parameter_telemetry_each_step),
         }
+        if self.schedule_steps is not None:
+            value["schedule_steps"] = self.schedule_steps
         if include_id:
             value["policy_id"] = self.policy_id
         return value
@@ -174,8 +198,8 @@ class GovernedLearningPolicy:
 
 __all__ = [
     "LEARNING_POLICY_SCHEMA",
-    "OptimizerKind",
-    "SchedulerKind",
-    "PrecisionMode",
     "GovernedLearningPolicy",
+    "OptimizerKind",
+    "PrecisionMode",
+    "SchedulerKind",
 ]

@@ -20,6 +20,7 @@ OPTIMIZATION_STEP_SCHEMA = "axon-trainer-optimization-step-v2"
 class CandidateStatus(str, Enum):
     PREPARED = "prepared"
     RUNNING = "running"
+    PAUSED = "paused"
     COMPLETED = "completed"
     REJECTED = "rejected"
     GATE_PASSED = "gate_passed"

@@ -38,13 +38,29 @@ def _arguments() -> argparse.Namespace:
     )
     parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
     parser.add_argument("--max-steps", type=int, default=1)
-    parser.add_argument("--run-steps", type=int, default=1)
+    parser.add_argument(
+        "--legacy-plan-v1",
+        action="store_true",
+        help="address the historical max_steps-bound candidate generations",
+    )
+    parser.add_argument("--run-steps", type=int, default=None)
     parser.add_argument("--evaluation-case-limit", type=int, default=1)
     parser.add_argument("--learning-rate", type=float, default=1e-4)
     parser.add_argument("--seed", type=int, default=20260829)
     parser.add_argument("--checkpoint-interval", type=int, default=1)
     parser.add_argument("--preflight-only", action="store_true")
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument(
+        "--tranche-steps",
+        type=int,
+        default=None,
+        help="renewable steps per candidate beyond each exact restored parent",
+    )
+    parser.add_argument(
+        "--evaluate-only",
+        action="store_true",
+        help="evaluate existing accepted candidates without optimizer or Soul mutation",
+    )
     return parser.parse_args()
 
 
@@ -71,10 +87,6 @@ def _command(args: argparse.Namespace, *, label: str, heads: int) -> list[str]:
         str(heads),
         "--device",
         args.device,
-        "--max-steps",
-        str(args.max_steps),
-        "--run-steps",
-        str(args.run_steps),
         "--evaluation-case-limit",
         str(args.evaluation_case_limit),
         "--learning-rate",
@@ -84,12 +96,22 @@ def _command(args: argparse.Namespace, *, label: str, heads: int) -> list[str]:
         "--checkpoint-interval",
         str(args.checkpoint_interval),
     ]
+    if args.legacy_plan_v1:
+        command.extend(("--max-steps", str(args.max_steps)))
+    if args.run_steps is not None and args.tranche_steps is None and not args.evaluate_only:
+        command.extend(("--run-steps", str(args.run_steps)))
     for manifest in args.curriculum_manifest:
         command.extend(("--curriculum-manifest", str(manifest.resolve())))
     if args.preflight_only:
         command.append("--preflight-only")
     if args.resume:
         command.append("--resume")
+    if args.tranche_steps is not None:
+        command.extend(("--tranche-steps", str(args.tranche_steps)))
+    if args.evaluate_only:
+        command.append("--evaluate-only")
+    if args.legacy_plan_v1:
+        command.append("--legacy-plan-v1")
     return command
 
 
@@ -103,9 +125,23 @@ def _failure_class(stderr: str) -> str | None:
 
 def main() -> int:
     args = _arguments()
-    for name in ("max_steps", "run_steps", "evaluation_case_limit", "checkpoint_interval"):
+    for name in ("evaluation_case_limit", "checkpoint_interval"):
         if getattr(args, name) < 1:
             raise ValueError(f"--{name.replace('_', '-')} must be positive")
+    if args.legacy_plan_v1 and args.max_steps < 1:
+        raise ValueError("--max-steps must be positive for legacy v1 plans")
+    if args.run_steps is not None and args.run_steps < 1:
+        raise ValueError("--run-steps must be positive when supplied")
+    if args.tranche_steps is not None and args.tranche_steps < 1:
+        raise ValueError("--tranche-steps must be positive when supplied")
+    if args.evaluate_only and not args.resume:
+        raise ValueError("evaluation-only operation requires --resume")
+    if args.legacy_plan_v1 and args.tranche_steps is not None and not args.resume:
+        raise ValueError("legacy renewal requires --resume")
+    if args.tranche_steps is not None and args.evaluate_only:
+        raise ValueError("--tranche-steps and --evaluate-only are mutually exclusive")
+    if not args.legacy_plan_v1 and not args.evaluate_only and args.tranche_steps is None:
+        raise ValueError("v2 tournament training requires --tranche-steps")
     standard_curricula = []
     sequential_curricula = []
     for manifest_path in args.curriculum_manifest:
@@ -135,7 +171,7 @@ def main() -> int:
         "ffcs_manifest_ids": ffcs_manifest_ids,
         "settings": {
             "device": args.device,
-            "max_steps": args.max_steps,
+            "max_steps": args.max_steps if args.legacy_plan_v1 else None,
             "run_steps": args.run_steps,
             "evaluation_case_limit": args.evaluation_case_limit,
             "learning_rate": args.learning_rate,
@@ -143,6 +179,9 @@ def main() -> int:
             "checkpoint_interval": args.checkpoint_interval,
             "preflight_only": bool(args.preflight_only),
             "resume": bool(args.resume),
+            "tranche_steps": args.tranche_steps,
+            "evaluate_only": bool(args.evaluate_only),
+            "legacy_plan_v1": bool(args.legacy_plan_v1),
         },
         "claim_boundary": (
             "opening diagnostic only; incomplete heldout and missing tournament metrics "

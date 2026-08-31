@@ -9,8 +9,9 @@ from runtime.field import canonical_sha256
 from .contracts import (
     ParameterInventory,
     ParameterMutationGrant,
-    ParameterMutationPlan,
+    ParameterMutationPlanLike,
     ParameterMutationPolicy,
+    is_parameter_mutation_plan,
 )
 from .preflight import TrainingPreflightReceipt
 
@@ -83,7 +84,7 @@ class AuthorizedParameterMutation:
 def authorize_parameter_mutation(
     inventory: ParameterInventory,
     grant: ParameterMutationGrant,
-    plan: ParameterMutationPlan,
+    plan: ParameterMutationPlanLike,
     preflight_receipt: TrainingPreflightReceipt,
 ) -> AuthorizedParameterMutation:
     """Validate one proposed training mutation against exact current lineage.
@@ -97,8 +98,8 @@ def authorize_parameter_mutation(
         raise TypeError("inventory must be ParameterInventory")
     if not isinstance(grant, ParameterMutationGrant):
         raise TypeError("grant must be ParameterMutationGrant")
-    if not isinstance(plan, ParameterMutationPlan):
-        raise TypeError("plan must be ParameterMutationPlan")
+    if not is_parameter_mutation_plan(plan):
+        raise TypeError("plan must be a governed parameter mutation plan")
     if not isinstance(preflight_receipt, TrainingPreflightReceipt):
         raise TypeError("parameter mutation authority requires a TrainingPreflightReceipt")
     try:

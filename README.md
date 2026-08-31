@@ -47,11 +47,16 @@ Trainer organ control plane:
 - `runtime/trainer/lifecycle.py`
 - `runtime/trainer/execution.py`
 - `runtime/trainer/learning.py`
+- `runtime/trainer/tranche.py`
+- `runtime/trainer/organ.py`
+- `runtime/trainer/step_bundle.py`
 - `runtime/trainer/gates.py`
 - `runtime/trainer/lease.py`
 - `runtime/trainer/inspection.py`
 - `runtime/trainer/host.py`
 - `scripts/inspect_trainer.py`
+- `scripts/axon_trainer.py`
+- `TRAIN_AXON.bat`
 
 Current developmental D64 training tissue:
 
@@ -59,7 +64,9 @@ Current developmental D64 training tissue:
 - `training/complete_field_64d.py`
 - `training/train_complete_field_64d.py`
 
-The Trainer now owns governed **isolated candidate**, activation, and rollback boundaries as well as parameter governance/observability. It never optimizes the registered live organ in place: mutations are grant-scoped and every candidate runs under an immutable content-addressed learning policy governing AdamW/SGD hyperparameters, weight decay, deterministic scheduling, gradient accumulation, clipping/budgets, and FP32/BF16/FP16 precision. Mid-accumulation checkpoints preserve optimizer, pending gradients, AMP scaler state when present, counters, LR and accumulated-loss state for exact resume. Deterministic evaluation gates precede promotion, and only the leased Trainer can atomically advance an active-generation pointer after saving an exact rollback target. Restart hydration and reversible rollback are explicit. Use `python scripts/inspect_trainer.py` for read-only current Trainer status, including the latest learning policy/microstep and active generations. No real core-training campaign is launched by this anatomy. The present 64D model path is a proving width, not a final limit on Axon's heterogeneous semantic/reasoning/trainer ensembles.
+The Trainer now owns governed **isolated candidate**, activation, and rollback boundaries as well as parameter governance/observability. It never optimizes the registered live organ in place: mutations are grant-scoped and every candidate runs under an immutable content-addressed learning policy governing AdamW/SGD hyperparameters, weight decay, deterministic scheduling, gradient accumulation, clipping/budgets, and FP32/BF16/FP16 precision. Mid-accumulation checkpoints preserve optimizer, pending gradients, AMP scaler state when present, counters, LR and accumulated-loss state for exact resume. V2 mutation plans contain no lifetime step ceiling; bounded execution is authorized by renewable tranches that pause at exact checkpoint/optimizer/Soul bundles and later continue the same global lineage. Deterministic evaluation gates precede promotion, and only the leased Trainer can atomically advance an active-generation pointer after saving an exact rollback target. Restart hydration and reversible rollback are explicit.
+
+Double-click `TRAIN_AXON.bat`, or run `python scripts/axon_trainer.py status`, for the concise read-only operator view. Add `--detail full` for the complete telemetry surface. Mutating organ commands and cloud adapters remain deliberately unavailable until their governed handlers are connected; the existing research harness still calls the same deterministic Trainer control plane directly. Real Heart and D64 reasoning diagnostics exist in State, but none passed serving gates and no training workload is currently running. The present 64D model path is a proving width, not a final limit on Axon's heterogeneous semantic/reasoning/trainer ensembles.
 
 Recovered dormant-memory construction/audit utilities:
 

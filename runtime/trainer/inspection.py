@@ -119,6 +119,8 @@ def inspect_trainer_state(*, state_root: Path | str = Path(r"D:\Axon\State")) ->
         ("generation_snapshots", _count_json(trainer / "generation_snapshots", recursive=True)),
         ("activation_receipts", _count_json(trainer / "activation_receipts", recursive=True)),
         ("rollback_receipts", _count_json(trainer / "rollback_receipts", recursive=True)),
+        ("resource_tranches", _count_json(trainer / "tranches")),
+        ("tranche_continuations", _count_json(trainer / "tranches" / "continuations")),
         ("active_generation_pointers", len(active_pointers)),
     )
     return TrainerInspectionSnapshot(

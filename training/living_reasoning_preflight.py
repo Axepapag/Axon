@@ -23,7 +23,9 @@ from runtime.trainer import (
     DeclaredTrainingBound,
     ParameterInventory,
     ParameterMutationPlan,
+    ParameterMutationPlanLike,
     PreflightEvidenceKind,
+    ResourceTranche,
     TrainingBoundCategory,
     TrainingPreflightEvidence,
     TrainingPreflightReceipt,
@@ -337,14 +339,26 @@ def build_living_reasoning_preflight(
     model: LivingReasoningCoreD64,
     curriculum: LivingReasoningCurriculum,
     inventory: ParameterInventory,
-    plan: ParameterMutationPlan,
+    plan: ParameterMutationPlanLike,
     state_root: Path | str,
     repo_root: Path | str,
     batch_size: int = 1,
     sequential_curricula: Sequence[Any] = (),
+    resource_tranche: ResourceTranche | None = None,
+    evaluation_only: bool = False,
 ) -> TrainingPreflightReceipt:
     if batch_size < 1:
         raise ValueError("batch_size must be positive")
+    if (
+        not isinstance(plan, ParameterMutationPlan)
+        and resource_tranche is None
+        and not evaluation_only
+    ):
+        raise ValueError("resource-independent v2 plans require a resource tranche")
+    if evaluation_only and resource_tranche is not None:
+        raise ValueError("evaluation-only preflight cannot consume a resource tranche")
+    if resource_tranche is not None and resource_tranche.plan_id != plan.plan_id:
+        raise ValueError("resource tranche does not bind the preflight mutation plan")
     model.eval()
     static = scan_active_capacity_poison(repo_root)
     payloads = {
@@ -395,11 +409,33 @@ def build_living_reasoning_preflight(
                 continuation_or_failure="Continue recurrent Soul-conditioned sweep until every eligible character is visited.",
             ),
             DeclaredTrainingBound(
-                name="optimizer_steps",
-                category=TrainingBoundCategory.OPTIMIZATION_BUDGET,
-                value=plan.max_steps,
+                name=(
+                    "resource_tranche_steps"
+                    if resource_tranche is not None
+                    else "evaluation_passes"
+                    if evaluation_only
+                    else "optimizer_steps"
+                ),
+                category=(
+                    TrainingBoundCategory.COMPUTE_BUDGET
+                    if evaluation_only
+                    else TrainingBoundCategory.OPTIMIZATION_BUDGET
+                ),
+                value=(
+                    resource_tranche.steps
+                    if resource_tranche is not None
+                    else 1
+                    if evaluation_only
+                    else plan.max_steps
+                ),
                 source_preserved=True,
-                continuation_or_failure="Stop this candidate campaign and retain an exact resumable checkpoint.",
+                continuation_or_failure=(
+                    "Pause this execution segment at an exact resumable checkpoint; a later tranche continues the same lineage."
+                    if resource_tranche is not None
+                    else "Perform one read-only evaluation pass with no optimizer or Soul mutation."
+                    if evaluation_only
+                    else "Stop this historical v1 candidate campaign and retain an exact resumable checkpoint."
+                ),
             ),
             DeclaredTrainingBound(
                 name="training_batch_size",

@@ -20,12 +20,17 @@ from runtime.soul import SoulStore
 from runtime.trainer import (
     CandidateSoulWorkspace,
     CandidateStepBundleCoordinator,
+    GovernedLearningPolicy,
     OrganKind,
     ParameterModuleDescriptor,
     ParameterMutationGrant,
     ParameterMutationPlan,
+    ParameterMutationPlanV2,
     ParameterMutationPolicy,
+    ResourceTranche,
     TrainerControlPlane,
+    TrancheContinuation,
+    TrancheStore,
 )
 from training import (
     LivingReasoningCoreD64,
@@ -46,11 +51,105 @@ from training import (
 ROOT = Path(__file__).resolve().parent.parent
 
 
+def _write_immutable_json(path: Path, value: dict[str, Any]) -> None:
+    """Publish one immutable JSON artifact or verify an identical replay."""
+
+    body = json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+    if path.exists():
+        if path.read_text(encoding="utf-8") != body:
+            raise RuntimeError(f"immutable report artifact disagrees at {path}")
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(path.name + f".{os.getpid()}.tmp")
+    with temporary.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(body)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, path)
+
+
+def _prior_consumed_tranche_id(
+    *,
+    campaign_report_dir: Path,
+    module_id: str,
+    candidate_generation_id: str,
+    latest_bundle: Any,
+    tranche_store: TrancheStore,
+    plan_id: str,
+    learning_policy_id: str,
+) -> str | None:
+    """Prove which resource tranche, if any, produced an accepted parent.
+
+    A tranche record is only an issued allowance. It becomes lineage only when
+    an immutable segment report binds it to the exact final checkpoint and
+    accepted step bundle. This prevents an abandoned allowance from being
+    mistaken for consumed history.
+    """
+
+    matching_issued = tuple(
+        item
+        for item in tranche_store.tranches_for(module_id, candidate_generation_id)
+        if item.plan_id == plan_id
+        and item.learning_policy_id == learning_policy_id
+        and item.final_global_step == latest_bundle.step
+    )
+    consumed: set[str] = set()
+    for path in sorted(campaign_report_dir.glob("segment_*.json")):
+        body = json.loads(path.read_text(encoding="utf-8"))
+        observed_report_id = body.get("report_id")
+        if observed_report_id is None or canonical_sha256(
+            {key: value for key, value in body.items() if key != "report_id"}
+        ) != observed_report_id:
+            raise RuntimeError(f"immutable segment report identity mismatch: {path}")
+        if (
+            body.get("evaluation_only")
+            or body.get("candidate_generation_id") != candidate_generation_id
+            or body.get("segment_end_step") != latest_bundle.step
+            or body.get("final_checkpoint_id") != latest_bundle.checkpoint_id
+        ):
+            continue
+        accepted_bundle_ids = tuple(
+            item.get("accepted_step_bundle_id")
+            for item in body.get("steps", ())
+            if item.get("accepted_step_bundle_id") is not None
+        )
+        if not accepted_bundle_ids or accepted_bundle_ids[-1] != latest_bundle.bundle_id:
+            continue
+        resource = body.get("resource_tranche")
+        if resource is None:
+            continue
+        reported = ResourceTranche.from_mapping(resource)
+        durable = tranche_store.read_tranche(reported.tranche_id)
+        if durable.to_canonical_dict() != reported.to_canonical_dict():
+            raise RuntimeError("segment report resource tranche differs from durable record")
+        consumed.add(reported.tranche_id)
+    if len(consumed) > 1:
+        raise RuntimeError("multiple consumed tranches claim the accepted parent bundle")
+    if consumed:
+        return next(iter(consumed))
+    if matching_issued:
+        raise RuntimeError(
+            "accepted parent coincides with an issued but unclosed resource tranche; "
+            "regenerate its evaluation/report before issuing a continuation"
+        )
+    return None
+
+
 def _arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--state-root", type=Path, default=ROOT / "State")
     parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
-    parser.add_argument("--max-steps", type=int, default=2)
+    parser.add_argument(
+        "--max-steps",
+        type=int,
+        default=2,
+        help="historical v1 plan envelope; ignored by resource-independent v2 identity",
+    )
+    parser.add_argument(
+        "--legacy-plan-v1",
+        action="store_true",
+        help="preserve or resume a historical max_steps-bound candidate; new tissue defaults to v2",
+    )
     parser.add_argument(
         "--run-steps",
         type=int,
@@ -97,6 +196,25 @@ def _arguments() -> argparse.Namespace:
         "--resume",
         action="store_true",
         help="resume from the latest accepted parameter+Soul step bundle",
+    )
+    parser.add_argument(
+        "--tranche-steps",
+        type=int,
+        default=None,
+        help=(
+            "renewable resource tranche: optimizer steps granted to this segment "
+            "beyond its exact base step. Fresh v2 tissue starts at base zero; "
+            "continuation requires --resume with an accepted parent bundle. "
+            "The allowance never changes plan or candidate identity."
+        ),
+    )
+    parser.add_argument(
+        "--evaluate-only",
+        action="store_true",
+        help=(
+            "evaluation/report regeneration only: no optimizer mutation, no Soul "
+            "transition, no accepted step. Requires an existing accepted bundle."
+        ),
     )
     return parser.parse_args()
 
@@ -279,7 +397,7 @@ def _material_objective(
 
 def main() -> int:
     args = _arguments()
-    if args.max_steps < 1:
+    if args.legacy_plan_v1 and args.max_steps < 1:
         raise ValueError("--max-steps must be positive")
     if args.checkpoint_interval < 1:
         raise ValueError("--checkpoint-interval must be positive")
@@ -287,6 +405,24 @@ def main() -> int:
         raise ValueError("--run-steps must be positive when supplied")
     if args.evaluation_case_limit is not None and args.evaluation_case_limit < 1:
         raise ValueError("--evaluation-case-limit must be positive when supplied")
+    if args.tranche_steps is not None and args.tranche_steps < 1:
+        raise ValueError("--tranche-steps must be positive when supplied")
+    if args.legacy_plan_v1 and args.tranche_steps is not None and not args.resume:
+        raise ValueError("--tranche-steps requires --resume with an accepted parent bundle")
+    if args.tranche_steps is not None and args.run_steps is not None:
+        raise ValueError(
+            "--tranche-steps is already the complete segment allowance; "
+            "do not combine it with --run-steps"
+        )
+    if args.evaluate_only and not args.resume:
+        raise ValueError("--evaluate-only requires --resume with an accepted bundle")
+    if args.evaluate_only and args.tranche_steps is not None:
+        raise ValueError("--evaluate-only cannot be combined with --tranche-steps")
+    if not args.legacy_plan_v1 and not args.evaluate_only and args.tranche_steps is None:
+        raise ValueError(
+            "resource-independent v2 training requires --tranche-steps; "
+            "resource allowance is never part of candidate identity"
+        )
     if args.candidate_label is not None and re.fullmatch(
         r"[a-z0-9][a-z0-9-]{0,63}", args.candidate_label
     ) is None:
@@ -374,34 +510,34 @@ def main() -> int:
     if args.candidate_label is None:
         module_id = "reasoning-d64-candidate-a"
         base_generation = "reasoning-d64-untrained-base-v1"
-        candidate_generation = "r64a-smoke-" + canonical_sha256(
-            {
-                "architecture_id": config.architecture_id,
-                "seed": args.seed,
-                "max_steps": args.max_steps,
-                "learning_rate": args.learning_rate,
-                "checkpoint_interval": args.checkpoint_interval,
-                "curriculum_id": curriculum.curriculum_id,
-                "campaign_curriculum_id": campaign_curriculum_id,
-            }
-        )[:16]
         candidate_label = "legacy-candidate-a"
     else:
         candidate_label = args.candidate_label
         module_id = f"reasoning-d64-{candidate_label}"
         base_generation = f"{module_id}-untrained-base-v1"
-        candidate_generation = "r64t-" + canonical_sha256(
+    candidate_identity = {
+        "candidate_label": candidate_label,
+        "architecture_id": config.architecture_id,
+        "seed": args.seed,
+        "curriculum_id": curriculum.curriculum_id,
+        "campaign_curriculum_id": campaign_curriculum_id,
+    }
+    if args.legacy_plan_v1:
+        legacy_identity = dict(candidate_identity)
+        if args.candidate_label is None:
+            legacy_identity.pop("candidate_label")
+        candidate_generation = (
+            "r64a-smoke-" if args.candidate_label is None else "r64t-"
+        ) + canonical_sha256(
             {
-                "candidate_label": candidate_label,
-                "architecture_id": config.architecture_id,
-                "seed": args.seed,
+                **legacy_identity,
                 "max_steps": args.max_steps,
                 "learning_rate": args.learning_rate,
                 "checkpoint_interval": args.checkpoint_interval,
-                "curriculum_id": curriculum.curriculum_id,
-                "campaign_curriculum_id": campaign_curriculum_id,
             }
         )[:16]
+    else:
+        candidate_generation = "r64v2-" + canonical_sha256(candidate_identity)[:16]
     descriptor = ParameterModuleDescriptor(
         module_id=module_id,
         organ_kind=OrganKind.REASONING_CORE,
@@ -466,18 +602,88 @@ def main() -> int:
             ]
             + [item.heldout_manifest_id for item in sequential_ffcs]
         )
-        plan = ParameterMutationPlan(
-            base_inventory_id=inventory.inventory_id,
-            module_id=module_id,
-            base_generation_id=base_generation,
-            candidate_generation_id=candidate_generation,
-            tensor_names=tensor_names,
-            optimizer_name="AdamW",
+        if args.legacy_plan_v1:
+            plan = ParameterMutationPlan(
+                base_inventory_id=inventory.inventory_id,
+                module_id=module_id,
+                base_generation_id=base_generation,
+                candidate_generation_id=candidate_generation,
+                tensor_names=tensor_names,
+                optimizer_name="AdamW",
+                learning_rate=args.learning_rate,
+                max_steps=args.max_steps,
+                source_manifest_ids=source_manifest_ids,
+                holdout_manifest_ids=holdout_manifest_ids,
+            )
+        else:
+            plan = ParameterMutationPlanV2(
+                base_inventory_id=inventory.inventory_id,
+                module_id=module_id,
+                base_generation_id=base_generation,
+                candidate_generation_id=candidate_generation,
+                tensor_names=tensor_names,
+                source_manifest_ids=source_manifest_ids,
+                holdout_manifest_ids=holdout_manifest_ids,
+            )
+        policy = GovernedLearningPolicy(
+            optimizer="adamw",
             learning_rate=args.learning_rate,
-            max_steps=args.max_steps,
-            source_manifest_ids=source_manifest_ids,
-            holdout_manifest_ids=holdout_manifest_ids,
         )
+        step_bundles = CandidateStepBundleCoordinator(args.state_root)
+        latest_bundle = step_bundles.latest_bundle(module_id, candidate_generation)
+        campaign_report_dir = (
+            args.state_root.resolve()
+            / "training"
+            / "reasoning"
+            / candidate_generation
+        )
+        tranche_store = TrancheStore(args.state_root / "training" / "trainer")
+        tranche = None
+        prior_tranche_id = None
+        if args.tranche_steps is not None:
+            if latest_bundle is not None and not args.resume:
+                raise RuntimeError(
+                    "candidate already has accepted work; continuation requires --resume"
+                )
+            if latest_bundle is None and args.resume:
+                raise RuntimeError(
+                    "--resume requested but this candidate has no accepted parent bundle"
+                )
+            if latest_bundle is not None:
+                prior_tranche_id = _prior_consumed_tranche_id(
+                    campaign_report_dir=campaign_report_dir,
+                    module_id=module_id,
+                    candidate_generation_id=candidate_generation,
+                    latest_bundle=latest_bundle,
+                    tranche_store=tranche_store,
+                    plan_id=plan.plan_id,
+                    learning_policy_id=policy.policy_id,
+                )
+            base_global_step = 0 if latest_bundle is None else latest_bundle.step
+            parent_bundle_id = (
+                None if latest_bundle is None else latest_bundle.bundle_id
+            )
+            tranche = ResourceTranche(
+                module_id=module_id,
+                candidate_generation_id=candidate_generation,
+                plan_id=plan.plan_id,
+                learning_policy_id=policy.policy_id,
+                base_global_step=base_global_step,
+                steps=args.tranche_steps,
+                parent_bundle_id=parent_bundle_id,
+                purpose=(
+                    "renewable base-zero training tranche"
+                    if parent_bundle_id is None
+                    else "renewable continuation tranche "
+                    f"(parent bundle {parent_bundle_id[:16]})"
+                ),
+            )
+            tranche_store.write_tranche(tranche)
+            report["resource_tranche"] = tranche.to_canonical_dict()
+        elif args.evaluate_only and latest_bundle is None:
+            raise RuntimeError(
+                "--evaluate-only requires an existing accepted bundle; none exists"
+            )
         preflight = build_living_reasoning_preflight(
             model=model,
             curriculum=curriculum,
@@ -486,11 +692,15 @@ def main() -> int:
             state_root=args.state_root,
             repo_root=ROOT,
             sequential_curricula=sequential_ffcs,
+            resource_tranche=tranche,
+            evaluation_only=args.evaluate_only,
         )
         report.update(
             {
                 "inventory_id": inventory.inventory_id,
                 "plan_id": plan.plan_id,
+                "plan_schema": plan.to_canonical_dict()["schema"],
+                "learning_policy_id": policy.policy_id,
                 "source_manifest_ids": list(plan.source_manifest_ids),
                 "holdout_manifest_ids": list(plan.holdout_manifest_ids),
                 "preflight_receipt_id": preflight.receipt_id,
@@ -503,15 +713,14 @@ def main() -> int:
             print(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2))
             return 0
 
-        step_bundles = CandidateStepBundleCoordinator(args.state_root)
-        latest_bundle = step_bundles.latest_bundle(module_id, candidate_generation)
-        campaign_report_dir = (
-            args.state_root.resolve()
-            / "training"
-            / "reasoning"
-            / candidate_generation
-        )
-        if latest_bundle is not None and latest_bundle.step >= args.max_steps:
+        if (
+            args.legacy_plan_v1
+            and
+            latest_bundle is not None
+            and latest_bundle.step >= args.max_steps
+            and tranche is None
+            and not args.evaluate_only
+        ):
             if not args.resume:
                 raise RuntimeError(
                     "candidate campaign is complete; pass --resume for idempotent report recovery"
@@ -553,6 +762,8 @@ def main() -> int:
             grant,
             plan,
             preflight_receipt=preflight,
+            policy=policy,
+            tranche=tranche,
         )
 
         live_souls = SoulStore.active(args.state_root)
@@ -607,9 +818,30 @@ def main() -> int:
                 raise RuntimeError(
                     "candidate already has accepted work; pass --resume or choose a different governed campaign"
                 )
-            session.restore_checkpoint(step_bundles.checkpoint_for_bundle(latest_bundle))
+            if tranche is not None and latest_bundle.bundle_id != tranche.parent_bundle_id:
+                raise RuntimeError(
+                    "accepted parent advanced during recovery; issue a fresh resource tranche"
+                )
+            parent_checkpoint = step_bundles.checkpoint_for_bundle(latest_bundle)
+            session.restore_checkpoint(parent_checkpoint)
             if soul_branch.load_head().soul_id != latest_bundle.after_soul_id:
                 raise RuntimeError("accepted checkpoint and candidate Soul HEAD disagree")
+            if tranche is not None:
+                continuation = TrancheContinuation(
+                    tranche_id=tranche.tranche_id,
+                    module_id=module_id,
+                    candidate_generation_id=candidate_generation,
+                    plan_id=plan.plan_id,
+                    learning_policy_id=policy.policy_id,
+                    parent_bundle_id=latest_bundle.bundle_id,
+                    parent_checkpoint_id=latest_bundle.checkpoint_id,
+                    parent_optimizer_receipt_id=latest_bundle.optimization_receipt_id,
+                    parent_soul_id=latest_bundle.after_soul_id,
+                    parent_global_step=latest_bundle.step,
+                    prior_tranche_id=prior_tranche_id,
+                )
+                tranche_store.write_continuation(continuation)
+                report["tranche_continuation"] = continuation.to_canonical_dict()
         elif args.resume:
             report["resume_note"] = (
                 "no accepted bundle existed; unaccepted optimizer/checkpoint orphans, if any, "
@@ -742,11 +974,16 @@ def main() -> int:
             ]
         )
         start_step = 0 if latest_bundle is None else latest_bundle.step
-        end_step = min(
-            args.max_steps,
-            start_step + (args.max_steps if args.run_steps is None else args.run_steps),
-        )
-        if start_step >= args.max_steps:
+        if args.evaluate_only:
+            end_step = start_step
+        elif tranche is not None:
+            end_step = tranche.final_global_step
+        else:
+            end_step = min(
+                args.max_steps,
+                start_step + (args.max_steps if args.run_steps is None else args.run_steps),
+            )
+        if start_step >= end_step and tranche is None and not args.evaluate_only:
             raise RuntimeError("candidate campaign is already complete")
         segment_transitions = []
         segment_receipt_ids = []
@@ -857,8 +1094,6 @@ def main() -> int:
                     ),
                 }
             )
-        session.complete(reason="bounded Candidate-A campaign segment completed")
-
         final_evaluation = evaluate_candidate()
         counterfactuals_passed = all(
             value > 1e-8 for value in final_evaluation["counterfactuals"].values()
@@ -897,6 +1132,28 @@ def main() -> int:
         )
         tournament_metrics = tournament_metric_computation.metric_mapping
         metric_surface_complete = tournament_metric_computation.complete
+        curriculum_stage_complete = (
+            task_gate_passed and exact_gate_passed and metric_surface_complete
+        )
+        final_checkpoint_id = (
+            checkpoints[-1].checkpoint_id
+            if checkpoints
+            else step_bundles.latest_bundle(
+                module_id, candidate_generation
+            ).checkpoint_id
+        )
+        if curriculum_stage_complete:
+            lifecycle_event = session.complete(
+                reason="complete curriculum-stage gate passed; serving activation remains separate"
+            )
+        else:
+            lifecycle_event = session.pause(
+                reason=(
+                    "execution segment ended at an exact accepted checkpoint; "
+                    "curriculum stage remains open for a later renewable tranche"
+                ),
+                checkpoint_id=final_checkpoint_id,
+            )
         report.update(
             {
                 "candidate_generation_id": candidate_generation,
@@ -905,10 +1162,26 @@ def main() -> int:
                 "soul_promotion_plan": promotion_plan.to_canonical_dict(),
                 "steps": steps,
                 "checkpoint_interval": args.checkpoint_interval,
-                "segment_start_step": start_step + 1,
+                "segment_start_step": (
+                    start_step if args.evaluate_only else start_step + 1
+                ),
                 "segment_end_step": end_step,
-                "campaign_max_steps": args.max_steps,
-                "campaign_complete": end_step == args.max_steps,
+                "campaign_max_steps": (
+                    args.max_steps if args.legacy_plan_v1 else None
+                ),
+                "evaluation_only": bool(args.evaluate_only),
+                "campaign_complete": curriculum_stage_complete,
+                "curriculum_stage_complete": curriculum_stage_complete,
+                "legacy_plan_envelope_exhausted": (
+                    end_step >= args.max_steps if args.legacy_plan_v1 else None
+                ),
+                "resource_tranche_consumed": (
+                    tranche is not None and end_step == tranche.final_global_step
+                ),
+                "paused_for_next_tranche": not curriculum_stage_complete,
+                "resource_tranche": (
+                    None if tranche is None else tranche.to_canonical_dict()
+                ),
                 "heldout_case_count": len(all_heldout_episodes),
                 "evaluated_heldout_case_count": len(heldout_episodes),
                 "deferred_heldout_case_count": (
@@ -944,11 +1217,9 @@ def main() -> int:
                     < initial_evaluation["heldout_mean_loss"]
                 ),
                 "final_evaluation": final_evaluation,
-                "final_checkpoint_id": (
-                    checkpoints[-1].checkpoint_id
-                    if checkpoints
-                    else step_bundles.latest_bundle(module_id, candidate_generation).checkpoint_id
-                ),
+                "final_checkpoint_id": final_checkpoint_id,
+                "lifecycle_event_id": lifecycle_event.event_id,
+                "lifecycle_status": lifecycle_event.status.value,
                 "task_gate_passed": task_gate_passed,
                 "task_gate_policy": (
                     "heldout loss falls; teacher-forced transport token accuracy exceeds "
@@ -973,12 +1244,12 @@ def main() -> int:
         )
 
     report["report_id"] = canonical_sha256(report)
-    report_path = campaign_report_dir / f"segment_{start_step + 1:09d}_{end_step:09d}.json"
-    report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(
-        json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
-        encoding="utf-8",
+    report_path = (
+        campaign_report_dir / f"segment_{start_step:09d}_{end_step:09d}_eval.json"
+        if args.evaluate_only
+        else campaign_report_dir / f"segment_{start_step + 1:09d}_{end_step:09d}.json"
     )
+    _write_immutable_json(report_path, report)
     print(json.dumps({**report, "report_path": str(report_path)}, ensure_ascii=False, sort_keys=True, indent=2))
     return 0
 

@@ -63,13 +63,18 @@ The first permanent neural Heart translator now exists as non-serving 64D/2-laye
 - `runtime/trainer/lifecycle.py`
 - `runtime/trainer/execution.py`
 - `runtime/trainer/learning.py`
+- `runtime/trainer/tranche.py`
+- `runtime/trainer/organ.py`
+- `runtime/trainer/step_bundle.py`
 - `runtime/trainer/gates.py`
 - `runtime/trainer/lease.py`
 - `runtime/trainer/inspection.py`
 - `runtime/trainer/host.py`
 - `scripts/inspect_trainer.py`
+- `scripts/axon_trainer.py`
+- `TRAIN_AXON.bat`
 
-This is now a governed candidate-learning and activation boundary, not merely bookkeeping. One OS-backed Trainer writer owns parameter-state mutation; live registered organs are never optimized in place; authorized learning occurs on isolated candidate clones under immutable content-addressed learning policies governing optimizer hyperparameters, weight decay, constant/warmup-cosine scheduling, gradient accumulation, clipping, gradient/update budgets, and FP32/BF16/FP16 precision. Mid-accumulation checkpoints preserve optimizer, pending gradients, AMP scaler state when present, counters, LR and accumulated-loss telemetry for exact resume. A passed proposal can be activated only by the leased Trainer through stale-inventory checks, exact candidate verification, a durable rollback snapshot, and atomic active-generation pointer publication; rollback and restart hydration are explicit. Unit-scale synthetic candidates prove the general mechanism, and one bounded real Heart-translation candidate smoke is now preserved in Trainer State; it was rejected and never activated. No semantic/reasoning training campaign is authorized or running by this milestone.
+This is now a governed candidate-learning and activation boundary, not merely bookkeeping. One OS-backed Trainer writer owns parameter-state mutation; live registered organs are never optimized in place; authorized learning occurs on isolated candidate clones under immutable content-addressed learning policies governing optimizer hyperparameters, weight decay, constant/warmup-cosine scheduling, gradient accumulation, clipping, gradient/update budgets, and FP32/BF16/FP16 precision. Mid-accumulation checkpoints preserve optimizer, pending gradients, AMP scaler state when present, counters, LR and accumulated-loss telemetry for exact resume. Resource-independent v2 mutation plans contain no lifetime step ceiling; renewable tranches bound one execution segment and preserve exact checkpoint/optimizer/private-Soul continuation. A passed proposal can be activated only by the leased Trainer through stale-inventory checks, exact candidate verification, a durable rollback snapshot, and atomic active-generation pointer publication; rollback and restart hydration are explicit. Unit-scale fixtures prove v1 adoption and fresh v2 continuation. Bounded real Heart and D64 reasoning diagnostics are preserved in State; all remain non-serving, and no training workload is running. `TRAIN_AXON.bat` and `scripts/axon_trainer.py status` expose a concise read-only operator view while mutating organ handlers and cloud adapters remain fail-closed.
 
 ### Dormant-memory construction utilities
 

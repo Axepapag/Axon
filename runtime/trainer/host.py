@@ -23,7 +23,7 @@ from .contracts import (
     ParameterInventory,
     ParameterModuleDescriptor,
     ParameterMutationGrant,
-    ParameterMutationPlan,
+    ParameterMutationPlanLike,
     ParameterPromotionProposal,
 )
 from .episodes import RuntimeEpisodeSessionManifest
@@ -41,6 +41,7 @@ from .registry import (
 from .sessions import TrainerSessionManifest
 from .store import TrainerStateStore
 from .telemetry import ParameterTelemetryFrame, capture_parameter_telemetry
+from .tranche import ResourceTranche
 
 
 def _descriptor_from_payload(value: dict) -> ParameterModuleDescriptor:
@@ -185,7 +186,7 @@ class TrainerControlPlane:
         self,
         inventory: ParameterInventory,
         grant: ParameterMutationGrant,
-        plan: ParameterMutationPlan,
+        plan: ParameterMutationPlanLike,
         preflight_receipt: TrainingPreflightReceipt,
     ) -> AuthorizedParameterMutation:
         self._require_writer_authority()
@@ -205,12 +206,18 @@ class TrainerControlPlane:
         self,
         inventory: ParameterInventory,
         grant: ParameterMutationGrant,
-        plan: ParameterMutationPlan,
+        plan: ParameterMutationPlanLike,
         *,
         preflight_receipt: TrainingPreflightReceipt,
         policy: OptimizerExecutionPolicy | None = None,
+        tranche: ResourceTranche | None = None,
     ) -> CandidateOptimizationSession:
-        """Authorize and create an isolated candidate; the live module stays sealed."""
+        """Authorize and create an isolated candidate; the live module stays sealed.
+
+        ``tranche`` is an optional renewable execution allowance (v2 law): it
+        bounds this segment's optimizer steps without participating in plan,
+        learning policy, or candidate identity.
+        """
 
         authorization = self.authorize(inventory, grant, plan, preflight_receipt)
         return CandidateOptimizationSession(
@@ -221,6 +228,7 @@ class TrainerControlPlane:
             authorization=authorization,
             store=self.store,
             policy=policy,
+            tranche=tranche,
         )
 
     def evaluate_gate(

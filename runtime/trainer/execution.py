@@ -17,7 +17,14 @@ import torch
 from torch import nn
 
 from .authority import AuthorizedParameterMutation, ParameterAuthorityError
-from .contracts import ParameterInventory, ParameterModuleDescriptor, ParameterMutationPlan
+from .contracts import (
+    ParameterInventory,
+    ParameterModuleDescriptor,
+    ParameterMutationPlan,
+    ParameterMutationPlanLike,
+    ParameterMutationPlanV2,
+    is_parameter_mutation_plan,
+)
 from .learning import GovernedLearningPolicy, OptimizerKind, PrecisionMode
 from .lifecycle import (
     CandidateCheckpointRecord,
@@ -29,6 +36,7 @@ from .lifecycle import (
 from .registry import capture_module_manifest, parameter_value_sha256
 from .store import TrainerStateStore
 from .telemetry import capture_parameter_telemetry
+from .tranche import ResourceTranche
 
 
 class TrainerExecutionError(RuntimeError):
@@ -80,10 +88,11 @@ class CandidateOptimizationSession:
         live_module: nn.Module,
         base_descriptor: ParameterModuleDescriptor,
         base_inventory: ParameterInventory,
-        plan: ParameterMutationPlan,
+        plan: ParameterMutationPlanLike,
         authorization: AuthorizedParameterMutation,
         store: TrainerStateStore,
         policy: GovernedLearningPolicy | None = None,
+        tranche: ResourceTranche | None = None,
     ) -> None:
         if not isinstance(live_module, nn.Module):
             raise TypeError("live_module must be torch.nn.Module")
@@ -91,12 +100,14 @@ class CandidateOptimizationSession:
             raise TypeError("base_descriptor must be ParameterModuleDescriptor")
         if not isinstance(base_inventory, ParameterInventory):
             raise TypeError("base_inventory must be ParameterInventory")
-        if not isinstance(plan, ParameterMutationPlan):
-            raise TypeError("plan must be ParameterMutationPlan")
+        if not is_parameter_mutation_plan(plan):
+            raise TypeError("plan must be a governed parameter mutation plan")
         if not isinstance(authorization, AuthorizedParameterMutation):
             raise TypeError("authorization must be AuthorizedParameterMutation")
         if not isinstance(store, TrainerStateStore):
             raise TypeError("store must be TrainerStateStore")
+        if tranche is not None and not isinstance(tranche, ResourceTranche):
+            raise TypeError("tranche must be ResourceTranche or None")
         if not base_inventory.complete:
             raise TrainerExecutionError("candidate session requires a complete base inventory")
         if authorization.inventory_id != base_inventory.inventory_id or plan.base_inventory_id != base_inventory.inventory_id:
@@ -118,6 +129,10 @@ class CandidateOptimizationSession:
         if any(item.value_sha256 is None for item in base_manifest.tensors):
             raise TrainerExecutionError("candidate session requires exact value hashes in base inventory")
 
+        if isinstance(plan, ParameterMutationPlanV2) and policy is None:
+            raise TrainerExecutionError(
+                "resource-independent v2 plans require an explicit learning policy"
+            )
         learning_policy = policy or GovernedLearningPolicy.from_plan(plan)
         if not isinstance(learning_policy, GovernedLearningPolicy):
             raise TypeError("policy must be GovernedLearningPolicy")
@@ -134,6 +149,19 @@ class CandidateOptimizationSession:
         self.authorization = authorization
         self.store = store
         self.policy = learning_policy
+        # Renewable resource tranche (v2 law): execution allowance only.  A
+        # tranche never participates in plan/policy/candidate identity.  It
+        # may lawfully extend execution beyond the plan's historical envelope
+        # when the session was restored from an exact accepted parent bundle.
+        if tranche is not None and tranche.module_id != plan.module_id:
+            raise TrainerExecutionError("tranche module differs from mutation plan")
+        if tranche is not None and tranche.candidate_generation_id != plan.candidate_generation_id:
+            raise TrainerExecutionError("tranche candidate generation differs from mutation plan")
+        if tranche is not None and tranche.plan_id != plan.plan_id:
+            raise TrainerExecutionError("tranche plan differs from mutation plan")
+        if tranche is not None and tranche.learning_policy_id != learning_policy.policy_id:
+            raise TrainerExecutionError("tranche learning policy differs from candidate session")
+        self.tranche = tranche
         self.candidate_module = copy.deepcopy(live_module)
         self.step_index = 0  # completed optimizer updates
         self.micro_step_index = 0
@@ -142,6 +170,7 @@ class CandidateOptimizationSession:
         self._closed = False
         self._previous_lifecycle_event_id: str | None = None
         self._previous_checkpoint_id: str | None = None
+        self._restored_parent_record: CandidateCheckpointRecord | None = None
 
         self._base_hashes = {item.name: item.value_sha256 for item in base_manifest.tensors}
         self._base_buffer_hashes = {item.name: item.value_sha256 for item in base_manifest.buffers}
@@ -179,7 +208,8 @@ class CandidateOptimizationSession:
         if self.policy.precision is PrecisionMode.BF16 and self._device_type not in {"cpu", "cuda"}:
             raise TrainerExecutionError("bf16 governed precision currently supports CPU or CUDA only")
 
-        initial_lr = self.policy.learning_rate_for_step(0, self.plan.max_steps)
+        legacy_horizon = self.plan.max_steps if isinstance(self.plan, ParameterMutationPlan) else None
+        initial_lr = self.policy.learning_rate_for_step(0, legacy_horizon)
         self.optimizer = _optimizer_for(self.policy, self._selected, initial_lr)
         self._scaler = (
             torch.amp.GradScaler("cuda", enabled=True)
@@ -193,6 +223,21 @@ class CandidateOptimizationSession:
     @property
     def closed(self) -> bool:
         return self._closed
+
+    def _restored_global_step(self) -> int:
+        """The accepted global step this session was restored from, or -1."""
+
+        record = self._restored_parent_record
+        if record is None:
+            return -1
+        return record.step
+
+    def _assert_tranche_admits(self) -> None:
+        if self.tranche is not None and not self.tranche.admits_step(self.step_index + 1):
+            raise TrainerExecutionError(
+                "resource tranche does not admit the next optimizer step; "
+                "checkpoint and pause for a later tranche"
+            )
 
     @property
     def current_learning_rate(self) -> float:
@@ -257,7 +302,8 @@ class CandidateOptimizationSession:
         return torch.autocast(device_type=self._device_type, dtype=dtype)
 
     def _set_lr_for_next_update(self) -> float:
-        lr = self.policy.learning_rate_for_step(self.step_index, self.plan.max_steps)
+        legacy_horizon = self.plan.max_steps if isinstance(self.plan, ParameterMutationPlan) else None
+        lr = self.policy.learning_rate_for_step(self.step_index, legacy_horizon)
         for group in self.optimizer.param_groups:
             group["lr"] = lr
         return lr
@@ -292,7 +338,18 @@ class CandidateOptimizationSession:
         """Accumulate one governed microbatch; update only at the policy boundary."""
 
         self._assert_open()
-        if self.step_index >= self.plan.max_steps:
+        if self.tranche is not None:
+            if self.tranche.base_global_step > 0 and self._restored_global_step() != self.tranche.base_global_step:
+                raise TrainerExecutionError(
+                    "nonzero-base tranche requires an exact parent checkpoint restore "
+                    f"at global step {self.tranche.base_global_step}"
+                )
+            self._assert_tranche_admits()
+        elif isinstance(self.plan, ParameterMutationPlanV2):
+            raise TrainerExecutionError(
+                "resource-independent v2 plans require a renewable resource tranche"
+            )
+        elif self.step_index >= self.plan.max_steps:
             raise TrainerExecutionError("candidate session reached its authorized max_steps")
         if not callable(loss_fn):
             raise TypeError("loss_fn must be callable")
@@ -543,6 +600,7 @@ class CandidateOptimizationSession:
         self.accumulation_index = record.accumulation_index
         self.accumulated_loss_sum = record.accumulated_loss_sum
         self._previous_checkpoint_id = record.checkpoint_id
+        self._restored_parent_record = record
         self._assert_live_base_unchanged()
 
     def complete(self, *, reason: str = "candidate optimization completed") -> CandidateLifecycleEvent:
@@ -551,6 +609,27 @@ class CandidateOptimizationSession:
         if self.accumulation_index:
             raise TrainerExecutionError("cannot complete candidate with uncommitted gradient accumulation")
         event = self._emit_lifecycle(CandidateStatus.COMPLETED, step=self.step_index, reason=reason)
+        self._closed = True
+        return event
+
+    def pause(
+        self,
+        *,
+        reason: str = "candidate optimization paused at an exact checkpoint",
+        checkpoint_id: str | None = None,
+    ) -> CandidateLifecycleEvent:
+        """Close one execution segment without completing the candidate stage."""
+
+        self._assert_open()
+        self._assert_live_base_unchanged()
+        if self.accumulation_index:
+            raise TrainerExecutionError("cannot pause candidate with uncommitted gradient accumulation")
+        event = self._emit_lifecycle(
+            CandidateStatus.PAUSED,
+            step=self.step_index,
+            checkpoint_id=checkpoint_id,
+            reason=reason,
+        )
         self._closed = True
         return event
 

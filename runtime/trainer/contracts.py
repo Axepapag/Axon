@@ -20,6 +20,7 @@ PARAMETER_MANIFEST_SCHEMA = "axon-parameter-module-manifest-v1"
 PARAMETER_INVENTORY_SCHEMA = "axon-parameter-inventory-v1"
 PARAMETER_GRANT_SCHEMA = "axon-parameter-mutation-grant-v1"
 PARAMETER_PLAN_SCHEMA = "axon-parameter-mutation-plan-v1"
+PARAMETER_PLAN_V2_SCHEMA = "axon-parameter-mutation-plan-v2"
 PARAMETER_PROMOTION_SCHEMA = "axon-parameter-promotion-proposal-v1"
 
 
@@ -82,9 +83,12 @@ class ParameterModuleDescriptor:
         object.__setattr__(self, "architecture", _nonempty(self.architecture, "architecture"))
         kind = self.organ_kind if isinstance(self.organ_kind, OrganKind) else OrganKind(self.organ_kind)
         object.__setattr__(self, "organ_kind", kind)
-        if self.d_model is not None:
-            if isinstance(self.d_model, bool) or not isinstance(self.d_model, int) or self.d_model <= 0:
-                raise ValueError("d_model must be a positive integer or None")
+        if self.d_model is not None and (
+            isinstance(self.d_model, bool)
+            or not isinstance(self.d_model, int)
+            or self.d_model <= 0
+        ):
+            raise ValueError("d_model must be a positive integer or None")
         role = self.trainer_core_role
         if role is not None and not isinstance(role, TrainerCoreRole):
             role = TrainerCoreRole(role)
@@ -286,13 +290,12 @@ class ParameterMutationGrant:
         prefixes = tuple(sorted(set(_nonempty(str(item), "allowed parameter prefix") for item in self.allowed_prefixes)))
         object.__setattr__(self, "allowed_names", names)
         object.__setattr__(self, "allowed_prefixes", prefixes)
-        if self.max_trainable_parameters is not None:
-            if (
-                isinstance(self.max_trainable_parameters, bool)
-                or not isinstance(self.max_trainable_parameters, int)
-                or self.max_trainable_parameters <= 0
-            ):
-                raise ValueError("max_trainable_parameters must be a positive integer or None")
+        if self.max_trainable_parameters is not None and (
+            isinstance(self.max_trainable_parameters, bool)
+            or not isinstance(self.max_trainable_parameters, int)
+            or self.max_trainable_parameters <= 0
+        ):
+            raise ValueError("max_trainable_parameters must be a positive integer or None")
         if policy is ParameterMutationPolicy.EXPLICIT_NAMES and not names:
             raise ValueError("explicit_names policy requires allowed_names")
         if policy is ParameterMutationPolicy.ADAPTER_ONLY and not prefixes:
@@ -375,6 +378,72 @@ class ParameterMutationPlan:
 
 
 @dataclass(frozen=True, slots=True)
+class ParameterMutationPlanV2:
+    """Resource-independent mutation scope for permanent Trainer tissue.
+
+    The historical v1 plan couples optimizer, learning rate, and ``max_steps``
+    to plan identity.  V2 moves learning behavior into
+    :class:`GovernedLearningPolicy` and bounded execution into a renewable
+    :class:`ResourceTranche`, so granting more compute cannot rename or restart
+    the candidate.
+    """
+
+    base_inventory_id: str
+    module_id: str
+    base_generation_id: str
+    candidate_generation_id: str
+    tensor_names: tuple[str, ...]
+    source_manifest_ids: tuple[str, ...]
+    holdout_manifest_ids: tuple[str, ...]
+    plan_id: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "base_inventory_id", _nonempty(self.base_inventory_id, "base_inventory_id"))
+        object.__setattr__(self, "module_id", _nonempty(self.module_id, "module_id"))
+        object.__setattr__(self, "base_generation_id", _nonempty(self.base_generation_id, "base_generation_id"))
+        object.__setattr__(self, "candidate_generation_id", _nonempty(self.candidate_generation_id, "candidate_generation_id"))
+        if self.candidate_generation_id == self.base_generation_id:
+            raise ValueError("candidate_generation_id must differ from base_generation_id")
+        names = tuple(sorted(set(_nonempty(str(item), "tensor name") for item in self.tensor_names)))
+        if not names:
+            raise ValueError("tensor_names cannot be empty")
+        object.__setattr__(self, "tensor_names", names)
+        sources = tuple(sorted(set(_nonempty(str(item), "source manifest id") for item in self.source_manifest_ids)))
+        holdouts = tuple(sorted(set(_nonempty(str(item), "holdout manifest id") for item in self.holdout_manifest_ids)))
+        if not sources:
+            raise ValueError("source_manifest_ids cannot be empty")
+        if not holdouts:
+            raise ValueError("holdout_manifest_ids cannot be empty")
+        if set(sources) & set(holdouts):
+            raise ValueError("source and holdout manifests must be disjoint")
+        object.__setattr__(self, "source_manifest_ids", sources)
+        object.__setattr__(self, "holdout_manifest_ids", holdouts)
+        object.__setattr__(self, "plan_id", canonical_sha256(self.to_canonical_dict(include_id=False)))
+
+    def to_canonical_dict(self, *, include_id: bool = True) -> dict[str, Any]:
+        value = {
+            "schema": PARAMETER_PLAN_V2_SCHEMA,
+            "base_inventory_id": self.base_inventory_id,
+            "module_id": self.module_id,
+            "base_generation_id": self.base_generation_id,
+            "candidate_generation_id": self.candidate_generation_id,
+            "tensor_names": list(self.tensor_names),
+            "source_manifest_ids": list(self.source_manifest_ids),
+            "holdout_manifest_ids": list(self.holdout_manifest_ids),
+        }
+        if include_id:
+            value["plan_id"] = self.plan_id
+        return value
+
+
+ParameterMutationPlanLike = ParameterMutationPlan | ParameterMutationPlanV2
+
+
+def is_parameter_mutation_plan(value: object) -> bool:
+    return isinstance(value, (ParameterMutationPlan, ParameterMutationPlanV2))
+
+
+@dataclass(frozen=True, slots=True)
 class ParameterPromotionProposal:
     base_inventory_id: str
     module_id: str
@@ -420,22 +489,26 @@ class ParameterPromotionProposal:
 
 
 __all__ = [
-    "TRAINER_PARAMETER_SCHEMA",
-    "PARAMETER_MODULE_SCHEMA",
-    "PARAMETER_TENSOR_SCHEMA",
-    "PARAMETER_MANIFEST_SCHEMA",
-    "PARAMETER_INVENTORY_SCHEMA",
     "PARAMETER_GRANT_SCHEMA",
+    "PARAMETER_INVENTORY_SCHEMA",
+    "PARAMETER_MANIFEST_SCHEMA",
+    "PARAMETER_MODULE_SCHEMA",
     "PARAMETER_PLAN_SCHEMA",
+    "PARAMETER_PLAN_V2_SCHEMA",
     "PARAMETER_PROMOTION_SCHEMA",
+    "PARAMETER_TENSOR_SCHEMA",
+    "TRAINER_PARAMETER_SCHEMA",
     "OrganKind",
-    "ParameterMutationPolicy",
-    "TrainerCoreRole",
-    "ParameterModuleDescriptor",
-    "ParameterTensorRecord",
-    "ParameterModuleManifest",
     "ParameterInventory",
+    "ParameterModuleDescriptor",
+    "ParameterModuleManifest",
     "ParameterMutationGrant",
     "ParameterMutationPlan",
+    "ParameterMutationPlanLike",
+    "ParameterMutationPlanV2",
+    "ParameterMutationPolicy",
     "ParameterPromotionProposal",
+    "ParameterTensorRecord",
+    "TrainerCoreRole",
+    "is_parameter_mutation_plan",
 ]

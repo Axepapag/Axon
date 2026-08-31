@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-30T10:19:52-05:00
-Current through event: `evt-20260830T151952847616Z-codex-trainer-curriculum-review`
+Updated: 2026-08-30T11:22:56-05:00
+Current through event: `evt-20260830T112256000333Z-hermes-post-handoff-sweep`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 

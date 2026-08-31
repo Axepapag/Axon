@@ -92,12 +92,14 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "learning.py",
         "lease.py",
         "inspection.py",
+        "organ.py",
         "host.py",
         "preflight.py",
         "sessions.py",
         "episodes.py",
         "soul_candidates.py",
         "step_bundle.py",
+        "tranche.py",
     }
 
     soul_files = {path.name for path in (ROOT / "runtime" / "soul").glob("*.py")}

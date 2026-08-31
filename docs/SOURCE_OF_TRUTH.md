@@ -1,6 +1,6 @@
 # Axon Source Of Truth
 
-Last updated: 2026-08-30 (Identity v1, FFCS A-F, governed campaign wiring and symmetric 16-step diagnostic)
+Last updated: 2026-08-30 (Identity v1, FFCS A-F, renewable Trainer v2 and communication-first direction)
 
 ## Core Doctrine
 
@@ -885,14 +885,75 @@ promotion, activation, or learned-capability claim exists. The closing
 observation is
 `068867c5f1e4b693f00625d30c3a718feea5a40030a4ff41758e54d865f012ab`.
 
-The 16-step authorization ceiling is currently part of both the immutable
-Trainer mutation plan and the candidate-generation identity. Therefore these
-exact generations cannot be extended in place merely by increasing
-`max_steps`; doing so names a new candidate generation and would restart from
-its governed base. Further optimizer work on this tournament is halted until a
-governed additive continuation/succession contract preserves checkpoint,
-optimizer, private-Soul, curriculum, and authorization lineage without
-weakening the original ceiling or relabeling a new generation as the old one.
+The historical 16-step authorization ceiling remains part of those immutable
+v1 Trainer plans and candidate-generation identities; neither artifact is
+rewritten. The additive continuation blocker has since been closed at the
+mechanism level by the renewable-tranche contract below. Isolated end-to-end
+fixtures prove both (a) adoption of one v1 candidate beyond its original
+envelope without changing its plan or generation and (b) a fresh v2 candidate
+continuing from global step 1 to 2 with the same plan, learning policy,
+checkpoint/optimizer lineage, and private Soul while obsolete `max_steps` and
+checkpoint cadence inputs change. The real three step-16 tournament candidates
+have not been mutated under this mechanism. Further training remains withheld
+until a communication-first curriculum has adequate evidence-qualified targets
+and the normal smoke/gate surface authorizes the bounded run.
+
+### Renewable resource tranches (ratified 2026-08-30, Jeff's binding law)
+
+Operational resource limits are **renewable execution tranches**, never core
+identity. A tranche is a separate content-addressed authorization object that
+grants a bounded number of optimizer steps (and optionally wall-time/cost
+budgets with checkpoint/evaluation cadence) for **one execution segment only**.
+Tranches obey a non-negotiable law:
+
+- Reaching a tranche bound means atomic checkpoint + evaluation receipt +
+  `paused/checkpointed`. It never means `complete`, `failed`, a new lineage,
+  or a restart from the governed base.
+- The same candidate lineage resumes under a later tranche from its exact
+  accepted checkpoint/optimizer/private-Soul bundle, continuing the global
+  accepted-step count (N -> N+1), provided the plan, curriculum, learning
+  recipe, architecture, and seed are unchanged and the parent bundle is
+  verified exactly.
+- Tranche size, wall-time, cost, provider, device, checkpoint cadence, and UI
+  entry point must not participate in plan identity, candidate-generation
+  identity, learning-policy identity, or checkpoint lineage identity.
+- A plan's historical `max_steps` remains immutable v1 truth: the original
+  authorization envelope under which that plan's accepted steps ran. A tranche
+  may lawfully continue a candidate beyond that envelope when its parent
+  state is exact and the continuation is receipted; the historical plan text
+  is never edited.
+- Learning-rate scheduling belongs wholly to the immutable learning policy,
+  never to the resource tranche. A constant scheduler is horizon-free; any
+  finite warmup/decay horizon is explicit in learning-policy identity and
+  continues by global optimizer step across every tranche. Changing resource
+  allowance must not change how the core learns.
+- Curriculum/competency gates decide stage completion. Plateau, anomaly,
+  integrity failure, or operator action may pause work without erasing it.
+- Tranches may pause, reject, quarantine, checkpoint, or require a fresh
+  preflight. They must never define a core's identity or lifespan, strand an
+  accepted checkpoint/optimizer/Soul, truncate curriculum/history, silently
+  relabel replacement tissue as the original core, or convert a smoke budget
+  into a permanent architectural ceiling.
+
+`runtime/trainer/tranche.py` implements `ResourceTranche` records and
+continuation receipts beneath `State/training/trainer/tranches/`. Every
+continuation names its exact parent checkpoint, optimizer receipt, Soul HEAD,
+and prior tranche when one exists, and is immutable once written.
+
+Historical `ParameterMutationPlan` v1 remains readable and immutable.
+`ParameterMutationPlanV2` is the permanent resource-independent contract for
+new tissue: mutation scope and curriculum manifests remain governed, while
+optimizer/schedule live in learning-policy identity and execution allowance
+lives only in renewable tranche identity.
+
+The Trainer is a permanent Axon organ, not a collection of launch scripts.
+`runtime/trainer/organ.py` defines its transport-neutral command boundary.
+Present CLI/batch launchers and future runtime slash commands, clickable UI,
+continual-learning controls, and cloud adapters must call that same boundary;
+they cannot own alternate mutation semantics. Unwired mutating commands fail
+closed. Its default read-only status is a concise operator summary; full tensor
+inspection is explicit. Training remains offline and isolated from serving
+until the existing promotion authority accepts complete gate evidence.
 
 On 2026-08-28 and 2026-08-29 the exact full Candidate-A architecture passed
 preflight and a sequence of bounded Trainer-governed diagnostics on an isolated

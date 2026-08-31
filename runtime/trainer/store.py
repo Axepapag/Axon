@@ -20,7 +20,13 @@ from .activation import (
     ParameterRollbackReceipt,
 )
 from .authority import AuthorizedParameterMutation
-from .contracts import ParameterInventory, ParameterModuleDescriptor, ParameterMutationPlan, ParameterPromotionProposal
+from .contracts import (
+    ParameterInventory,
+    ParameterModuleDescriptor,
+    ParameterMutationPlanLike,
+    ParameterPromotionProposal,
+    is_parameter_mutation_plan,
+)
 from .episodes import RuntimeEpisodeSessionManifest
 from .gates import EvaluationObservation, PromotionGateDecision
 from .learning import GovernedLearningPolicy
@@ -82,9 +88,9 @@ class TrainerStateStore:
         self._write_immutable(path, inventory.to_canonical_dict())
         return path
 
-    def write_plan(self, plan: ParameterMutationPlan) -> Path:
-        if not isinstance(plan, ParameterMutationPlan):
-            raise TypeError("plan must be ParameterMutationPlan")
+    def write_plan(self, plan: ParameterMutationPlanLike) -> Path:
+        if not is_parameter_mutation_plan(plan):
+            raise TypeError("plan must be a governed parameter mutation plan")
         path = self.plans_dir / f"{plan.plan_id}.json"
         self._write_immutable(path, plan.to_canonical_dict())
         return path
