@@ -87,7 +87,7 @@ class FirstFormCase:
     case_id: str = field(init=False)
 
     def __post_init__(self) -> None:
-        if self.family not in {"A", "B", "C", "D", "E", "F"}:
+        if self.family not in {"A", "B", "C", "D", "E", "F", "C1"}:
             raise ValueError("unsupported FFCS family")
         if not self.competency or not self.lineage_id:
             raise ValueError("FFCS competency and lineage must be non-empty")

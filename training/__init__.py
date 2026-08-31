@@ -1,3 +1,14 @@
+from .communication_first_c1 import (
+    C1_AUTHORED_SOURCE_ID,
+    C1_COMPETENCIES,
+    C1_FAMILY,
+    DEFAULT_C1_SPLIT_COUNTS,
+    C1CurriculumCompiler,
+    C1TargetLeak,
+    find_c1_target_leaks,
+    publish_c1_curriculum,
+    verify_c1_no_target_leakage,
+)
 from .first_form_curriculum import (
     DEFAULT_DF_SPLIT_COUNTS,
     DEFAULT_FAMILY_SPLIT_COUNTS,
@@ -75,10 +86,14 @@ from .sequential_first_form import (
 )
 
 __all__ = [
+    "C1_AUTHORED_SOURCE_ID",
+    "C1_COMPETENCIES",
+    "C1_FAMILY",
     "D64_SOUL_CODEC_VERSION",
     "D64_SOUL_MEDIA_TYPE",
     "D64_TOURNAMENT_RESULT_SCHEMA",
     "D64_TOURNAMENT_SCHEMA",
+    "DEFAULT_C1_SPLIT_COUNTS",
     "DEFAULT_DF_SPLIT_COUNTS",
     "DEFAULT_E_SPLIT_COUNTS",
     "DEFAULT_FAMILY_SPLIT_COUNTS",
@@ -94,6 +109,8 @@ __all__ = [
     "LIVING_REASONING_PREFLIGHT_SCHEMA",
     "LIVING_REASONING_TARGET_SCHEMA",
     "TOURNAMENT_METRIC_COMPUTATION_SCHEMA",
+    "C1CurriculumCompiler",
+    "C1TargetLeak",
     "CausalLivingUnroll",
     "D64SoulCodec",
     "D64Tournament",
@@ -126,14 +143,17 @@ __all__ = [
     "d64_tournament_metrics",
     "evaluate_living_episode",
     "evaluate_sequential_case",
+    "find_c1_target_leaks",
     "living_episode_objective",
     "living_phase_breakdown",
     "living_phase_objective",
     "living_source_counterfactuals",
     "load_first_form_curriculum",
     "load_sequential_first_form",
+    "publish_c1_curriculum",
     "publish_first_form_curriculum",
     "publish_sequential_first_form",
     "recommended_followup_d64_candidates",
     "sequential_living_objective",
+    "verify_c1_no_target_leakage",
 ]

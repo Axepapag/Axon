@@ -109,6 +109,7 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
     assert training_files == {
         "__init__.py",
         "canonical_d64.py",
+        "communication_first_c1.py",
         "complete_field_64d.py",
         "first_form_curriculum.py",
         "heart_preflight.py",
