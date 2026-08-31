@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-31T04:55:00-05:00
-Current through event: `evt-20260831T045500000000Z-kimmy-c1-curriculum-implementation`
+Updated: 2026-08-31T09:08:07-05:00
+Current through event: `evt-20260831T140807000000Z-kimmy-checkpoint-retention-policy`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -54,6 +54,23 @@ lineage `r64t-21a315397f232525` (candidate-a-1x64) executed accepted global
 step 17 from its exact step-16 parent bundle under a 1-step tranche — same
 plan_id, same generation, `paused_for_next_tranche=true`. Lineages now continue
 additively; no candidate is ever restarted for wanting more compute.
+
+## Current campaign: C1 decisive run and checkpoint retention
+
+The C1 communication-first curriculum (36 cases, 7 lesson classes, manifest
+`c04ae8c6...`) is published and the decisive bounded campaign is running on
+fresh v2 lineages under predeclared falsification thresholds
+(`roundtable/C1_DECISIVE_CAMPAIGN_FALSIFICATION_2026-08-31.md`). Tranche 1
+(steps 2-65) completed for all three head geometries: heldout loss roughly
+halved and soul counterfactuals are nonzero, but token accuracy fell below
+the constant floor — no SIGNAL yet; falsification only at the 640-step
+ceiling. Tranche 2 exposed a disk-exhaustion defect (D: at 100% during
+candidate-b's step-88 checkpoint save; staging held, no corrupt artifact
+promoted). Per Jeff's direction the trainer now enforces keep-3 checkpoint
+retention per candidate generation (`CHECKPOINT_RETENTION`, auto-pruned at
+every accepted session checkpoint; immutable records retained forever);
+`scripts/prune_trainer_checkpoints.py` reclaimed 126.1 GB. Candidate realign
+to the shared step-129 boundary is in flight before aligned tranches resume.
 
 ## Binding architecture
 

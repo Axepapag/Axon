@@ -563,6 +563,7 @@ class CandidateOptimizationSession:
             previous_checkpoint_id=self._previous_checkpoint_id,
         )
         self._previous_checkpoint_id = record.checkpoint_id
+        self.store.prune_candidate_checkpoints(record.module_id, record.candidate_generation_id)
         return record
 
     def restore_checkpoint(self, record: CandidateCheckpointRecord) -> None:

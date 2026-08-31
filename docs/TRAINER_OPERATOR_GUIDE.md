@@ -39,6 +39,18 @@ or learning-policy identity.
   `--legacy-plan-v1`; a tranche may adopt them beyond the old envelope without
   changing the original plan or generation.
 
+## Checkpoint retention
+
+Checkpoint payload artifacts are retained per candidate generation under a
+keep-3 policy (`CHECKPOINT_RETENTION` in `runtime/trainer/store.py`). Every
+accepted session checkpoint automatically prunes older payloads; the artifact
+referenced by `latest_checkpoint.json` is always retained. Immutable
+checkpoint records are never deleted, so a pruned payload remains detectable
+by its recorded hash and any stale load fails closed. To reclaim space by
+hand, run `python scripts/prune_trainer_checkpoints.py` (add `--dry-run` for
+a projection); it also removes orphaned staging temp files that were never
+promoted to content-addressed artifacts.
+
 The current research harness exposes these mechanics for engineers. A fresh
 bounded V2 invocation has this shape:
 

@@ -46,6 +46,10 @@ class TrainerStoreError(RuntimeError):
     pass
 
 
+CHECKPOINT_RETENTION = 3
+"""Checkpoint payload artifacts retained per candidate generation (records stay immutable)."""
+
+
 class TrainerStateStore:
     """Immutable lineage artifacts plus append-only live parameter telemetry."""
 
@@ -304,6 +308,54 @@ class TrainerStateStore:
         self._write_immutable(record_path, record.to_canonical_dict())
         self._atomic_json(candidate_root / "latest_checkpoint.json", record.to_canonical_dict())
         return record
+
+    def prune_candidate_checkpoints(
+        self,
+        module_id: str,
+        candidate_generation_id: str,
+        *,
+        keep: int = CHECKPOINT_RETENTION,
+    ) -> tuple[CandidateCheckpointRecord, ...]:
+        """Delete checkpoint artifacts older than the newest ``keep`` per candidate.
+
+        Immutable checkpoint records and ``latest_checkpoint.json`` are never
+        touched; only ``.pt`` payload artifacts are removed. The artifact
+        referenced by ``latest_checkpoint.json`` is always retained, even if
+        it would fall outside the newest ``keep`` window.
+        """
+        if isinstance(keep, bool) or not isinstance(keep, int) or keep < 1:
+            raise ValueError("keep must be a positive integer")
+        candidate_root = self.candidates_dir / module_id / candidate_generation_id
+        records_dir = candidate_root / "checkpoint_records"
+        if not records_dir.is_dir():
+            return ()
+        records = [
+            CandidateCheckpointRecord.from_mapping(json.loads(path.read_text(encoding="utf-8")))
+            for path in sorted(records_dir.glob("*.json"))
+        ]
+        records.sort(
+            key=lambda r: (r.step, r.micro_step, r.accumulation_index, r.checkpoint_id)
+        )
+        retained_ids = {record.checkpoint_id for record in records[-keep:]}
+        latest_path = candidate_root / "latest_checkpoint.json"
+        if latest_path.is_file():
+            latest = CandidateCheckpointRecord.from_mapping(
+                json.loads(latest_path.read_text(encoding="utf-8"))
+            )
+            retained_ids.add(latest.checkpoint_id)
+        pruned: list[CandidateCheckpointRecord] = []
+        for record in records:
+            if record.checkpoint_id in retained_ids:
+                continue
+            artifact_path = (self.root / record.artifact_relpath).resolve(strict=False)
+            try:
+                artifact_path.relative_to(self.root)
+            except ValueError as exc:
+                raise TrainerStoreError("candidate checkpoint escapes Trainer state root") from exc
+            if artifact_path.is_file() and self._file_sha256(artifact_path) == record.artifact_sha256:
+                artifact_path.unlink()
+                pruned.append(record)
+        return tuple(pruned)
 
     def load_verified_candidate_checkpoint(self, record: CandidateCheckpointRecord) -> dict[str, Any]:
         if not isinstance(record, CandidateCheckpointRecord):
