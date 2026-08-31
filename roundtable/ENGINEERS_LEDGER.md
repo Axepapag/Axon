@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-30T21:36:53-05:00
-Current through event: `evt-20260831T023653384141Z-kimmy-hermes-tranche-verification`
+Updated: 2026-08-31T04:55:00-05:00
+Current through event: `evt-20260831T045500000000Z-kimmy-c1-curriculum-implementation`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -266,6 +266,22 @@ and brother-proposal society; only then broaden into reasoning, tools, code,
 math, and science. Each core's Soul remains private perspective and continuity,
 while canonical Identity defines the single shared Axon identity.
 
+The first communication-first implementation shot is now on disk: the C1
+hidden-target single-turn curriculum (`training/communication_first_c1.py`,
+manifest `c04ae8c6815e93b31136fdf833a525388c8439e74fd5317268cb1e1ba1233212`
+under `State/training/curricula/c1/`). It carries 36 authored cases (24 train
+/ 6 heldout / 6 regression) across seven lesson classes (greeting,
+acknowledgement, grounded short answer, clarification request, correction
+acceptance, uncertainty admission, turn-taking), unique whole-lineage splits,
+and a compile-time hidden-target leakage verifier that also passes on the
+reloaded manifest. Objectively checkable classes are labeled VERIFIED_TARGET;
+authored conversational classes are PROCESS_EVIDENCE. All v1 cases are
+authored fixtures with synthetic provenance (`C1_AUTHORED_SOURCE_ID`); no
+Dormant records supervise. The manifest uses schema
+`axon-first-form-curriculum-v1` and loads through the unchanged tournament
+loader path. No C1 training run has launched; CPU preflight and tranche
+tournaments remain ahead.
+
 The current Trainer has portable foundations—CPU-loadable PyTorch state,
 content-addressed parameter/Soul bundles, checkpoints, and fail-closed gates—
 but no active cloud training capsule, provider adapter, dependency lock, or
@@ -275,10 +291,13 @@ Docker-SSH adapters plus a double-click launcher and local selection UI.
 
 ## Verification and Git
 
-- Full repository suite passed after the sequential-lineage repair; 461 tests
-  collected on Python 3.12.10.
-- Changed-file Ruff: passed.
-- Python compileall over runtime/training/scripts/tests: passed.
+- Full repository suite passed after the C1 curriculum work: 483 tests
+  collected on Python 3.12, exit 0, only the known PyTorch nested-tensor
+  warning. One background invocation returned a spurious pipeline exit 1 with
+  no pytest summary; clean collection and two complete runs contradict it.
+- Changed-file Ruff: passed (C1 module, tests, publish script, `__init__`,
+  FFCS validator, hygiene allowlist).
+- Python compileall over changed files: passed.
 - Fixed-character poison, exact Unicode, identity migration, mask, Heart,
   runtime circulation, private-Soul, Candidate-A, Trainer, and old-checkpoint
   migration tests are included in the full pass.
@@ -316,18 +335,21 @@ Docker-SSH adapters plus a double-click launcher and local selection UI.
    changed-file Ruff gate.
 9. **CLAIM BOUNDARY:** persistent behavioral identity is engineerable;
    subjective consciousness or metaphysical continuity is not testable here.
-10. **CURRICULUM GAP:** FFCS proves mechanisms but does not yet provide a real
-    free-response, identity-and-voice, or conversational learning progression.
+10. **CURRICULUM GAP (PARTIALLY CLOSED):** the C1 hidden-target single-turn
+    curriculum now exists and is published (36 authored cases, leakage-
+    verified), but C2-C6 do not, no C1 gate has been declared, and no C1
+    training run has executed. FFCS remains the mechanism/regression
+    schoolhouse.
 11. **PORTABILITY/OPERABILITY GAP:** no active cloud capsule/provider adapter,
     environment lock, double-click launcher, or training selection UI exists.
 
 ## Recommended next actions
 
-0. Ratify and implement Trainer v2 identity/control separation: stable core
-   lineage, evolving checkpoint state, immutable curriculum stage and recipe,
-   and renewable resource tranches that pause rather than redefine tissue.
-1. Define the communication-first curriculum and gates; preserve FFCS as its
-   mechanism/regression prerequisite rather than Axon's whole education.
+0. Run CPU preflight and one-step mechanism checks over the published C1
+   manifest; declare the C1 stage gate before any tournament tranche.
+1. Extend the communication-first curriculum through C2-C6 and gates; preserve
+   FFCS as its mechanism/regression prerequisite rather than Axon's whole
+   education.
 2. Add crash-safe report regeneration, evaluation-only operation, and the one
    deferred heldout evaluation without optimizer mutation.
 3. Build a provider-neutral training capsule/CLI, a thin double-click local
@@ -354,5 +376,8 @@ Docker-SSH adapters plus a double-click launcher and local selection UI.
 - Candidate A: `training/living_reasoning_d64.py`
 - Curriculum/preflight/tournament: `training/living_reasoning_curriculum.py`,
   `training/living_reasoning_preflight.py`, `training/reasoning_tournament.py`
+- C1 communication curriculum: `training/communication_first_c1.py`,
+  `scripts/compile_c1_curriculum.py`, `tests/test_communication_first_c1.py`,
+  manifests under `State/training/curricula/c1/`
 - Launcher: `scripts/train_living_reasoning_smoke.py`
 - Full tests: `python -m pytest -q`
