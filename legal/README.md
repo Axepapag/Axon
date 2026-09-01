@@ -21,6 +21,7 @@ Axon — organized so a non-coder can navigate it and a lawyer can act from it.
 | 5 | `TRADEMARK_NOTES.md` | Name protection basics for "Axon" in software/AI classes | EARLY |
 | 6 | `PATENT_ROADMAP.md` | Which mechanisms are plausibly patentable, what each protects, costs, and the honest counter-arguments — a decision aid, not a recommendation to file | WHEN BUDGETED |
 | 7 | `ATTORNEY_BRIEF.md` | A one-page handoff brief for a licensed IP attorney, so Jeff does not pay for discovery the table already did | ON RETAINER |
+| 8 | `DEVELOPMENT_LINEAGE_EVIDENCE.md` | The continuous development trail from D2 (Feb 2026) through AxonM (Mar 2026) to Axon (Jul 2026+), with file-date evidence and the naming-chain provenance. Proves continuous development under Jeff's direction across all predecessor runtimes. | **NOW** |
 
 ## The five rules (summary of file 1)
 
@@ -34,14 +35,16 @@ Axon — organized so a non-coder can navigate it and a lawyer can act from it.
    transcript imports too.
 5. **This folder is itself evidence.** Commit it; never delete it.
 
-## Current protection posture (as of 2026-08-31)
+## Current protection posture (as of 2026-09-01)
 
-- **Priority evidence:** 188 commits, 2026-07-03 (cad4bb8) through today,
-  each hash-chained and dated; key mechanisms anchored in
-  `INVENTION_DISCLOSURES.md`.
-- **Confidentiality:** GitHub repo `Axepapag/Axon` — believed private
-  (verify in file 3); no public disclosures of the core mechanisms found
-  beyond this repo and the private roundtable.
+- **Priority evidence:** 190+ commits, 2026-07-03 (cad4bb8) through today,
+  each hash-chained and dated; **plus the predecessor runtime trail**
+  (D2_runtime Feb 2026 → AxonM Mar 2026 → D:\extension Apr 2026 → Axon
+  Jul 2026), all documented in `DEVELOPMENT_LINEAGE_EVIDENCE.md` and
+  `INVENTION_DISCLOSURES.md` (7 disclosures).
+- **Confidentiality:** GitHub repo `Axepapag/Axon` — **confirmed private
+  on 2026-09-01** (live verification via browser hub); no public
+  disclosures of the core mechanisms.
 - **Third-party exposure (acknowledged):** development was performed via AI
   agent CLIs (Anthropic, OpenAI, Moonshot/Kimi, local/Ollama-class models).
   Jeff assumes their providers have potentially observed the work. This is
