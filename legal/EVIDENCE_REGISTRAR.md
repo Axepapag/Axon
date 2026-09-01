@@ -36,7 +36,10 @@ steps worth doing.
 - **Important caveat:** git commit dates are author-controlled. For
   anything that might ever be litigated, the GitHub *push* record (server
   timestamp) is stronger than the local commit date. Since Jeff pushes
-   regularly (origin/main is current), the push trail exists already.
+  regularly (origin/main is current), the push trail exists already.
+- **Visibility confirmed private on 2026-09-01** by Hermes via the Axon
+  Browser Hub extension (live GitHub settings page, "This repository is
+  currently private." verified from the Danger Zone). Re-verify monthly.
 
 ## Manual strengthening steps (recommended, in order of value)
 

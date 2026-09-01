@@ -1,6 +1,6 @@
 # Axon Confidentiality and IP Policy
 
-Version 1.0 — 2026-08-31
+Version 1.1 — 2026-09-01
 Authority: Jeff (convener). This policy is binding on every human and AI
 agent working anywhere in this repository. It extends
 `docs/WORKING_CONTRACT.md` and the ledger protocol; it does not replace them.
@@ -16,11 +16,17 @@ without Jeff's explicit written direction.
 
 - The GitHub repository (`Axepapag/Axon`) must remain **private**. Any change
   to its visibility is a Jeff-level decision, like Source-of-Truth doctrine.
+- **Visibility confirmed private on 2026-09-01** by Hermes via the Axon
+  Browser Hub (live GitHub settings page verification; evidence in ledger
+  event evt-20260901T...-hermes-github-privacy-confirmation).
 - The `legal/` folder, the engineers' ledgers, and the roundtable documents
   are **internal evidence**, not publication material.
 - If the repo is ever found public, treat it as an incident: snapshot
   everything, record the exposure window, and ask Jeff whether to
   re-private and/or file defensive publications immediately.
+- **Monthly re-verification:** Jeff or the on-duty agent re-confirms
+  visibility at the start of each calendar month. Record the check in the
+  ledger. This is now a standing ritual per `EVIDENCE_REGISTRAR.md`.
 
 ## 3. What may never leave this repository
 

@@ -254,6 +254,54 @@ methodological — publish it as a practice paper when ready.
 
 ---
 
+## Disclosure 7 — Lease-Governed Live-Browser Agent Control
+("The Axon Browser Hub")
+
+**Mechanism.** A browser-control system in which (a) a Chrome extension
+provides per-tab DOM context extraction and command execution; (b) a local
+hub mediates access; (c) AI agents must acquire an exclusive per-tab
+*lease* before any control command is accepted — only one agent per tab at
+a time, with TTL expiry and explicit release; (d) agents read the system's
+current state from a continuously-updated live-DOM file rather than
+requiring a protocol connection; and (e) the extension drives the user's
+*actual logged-in browser* (real cookies, identity, extensions) rather
+than spawning a disconnected headless instance.
+
+**What it does.** Gives AI agents safe, non-interfering control of a real
+person's live browser — with the same authority-governance pattern Axon's
+Heart applies to canonical state (single-writer, fail-closed, typed
+commands).
+
+**Why new when built.** Browser automation in the art (Selenium,
+Playwright) spawns isolated headless instances that lose session
+continuity and cannot access the user's authenticated identity.
+Agent-browser systems in the art (Anthropic Computer Use, OpenAI browser
+tools) operate via screenshots and pixel coordinates. None combine
+lease-governed exclusive per-tab control with live-DOM Markdown
+publication as a universal agent interface, driving the user's real
+authenticated browser.
+
+**Evidence anchors.**
+- `D:\extension\` (separate local directory, not in this git repo):
+  `background.js` (1,391 lines), `hub/server.py` (853 lines),
+  `hub/client.py` (159 lines), `content.js` (462 lines),
+  `agent_tools/browser.py` (82 lines).
+- File dates on disk: `background.js` 2026-08-24, `AGENTS.md` 2026-06-17,
+  `manifest.json` 2026-06-17, `content.js` 2026-06-14, `popup.js`
+  2026-06-14, `tesseract.min.js` 2026-04-15. Version 4.1 (see manifest).
+- Live active-tab DOM file (`00_LIVE_DOM.md`) continuously updated by the
+  running hub (verified active on port 9191, 2026-09-01).
+
+**Notes.** Predates the Axon repository (April 2026 origins). The lease
+primitive is the direct architectural ancestor of Axon's Heart
+single-writer authority. The system is production-quality and in daily
+use. Trade-secret treatment recommended while private; defensive
+publication if any portion is ever described publicly. Attorney should
+assess whether the lease-governed browser control adds claim surface to
+the Heart disclosure or stands alone.
+
+---
+
 ## Maintenance
 
 - **New disclosures:** any future mechanism Jeff considers valuable gets a
