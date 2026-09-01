@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-31T11:42:25-05:00
-Current through event: `evt-20260831T164225650785Z-codex-concurrent-ledger-correction`
+Updated: 2026-08-31T22:12:13-05:00
+Current through event: `evt-20260901T031213050939Z-codex-kaggle-language-review-correction`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -55,14 +55,41 @@ step 17 from its exact step-16 parent bundle under a 1-step tranche — same
 plan_id, same generation, `paused_for_next_tranche=true`. Lineages now continue
 additively; no candidate is ever restarted for wanting more compute.
 
+Private persistent Kaggle execution is now a real Trainer adapter (commit
+`a8c52ca`). The official Kaggle CLI 2.2.4 is installed globally and its OAuth
+session is healthy for account `axepapgt`; credentials remain solely in the
+official user store and are never inspected or packaged. `AXON_KAGGLE.bat`
+opens an independent control center; private packet preparation, explicit
+launch confirmation, provider-native status/log following in a separate
+terminal, and output retrieval all survive an engineer harness ending.
+Per-step loss/progress is flushed to Kaggle logs plus durable JSONL/current
+artifacts. One zero-upload fresh D64 packet was prepared and independently
+hash/preflight verified as job `32bdb49a...` (134 files, 2.2 MiB,
+revision `a8c52ca`); no dataset/kernel was uploaded and provider usage remains
+0.00h. Live quota at closeout was 30 GPU and 20 TPU hours.
+
+ChatGPT's Language Foundations Schoolhouse proposal has been reviewed against
+the live D64 core, FFCS/C1 loaders, loss path, candidate-C evidence, SOT, and
+Trainer. Its central direction is accepted as the recommended developmental
+path, pending Jeff's formal ratification: teach language through Axon's actual
+Shared Field -> home rail -> private Soul -> typed Unicode-output body, with
+small objective competencies, spiral review, causal ablations, and cumulative
+regression. Four amendments are required before it becomes an executable
+contract: preserve teaching eligibility into loss construction; distinguish
+deterministic evaluation validators from differentiable learning objectives;
+add body-faithful character generation/denoising exposure rather than relying
+only on micro-exercises; and remove the implicit 512-unit output ceiling before
+long composition. Kaggle may run the first bounded learning diagnostic after
+local structural preflight; provider location is not a capability claim.
+
 ## Current campaign: C1 decisive run and checkpoint retention
 
 The C1 communication-first curriculum (36 cases, 7 lesson classes, manifest
-`c04ae8c6...`) is published and a bounded local-CUDA campaign is active on
-fresh v2 lineages. Candidates 1x64 and 2x32 have complete durable reports
-through accepted step 193. Candidate 4x16 was advancing inside tranche
-129->193 under Trainer lease PID 3924 at the 2026-08-31 11:36 CDT audit; its
-last complete report ends at step 129. Do not run a competing Trainer writer.
+`c04ae8c6...`) is published and the bounded local-CUDA campaign has closed at
+accepted step 193 for all three fresh v2 lineages. Candidate 4x16's final
+heldout loss is `3.684934275490897`, token accuracy is `0.03007518796992481`
+against a `0.16165413533834586` constant floor, and both exact rates are zero.
+No Trainer writer lease remains.
 
 At step 193, 1x64 and 2x32 both show heldout loss near 3.70, nonzero field/
 proposal/Soul counterfactuals, teacher-forced token accuracy 0.030075 against
@@ -324,35 +351,35 @@ targets currently receive the same consolidated-response supervision as
 VERIFIED_TARGET. The current campaign therefore diagnoses the neural mechanism
 but does not establish evidence-qualified conversational education.
 
-The current Trainer has portable foundations—CPU-loadable PyTorch state,
-content-addressed parameter/Soul bundles, checkpoints, and fail-closed gates—
-but no active cloud training capsule, provider adapter, dependency lock, or
-user-facing launcher. Only archived batch files exist. The proposed surface is
-one provider-neutral job manifest and CLI, with thin local/Kaggle/Colab/
-Docker-SSH adapters plus a double-click launcher and local selection UI.
+The current Trainer has portable foundations plus a provider-neutral,
+content-addressed packet and private Kaggle adapter. Packets require clean
+committed source, explicit State inputs and sensitive-State acknowledgement;
+credential paths/symlinks/escapes fail closed. The current UI is a deliberately
+simple double-click PowerShell control center rather than the future runtime
+Trainer panel. Colab/SimplePod/Docker-SSH adapters and an automatic exact
+continuation-closure resolver remain future work.
 
 ## Verification and Git
 
-- Full repository suite passed after the C1 curriculum work: 483 tests
-  collected on Python 3.12, exit 0, only the known PyTorch nested-tensor
-  warning. One background invocation returned a spurious pipeline exit 1 with
-  no pytest summary; clean collection and two complete runs contradict it.
-- Changed-file Ruff: passed (C1 module, tests, publish script, `__init__`,
-  FFCS validator, hygiene allowlist).
-- Python compileall over changed files: passed.
+- Full repository regression attempt reached 493 tests: 492 passed and only
+  the exact Day-Zero active-module inventory guard failed because the three new
+  Trainer modules were not yet declared. After declaring them, the guard plus
+  Kaggle/progress/organ focus passed 17/17. A second 20-minute full run was not
+  repeated after that set-only correction.
+- Changed-file Ruff and Python compile checks passed. Both PowerShell launchers
+  parse cleanly. Repo-wide Ruff still has 121 pre-existing findings outside
+  changed-file scope.
 - Fixed-character poison, exact Unicode, identity migration, mask, Heart,
   runtime circulation, private-Soul, Candidate-A, Trainer, and old-checkpoint
   migration tests are included in the full pass.
 - SOT mirrors are byte-identical at SHA256
-  `1CC61F65CCE03A58CC0F9A1A5CB867E97F0190D925D3BA91911560DC718B2FE1`.
+  `33BB4AF102D4759E17244F07794D1D7937A998AA1DCD68E4ED8357B9A23C23C2`.
 - `git diff --check`: passed.
-- Before this ledger closeout, local `main` was four commits ahead of
-  `origin/main`: C1 curriculum, falsification contract, keep-3 retention, and
-  legal/IP scaffolding. Three Hermes events plus the Codex audit/correction are
-  preserved in the pending ledger closeout.
-- A local Axon CUDA Trainer writer is active under PID 3924 on candidate 4x16.
-  No cloud job or paid operation ran. Tests were deliberately not rerun during
-  this audit to avoid competing with the active GPU mission.
+- Kaggle implementation is committed as `a8c52ca`; before this ledger
+  closeout local `main` was six commits ahead of `origin/main`.
+- No local Trainer writer or Kaggle training job is active. The prepared job
+  remains phase `prepared` with null dataset/kernel references. Kaggle reports
+  0.00h used, 30.00 GPU hours and 20.00 TPU hours remaining.
 - Known non-failing warning: PyTorch nested-tensor optimization warning.
 
 ## Active flags
@@ -377,7 +404,7 @@ Docker-SSH adapters plus a double-click launcher and local selection UI.
    Trainer lease ownership; `SoulBranch` is not independently multi-writer safe.
 8. **WIDER-RAIL/CORTEX GAP:** only D64 physically compiles. Wider rails and
    autonomous Cortex retrieval/digestion remain future organs.
-9. **REPO HYGIENE ADVISORY:** a separate Hermes audit counted 127 repo-wide
+9. **REPO HYGIENE ADVISORY:** the current repo-wide Ruff scan reports 121
    Ruff findings outside changed-file scope; this does not contradict the
    changed-file Ruff gate.
 10. **PUBLICATION HYGIENE ADVISORY:** `f40137c` retains Jeff's personal email
@@ -388,23 +415,44 @@ Docker-SSH adapters plus a double-click launcher and local selection UI.
 12. **CURRICULUM GAP (PARTIALLY CLOSED):** C1 exists and has produced optimizer
     evidence, but its target qualification and metric isolation are not yet
     admissible; C2-C6 do not exist. FFCS remains the mechanism schoolhouse.
-13. **PORTABILITY/OPERABILITY GAP:** no active cloud capsule/provider adapter,
-    environment lock, double-click launcher, or training selection UI exists.
+13. **CLOUD CONTINUATION GAP:** fresh private Kaggle packets are operational,
+    but exact parent checkpoint/optimizer/Soul closure is still selected by
+    explicit paths; do not claim a continuation until a dedicated resolver
+    proves the complete parent lineage.
+14. **OUTPUT-BUDGET POISON:** the live D64 architecture still embeds a fixed
+    `inference_budget_transport_units=512`, and FFCS target admission defaults
+    to a 512-unit budget. These are safe for an explicitly bounded early
+    Language campaign but cannot remain implicit permanent expression limits.
+15. **SEMANTIC-OBJECTIVE GAP:** deterministic semantic validators can govern
+    evaluation, but required/forbidden atoms alone do not supply differentiable
+    token-level training. V1 semantic-content cases must remain evaluation-only
+    or use an explicit structured/exact learning target until a governed
+    sequence-level objective exists.
 
 ## Recommended next actions
 
-0. Let the already-authorized C tranche close at step 193 and preserve its
-   report, but issue no subsequent tournament tranche.
+0. Preserve the completed C step-193 reports as mechanism diagnostics; issue
+   no continuation under the invalid C1 falsification contract.
 1. Replace C1 with accepted/corrected/endorsed targets or explicitly record
    human endorsement of a reviewed authored batch; publish a new immutable
    manifest and fresh campaign identity.
 2. Add C1-only heldout/regression metrics and predeclare the corrected decision
    surface. Treat the current campaign as mechanism evidence, not falsification.
-3. Add exact mid-tranche interruption/residual-allowance recovery plus a
-   regression test, then run focused and full suites after the GPU writer exits.
-4. Extend communication-first C2-C6 only after C1 evidence is admissible.
-5. Build the provider-neutral cloud capsule/CLI and local launcher/UI.
-6. Promote nothing until a candidate passes the complete serving gate.
+3. Version the curriculum envelope so eligibility and exact/categorical/
+   structured/evaluation-only validators survive loading into loss/evaluation;
+   fail closed when a claimed metric has no admissible validator.
+4. Replace fixed output capacity with governed renewable/chunked emission
+   before longer composition, while keeping the first L0-L4 shot explicitly
+   short and exact.
+5. Build an objective L0-L4 Language campaign that reuses FFCS transport
+   prerequisites and adds character-level generative exposure, spelling,
+   morphology, grammar and rule-transfer holdouts; do not rely only on tiny
+   exercise templates to teach fluent generation.
+6. Run a private bounded Kaggle integration/learning tranche only after the
+   new manifest and metrics preflight; cloud is an execution provider, not a
+   capability or promotion claim.
+7. Add exact mid-tranche residual recovery and automatic cloud continuation
+   closure. Promote nothing until the complete serving gate passes.
 
 ## Important paths
 
@@ -428,4 +476,8 @@ Docker-SSH adapters plus a double-click launcher and local selection UI.
   `scripts/compile_c1_curriculum.py`, `tests/test_communication_first_c1.py`,
   manifests under `State/training/curricula/c1/`
 - Launcher: `scripts/train_living_reasoning_smoke.py`
+- Kaggle control: `AXON_KAGGLE.bat`, `scripts/axon_kaggle.py`,
+  `docs/KAGGLE_TRAINING_GUIDE.md`
+- Language proposal:
+  `roundtable/CHATGPT_LANGUAGE_FOUNDATIONS_SCHOOLHOUSE_PROPOSAL_2026-08-31.md`
 - Full tests: `python -m pytest -q`
