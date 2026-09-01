@@ -12,7 +12,7 @@ from __future__ import annotations
 import math
 import struct
 from dataclasses import asdict, dataclass, field
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Iterator, Mapping
 
 import torch
 from torch import nn
@@ -42,6 +42,7 @@ from runtime.soul import (
     SoulTransition,
     apply_soul_transition,
 )
+from runtime.source_of_truth import capacity_policy
 from substrate import (
     TRANSPORT_VOCAB_SIZE,
     decode_unicode_tokens,
@@ -56,6 +57,7 @@ D64_SOUL_MEDIA_TYPE = "application/x-axon-d64-recurrent-state"
 _SOUL_MAGIC = b"AXSLD641"
 _SOUL_HEADER = struct.Struct("<8sII")
 _PHASE_TO_ID = {"first": 0, "refined": 1, "consolidated": 2}
+_RETIRED_V1_OUTPUT_IDENTITY_MARKER = 512
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,7 +69,6 @@ class LivingReasoningCoreConfig:
     state_tokens: int = 4
     page_size: int = 32
     dropout: float = 0.05
-    inference_budget_transport_units: int = 512
     soul_codec_version: str = D64_SOUL_CODEC_VERSION
     lift_seed: int = 7
     architecture_id: str = field(init=False)
@@ -80,7 +81,6 @@ class LivingReasoningCoreConfig:
             "ffn_dim",
             "state_tokens",
             "page_size",
-            "inference_budget_transport_units",
         ):
             value = getattr(self, name)
             if isinstance(value, bool) or not isinstance(value, int) or value < 1:
@@ -96,8 +96,21 @@ class LivingReasoningCoreConfig:
         object.__setattr__(
             self,
             "architecture_id",
-            "living-d64-" + canonical_sha256(self.to_canonical_dict(False))[:24],
+            "living-d64-" + canonical_sha256(self._v1_identity_projection())[:24],
         )
+
+    def _v1_identity_projection(self) -> dict[str, Any]:
+        """Preserve every trained v1 tensor/Soul identity without retaining its ceiling.
+
+        The original schema incorrectly mixed a decoder work allowance into
+        tissue identity.  It never changed tensor topology.  This frozen
+        projection reproduces existing architecture IDs while live decoding
+        takes its renewable work slice from the protected SOT policy.
+        """
+
+        value = self.to_canonical_dict(False)
+        value["inference_budget_transport_units"] = _RETIRED_V1_OUTPUT_IDENTITY_MARKER
+        return value
 
     def to_canonical_dict(self, include_id: bool = True) -> dict[str, Any]:
         value = {
@@ -109,7 +122,6 @@ class LivingReasoningCoreConfig:
             "state_tokens": self.state_tokens,
             "page_size": self.page_size,
             "dropout": float(self.dropout),
-            "inference_budget_transport_units": self.inference_budget_transport_units,
             "soul_codec_version": self.soul_codec_version,
             "lift_seed": self.lift_seed,
         }
@@ -126,7 +138,6 @@ class LivingReasoningCoreConfig:
             state_tokens=self.state_tokens,
             page_size=self.page_size,
             dropout=self.dropout,
-            inference_budget_chars=self.inference_budget_transport_units,
             lift_seed=self.lift_seed,
         )
 
@@ -137,8 +148,7 @@ class D64SoulCodec:
     def __init__(self, config: LivingReasoningCoreConfig) -> None:
         self.config = config
         self.tensor_layout = (
-            f"{config.soul_codec_version}:{config.architecture_id}:"
-            f"f32le[{config.state_tokens},{config.d_model}]"
+            f"{config.soul_codec_version}:{config.architecture_id}:f32le[{config.state_tokens},{config.d_model}]"
         )
 
     def encode(self, state: torch.Tensor, temperature: SoulTemperature) -> SoulLayer:
@@ -169,18 +179,11 @@ class D64SoulCodec:
             return None
         if layer.media_type != D64_SOUL_MEDIA_TYPE or layer.tensor_layout != self.tensor_layout:
             raise ValueError("opaque Soul layer does not use this architecture's tensor dialect")
-        expected_bytes = (
-            _SOUL_HEADER.size
-            + self.config.state_tokens * self.config.d_model * torch.float32.itemsize
-        )
+        expected_bytes = _SOUL_HEADER.size + self.config.state_tokens * self.config.d_model * torch.float32.itemsize
         if len(layer.payload) != expected_bytes:
             raise ValueError("opaque Soul recurrent payload has the wrong byte length")
         magic, state_tokens, d_model = _SOUL_HEADER.unpack(layer.payload[: _SOUL_HEADER.size])
-        if (
-            magic != _SOUL_MAGIC
-            or state_tokens != self.config.state_tokens
-            or d_model != self.config.d_model
-        ):
+        if magic != _SOUL_MAGIC or state_tokens != self.config.state_tokens or d_model != self.config.d_model:
             raise ValueError("opaque Soul recurrent payload header is incompatible")
         values = torch.frombuffer(
             bytearray(layer.payload[_SOUL_HEADER.size :]),
@@ -301,10 +304,7 @@ class LivingReasoningCoreD64(CompleteField64D):
             raise ValueError("private Soul parameter generation does not match the living core")
         if phase not in _PHASE_TO_ID:
             raise ValueError(f"unsupported living reasoning phase {phase!r}")
-        ablated = {
-            item if isinstance(item, SoulTemperature) else SoulTemperature(item)
-            for item in ablate_temperatures
-        }
+        ablated = {item if isinstance(item, SoulTemperature) else SoulTemperature(item) for item in ablate_temperatures}
         baseline = self.initial_state.unsqueeze(0)
         state = baseline
         decoded_count = 0
@@ -324,9 +324,7 @@ class LivingReasoningCoreD64(CompleteField64D):
             state = state + contribution
             contribution_l2 += float(contribution.detach().norm().item())
             decoded_count += 1
-        phase_vector = self.phase_embedding(
-            torch.tensor(_PHASE_TO_ID[phase], device=self.device)
-        ).reshape(1, 1, -1)
+        phase_vector = self.phase_embedding(torch.tensor(_PHASE_TO_ID[phase], device=self.device)).reshape(1, 1, -1)
         state = state + phase_vector
         return state, {
             "decoded_soul_layers": float(decoded_count),
@@ -406,15 +404,14 @@ class LivingReasoningCoreD64(CompleteField64D):
         memory = output.canonical_memory
         region_id = CANONICAL_REGION_ORDER.index(region)
         mask = (memory.region_ids[0] == region_id) & memory.region_positions[0].ge(0)
-        positions = tuple(
-            sorted(set(int(item) for item in memory.region_positions[0, mask].tolist()))
+        positions = tuple(sorted(set(int(item) for item in memory.region_positions[0, mask].tolist())))
+        candidates = tuple(
+            sorted({0, *(position for position in positions), *(position + 1 for position in positions)})
         )
-        candidates = tuple(sorted({0, *(position for position in positions), *(position + 1 for position in positions)}))
         representations: list[torch.Tensor] = []
         for candidate in candidates:
             adjacent = mask & (
-                (memory.region_positions[0] == candidate)
-                | (memory.region_positions[0] == candidate - 1)
+                (memory.region_positions[0] == candidate) | (memory.region_positions[0] == candidate - 1)
             )
             if bool(adjacent.any()):
                 representation = memory.states[0, adjacent].mean(dim=0)
@@ -496,9 +493,7 @@ class LivingReasoningCoreD64(CompleteField64D):
                     "phase": phase,
                     "field_id": canonical.source_field_id,
                     "before_soul_id": soul.soul_id,
-                    "proposal_text_sha256": [
-                        canonical_sha256({"text": text}) for text in proposal_texts
-                    ],
+                    "proposal_text_sha256": [canonical_sha256({"text": text}) for text in proposal_texts],
                 }
             )
             transition = self.exhale_transition(
@@ -522,27 +517,62 @@ class LivingReasoningCoreD64(CompleteField64D):
     def decode_transport_greedy(
         self,
         output: LivingReasoningForward,
+        *,
+        work_units: int | None = None,
     ) -> tuple[str, bool]:
-        limit = self.living_config.inference_budget_transport_units
+        return next(self.iter_decode_transport(output, work_units=work_units))
+
+    def iter_decode_transport(
+        self,
+        output: LivingReasoningForward,
+        *,
+        work_units: int | None = None,
+    ) -> Iterator[tuple[str, bool]]:
+        """Yield control at renewable slice boundaries and preserve decoder state.
+
+        Every nonterminal yield is explicitly incomplete. A caller may retain
+        this iterator and resume it without a total output bound. Durable
+        cross-process continuation is a Heart-host responsibility and remains
+        a serving gate; the core never converts slice exhaustion into success.
+        """
+
+        work_slice = (
+            capacity_policy().integer("reasoning.emission_work_slice_transport_units")
+            if work_units is None
+            else int(work_units)
+        )
+        if work_slice < 1:
+            raise ValueError("work_units must be positive")
         summary = output.reader_state.mean(dim=1)
         head_vec = self.decoder_head_embedding(torch.tensor([1], device=self.device))
         hidden = torch.tanh(self.decoder_init(torch.cat((summary, head_vec), dim=-1))).unsqueeze(0)
         token = torch.full((1, 1), self.bos_index, dtype=torch.long, device=self.device)
         transport: list[int] = []
-        for _ in range(limit + 1):
-            decoded, hidden = self.decoder(self.decoder_embedding(token), hidden)
-            logits = self._decoder_logits(decoded[:, -1:], output.complete_memory).squeeze(1)
-            category = int(logits.argmax(dim=-1).item())
-            if category == self.eos_index:
-                try:
-                    return decode_unicode_tokens(transport), True
-                except ValueError:
-                    return "", False
-            if category >= TRANSPORT_VOCAB_SIZE:
-                return "", False
-            transport.append(category)
-            token = torch.tensor([[category]], dtype=torch.long, device=self.device)
-        return "", False
+        with torch.no_grad():
+            while True:
+                for _ in range(work_slice):
+                    decoded, hidden = self.decoder(self.decoder_embedding(token), hidden)
+                    logits = self._decoder_logits(
+                        decoded[:, -1:],
+                        output.complete_memory,
+                    ).squeeze(1)
+                    category = int(logits.argmax(dim=-1).item())
+                    if category == self.eos_index:
+                        try:
+                            yield decode_unicode_tokens(transport), True
+                        except ValueError:
+                            yield "", False
+                        return
+                    if category >= TRANSPORT_VOCAB_SIZE:
+                        yield "", False
+                        return
+                    transport.append(category)
+                    token = torch.tensor(
+                        [[category]],
+                        dtype=torch.long,
+                        device=self.device,
+                    )
+                yield "", False
 
     def forward_request(
         self,
@@ -597,9 +627,7 @@ class LivingReasoningCoreD64(CompleteField64D):
             if region not in allowed:
                 region_logits[:, index] = torch.finfo(region_logits.dtype).min
         region = CANONICAL_REGION_ORDER[int(region_logits.argmax(dim=-1).item())]
-        operation = tuple(ReasoningOperationKind)[
-            int(output.operation_logits.argmax(dim=-1).item())
-        ]
+        operation = tuple(ReasoningOperationKind)[int(output.operation_logits.argmax(dim=-1).item())]
         candidates, start_logits, end_logits = self.boundary_logits(output, region)
         start = candidates[int(start_logits.argmax(dim=-1).item())]
         end = candidates[int(end_logits.argmax(dim=-1).item())]

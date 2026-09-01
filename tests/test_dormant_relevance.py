@@ -16,7 +16,9 @@ def test_relevance_auditor_prefers_exact_query_match(tmp_path: Path) -> None:
     state_root = _write_fixture_state(tmp_path)
     with DormantEvidenceIndex.build(state_root) as index:
         evidence = index.retrieve("stateful architecture", limit=4)
-        auditor = DormantRelevanceAuditor(DormantRelevancePolicy(max_items=1))
+        auditor = DormantRelevanceAuditor(
+            DormantRelevancePolicy(items_per_materialization=1, target_chars=10_000)
+        )
         decision = auditor.select("stateful architecture", evidence, SharedFieldSnapshot.empty(tick_id=0))
         assert decision.selected_container_ids == ("c-axon",)
         assert decision.scores[0].lexical_support == 1.0
@@ -29,12 +31,13 @@ def test_relevance_auditor_never_truncates_oversize_exact_evidence(tmp_path: Pat
     with DormantEvidenceIndex.build(state_root) as index:
         evidence = index.retrieve("stateful architecture", limit=4)
         auditor = DormantRelevanceAuditor(
-            DormantRelevancePolicy(max_items=4, max_chars=20, max_item_chars=3)
+            DormantRelevancePolicy(items_per_materialization=4, target_chars=3)
         )
         decision = auditor.select("stateful architecture", evidence, SharedFieldSnapshot.empty(tick_id=0))
-        assert decision.selected == ()
-        assert "c-axon" in decision.skipped_oversize
-        assert "c-system" in decision.skipped_oversize
+        assert decision.selected_container_ids == ("c-axon",)
+        assert decision.selected[0].container.text == "Axon"
+        assert decision.work_target_overrun
+        assert "c-system" in decision.skipped_budget
 
 
 def test_relevance_auditor_falls_back_only_to_exact_lexical_candidate(tmp_path: Path) -> None:
@@ -42,7 +45,11 @@ def test_relevance_auditor_falls_back_only_to_exact_lexical_candidate(tmp_path: 
     with DormantEvidenceIndex.build(state_root) as index:
         evidence = index.retrieve("stateful architecture", limit=4)
         auditor = DormantRelevanceAuditor(
-            DormantRelevancePolicy(max_items=1, min_score=1.0)
+            DormantRelevancePolicy(
+                items_per_materialization=1,
+                target_chars=10_000,
+                min_score=1.0,
+            )
         )
         decision = auditor.select("stateful architecture", evidence, SharedFieldSnapshot.empty(tick_id=0))
         assert decision.fallback_used
@@ -56,7 +63,9 @@ def test_active_exact_evidence_gets_retention_floor_not_fake_novelty(tmp_path: P
         evidence = index.retrieve("stateful architecture", limit=2)
         bridge = DormantEvidenceBridge(index)
         active = bridge.surface(SharedFieldSnapshot.empty(tick_id=0), evidence[:1])
-        auditor = DormantRelevanceAuditor(DormantRelevancePolicy(max_items=2))
+        auditor = DormantRelevanceAuditor(
+            DormantRelevancePolicy(items_per_materialization=2, target_chars=10_000)
+        )
         decision = auditor.select("stateful architecture", evidence, active)
         score = next(item for item in decision.scores if item.container_id == "c-axon")
         assert score.already_active
@@ -69,7 +78,10 @@ def test_total_character_budget_counts_separators_without_truncation(tmp_path: P
     with DormantEvidenceIndex.build(state_root) as index:
         evidence = index.retrieve("stateful architecture", limit=4)
         auditor = DormantRelevanceAuditor(
-            DormantRelevancePolicy(max_items=4, max_chars=len("Axon") + 1, max_item_chars=100)
+            DormantRelevancePolicy(
+                items_per_materialization=4,
+                target_chars=len("Axon") + 1,
+            )
         )
         decision = auditor.select("stateful architecture", evidence, SharedFieldSnapshot.empty(tick_id=0))
         assert decision.selected_container_ids == ("c-axon",)

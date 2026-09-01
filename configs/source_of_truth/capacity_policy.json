@@ -1,0 +1,203 @@
+{
+  "schema": "axon-source-of-truth-capacity-policy-v1",
+  "authority": "Jeff / Axon Source of Truth / 2026-08-31",
+  "laws": {
+    "no_tissue_content_ceiling": true,
+    "no_silent_truncation": true,
+    "incomplete_never_claimed_complete": true,
+    "resource_controls_are_renewable": true,
+    "resource_controls_do_not_affect_tissue_identity": true,
+    "oversized_exact_items_are_preserved_whole": true
+  },
+  "controls": {
+    "dormant.edges_per_evidence": {
+      "category": "result_count_policy",
+      "value": 8,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "Additional exact edges remain dereferenceable and later or broader retrieval passes may include them."
+    },
+    "dormant.edge_candidate_floor": {
+      "category": "result_count_policy",
+      "value": 300,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "Rank additional exact candidates when the caller requests a larger result set."
+    },
+    "dormant.edge_candidate_multiplier": {
+      "category": "result_count_policy",
+      "value": 60,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "Scale candidate work with the caller's requested result count; no absolute candidate ceiling exists."
+    },
+    "dormant.edge_hydration_page_size": {
+      "category": "physical_processing_unit",
+      "value": 800,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "Continue ordered SQL-safe pages until every selected edge identity is hydrated."
+    },
+    "dormant.graph_fanout_per_direction": {
+      "category": "result_count_policy",
+      "value": 8,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "This is a relevance-search breadth policy, not deletion; authoritative graph edges remain exact and later searches may request broader work."
+    },
+    "dormant.graph_hit_saturation": {
+      "category": "result_count_policy",
+      "value": 8,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "Additional exact graph evidence remains available; this value only prevents duplicate weak paths from manufacturing certainty."
+    },
+    "dormant.graph_seed_floor": {
+      "category": "result_count_policy",
+      "value": 12,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "Scale seed work with requested results and revisit under later or broader retrieval passes."
+    },
+    "dormant.graph_seed_multiplier": {
+      "category": "result_count_policy",
+      "value": 2,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "Scale graph seed work with requested results; no absolute seed ceiling exists."
+    },
+    "dormant.lexical_candidate_floor": {
+      "category": "result_count_policy",
+      "value": 200,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "Rank additional exact candidates when the caller requests a larger result set."
+    },
+    "dormant.lexical_candidate_multiplier": {
+      "category": "result_count_policy",
+      "value": 40,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "Scale candidate work with the caller's requested result count; no absolute candidate ceiling exists."
+    },
+    "dormant.recall_candidate_multiplier": {
+      "category": "result_count_policy",
+      "value": 4,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "Future recall passes may request more candidates; no authoritative record is excluded or altered."
+    },
+    "dormant.recall_items_per_materialization": {
+      "category": "result_count_policy",
+      "value": 8,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "Materialize later whole records in later governed recall passes; never truncate a selected record."
+    },
+    "dormant.recall_target_chars_per_materialization": {
+      "category": "compute_budget",
+      "value": 10000,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "Defer later records, but admit one oversized exact record whole when it is the first selected item."
+    },
+    "dormant.relation_seed_floor": {
+      "category": "result_count_policy",
+      "value": 64,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "Scale relation work with requested results and revisit under later or broader retrieval passes."
+    },
+    "dormant.relation_seed_multiplier": {
+      "category": "result_count_policy",
+      "value": 16,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "Scale relation work with requested results; no absolute relation ceiling exists."
+    },
+    "dormant.relation_targets_per_key": {
+      "category": "result_count_policy",
+      "value": 4,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "This is one retrieval pass's breadth; exact target identities remain queryable in later or broader passes."
+    },
+    "dormant.term_query_page_size": {
+      "category": "physical_processing_unit",
+      "value": 128,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "Continue ordered SQL-safe pages until every unique query term is processed."
+    },
+    "heart.failure_backoff_seconds": {
+      "category": "compute_budget",
+      "value": 1,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "Retry ordinary transient failures after backoff; integrity corruption still fails closed and visibly."
+    },
+    "heart.global_items_per_beat": {
+      "category": "compute_budget",
+      "value": 256,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "Leave later durable FIFO items pending and continue them on the next heartbeat."
+    },
+    "heart.global_target_chars_per_beat": {
+      "category": "compute_budget",
+      "value": 32768,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "Defer later items, but process one oversized exact item whole on an otherwise empty heartbeat."
+    },
+    "heart.idle_interval_seconds": {
+      "category": "compute_budget",
+      "value": 30,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "Wake immediately on work and continue slow liveness beats while idle."
+    },
+    "heart.primitive_items_per_beat": {
+      "category": "compute_budget",
+      "value": 100,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "Leave later durable FIFO items pending and continue them on the next heartbeat."
+    },
+    "heart.primitive_target_chars_per_beat": {
+      "category": "compute_budget",
+      "value": 10000,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "Defer later items, but process one oversized exact item whole on an otherwise empty heartbeat."
+    },
+    "heart.translation_emission_work_slice_characters": {
+      "category": "physical_processing_unit",
+      "value": 512,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "Report an explicitly unterminated diagnostic at slice exhaustion. Durable exact-state continuation is required before serving; the current runtime fails closed rather than truncating or blocking forever."
+    },
+    "legacy_r0.emission_work_slice_characters": {
+      "category": "physical_processing_unit",
+      "value": 512,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "Report incomplete at slice exhaustion; callers may renew work without changing or replacing the checkpoint."
+    },
+    "reasoning.emission_work_slice_transport_units": {
+      "category": "physical_processing_unit",
+      "value": 512,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "The core iterator preserves exact decoder state across renewable slices until EOS or explicit external cancellation. Durable Heart-host continuation remains required before serving."
+    },
+    "trainer.rolling_checkpoint_count": {
+      "category": "result_count_policy",
+      "value": 3,
+      "source_preserved": true,
+      "affects_tissue_identity": false,
+      "continuation": "Retain immutable lineage and receipts for every accepted step while keeping the configured number of materialized restart bundles."
+    }
+  }
+}

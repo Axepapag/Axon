@@ -33,7 +33,6 @@ from runtime.heart import (
     ReasoningDecision,
     ReasoningOperationKind,
 )
-from substrate import encode_unicode_text
 
 from .living_reasoning_curriculum import (
     LIVING_REASONING_TARGET_SCHEMA,
@@ -448,11 +447,10 @@ def _role(record: ExperienceRecord) -> str:
     return str(record.payload.get("role", "")).casefold()
 
 
-def _safe_target(text: str, *, transport_budget: int = 512) -> bool:
+def _safe_target(text: str) -> bool:
     folded = text.casefold()
     return (
         bool(text.strip())
-        and len(encode_unicode_text(text)) + 1 <= transport_budget
         and not any(shape in folded for shape in _SECRET_SHAPES)
     )
 
@@ -545,7 +543,7 @@ class FirstFormCurriculumCompiler:
                         if selected["B"][split] >= budgets["B"][split]:
                             excluded["b_split_budget_filled"] = excluded.get("b_split_budget_filled", 0) + 1
                         elif not _safe_target(record.exact_text):
-                            excluded["b_target_outside_transport_or_secret_policy"] = excluded.get("b_target_outside_transport_or_secret_policy", 0) + 1
+                            excluded["b_target_failed_content_policy"] = excluded.get("b_target_failed_content_policy", 0) + 1
                         else:
                             source_ids = (prior[1].record_id, record.record_id)
                             example_id = canonical_sha256(
@@ -583,7 +581,7 @@ class FirstFormCurriculumCompiler:
                 if selected["C"][split] >= budgets["C"][split]:
                     excluded["c_split_budget_filled"] = excluded.get("c_split_budget_filled", 0) + 1
                 elif not _safe_target(record.exact_text):
-                    excluded["c_target_outside_transport_or_secret_policy"] = excluded.get("c_target_outside_transport_or_secret_policy", 0) + 1
+                    excluded["c_target_failed_content_policy"] = excluded.get("c_target_failed_content_policy", 0) + 1
                 else:
                     source_ids = (record.record_id,)
                     example_id = canonical_sha256(

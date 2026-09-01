@@ -1,9 +1,9 @@
 """Sovereign valve plane for the Heart runtime (H6).
 
-A valve is a typed, fail-closed admission gate between an organ/ingress path and
-the heart's canonical circulation.  CLOSED is the default.  CAPPED valves admit
-only bounded, well-shaped traffic whose source class, envelope type, and payload
-size match the valve definition.  The heart constructs authority internally;
+A valve is a typed, fail-closed authority gate between an organ/ingress path and
+the heart's canonical circulation.  CLOSED is the default.  CAPPED valves use
+renewable per-beat processing controls, but exact payload length is never an
+admission ceiling.  The heart constructs authority internally;
 valve envelopes identify source and provenance, they never carry an
 ``AuthorityGrant``.
 """
@@ -16,6 +16,7 @@ from enum import Enum
 from typing import Any, Iterable
 
 from runtime.field import LogicalRegion, canonical_json_bytes
+from runtime.source_of_truth import capacity_policy
 
 from .authority import AuthorityClass, AuthorityGrant, IngressChannel
 from .errors import (
@@ -35,21 +36,15 @@ class ValveState(str, Enum):
 
 @dataclass(frozen=True, slots=True)
 class ValveBudget:
-    """Per-valve and per-beat intake budget."""
+    """Renewable per-beat work allocation, never a payload/queue ceiling."""
 
-    pending_cap: int = 0
     items_per_beat: int = 0
-    chars_per_beat: int = 0
-    max_item_chars: int = 0
-    max_item_bytes: int = 0
+    target_chars_per_beat: int = 0
 
     def __post_init__(self) -> None:
         for name in (
-            "pending_cap",
             "items_per_beat",
-            "chars_per_beat",
-            "max_item_chars",
-            "max_item_bytes",
+            "target_chars_per_beat",
         ):
             value = getattr(self, name)
             if isinstance(value, bool) or not isinstance(value, int):
@@ -170,11 +165,8 @@ class HeartValveDefinition:
             "governed_regions": sorted(region.value for region in self.governed_regions),
             "envelope_type": self.envelope_type,
             "budget": {
-                "pending_cap": self.budget.pending_cap,
                 "items_per_beat": self.budget.items_per_beat,
-                "chars_per_beat": self.budget.chars_per_beat,
-                "max_item_chars": self.budget.max_item_chars,
-                "max_item_bytes": self.budget.max_item_bytes,
+                "target_chars_per_beat": self.budget.target_chars_per_beat,
             },
             "rejection_policy": self.rejection_policy,
         }
@@ -315,13 +307,13 @@ _PRIMITIVE_REAL_VALVE_IDS: frozenset[str] = frozenset(
 )
 
 
-# Default primitive production budget.  Caps are intentionally modest for v1.
+# Default primitive production work allocation from the protected SOT policy.
+_CAPACITY_POLICY = capacity_policy()
 _DEFAULT_PRIMITIVE_BUDGET = ValveBudget(
-    pending_cap=1000,
-    items_per_beat=100,
-    chars_per_beat=10_000,
-    max_item_chars=4096,
-    max_item_bytes=16_384,
+    items_per_beat=_CAPACITY_POLICY.integer("heart.primitive_items_per_beat"),
+    target_chars_per_beat=_CAPACITY_POLICY.integer(
+        "heart.primitive_target_chars_per_beat"
+    ),
 )
 
 
@@ -422,24 +414,9 @@ class HeartValveRegistry:
             return ValveDecision(False, "envelope type mismatch", False, None)
         if envelope.source_id != definition.source_class:
             return ValveDecision(False, "source class mismatch", False, None)
-        char_count = len(envelope.payload)
-        byte_count = len(envelope.payload.encode("utf-8"))
-        if char_count > definition.budget.max_item_chars:
-            return ValveDecision(
-                False,
-                f"payload exceeds max_item_chars {definition.budget.max_item_chars}",
-                definition.rejection_policy == "quarantine",
-                None,
-            )
-        if byte_count > definition.budget.max_item_bytes:
-            return ValveDecision(
-                False,
-                f"payload exceeds max_item_bytes {definition.budget.max_item_bytes}",
-                definition.rejection_policy == "quarantine",
-                None,
-            )
-        if pending_count >= definition.budget.pending_cap:
-            return ValveDecision(False, "valve pending cap exceeded", False, None)
+        # ``pending_count`` is retained as observable pressure only.  The
+        # durable spool has no configured software cap and exact payload size
+        # never decides admission.
         return ValveDecision(True, "admitted_local", False, None)
 
     @property
@@ -499,41 +476,9 @@ class HeartValveRegistry:
             )
 
         char_count = len(envelope.payload)
-        byte_count = len(envelope.payload.encode("utf-8"))
-
-        if char_count > definition.budget.max_item_chars:
-            reason = (
-                f"payload size {char_count} chars exceeds valve max_item_chars "
-                f"{definition.budget.max_item_chars}"
-            )
-            return ValveDecision(
-                admitted=False,
-                reason=reason,
-                quarantine=definition.rejection_policy == "quarantine",
-                receipt=None,
-            )
-
-        if byte_count > definition.budget.max_item_bytes:
-            reason = (
-                f"payload size {byte_count} bytes exceeds valve max_item_bytes "
-                f"{definition.budget.max_item_bytes}"
-            )
-            return ValveDecision(
-                admitted=False,
-                reason=reason,
-                quarantine=definition.rejection_policy == "quarantine",
-                receipt=None,
-            )
 
         # Per-valve budget checks against the internal tracker.
         budget = definition.budget
-        if self._tracker.pending(definition.valve_id) >= budget.pending_cap:
-            return ValveDecision(
-                admitted=False,
-                reason="valve pending cap exceeded",
-                quarantine=False,
-                receipt=None,
-            )
         if budget.items_per_beat == 0:
             return ValveDecision(
                 admitted=False,
@@ -548,20 +493,21 @@ class HeartValveRegistry:
                 quarantine=False,
                 receipt=None,
             )
-        if budget.chars_per_beat == 0:
+        if budget.target_chars_per_beat == 0:
             return ValveDecision(
                 admitted=False,
-                reason="valve chars_per_beat is zero",
+                reason="valve target_chars_per_beat is zero",
                 quarantine=False,
                 receipt=None,
             )
         if (
             self._tracker.chars_this_beat(definition.valve_id) + char_count
-            > budget.chars_per_beat
+            > budget.target_chars_per_beat
+            and self._tracker.items_this_beat(definition.valve_id) > 0
         ):
             return ValveDecision(
                 admitted=False,
-                reason="valve chars-per-beat budget exceeded",
+                reason="valve target-chars-per-beat work allocation exhausted",
                 quarantine=False,
                 receipt=None,
             )
@@ -581,6 +527,7 @@ class HeartValveRegistry:
             if (
                 chars_remaining is not None
                 and char_count > chars_remaining
+                and self._tracker.items_this_beat(definition.valve_id) > 0
             ):
                 return ValveDecision(
                     admitted=False,
@@ -605,12 +552,13 @@ class HeartValveRegistry:
                     receipt=None,
                 )
             if (
-                global_budget.chars_per_beat > 0
-                and global_chars + char_count > global_budget.chars_per_beat
+                global_budget.target_chars_per_beat > 0
+                and global_chars + char_count > global_budget.target_chars_per_beat
+                and global_items > 0
             ):
                 return ValveDecision(
                     admitted=False,
-                    reason="global chars-per-beat budget exceeded",
+                    reason="global target-chars-per-beat work allocation exhausted",
                     quarantine=False,
                     receipt=None,
                 )
@@ -656,7 +604,7 @@ def primitive_valve_registry() -> HeartValveRegistry:
         definitions.append(
             HeartValveDefinition(
                 valve_id=valve_id,
-                version=1,
+                version=2,
                 state=ValveState.CAPPED,
                 source_class=source_class,
                 authority_class=authority_class,
@@ -687,11 +635,8 @@ def primitive_valve_registry() -> HeartValveRegistry:
         "future_organ_b",
     )
     closed_budget = ValveBudget(
-        pending_cap=0,
         items_per_beat=0,
-        chars_per_beat=0,
-        max_item_chars=0,
-        max_item_bytes=0,
+        target_chars_per_beat=0,
     )
     for valve_id in closed_slot_ids:
         definitions.append(

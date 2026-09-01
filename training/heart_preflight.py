@@ -8,6 +8,7 @@ import math
 import os
 import tempfile
 from dataclasses import replace
+from itertools import pairwise
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -17,6 +18,7 @@ from torch import nn
 from runtime.field import D64_COMPILER_SCHEMA, canonical_sha256
 from runtime.heart.intelligence import CRITICAL_SEMANTIC_CLASSES
 from runtime.heart.translation_core import HeartTranslationCore, heart_translation_architecture_id
+from runtime.source_of_truth import SourceOfTruthPolicyError, load_capacity_policy
 from runtime.trainer import (
     CompleteFieldTrainingContract,
     DeclaredTrainingBound,
@@ -36,7 +38,6 @@ from .heart_translation import (
     HeartTranslationCurriculum,
 )
 
-
 HEART_PREFLIGHT_EVIDENCE_SCHEMA = "axon-heart-complete-field-preflight-evidence-v1"
 FROZEN_SUBSTRATE_SCHEMA = "axon-frozen-alphabet-substrate-16d-v1"
 _ACTIVE_SCAN_ROOTS = ("runtime", "training", "curator", "Cortext", "scripts")
@@ -47,6 +48,17 @@ _FORBIDDEN_IDENTIFIER_COMPONENTS = (
     ("max", "output", "chars"),
     ("max", "pages"),
     ("active", "tail", "chars"),
+    ("max", "query", "length"),
+    ("max", "item", "chars"),
+    ("max", "item", "bytes"),
+    ("pending", "cap"),
+    ("max", "consecutive", "failures"),
+    ("recall", "limit"),
+    ("recall", "max", "chars"),
+    ("recall", "max", "item", "chars"),
+    ("inference", "budget", "chars"),
+    ("inference", "budget", "transport", "units"),
+    ("max", "dialects"),
 )
 
 
@@ -192,7 +204,7 @@ class _CapacityPoisonVisitor(ast.NodeVisitor):
 
     def visit_Compare(self, node: ast.Compare) -> None:
         operands = (node.left, *node.comparators)
-        for left, right in zip(operands, operands[1:]):
+        for left, right in pairwise(operands):
             for length_node, constant_node in ((left, right), (right, left)):
                 if not (
                     isinstance(length_node, ast.Call)
@@ -234,6 +246,13 @@ def scan_active_capacity_poison(repo_root: Path | str) -> dict[str, Any]:
 
     violations: list[str] = []
     hashes: dict[str, str] = {}
+    policy_sha256: str | None = None
+    try:
+        policy_sha256 = load_capacity_policy(
+            root / "configs" / "source_of_truth" / "capacity_policy.json"
+        ).policy_sha256
+    except SourceOfTruthPolicyError as exc:
+        violations.append(f"protected capacity policy rejected: {exc}")
     forbidden = _forbidden_identifiers()
     for path in sorted(set(files)):
         relative = path.relative_to(root).as_posix()
@@ -263,6 +282,7 @@ def scan_active_capacity_poison(repo_root: Path | str) -> dict[str, Any]:
         "roots": list(_ACTIVE_SCAN_ROOTS),
         "file_count": len(hashes),
         "source_sha256": hashes,
+        "capacity_policy_sha256": policy_sha256,
         "violations": sorted(violations),
         "passed": not violations,
     }
@@ -673,9 +693,9 @@ def build_heart_training_preflight(
 
 
 __all__ = [
-    "HEART_PREFLIGHT_EVIDENCE_SCHEMA",
     "FROZEN_SUBSTRATE_SCHEMA",
+    "HEART_PREFLIGHT_EVIDENCE_SCHEMA",
     "HeartTrainingPreflightError",
-    "scan_active_capacity_poison",
     "build_heart_training_preflight",
+    "scan_active_capacity_poison",
 ]

@@ -31,6 +31,7 @@ from runtime.field import (
     canonical_sha256,
     replacement_delta,
 )
+from runtime.source_of_truth import capacity_policy
 from substrate import assert_supported_text, encode_unicode_text, get_letter_bank
 
 REGION_ORDER: tuple[str, ...] = tuple(region.value for region in CANONICAL_REGION_ORDER)
@@ -47,7 +48,6 @@ class ReaderConfig:
     state_tokens: int = 4
     page_size: int = 256
     dropout: float = 0.05
-    inference_budget_chars: int = 512
     lift_seed: int = 7
 
     def __post_init__(self) -> None:
@@ -57,8 +57,6 @@ class ReaderConfig:
             raise ValueError("d_model must be divisible by n_heads")
         if self.page_size < 1 or self.state_tokens < 1:
             raise ValueError("page_size and state_tokens must be positive")
-        if self.inference_budget_chars < 1:
-            raise ValueError("inference_budget_chars must be positive")
 
 
 @dataclass(frozen=True)
@@ -750,18 +748,22 @@ class CompleteField64D(nn.Module):
         self,
         reader_state: torch.Tensor,
         head: int,
-        max_chars: int | None = None,
+        work_units: int | None = None,
         memory: AddressableMemory | None = None,
     ) -> tuple[str, bool]:
-        limit = self.cfg.inference_budget_chars if max_chars is None else int(max_chars)
-        if limit < 1:
-            raise ValueError("max_chars must be positive")
+        work_slice = (
+            capacity_policy().integer("legacy_r0.emission_work_slice_characters")
+            if work_units is None
+            else int(work_units)
+        )
+        if work_slice < 1:
+            raise ValueError("work_units must be positive")
         summary = reader_state.mean(dim=1)
         head_vec = self.decoder_head_embedding(torch.tensor([head], device=self.device))
         hidden = torch.tanh(self.decoder_init(torch.cat((summary, head_vec), dim=-1))).unsqueeze(0)
         token = torch.full((1, 1), self.bos_index, dtype=torch.long, device=self.device)
         chars: list[str] = []
-        for _ in range(limit + 1):
+        for _ in range(work_slice):
             output, hidden = self.decoder(self.decoder_embedding(token), hidden)
             logits = self._decoder_logits(output[:, -1:], memory).squeeze(1)
             index = int(logits.argmax(dim=-1).item())
@@ -771,8 +773,6 @@ class CompleteField64D(nn.Module):
                 return "".join(chars), False
             chars.append(self.characters[index])
             token = torch.tensor([[index]], dtype=torch.long, device=self.device)
-            if len(chars) >= limit:
-                break
         return "".join(chars), False
 
     def forward_canonical_transaction(

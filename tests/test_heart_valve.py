@@ -9,14 +9,13 @@ from runtime.heart import (
     HeartValveRegistry,
     UnknownValveError,
     ValveBudget,
-    ValveClosedError,
     ValveDecision,
     ValveEnvelope,
     ValveReceipt,
     ValveState,
     primitive_valve_registry,
 )
-from runtime.heart.valve import _DEFAULT_PRIMITIVE_BUDGET, _PRIMITIVE_REAL_VALVE_IDS
+from runtime.heart.valve import _PRIMITIVE_REAL_VALVE_IDS
 
 
 def _envelope(
@@ -62,7 +61,7 @@ def test_capped_primitive_valves_admit_valid_envelopes() -> None:
         receipt = decision.receipt
         assert isinstance(receipt, ValveReceipt), valve_id
         assert receipt.valve_id == valve_id
-        assert receipt.valve_version == 1
+        assert receipt.valve_version == 2
         assert receipt.source_id == source_id
         assert receipt.authority_class is registry.get(valve_id).authority_class
         assert receipt.governed_regions == frozenset({region})
@@ -104,17 +103,17 @@ def test_mismatched_envelope_type_fails() -> None:
     assert "envelope type" in decision.reason
 
 
-def test_oversize_payload_is_quarantined() -> None:
+def test_payload_beyond_old_item_ceiling_is_admitted_whole() -> None:
     registry = primitive_valve_registry()
-    oversized = "x" * (_DEFAULT_PRIMITIVE_BUDGET.max_item_chars + 1)
+    oversized = "x" * 20_000
     envelope = _envelope(valve_id="user_ingress", payload=oversized)
     decision = registry.decide(envelope)
-    assert decision.admitted is False
-    assert decision.quarantine is True
-    assert "max_item_chars" in decision.reason
+    assert decision.admitted is True
+    assert decision.quarantine is False
+    assert registry.tracker.chars_this_beat("user_ingress") == len(oversized)
 
 
-def test_oversize_payload_reject_policy_does_not_quarantine() -> None:
+def test_rejection_policy_does_not_create_a_payload_ceiling() -> None:
     registry = HeartValveRegistry(
         [
             HeartValveDefinition(
@@ -126,11 +125,8 @@ def test_oversize_payload_reject_policy_does_not_quarantine() -> None:
                 governed_regions=frozenset({LogicalRegion.USER_INPUT}),
                 envelope_type="text/plain",
                 budget=ValveBudget(
-                    pending_cap=10,
                     items_per_beat=10,
-                    chars_per_beat=1000,
-                    max_item_chars=10,
-                    max_item_bytes=40,
+                    target_chars_per_beat=10,
                 ),
                 rejection_policy="reject",
             ),
@@ -140,17 +136,14 @@ def test_oversize_payload_reject_policy_does_not_quarantine() -> None:
         valve_id="reject_only", source_id="test_source", payload="x" * 11
     )
     decision = registry.decide(envelope)
-    assert decision.admitted is False
+    assert decision.admitted is True
     assert decision.quarantine is False
 
 
 def test_budget_exhaustion_rejects_further_items() -> None:
     budget = ValveBudget(
-        pending_cap=10,
         items_per_beat=2,
-        chars_per_beat=1000,
-        max_item_chars=100,
-        max_item_bytes=400,
+        target_chars_per_beat=1000,
     )
     registry = HeartValveRegistry(
         [
@@ -177,13 +170,10 @@ def test_budget_exhaustion_rejects_further_items() -> None:
     assert "items-per-beat budget exceeded" in third.reason
 
 
-def test_chars_per_beat_budget_exhaustion() -> None:
+def test_target_chars_per_beat_defers_only_later_items() -> None:
     budget = ValveBudget(
-        pending_cap=10,
         items_per_beat=100,
-        chars_per_beat=2,
-        max_item_chars=10,
-        max_item_bytes=40,
+        target_chars_per_beat=2,
     )
     registry = HeartValveRegistry(
         [
@@ -207,7 +197,7 @@ def test_chars_per_beat_budget_exhaustion() -> None:
     assert registry.decide(envelope).admitted is True
     decision = registry.decide(envelope)
     assert decision.admitted is False
-    assert "chars-per-beat budget exceeded" in decision.reason
+    assert "target-chars-per-beat work allocation exhausted" in decision.reason
 
 
 def test_envelope_cannot_smuggle_authority_grant() -> None:
@@ -216,7 +206,7 @@ def test_envelope_cannot_smuggle_authority_grant() -> None:
     assert not hasattr(envelope, "authority_grant")
 
 
-def test_all_twenty_slots_present_and_only_first_four_capped() -> None:
+def test_twenty_bootstrap_slots_are_present_and_registry_has_no_slot_ceiling() -> None:
     registry = primitive_valve_registry()
     expected_ids = [
         "user_ingress",
@@ -257,6 +247,23 @@ def test_all_twenty_slots_present_and_only_first_four_capped() -> None:
             valve_id in _PRIMITIVE_REAL_VALVE_IDS
         )
 
+    definitions = list(registry)
+    definitions.append(
+        HeartValveDefinition(
+            valve_id="future_organ_c",
+            version=1,
+            state=ValveState.CLOSED,
+            source_class="reserved",
+            authority_class=AuthorityClass.CORE,
+            governed_regions=frozenset({LogicalRegion.SCRATCH}),
+            envelope_type="none",
+            budget=ValveBudget(),
+            rejection_policy="reject",
+        )
+    )
+    expanded = HeartValveRegistry(definitions)
+    assert expanded.get("future_organ_c").valve_id == "future_organ_c"
+
 
 def test_valve_definition_validation() -> None:
     base = dict(
@@ -285,19 +292,16 @@ def test_valve_definition_validation() -> None:
 
 
 def test_valve_budget_validation() -> None:
-    with pytest.raises(ValueError, match="pending_cap"):
-        ValveBudget(pending_cap=-1)
+    with pytest.raises(ValueError, match="target_chars_per_beat"):
+        ValveBudget(target_chars_per_beat=-1)
     with pytest.raises(TypeError, match="items_per_beat"):
         ValveBudget(items_per_beat="a")
 
 
 def test_global_budget_enforced() -> None:
     budget = ValveBudget(
-        pending_cap=10,
         items_per_beat=100,
-        chars_per_beat=1000,
-        max_item_chars=100,
-        max_item_bytes=400,
+        target_chars_per_beat=1000,
     )
     registry = HeartValveRegistry(
         [
@@ -326,11 +330,8 @@ def test_global_budget_enforced() -> None:
         ]
     )
     global_budget = ValveBudget(
-        pending_cap=100,
         items_per_beat=1,
-        chars_per_beat=1000,
-        max_item_chars=100,
-        max_item_bytes=400,
+        target_chars_per_beat=1000,
     )
     first = registry.decide(
         ValveEnvelope("v1", "s1", "a", "test", "text/plain"),
@@ -347,11 +348,8 @@ def test_global_budget_enforced() -> None:
 
 def test_beats_remaining_budget_override() -> None:
     budget = ValveBudget(
-        pending_cap=10,
         items_per_beat=100,
-        chars_per_beat=1000,
-        max_item_chars=100,
-        max_item_bytes=400,
+        target_chars_per_beat=1000,
     )
     registry = HeartValveRegistry(
         [

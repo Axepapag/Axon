@@ -18,7 +18,6 @@ from __future__ import annotations
 import hashlib
 import heapq
 import json
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
@@ -30,15 +29,10 @@ from .relevance import DormantRelevanceAuditor, DormantRelevancePolicy
 
 EVALUATION_SCHEMA = "axon-dormant-relevance-evaluation-v1"
 FORWARD_EVALUATION_SCHEMA = "axon-dormant-forward-relevance-evaluation-v1"
-_EVAL_TOKEN_RE = re.compile(r"[^\W_]+(?:['-][^\W_]+)*", flags=re.UNICODE)
 
 
 def _normalize(value: str) -> str:
     return " ".join(str(value).casefold().split())
-
-
-def _token_count(value: str) -> int:
-    return len({_normalize(match.group(0)) for match in _EVAL_TOKEN_RE.finditer(value)})
 
 
 @dataclass(frozen=True, slots=True)
@@ -317,7 +311,7 @@ def forward_semantic_edge_cases(
     if isinstance(sample_size, bool) or not isinstance(sample_size, int) or sample_size < 1:
         raise ValueError("sample_size must be a positive integer")
 
-    candidate_count = min(32_768, max(sample_size * 128, sample_size))
+    candidate_count = max(sample_size * 128, sample_size)
     seeds = _forward_edge_seed_sample(
         index,
         candidate_count=candidate_count,
@@ -368,8 +362,6 @@ def forward_semantic_edge_cases(
         if not verified_target_ids:
             continue
         query = f"{source_text} {edge_type}".strip()
-        if _token_count(query) > 128:
-            continue
         case_id = canonical_sha256(
             {
                 "direction": "source_relation_to_target",
@@ -419,8 +411,8 @@ def evaluate_relevance(
 ) -> DormantEvaluationResult:
     """Run the retained inverse-association stress test."""
 
-    if isinstance(k, bool) or not isinstance(k, int) or not 1 <= k <= 128:
-        raise ValueError("k must be an integer in [1, 128]")
+    if isinstance(k, bool) or not isinstance(k, int) or k < 1:
+        raise ValueError("k must be a positive integer")
     if (
         isinstance(candidate_multiplier, bool)
         or not isinstance(candidate_multiplier, int)
@@ -431,11 +423,11 @@ def evaluate_relevance(
         raise ValueError("cases must be non-empty")
 
     active_auditor = auditor or DormantRelevanceAuditor(
-        DormantRelevancePolicy(max_items=k, max_chars=1_000_000, max_item_chars=1_000_000)
+        DormantRelevancePolicy(items_per_materialization=k, target_chars=1_000_000)
     )
     empty_field = SharedFieldSnapshot.empty(tick_id=0)
     results: list[DormantEvaluationCaseResult] = []
-    pool_limit = min(128, max(k, k * candidate_multiplier))
+    pool_limit = max(k, k * candidate_multiplier)
     for case in cases:
         evidence = index.retrieve(case.query, limit=pool_limit, include_graph=True)
         decision = active_auditor.select(case.query, evidence, empty_field)
@@ -470,8 +462,8 @@ def evaluate_forward_relevance(
 ) -> DormantForwardEvaluationResult:
     """Measure candidate generation and relevance reranking independently."""
 
-    if isinstance(k, bool) or not isinstance(k, int) or not 1 <= k <= 128:
-        raise ValueError("k must be an integer in [1, 128]")
+    if isinstance(k, bool) or not isinstance(k, int) or k < 1:
+        raise ValueError("k must be a positive integer")
     if (
         isinstance(candidate_multiplier, bool)
         or not isinstance(candidate_multiplier, int)
@@ -482,10 +474,10 @@ def evaluate_forward_relevance(
         raise ValueError("cases must be non-empty")
 
     active_auditor = auditor or DormantRelevanceAuditor(
-        DormantRelevancePolicy(max_items=k, max_chars=1_000_000, max_item_chars=1_000_000)
+        DormantRelevancePolicy(items_per_materialization=k, target_chars=1_000_000)
     )
     empty_field = SharedFieldSnapshot.empty(tick_id=0)
-    pool_limit = min(128, max(k, k * candidate_multiplier))
+    pool_limit = max(k, k * candidate_multiplier)
     results: list[DormantForwardEvaluationCaseResult] = []
     for case in cases:
         evidence = index.retrieve(case.query, limit=pool_limit, include_graph=True)
@@ -529,8 +521,8 @@ __all__ = [
     "DormantForwardEvaluationCase",
     "DormantForwardEvaluationCaseResult",
     "DormantForwardEvaluationResult",
-    "semantic_edge_cases",
-    "forward_semantic_edge_cases",
-    "evaluate_relevance",
     "evaluate_forward_relevance",
+    "evaluate_relevance",
+    "forward_semantic_edge_cases",
+    "semantic_edge_cases",
 ]

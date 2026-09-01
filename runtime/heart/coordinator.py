@@ -17,7 +17,7 @@ projections of it.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any, Mapping
@@ -42,6 +42,7 @@ from runtime.field import (
     canonical_sha256,
     replacement_delta,
 )
+from runtime.source_of_truth import capacity_policy
 
 from .authority import INGRESS_OWNED_REGIONS, AuthorityGrant, IngressChannel
 from .errors import HeartTransactionError
@@ -64,21 +65,34 @@ class BeatState(str, Enum):
 class BeatConfig:
     """Tunable knobs for the beat coordinator."""
 
-    recall_limit: int = 8
+    recall_items_per_materialization: int = field(
+        default_factory=lambda: capacity_policy().integer(
+            "dormant.recall_items_per_materialization"
+        )
+    )
     recall_min_confidence: float = 0.0
     recall_include_graph: bool = True
-    recall_candidate_multiplier: int = 4
-    recall_max_chars: int = 10_000
-    recall_max_item_chars: int = 4_096
+    recall_candidate_multiplier: int = field(
+        default_factory=lambda: capacity_policy().integer(
+            "dormant.recall_candidate_multiplier"
+        )
+    )
+    recall_target_chars_per_materialization: int = field(
+        default_factory=lambda: capacity_policy().integer(
+            "dormant.recall_target_chars_per_materialization"
+        )
+    )
     recall_min_relevance: float = 0.0
-    max_query_length: int = 512
     region_policies: Mapping[LogicalRegion, RegionMaskPolicy] | None = None
 
     def __post_init__(self) -> None:
-        if isinstance(self.recall_limit, bool) or not isinstance(self.recall_limit, int):
-            raise TypeError("BeatConfig.recall_limit must be an integer")
-        if self.recall_limit < 0:
-            raise ValueError("BeatConfig.recall_limit must be non-negative")
+        if (
+            isinstance(self.recall_items_per_materialization, bool)
+            or not isinstance(self.recall_items_per_materialization, int)
+        ):
+            raise TypeError("BeatConfig.recall_items_per_materialization must be an integer")
+        if self.recall_items_per_materialization < 0:
+            raise ValueError("BeatConfig.recall_items_per_materialization must be non-negative")
         if not 0.0 <= float(self.recall_min_confidence) <= 1.0:
             raise ValueError("BeatConfig.recall_min_confidence must be in [0, 1]")
         if not isinstance(self.recall_include_graph, bool):
@@ -89,16 +103,12 @@ class BeatConfig:
             or self.recall_candidate_multiplier < 1
         ):
             raise ValueError("BeatConfig.recall_candidate_multiplier must be a positive integer")
-        for name in ("recall_max_chars", "recall_max_item_chars"):
+        for name in ("recall_target_chars_per_materialization",):
             value = getattr(self, name)
             if isinstance(value, bool) or not isinstance(value, int) or value < 1:
                 raise ValueError(f"BeatConfig.{name} must be a positive integer")
         if not 0.0 <= float(self.recall_min_relevance) <= 1.0:
             raise ValueError("BeatConfig.recall_min_relevance must be in [0, 1]")
-        if isinstance(self.max_query_length, bool) or not isinstance(self.max_query_length, int):
-            raise TypeError("BeatConfig.max_query_length must be an integer")
-        if self.max_query_length < 0:
-            raise ValueError("BeatConfig.max_query_length must be non-negative")
         policies = self.region_policies
         if policies is not None:
             normalized: dict[LogicalRegion, RegionMaskPolicy] = {}
@@ -437,8 +447,6 @@ class BeatCoordinator:
             if text:
                 parts.append(text)
         query = " ".join(parts)
-        if self._config.max_query_length > 0:
-            query = query[: self._config.max_query_length]
         return query.strip()
 
     def _ensure_bridge(self) -> DormantEvidenceBridge:
@@ -473,7 +481,7 @@ class BeatCoordinator:
     ) -> tuple[SharedFieldSnapshot, HeartCommit | None]:
         """Run primitive dormant recall and commit surfaced cortex."""
 
-        if self._state_root is None or self._config.recall_limit <= 0:
+        if self._state_root is None or self._config.recall_items_per_materialization <= 0:
             return field, None
 
         query = self._extract_recall_query(field)
@@ -481,12 +489,10 @@ class BeatCoordinator:
             return field, None
 
         bridge = self._ensure_bridge()
-        candidate_limit = min(
-            128,
-            max(
-                self._config.recall_limit,
-                self._config.recall_limit * self._config.recall_candidate_multiplier,
-            ),
+        candidate_limit = max(
+            self._config.recall_items_per_materialization,
+            self._config.recall_items_per_materialization
+            * self._config.recall_candidate_multiplier,
         )
         evidence = bridge.index.retrieve(
             query,
@@ -499,9 +505,8 @@ class BeatCoordinator:
 
         auditor = DormantRelevanceAuditor(
             DormantRelevancePolicy(
-                max_items=self._config.recall_limit,
-                max_chars=self._config.recall_max_chars,
-                max_item_chars=self._config.recall_max_item_chars,
+                items_per_materialization=self._config.recall_items_per_materialization,
+                target_chars=self._config.recall_target_chars_per_materialization,
                 min_score=self._config.recall_min_relevance,
             )
         )

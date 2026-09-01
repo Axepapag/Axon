@@ -38,7 +38,7 @@ def _host(
     return HeartHost(
         state_root=state_root,
         host_config=HeartHostConfig(idle_interval_seconds=60.0),
-        beat_config=BeatConfig(recall_limit=0),
+        beat_config=BeatConfig(recall_items_per_materialization=0),
         core_registry=cores,
     )
 

@@ -7,12 +7,17 @@ from pathlib import Path
 
 from runtime.field import LogicalRegion
 from runtime.heart.host import HeartHost, HeartHostConfig
+from runtime.source_of_truth import capacity_policy
 
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run the permanent Axon Heart host")
     parser.add_argument("--state-root", type=Path, default=Path(r"D:\Axon\State"))
-    parser.add_argument("--idle-seconds", type=float, default=30.0)
+    parser.add_argument(
+        "--idle-seconds",
+        type=float,
+        default=capacity_policy().number("heart.idle_interval_seconds"),
+    )
     parser.add_argument(
         "--once",
         action="store_true",

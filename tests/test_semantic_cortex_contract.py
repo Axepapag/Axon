@@ -100,7 +100,7 @@ def test_semantic_projection_fails_closed_when_surface_identity_is_tampered() ->
         feature_generation=projection.feature_generation,
         slots=projection.slots,
     )
-    with pytest.raises(ValueError, match="stale|another D64 surface"):
+    with pytest.raises(ValueError, match=r"stale|another D64 surface"):
         tampered.assert_matches(surface)
 
 
@@ -133,4 +133,4 @@ def test_semantic_cortex_valve_remains_closed() -> None:
     valve = registry.get("semantic_cortex")
     assert valve.state is ValveState.CLOSED
     assert valve.budget.items_per_beat == 0
-    assert valve.budget.pending_cap == 0
+    assert valve.budget.target_chars_per_beat == 0

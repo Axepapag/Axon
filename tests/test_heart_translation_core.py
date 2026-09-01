@@ -191,9 +191,10 @@ def test_heart_curriculum_is_content_addressed_disjoint_and_counterfactual_compl
     assert len(first.counterfactual_pairs) == 8
     complete_field = [case for case in first.train_cases if ":complete-field:" in case.spec_id]
     assert len(complete_field) == 8
-    assert {semantic for case in complete_field for semantic in case.critical_classes} >= set(
-        HEART_SEMANTIC_LABELS
-    ) | {"referent_identity", "grounding_provenance"}
+    assert {semantic for case in complete_field for semantic in case.critical_classes} >= set(HEART_SEMANTIC_LABELS) | {
+        "referent_identity",
+        "grounding_provenance",
+    }
     assert all(case.referent_start > 256 and len(case.source_text) > 256 for case in complete_field)
     assert all("heart-translation-v3" in case.provenance for case in complete_field)
     assert all("heart-translation-v2" not in case.provenance for case in complete_field)
@@ -211,14 +212,9 @@ def test_decoder_mechanism_curriculum_is_separate_exact_and_complete_field(tmp_p
     assert first.curriculum_id == second.curriculum_id
     assert first.train_manifest_id == second.train_manifest_id
     assert first.heldout_manifest_id == second.heldout_manifest_id
-    assert all(
-        case.source_text == case.target_text
-        for case in first.train_cases + first.heldout_cases
-    )
+    assert all(case.source_text == case.target_text for case in first.train_cases + first.heldout_cases)
     complete_field = [
-        case
-        for case in first.train_cases + first.heldout_cases
-        if case.spec_id.endswith(":complete-field")
+        case for case in first.train_cases + first.heldout_cases if case.spec_id.endswith(":complete-field")
     ]
     assert len(complete_field) == 2
     assert all(len(case.source_text) > 256 and case.referent_start > 256 for case in complete_field)
@@ -239,9 +235,7 @@ def test_decoder_generalization_curriculum_is_unseen_diverse_and_counterfactual(
     assert {case.source_text for case in first.train_cases}.isdisjoint(
         {case.source_text for case in first.heldout_cases}
     )
-    assert {character for case in first.train_cases for character in case.source_text} == set(
-        default_alphabet()
-    )
+    assert {character for case in first.train_cases for character in case.source_text} == set(default_alphabet())
     assert max(map(lambda case: len(case.source_text), first.heldout_cases)) > max(
         map(lambda case: len(case.source_text), first.train_cases)
     )
@@ -249,11 +243,7 @@ def test_decoder_generalization_curriculum_is_unseen_diverse_and_counterfactual(
     for pair in first.counterfactual_pairs:
         left = heldout[pair.left_case_id].source_text
         right = heldout[pair.right_case_id].source_text
-        assert [
-            index
-            for index, chars in enumerate(zip(left, right, strict=True))
-            if chars[0] != chars[1]
-        ] == [
+        assert [index for index, chars in enumerate(zip(left, right, strict=True)) if chars[0] != chars[1]] == [
             pair.changed_position
         ]
     artifact = first.write(tmp_path)
@@ -296,6 +286,7 @@ def test_decoder_long_position_curriculum_adds_boundaries_tails_and_full_replay(
 def test_decoder_generalization_batches_cover_one_bucketed_epoch_without_omission() -> None:
     curriculum = build_heart_decoder_generalization_curriculum()
     batch_size = 4
+
     def bucket_for(length: int) -> str:
         if length <= 32:
             return "a"
@@ -333,6 +324,7 @@ def test_staged_whole_case_schedule_reaches_every_case_without_slicing() -> None
     curriculum = build_heart_decoder_long_position_curriculum()
     replay = set(curriculum.replay_case_ids)
     novel = tuple(case for case in curriculum.train_cases if case.case_id not in replay)
+
     def stage_bucket(length: int) -> str:
         if length <= 32:
             return "a"
@@ -440,9 +432,7 @@ def test_heart_training_batches_cover_each_shuffled_epoch_without_omissions() ->
         steps=steps,
         seed=20260824,
     )
-    first_epoch_ids = [
-        case.case_id for batch in first for case in batch
-    ][: len(curriculum.train_cases)]
+    first_epoch_ids = [case.case_id for batch in first for case in batch][: len(curriculum.train_cases)]
     assert first == second
     assert len(first_epoch_ids) == len(set(first_epoch_ids))
     assert set(first_epoch_ids) == {case.case_id for case in curriculum.train_cases}
@@ -526,12 +516,8 @@ def test_decoder_diagnostic_is_content_addressed_and_localizes_failure() -> None
 
     assert first.diagnostic_id == second.diagnostic_id
     assert batched.case_diagnostics == first.case_diagnostics
-    assert batched.teacher_forced_character_accuracy == pytest.approx(
-        first.teacher_forced_character_accuracy
-    )
-    assert batched.mean_target_character_attention_mass == pytest.approx(
-        first.mean_target_character_attention_mass
-    )
+    assert batched.teacher_forced_character_accuracy == pytest.approx(first.teacher_forced_character_accuracy)
+    assert batched.mean_target_character_attention_mass == pytest.approx(first.mean_target_character_attention_mass)
     assert first.case_count == 4
     assert len(first.case_diagnostics) == 4
     assert first.position_accuracy
@@ -540,8 +526,7 @@ def test_decoder_diagnostic_is_content_addressed_and_localizes_failure() -> None
     assert 0.0 <= first.greedy_termination_rate <= 1.0
     assert all(item.diagnostic_id for item in first.case_diagnostics)
     assert all(
-        item.greedy_first_divergence is None
-        or 0 <= item.greedy_first_divergence <= item.target_characters
+        item.greedy_first_divergence is None or 0 <= item.greedy_first_divergence <= item.target_characters
         for item in first.case_diagnostics
     )
 
@@ -715,9 +700,27 @@ def test_heart_greedy_compute_budget_reports_nontermination_instead_of_partial_s
         torch.ones_like(source, dtype=torch.bool),
         torch.tensor([0]),
         torch.tensor([1]),
-        max_chars=1,
+        work_units=1,
     )[0]
 
     assert result.text
     assert result.generated_characters == 1
     assert result.terminated is False
+
+
+def test_heart_dialect_conditioning_has_no_fixed_id_ceiling() -> None:
+    model = _small_model()
+    dialect_ids = torch.tensor([16_384, 65_536])
+    first = model._dialect_embedding(model.source_dialect_embedding, dialect_ids)
+    second = model._dialect_embedding(model.source_dialect_embedding, dialect_ids)
+    source = torch.tensor([[model.char_to_index["a"]]], dtype=torch.long)
+    output = model(
+        source,
+        torch.ones_like(source, dtype=torch.bool),
+        torch.tensor([16_384]),
+        torch.tensor([65_536]),
+        torch.tensor([[model.bos_index]], dtype=torch.long),
+    )
+    assert torch.equal(first, second)
+    assert not torch.equal(first[0], first[1])
+    assert output.target_log_probs.shape[:2] == (1, 1)

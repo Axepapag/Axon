@@ -39,7 +39,6 @@ def _step_artifacts(state_root: Path, *, optimizer_steps: int = 1) -> dict[str, 
             state_tokens=2,
             page_size=2,
             dropout=0.0,
-            inference_budget_transport_units=32,
         )
     )
     curriculum = build_living_reasoning_smoke_curriculum()

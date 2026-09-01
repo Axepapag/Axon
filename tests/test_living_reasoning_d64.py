@@ -50,7 +50,6 @@ def _small_model(*, heads: int = 1) -> LivingReasoningCoreD64:
             state_tokens=2,
             page_size=2,
             dropout=0.0,
-            inference_budget_transport_units=32,
         )
     )
     model.eval()
@@ -159,6 +158,41 @@ def test_unicode_decoder_trains_on_all_351_transport_categories_plus_eos() -> No
     assert int(targets[0, -1]) == TRANSPORT_VOCAB_SIZE + 1
 
 
+def test_free_decoder_resumes_exact_state_across_renewable_work_slices(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    model = _small_model()
+    output = model.forward_surfaces(
+        soul=_soul(model),
+        expected_core_id="core-a",
+        parameter_generation="g0",
+        phase="first",
+        canonical=_compiled(),
+    )
+    transport = list(encode_unicode_text("a"))
+    categories = iter((*transport, model.eos_index))
+
+    def deterministic_logits(
+        decoder_states: torch.Tensor,
+        _memory: object,
+    ) -> torch.Tensor:
+        logits = torch.full(
+            (*decoder_states.shape[:2], model.eos_index + 1),
+            -1_000.0,
+            device=decoder_states.device,
+        )
+        logits[..., next(categories)] = 1_000.0
+        return logits
+
+    monkeypatch.setattr(model, "_decoder_logits", deterministic_logits)
+    continuation = model.iter_decode_transport(output, work_units=1)
+
+    assert next(continuation) == ("", False)
+    assert next(continuation) == ("a", True)
+    with pytest.raises(StopIteration):
+        next(continuation)
+
+
 def test_three_phase_training_unroll_uses_exact_causal_soul_successors() -> None:
     model = _small_model()
     initial = _soul(model)
@@ -236,12 +270,8 @@ def test_teacher_forced_gate_uses_the_strongest_constant_category_floor() -> Non
     )
     counts = result["payload_teacher_forced_target_counts"]
     assert result["payload_teacher_forced_token_count"] == sum(counts)
-    assert result["constant_payload_token_accuracy_floor"] == pytest.approx(
-        max(counts) / sum(counts)
-    )
-    assert result["constant_payload_token_accuracy_floor"] > 1.0 / (
-        model.eos_index + 1
-    )
+    assert result["constant_payload_token_accuracy_floor"] == pytest.approx(max(counts) / sum(counts))
+    assert result["constant_payload_token_accuracy_floor"] > 1.0 / (model.eos_index + 1)
 
 
 def test_living_reasoning_preflight_binds_all_launch_evidence(tmp_path: Path) -> None:
@@ -281,9 +311,11 @@ def test_living_reasoning_preflight_binds_all_launch_evidence(tmp_path: Path) ->
     )
     assert receipt.passed
     assert {item.kind for item in receipt.evidence} == set(PreflightEvidenceKind)
-    assert {
-        item.name for item in receipt.contract.declared_bounds
-    } == {"optimizer_steps", "reasoning_page_characters", "training_batch_size"}
+    assert {item.name for item in receipt.contract.declared_bounds} == {
+        "optimizer_steps",
+        "reasoning_page_characters",
+        "training_batch_size",
+    }
     assert len(tuple((tmp_path / "training" / "reasoning" / "preflight_evidence").glob("*.json"))) == len(
         PreflightEvidenceKind
     )

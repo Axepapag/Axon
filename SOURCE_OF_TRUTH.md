@@ -1,6 +1,6 @@
 # Axon Source Of Truth
 
-Last updated: 2026-08-30 (Identity v1, FFCS A-F, renewable Trainer v2 and communication-first direction)
+Last updated: 2026-08-31 (protected no-tissue-ceilings law and renewable work policy)
 
 ## Core Doctrine
 
@@ -9,6 +9,15 @@ an actively attended Shared Field selected from that body, and private reasoning
 cores.
 
 The field is Jeff's bridge into Axon's world. It must preserve exact Unicode text, provenance, and structured context without hiding meaning behind opaque semantic symbols.
+
+Axon tissue has no engineer-chosen total content ceiling. Canonical text,
+attended context, dormant history, ingress payloads and queues, decoder output,
+recall queries, rail packs, organ/valve inventory, and dialect identities may
+grow until physical reality requires visible pause, paging, spilling, or
+failure. A finite work slice may control one execution turn only; it must
+preserve exact source and continuation state and may never turn incomplete work
+into completion. Integrity, authority, type, provenance, Unicode, EOS, and
+transaction checks remain hard fail-closed laws rather than capacity limits.
 
 ## Substrate
 
@@ -445,16 +454,22 @@ before use; a crash may leave a gap but may not cause identity reuse after
 restart.
 
 Every external or organ-facing mutation crosses the sovereign valve plane in
-`runtime/heart/valve.py`. The plane has twenty permanent valve slots. The
-primitive real `user_ingress`, `tool_ingress`, `advisor_ingress`, and
-`dormant_recall` valves begin CAPPED under explicit item/queue/character
-budgets; the sixteen future-organ slots begin CLOSED. CLOSED is fail-closed,
-and even OPEN valves remain subject to global cardiac intake budgets. An
-external envelope carries source identity, payload, type, and provenance only;
-it cannot supply an `AuthorityGrant`. The Heart resolves valve identity to the
-permitted authority class and exact canonical region itself, then revalidates
-valve version, source class, payload type/size, replay identity, budgets, and
-typed-delta invariants at the final gate before commit.
+`runtime/heart/valve.py`. The standard registry has twenty **bootstrap** slots,
+not a twenty-organ ceiling; additional definitions may be appended without
+changing existing valve identity. The primitive real `user_ingress`,
+`tool_ingress`, `advisor_ingress`, and `dormant_recall` valves begin CAPPED as
+an authority posture under renewable per-beat work allocations; the sixteen
+bootstrap future-organ slots begin CLOSED. CLOSED is fail-closed. The durable
+spool has no configured item-count cap, and exact payload size is never an
+admission or quarantine criterion. Item and target-character allocations only
+defer later FIFO work to another beat; one first oversized exact item is
+processed whole. An external envelope carries source identity, payload, type,
+and provenance only; it cannot supply an `AuthorityGrant`. The Heart resolves
+valve identity to the permitted authority class and exact canonical region
+itself, then revalidates valve version, source class, payload type, replay
+identity, renewable work allocation, and typed-delta invariants at the final
+gate before commit. Ordinary transient host failures back off and retry;
+integrity or ownership corruption remains a visible hard stop.
 
 Each beat:
 
@@ -783,7 +798,12 @@ runtime phase exhales an exact safe `f32le` HOT-layer state and the next phase
 re-inhales it. The typed output surface predicts decision, operation, region,
 dynamic exact boundary addresses, and 351 Unicode transport categories plus
 EMPTY/EOS. An untrained or malformed emission fails closed and is never
-registered live.
+registered live. Free-running diagnostics stop only at a renewable external
+work slice and report incompletion. The core exposes a resumable iterator that
+preserves exact decoder state across slices without a configured total output
+length. The current runtime adapter consumes one slice and abstains when it is
+incomplete; durable Heart-host continuation is required before learned D64
+tissue may serve.
 
 `training/living_reasoning_curriculum.py` supplies deterministic synthetic
 mechanism cases for exact addressed edits, Unicode payloads, no-op/abstain,
@@ -813,6 +833,8 @@ corrected manifest is
 It contains the same 260 complete lessons and the same living-curriculum
 identity: A 32/4/4, B 96/12/12, and C 80/10/10 across
 train/heldout/regression. No admitted field or target is clipped.
+Target eligibility contains no character-count rejection; long exact targets
+remain eligible under the same evidence and content-safety rules.
 Recovered assistant text is a visible exact-copy transport target only and is
 not labeled true, wise, or high quality. Every case carries the active Identity,
 source identities where applicable, a whole-lineage split, eligibility, target
@@ -990,6 +1012,14 @@ Core diversity should emerge naturally from governed variation in lived-experien
 Steady-state Axon should normally keep at least one **isolated non-live candidate learning lane** active on admissible lived-experience or study curriculum while other cores serve the organism. "Always learning" never means forcing meaningless gradient steps: if no curriculum passes provenance/quality gates, that lane remains occupied with curation, replay construction, evaluation, or forgetting analysis until admissible learning material exists. The live accepted cores remain immutable until a candidate independently passes Trainer gates and activation.
 
 **Current first learned-organ priority (shelf pivot, ratified 2026-08-26): the reasoning cores on packed rails, trained from real Dormant memory.** The Heart translation/conduction ensemble and autonomous Semantic Cortex are shelved as preserved non-serving tissue (see "Packed substrate rails and the shelf pivot"); the priority history below is retained as evidence. The Trainer recognizes Heart translation cores/adapters as explicit parameter-bearing organ kinds. `runtime/heart/translation_core.py` is now the first permanent learned Heart tissue: a 64D, two-layer, four-head, 4096-FFN translator grounded from the frozen 16D character substrate, with explicit semantic, referent, and grounding heads; it has no canonical-write authority. Architecture v3 has no learned or validated source/target sequence-length ceiling; its learned vocabulary remains the original 95 native characters. A configurable physical page is only a processing unit: two ordered recurrent sweeps visit every exact source character, the second sweep builds full addressable character memory from a query state that has already traversed the complete source, and a coverage record binds per-row source-index hashes, page spans, and visited counts. Source and decoder positions are deterministic sinusoidal functions rather than finite learned tables. `runtime/heart/d64_codec.py` freezes each actual `SharedFieldSnapshot` through the exact and semantic D64 compilers, verifies exact roundtrip and grounding, and supplies the Heart with literal raw 16D transport cells, categorical token IDs, and non-decreasing canonical character positions; every byte of one expanded scalar shares its original position. Masking earlier spans therefore cannot renumber later active text. A substituted lane cell, malformed/noncanonical transport, stale field/rail/surface identity, or proposal not bound to the frozen frame fails closed. The legacy Heart model explicitly rejects Unicode byte frames until a Unicode-capable learned route is independently trained and gated. `training/heart_translation.py` materializes every provenance-labeled structured-proposition curriculum case as a real Shared Field and real D64 frame before model input; it provides disjoint heldout/regression/counterfactual suites, semantic/grounding evaluation, and an immutable content-addressed task-loss objective. Curriculum v3 includes train and held-out complete-field cases for every critical semantic class whose grounded spans begin beyond character 256. Its current training recipe uses deterministic shuffled epochs: every case is visited once before reshuffling, and the immutable recipe identity is bound into candidate generation and source lineage. A first real Trainer-governed 12-step CUDA smoke used the obsolete fixed-192 architecture v1; it lowered loss from 4.9502 to 4.3422 and moved some semantic submetrics, but grounded roundtrip and aggregate semantic fidelity remained 0.0, so the candidate was rejected and no activation/promotion proposal occurred. Its immutable artifacts remain historical evidence and are not compatible with v3.
+
+As of the no-ceilings sweep, the original learned 16-entry dialect tables
+remain byte-compatible bootstrap tissue for every existing Heart checkpoint,
+while every later non-negative dialect ID receives a deterministic
+content-addressed tail encoding; sixteen is no longer a dialect ceiling and
+large numeric IDs do not alias through floating-point positions. Greedy Heart-translation
+diagnostics use the protected renewable work slice and report unterminated
+output explicitly rather than imposing a total character limit.
 
 The current real-D64 v4 diagnostic culminated in a governed 512-step, batch-8
 CUDA candidate (`run_id`
@@ -1169,8 +1199,8 @@ capability or permission to activate the candidate.
 
 Heart source-coverage receipts are computed from the page spans and character
 counts actually visited by each ordered sweep, not inferred merely from input
-length. Bounded greedy translation returns explicit per-item termination state;
-an item that exhausts its caller-selected compute budget is incomplete, is not
+length. Diagnostic greedy translation returns explicit per-item termination
+state; an item that exhausts its protected renewable work slice is incomplete, is not
 used as a completed semantic roundtrip, and cannot satisfy Heart promotion.
 
 ## Training Contract
@@ -1197,13 +1227,39 @@ limit that would require discarding the resulting checkpoint when the complete
 field is exercised. A physical page is a processing unit, never a declaration
 of how much canonical reality the trained organ can address.
 
-Finite hardware requires finite work controls. Every such bound on a live or
-training path must be declared in a machine-readable registry and classified as
-a physical processing unit, compute/optimization budget, admission budget, or
-result-count policy. The declaration must state what source is preserved, how
-work continues or resumes, and how the path fails closed when completion is not
-achieved. An undeclared bound, a partial result presented as complete, or a
-bound baked into checkpoint capacity is a launch-blocking defect.
+Finite hardware requires finite work controls, never finite tissue capacity.
+The protected registry is
+`configs/source_of_truth/capacity_policy.json`, schema
+`axon-source-of-truth-capacity-policy-v1`, canonical SHA256
+`4a32f18fa296c415ccf34a8c1956d2a4f8afd044265e7f45505782dd53c7b8cd`.
+`runtime/source_of_truth.py` binds that exact hash and fails closed on an
+unratified edit. Every finite control on a live or training path must be in
+that registry or in a separately content-addressed external authorization
+object, and must be classified as a physical processing unit, renewable
+compute/optimization allocation, result-count policy, or integrity/authority
+gate. Its declaration states what source is preserved, how work continues or
+resumes, and how the path reports failure or incompletion. Resource controls
+must not participate in tissue, plan, candidate-generation, learning-policy,
+Soul, or checkpoint identity.
+
+No finite control may reject or permanently hide an exact item because it is
+large. A first selected oversized item crosses a character work target whole;
+later items remain exact and pending for later passes. No fixed total may be
+placed on content, context, output, history, queues, attended field, learned
+positions, dialect IDs, rail packs, valves, organs, or candidate lifespan. A
+page, work slice, batch, result set, checkpoint-retention count, or resource
+tranche is renewable operational work, not anatomy. Model width, head count,
+layer count, FFN size, and the frozen 16D/351-category transport are deliberate
+physical representations; integrity and categorical domains are not content
+ceilings. An undeclared finite control, silent truncation, permanent
+long-item exclusion, partial result presented as complete, or resource number
+baked into tissue identity is a launch-blocking defect.
+
+Changing the protected registry requires Jeff's explicit ratification plus one
+atomic engineering change that updates the JSON, the code-bound hash, both SOT
+mirrors, tests, and the append-only engineer ledger. Git history and the hash
+binding make a change visible and fail-closed; they do not pretend to be an
+operating-system access-control boundary.
 
 Before any Trainer-authorized parameter mutation, a deterministic
 Complete-Field preflight must issue a content-addressed receipt bound to the
@@ -1407,10 +1463,19 @@ The active developmental 64D reasoning reader follows the same permanence rule.
 `training/complete_field_64d.py` uses deterministic unbounded local/page
 positions and a complete ordered page sweep; page indexes never wrap or alias
 through a finite embedding table. Teacher-forced targets have no configured
-character ceiling. Greedy inference may use an explicit caller-selected compute
-budget, but that budget is not parameter capacity, may be raised without
-changing a checkpoint, reports nontermination, and an unfinished result is not
-committed as a canonical delta.
+character ceiling. Greedy diagnostics consume a renewable work slice from the
+protected capacity policy, report nontermination explicitly at slice
+exhaustion, and never treat it as completed output. The living reasoning core
+exposes an in-process iterator that carries exact decoder state across
+renewable slices until EOS or malformed-output rejection; there is no total
+output ceiling. The current runtime adapter fails closed after one incomplete
+slice until durable Heart-host continuation is implemented. The original v1
+architecture hash mistakenly included a 512-unit decoder allowance even though
+it never changed tensor topology. Current behavior ignores that allowance and
+the three existing 1x64/2x32/4x16 architecture IDs are preserved through an
+explicit retired identity projection so their parameters and private Souls do
+not become garbage. Current canonical configuration and future policy changes
+do not include that resource number in tissue identity.
 
 Candidate checkpoints and reproducible run logs belong beneath
 `State/training/runs/` while non-authoritative. Promotion moves or copies an
@@ -1457,24 +1522,28 @@ messages, diary entries, episodes, goals, procedures, relations, metadata, and
 surfaced Cortex examples; it does not slice source records to field-width or
 training convenience limits. Derived lexical bucket keys and content-addressed
 IDs may be short because they are indexes, never substitutes for source text.
-Dormant lexical queries process every unique term in ordered SQL-safe pages;
-the former 128-term rejection is removed. Recall item/result budgets remain
-explicit governed selection policy: skipped items are identified and the
-authoritative dormant record remains exact and retrievable; selected text is
-never partially truncated.
+Dormant lexical queries and Heart recall queries preserve their complete exact
+text and process every unique term in ordered SQL-safe pages; the former
+128-term rejection and 512-character query slice are removed. Recall item and
+target-character values are renewable materialization policy: skipped later
+items are identified and remain exact/retrievable, while a first selected item
+larger than the target crosses whole. Selected text is never partially
+truncated or permanently excluded for size. Candidate, relation, graph, edge,
+and `k` work scales with the requested result set and has no fixed 128/1024/
+32768 absolute clamp.
 
 The dormant valve is part of the heart. Candidate ranking combines lexical
 support, recovered graph topology, query-matched semantic-edge support,
 confidence, type/task relevance, and novelty versus the active field under a
-governed budget. First-form semantic relevance is recovered-edge graph
+governed relevance policy. First-form semantic relevance is recovered-edge graph
 semantics already owned by the corpus; no trained encoder exists and none may
-be simulated. Relation propagation is bounded and fail-closed: generic graph
+be simulated. Relation propagation uses declared renewable breadth and fails closed: generic graph
 hops and query-matched relations are distinct signals, one strongly matched
 edge may contribute bounded best-edge support, and duplicate/weak edges may
 not accumulate into synthetic certainty. Exact bytes are always dereferenced
 from authoritative JSONL and hash/provenance-verified before surfacing. If the
 semantic/relevance path yields nothing eligible, fallback is limited to exact
-grounded lexical candidates under the same full-item and total budgets.
+grounded lexical candidates under the same whole-item renewable work policy.
 
 Build C.1 adds a deterministic relevance/retention auditor in
 `runtime/dormant/relevance.py`. It ranks only already verified exact evidence;
@@ -1549,7 +1618,7 @@ The active implementation surface is intentionally narrow:
 - `runtime/axon_runtime/d64_adapter.py` ? runtime-facing exact and dual-surface D64 adapter,
 - `runtime/dormant/experience.py`, `runtime/dormant/evidence_bridge.py`, `runtime/dormant/relevance.py`, `runtime/dormant/generations.py`, `runtime/dormant/incremental.py`, and `runtime/dormant/evaluation.py` ? immutable content-addressed exact experience/source snapshots plus read-only manifest/hash-bound dormant retrieval, exact dereference, bounded graph/relation relevance, verified derived-index generations, transactional append/layout-preserving update maintenance, and held-out evaluation,
 - `Cortext/contracts.py` ? grounded Semantic Cortex service contract only; no active specialist/training authority and the `semantic_cortex` valve remains CLOSED,
-- `runtime/heart/` ? heart anatomy: authority/core control plane, canonical transaction boundary, beat coordinator, proposal/refinement barriers, exact categorical reasoning-output decoder, width-generic derived proposal workspaces with a physical D64 renderer, rotating consolidation, deterministic completed-turn materialization, sovereign 20-slot valve plane, OS single-writer lease, restart-safe cardiac identity, exceptional evidence-bound Identity amendment, durable ingress/replay/quarantine spool, exact ingress/reasoning autobiography plus private-Soul lineage and outcome/tool/Trainer hooks, durable independent per-region mask control with Identity always attended, health observability, explicit derived-view identity, relevance-gated dormant recall, permanent Heart host, `runtime/heart/intelligence.py` for learned Heart identity/fidelity/promotion contracts, `runtime/heart/d64_codec.py` for literal real-field D64 framing, and `runtime/heart/translation_core.py` for preserved non-authoritative 64D neural translator tissue; circulation is mechanism-functional but no learned reasoning core or Heart translator is serving yet;
+- `runtime/heart/` ? heart anatomy: authority/core control plane, canonical transaction boundary, beat coordinator, proposal/refinement barriers, exact categorical reasoning-output decoder, width-generic derived proposal workspaces with a physical D64 renderer, rotating consolidation, deterministic completed-turn materialization, sovereign appendable valve plane with twenty bootstrap slots, OS single-writer lease, restart-safe cardiac identity, exceptional evidence-bound Identity amendment, durable ingress/replay/quarantine spool, exact ingress/reasoning autobiography plus private-Soul lineage and outcome/tool/Trainer hooks, durable independent per-region mask control with Identity always attended, health observability, explicit derived-view identity, relevance-gated dormant recall, permanent Heart host, `runtime/heart/intelligence.py` for learned Heart identity/fidelity/promotion contracts, `runtime/heart/d64_codec.py` for literal real-field D64 framing, and `runtime/heart/translation_core.py` for preserved non-authoritative 64D neural translator tissue; circulation is mechanism-functional but no learned reasoning core or Heart translator is serving yet;
 - `runtime/soul/` ? permanent opaque private layered-Soul store, exact
   transitions/promotions/receipts, prepared/finalized commit protocol, and
   restart recovery,

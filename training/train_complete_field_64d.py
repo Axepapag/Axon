@@ -35,6 +35,7 @@ from runtime.field import (  # noqa: E402
     canonical_sha256,
     replacement_delta,
 )
+from runtime.source_of_truth import capacity_policy  # noqa: E402
 from substrate import assert_supported_text, default_alphabet, roundtrip_check  # noqa: E402
 from training.canonical_d64 import snapshot_from_r0_record  # noqa: E402
 from training.complete_field_64d import (  # noqa: E402
@@ -751,14 +752,6 @@ def main() -> int:
     parser.add_argument("--steps", type=int, default=200000)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--page-size", type=int, default=256)
-    parser.add_argument(
-        "--inference-budget-chars",
-        "--max-output-chars",
-        dest="inference_budget_chars",
-        type=int,
-        default=512,
-        help="Per-evaluation compute budget only; it does not limit trainable target length",
-    )
     parser.add_argument("--n-heads", type=int, default=4)
     parser.add_argument("--n-layers", type=int, default=1)
     parser.add_argument("--ffn-dim", type=int, default=192)
@@ -775,7 +768,6 @@ def main() -> int:
     parser.add_argument("--eval-every", type=int, default=1000)
     parser.add_argument("--sample-every", type=int, default=250)
     parser.add_argument("--checkpoint-every", type=int, default=250)
-    parser.add_argument("--keep-checkpoints", type=int, default=3)
     parser.add_argument("--eval-examples", type=int, default=32)
     parser.add_argument("--sample-count", type=int, default=4)
     parser.add_argument("--counterfactual-sample-count", type=int, default=16)
@@ -869,7 +861,6 @@ def main() -> int:
         raise RuntimeError("CUDA was requested but is unavailable")
     config = ReaderConfig(
         page_size=args.page_size,
-        inference_budget_chars=args.inference_budget_chars,
         n_heads=args.n_heads,
         n_layers=args.n_layers,
         ffn_dim=args.ffn_dim,
@@ -1103,7 +1094,7 @@ def main() -> int:
                     args,
                     baseline,
                     rng.getstate(),
-                    args.keep_checkpoints,
+                    capacity_policy().integer("trainer.rolling_checkpoint_count"),
                     dataset_sha256,
                 )
 
@@ -1153,7 +1144,7 @@ def main() -> int:
                 args,
                 baseline,
                 rng.getstate(),
-                args.keep_checkpoints,
+                capacity_policy().integer("trainer.rolling_checkpoint_count"),
                 dataset_sha256,
             )
         live_path = args.run_dir / "live.json"

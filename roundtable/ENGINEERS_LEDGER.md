@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-08-31T22:14:10-05:00
-Current through event: `evt-20260901T031410202179Z-codex-kaggle-language-review-closeout`
+Updated: 2026-09-01T07:54:45-05:00
+Current through event: `evt-20260901T075445911705Z-hermes-privacy-confirmed-legal-upgraded`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
@@ -82,6 +82,17 @@ only on micro-exercises; and remove the implicit 512-unit output ceiling before
 long composition. Kaggle may run the first bounded learning diagnostic after
 local structural preflight; provider location is not a capability claim.
 
+Jeff's no-tissue-ceilings law is now binding in both SOT mirrors and in the
+hash-bound machine-readable registry
+`configs/source_of_truth/capacity_policy.json` (canonical SHA256
+`4a32f18fa296c415ccf34a8c1956d2a4f8afd044265e7f45505782dd53c7b8cd`).
+The live 512-unit D64 decoder allowance and FFCS long-target exclusion are
+removed without changing the existing tournament architecture/Soul identities.
+Heart ingress, recall, Dormant materialization/retrieval, ordinary-failure
+liveness, Heart dialect IDs, valve inventory, and checkpoint materialization
+now use source-preserving renewable work controls rather than fixed content
+ceilings. Exact oversized items cross whole; later work defers visibly.
+
 ## Current campaign: C1 decisive run and checkpoint retention
 
 The C1 communication-first curriculum (36 cases, 7 lesson classes, manifest
@@ -121,6 +132,12 @@ is now covered by Hermes event
 `evt-20260831T113454290921Z-hermes-legal-scaffolding`. It arrived concurrently
 while Codex was preparing the audit; the later Codex correction event preserves
 both the original race observation and the corrected ledger truth.
+
+Hermes verified the live GitHub settings page through the lease-governed Axon
+Browser Hub on 2026-09-01: `Axepapag/Axon` is private. Commit `cb8321b` records
+that confirmation, establishes monthly re-verification, and adds the Browser
+Hub as invention disclosure 7. The legal commit is a concurrent Hermes change,
+not part of Codex's no-ceilings diff; both histories are preserved.
 
 ## Binding architecture
 
@@ -217,6 +234,10 @@ The output surface predicts decision, operation, region, dynamic exact boundary
 addresses, and a Unicode payload over 351 transport categories plus EMPTY/EOS.
 Malformed or untrained output fails closed. The core exists as trainable tissue
 and a permanent runtime-port implementation, but it is not registered live.
+Its decoder now exposes an in-process iterator that preserves hidden state,
+transport, and token state across renewable slices until EOS. The current
+runtime adapter consumes one slice and abstains if incomplete; durable
+Heart-host continuation remains a promotion/serving prerequisite.
 
 ## Trainer and tournament
 
@@ -361,25 +382,24 @@ continuation-closure resolver remain future work.
 
 ## Verification and Git
 
-- Full repository regression attempt reached 493 tests: 492 passed and only
-  the exact Day-Zero active-module inventory guard failed because the three new
-  Trainer modules were not yet declared. After declaring them, the guard plus
-  Kaggle/progress/organ focus passed 17/17. A second 20-minute full run was not
-  repeated after that set-only correction.
-- Changed-file Ruff and Python compile checks passed. Both PowerShell launchers
-  parse cleanly. Repo-wide Ruff still has 121 pre-existing findings outside
-  changed-file scope.
-- Fixed-character poison, exact Unicode, identity migration, mask, Heart,
-  runtime circulation, private-Soul, Candidate-A, Trainer, and old-checkpoint
-  migration tests are included in the full pass.
+- Full repository suite: **501/501 passed**, exit code 0. This includes real
+  temporary-state Trainer resume/tranche and tournament subprocesses.
+- Post-binding focused no-ceilings/dialect/decoder suite: 9/9 passed.
+- Changed-file Ruff, Python compileall, and `git diff --check` passed.
+- The protected capacity registry verifies at canonical SHA256
+  `4a32f18fa296c415ccf34a8c1956d2a4f8afd044265e7f45505782dd53c7b8cd`;
+  static preflight rejects an absent, mutated, weakened, or forbidden ceiling.
 - SOT mirrors are byte-identical at SHA256
-  `33BB4AF102D4759E17244F07794D1D7937A998AA1DCD68E4ED8357B9A23C23C2`.
+  `ED6541C8830AEEB0358739D9B559F99560B40E98180D563D1F9E0CB0EE2B9198`.
 - `git diff --check`: passed.
 - Kaggle implementation is committed as `a8c52ca`; before this ledger
-  closeout local `main` was six commits ahead of `origin/main`.
+  closeout local `main` and `origin/main` both began at `753a728`; concurrent
+  Hermes legal commit `cb8321b` is the direct parent of the no-ceilings commit.
 - No local Trainer writer or Kaggle training job is active. The prepared job
   remains phase `prepared` with null dataset/kernel references. Kaggle reports
   0.00h used, 30.00 GPU hours and 20.00 TPU hours remaining.
+- Closeout process sweep found zero Axon Python/training processes; D: had
+  323,044,671,488 free bytes (about 300.9 GiB).
 - Known non-failing warning: PyTorch nested-tensor optimization warning.
 
 ## Active flags
@@ -407,9 +427,10 @@ continuation-closure resolver remain future work.
 9. **REPO HYGIENE ADVISORY:** the current repo-wide Ruff scan reports 121
    Ruff findings outside changed-file scope; this does not contradict the
    changed-file Ruff gate.
-10. **PUBLICATION HYGIENE ADVISORY:** `f40137c` retains Jeff's personal email
-    in Git metadata; the repository must remain private pending governed
-    hygiene and Jeff's legal decisions.
+10. **PUBLICATION HYGIENE ADVISORY:** live GitHub settings confirmed the repo
+    private on 2026-09-01 and monthly re-verification is now required.
+    `f40137c` still retains Jeff's personal email in Git metadata; public
+    release remains a governed Jeff-level decision.
 11. **CLAIM BOUNDARY:** persistent behavioral identity is engineerable;
    subjective consciousness or metaphysical continuity is not testable here.
 12. **CURRICULUM GAP (PARTIALLY CLOSED):** C1 exists and has produced optimizer
@@ -419,10 +440,11 @@ continuation-closure resolver remain future work.
     but exact parent checkpoint/optimizer/Soul closure is still selected by
     explicit paths; do not claim a continuation until a dedicated resolver
     proves the complete parent lineage.
-14. **OUTPUT-BUDGET POISON:** the live D64 architecture still embeds a fixed
-    `inference_budget_transport_units=512`, and FFCS target admission defaults
-    to a 512-unit budget. These are safe for an explicitly bounded early
-    Language campaign but cannot remain implicit permanent expression limits.
+14. **DURABLE DECODER-CONTINUATION BLOCKER:** fixed D64 output capacity and
+    long-target exclusion are closed. The core carries exact in-process state
+    across renewable slices, but the current runtime adapter intentionally
+    abstains after one incomplete slice. Durable Heart-host continuation must
+    exist and pass EOS/malformed-output tests before learned D64 tissue serves.
 15. **SEMANTIC-OBJECTIVE GAP:** deterministic semantic validators can govern
     evaluation, but required/forbidden atoms alone do not supply differentiable
     token-level training. V1 semantic-content cases must remain evaluation-only
@@ -441,9 +463,9 @@ continuation-closure resolver remain future work.
 3. Version the curriculum envelope so eligibility and exact/categorical/
    structured/evaluation-only validators survive loading into loss/evaluation;
    fail closed when a claimed metric has no admissible validator.
-4. Replace fixed output capacity with governed renewable/chunked emission
-   before longer composition, while keeping the first L0-L4 shot explicitly
-   short and exact.
+4. Wire durable, restart-safe Heart-host decoder continuation around the
+   existing renewable in-process iterator before learned D64 serving; preserve
+   explicit EOS, malformed-output rejection, and cancellation evidence.
 5. Build an objective L0-L4 Language campaign that reuses FFCS transport
    prerequisites and adds character-level generative exposure, spelling,
    morphology, grammar and rule-transfer holdouts; do not rely only on tiny
@@ -457,6 +479,9 @@ continuation-closure resolver remain future work.
 ## Important paths
 
 - SOT: `docs/SOURCE_OF_TRUTH.md`
+- Protected capacity policy: `configs/source_of_truth/capacity_policy.json`,
+  `runtime/source_of_truth.py`
+- No-ceilings audit: `docs/NO_TISSUE_CEILINGS_AUDIT_2026-08-31.md`
 - Full report: `roundtable/LIVING_D64_CANDIDATE_A_REPORT_2026-08-28.md`
 - Curriculum convergence review:
   `roundtable/CODEX_CURRICULUM_CONVERGENCE_REVIEW_2026-08-29.md`

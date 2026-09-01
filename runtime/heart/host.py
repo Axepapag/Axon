@@ -30,6 +30,7 @@ from runtime.field import (
 )
 from runtime.field.state_branch import DEFAULT_STATE_ROOT
 from runtime.soul import SoulStore
+from runtime.source_of_truth import capacity_policy
 
 from .authority import AuthorityClass, AuthorityGrant
 from .autobiography import HeartAutobiography
@@ -74,20 +75,23 @@ class HostBeatState(str, Enum):
 
 @dataclass(frozen=True, slots=True)
 class HeartHostConfig:
-    """Permanent-host cadence and global intake limits."""
+    """Permanent-host cadence and renewable global work allocation."""
 
-    idle_interval_seconds: float = 30.0
+    idle_interval_seconds: float = field(
+        default_factory=lambda: capacity_policy().number("heart.idle_interval_seconds")
+    )
     global_budget: ValveBudget = field(
         default_factory=lambda: ValveBudget(
-            pending_cap=10_000,
-            items_per_beat=256,
-            chars_per_beat=32_768,
-            max_item_chars=16_384,
-            max_item_bytes=65_536,
+            items_per_beat=capacity_policy().integer("heart.global_items_per_beat"),
+            target_chars_per_beat=capacity_policy().integer(
+                "heart.global_target_chars_per_beat"
+            ),
         )
     )
     auto_close_null_ticks: bool = True
-    max_consecutive_failures: int = 3
+    failure_backoff_seconds: float = field(
+        default_factory=lambda: capacity_policy().number("heart.failure_backoff_seconds")
+    )
 
     def __post_init__(self) -> None:
         if not isinstance(self.idle_interval_seconds, (int, float)):
@@ -96,12 +100,10 @@ class HeartHostConfig:
             raise ValueError("idle_interval_seconds must be positive")
         if not isinstance(self.global_budget, ValveBudget):
             raise TypeError("global_budget must be ValveBudget")
-        if (
-            isinstance(self.max_consecutive_failures, bool)
-            or not isinstance(self.max_consecutive_failures, int)
-            or self.max_consecutive_failures < 1
-        ):
-            raise ValueError("max_consecutive_failures must be a positive integer")
+        if not isinstance(self.failure_backoff_seconds, (int, float)):
+            raise TypeError("failure_backoff_seconds must be numeric")
+        if self.failure_backoff_seconds <= 0:
+            raise ValueError("failure_backoff_seconds must be positive")
 
 
 @dataclass(frozen=True, slots=True)
@@ -892,7 +894,6 @@ class HeartHost:
 
         if not self.started:
             self.start()
-        failures = 0
         try:
             while not self._stop_event.is_set():
                 self._wake_event.wait(timeout=self.host_config.idle_interval_seconds)
@@ -901,14 +902,13 @@ class HeartHost:
                     break
                 try:
                     self.heartbeat()
-                    failures = 0
                 except (HealthCorruptionError, HostStateError):
                     raise
                 except Exception:
-                    failures += 1
-                    if failures >= self.host_config.max_consecutive_failures:
-                        raise
-                    time.sleep(min(1.0, self.host_config.idle_interval_seconds))
+                    # Ordinary transient failures remain visible in health and
+                    # retry forever after governed backoff.  Only integrity or
+                    # ownership corruption halts the Heart.
+                    time.sleep(self.host_config.failure_backoff_seconds)
         finally:
             self.stop()
 
@@ -959,11 +959,8 @@ class HeartHost:
                 "authority_class": definition.authority_class.value,
                 "governed_regions": sorted(region.value for region in definition.governed_regions),
                 "budget": {
-                    "pending_cap": definition.budget.pending_cap,
                     "items_per_beat": definition.budget.items_per_beat,
-                    "chars_per_beat": definition.budget.chars_per_beat,
-                    "max_item_chars": definition.budget.max_item_chars,
-                    "max_item_bytes": definition.budget.max_item_bytes,
+                    "target_chars_per_beat": definition.budget.target_chars_per_beat,
                 },
                 "usage": {
                     "pending": self.valves.tracker.pending(definition.valve_id),
@@ -1036,7 +1033,11 @@ class HeartHost:
     @staticmethod
     def _is_budget_defer(reason: str) -> bool:
         lowered = reason.lower()
-        return "budget" in lowered or "pending cap" in lowered or "items_per_beat" in lowered
+        return (
+            "budget" in lowered
+            or "items_per_beat" in lowered
+            or "work allocation" in lowered
+        )
 
     def _require_started(self) -> None:
         if not self._started or not self._lease.is_held_by_us():

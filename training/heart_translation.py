@@ -2301,7 +2301,7 @@ def evaluate_heart_decoder_diagnostics(
         "eos_positional_copy": [0.0, 0],
         "positional_available": [0.0, 0],
     }
-    max_chars = max(len(case.target_text) for case in rows) + 12
+    diagnostic_work_units = max(len(case.target_text) for case in rows) + 12
     model.eval()
     for batch_slice in _evaluation_slices(len(rows), evaluation_batch_size):
         batch_rows = rows[batch_slice]
@@ -2322,7 +2322,7 @@ def evaluate_heart_decoder_diagnostics(
                 batch.source_mask,
                 batch.source_dialect_ids,
                 batch.destination_dialect_ids,
-                max_chars=max_chars,
+                work_units=diagnostic_work_units,
                 source_cells16=batch.source_cells16,
                 source_positions=batch.source_positions,
                 allow_positional_copy_route=True,
@@ -2658,7 +2658,7 @@ def evaluate_heart_translation_model(
             batch.source_mask,
             batch.source_dialect_ids,
             batch.destination_dialect_ids,
-            max_chars=max(len(case.target_text) for case in cases) + 12,
+            work_units=max(len(case.target_text) for case in cases) + 12,
             source_cells16=batch.source_cells16,
             source_positions=batch.source_positions,
         )

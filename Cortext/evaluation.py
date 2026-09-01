@@ -327,19 +327,19 @@ def evaluate_d64_reranking(
 ) -> D64RerankEvaluationResult:
     """Compare D.1 structural reranking with the accepted C.1 relevance auditor."""
 
-    if isinstance(k, bool) or not isinstance(k, int) or not 1 <= k <= 128:
-        raise ValueError("k must be an integer in [1, 128]")
+    if isinstance(k, bool) or not isinstance(k, int) or k < 1:
+        raise ValueError("k must be a positive integer")
     if isinstance(candidate_multiplier, bool) or not isinstance(candidate_multiplier, int) or candidate_multiplier < 1:
         raise ValueError("candidate_multiplier must be a positive integer")
     if not cases:
         raise ValueError("cases must be non-empty")
 
     active_auditor = auditor or DormantRelevanceAuditor(
-        DormantRelevancePolicy(max_items=k, max_chars=1_000_000, max_item_chars=1_000_000)
+        DormantRelevancePolicy(items_per_materialization=k, target_chars=1_000_000)
     )
     active_reranker = reranker or StructuralLexicalD64Reranker()
     empty_field = SharedFieldSnapshot.empty(tick_id=0)
-    pool_limit = min(128, max(k, k * candidate_multiplier))
+    pool_limit = max(k, k * candidate_multiplier)
     results: list[D64RerankCaseResult] = []
 
     for case in cases:

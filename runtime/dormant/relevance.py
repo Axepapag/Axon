@@ -18,7 +18,7 @@ from runtime.field import LogicalRegion, SharedFieldSnapshot, canonical_sha256
 from .evidence_bridge import VerifiedDormantEvidence
 
 _RELEVANCE_TOKEN_RE = re.compile(r"[^\W_]+(?:['-][^\W_]+)*", flags=re.UNICODE)
-AUDITOR_SCHEMA = "axon-dormant-relevance-auditor-v1"
+AUDITOR_SCHEMA = "axon-dormant-relevance-auditor-v2"
 
 
 def _normalize(value: str) -> str:
@@ -58,15 +58,14 @@ def _string_values(value: object) -> tuple[str, ...]:
 
 @dataclass(frozen=True, slots=True)
 class DormantRelevancePolicy:
-    """Governed selection/budget policy for one dormant-recall pass."""
+    """Governed renewable selection/work policy for one recall pass."""
 
-    max_items: int = 8
-    max_chars: int = 10_000
-    max_item_chars: int = 4_096
+    items_per_materialization: int
+    target_chars: int
     min_score: float = 0.0
 
     def __post_init__(self) -> None:
-        for name in ("max_items", "max_chars", "max_item_chars"):
+        for name in ("items_per_materialization", "target_chars"):
             value = getattr(self, name)
             if isinstance(value, bool) or not isinstance(value, int) or value < 1:
                 raise ValueError(f"{name} must be a positive integer")
@@ -115,11 +114,11 @@ class DormantRelevanceDecision:
     query: str
     selected: tuple[VerifiedDormantEvidence, ...]
     scores: tuple[DormantRelevanceScore, ...]
-    skipped_oversize: tuple[str, ...]
     skipped_budget: tuple[str, ...]
     below_threshold: tuple[str, ...]
     fallback_used: bool
     total_chars: int
+    work_target_overrun: bool
 
     @property
     def selected_container_ids(self) -> tuple[str, ...]:
@@ -133,11 +132,11 @@ class DormantRelevanceDecision:
                 "query": self.query,
                 "selected_container_ids": list(self.selected_container_ids),
                 "scores": [item.to_canonical_dict() for item in self.scores],
-                "skipped_oversize": list(self.skipped_oversize),
                 "skipped_budget": list(self.skipped_budget),
                 "below_threshold": list(self.below_threshold),
                 "fallback_used": self.fallback_used,
                 "total_chars": self.total_chars,
+                "work_target_overrun": self.work_target_overrun,
             }
         )
 
@@ -164,7 +163,19 @@ class DormantRelevanceAuditor:
     )
 
     def __init__(self, policy: DormantRelevancePolicy | None = None) -> None:
-        self.policy = policy or DormantRelevancePolicy()
+        if policy is None:
+            from runtime.source_of_truth import capacity_policy
+
+            governed = capacity_policy()
+            policy = DormantRelevancePolicy(
+                items_per_materialization=governed.integer(
+                    "dormant.recall_items_per_materialization"
+                ),
+                target_chars=governed.integer(
+                    "dormant.recall_target_chars_per_materialization"
+                ),
+            )
+        self.policy = policy
 
     @staticmethod
     def _active_refs(field: SharedFieldSnapshot) -> frozenset[str]:
@@ -206,11 +217,7 @@ class DormantRelevanceAuditor:
         procedure_cues = {"how", "procedure", "steps", "build", "implement", "use"}
         cue_bonus = 0.0
         lowered_kind = _normalize(kind)
-        if query_terms & relation_cues and any(token in lowered_kind for token in ("edge", "relation", "cause")):
-            cue_bonus = 1.0
-        elif query_terms & identity_cues and any(token in lowered_kind for token in ("concept", "definition", "entity")):
-            cue_bonus = 1.0
-        elif query_terms & procedure_cues and any(token in lowered_kind for token in ("procedure", "instruction", "code", "method")):
+        if (query_terms & relation_cues and any(token in lowered_kind for token in ("edge", "relation", "cause"))) or (query_terms & identity_cues and any(token in lowered_kind for token in ("concept", "definition", "entity"))) or (query_terms & procedure_cues and any(token in lowered_kind for token in ("procedure", "instruction", "code", "method"))):
             cue_bonus = 1.0
         evidence_overlap = len(query_terms & evidence_terms) / len(query_terms)
         return max(0.0, min(1.0, max(kind_match, cue_bonus, evidence_overlap)))
@@ -300,7 +307,6 @@ class DormantRelevanceAuditor:
         )
 
         selected: list[VerifiedDormantEvidence] = []
-        oversize: list[str] = []
         budget: list[str] = []
         below: list[str] = []
         total_chars = 0
@@ -308,14 +314,14 @@ class DormantRelevanceAuditor:
         for score, item in pairs:
             container_id = score.container_id
             char_count = len(item.container.text)
-            if char_count > self.policy.max_item_chars:
-                oversize.append(container_id)
-                continue
             if score.score < self.policy.min_score:
                 below.append(container_id)
                 continue
             separator_chars = 1 if selected else 0
-            if len(selected) >= self.policy.max_items or total_chars + separator_chars + char_count > self.policy.max_chars:
+            if len(selected) >= self.policy.items_per_materialization or (
+                bool(selected)
+                and total_chars + separator_chars + char_count > self.policy.target_chars
+            ):
                 budget.append(container_id)
                 continue
             selected.append(item)
@@ -325,13 +331,12 @@ class DormantRelevanceAuditor:
         if not selected:
             # Doctrine says the semantic/relevance path fails closed to exact
             # lexical retrieval.  Only a lexical-hit candidate may bypass a
-            # relevance threshold, and it still must obey full-item budgets.
-            for score, item in pairs:
+            # relevance threshold.  The first exact item is always admitted
+            # whole even when it exceeds this pass's character work target.
+            for _score, item in pairs:
                 if item.candidate.lexical_hits <= 0:
                     continue
                 char_count = len(item.container.text)
-                if char_count > self.policy.max_item_chars or char_count > self.policy.max_chars:
-                    continue
                 selected.append(item)
                 total_chars = char_count
                 fallback_used = True
@@ -341,18 +346,18 @@ class DormantRelevanceAuditor:
             query=query.strip(),
             selected=tuple(selected),
             scores=tuple(score for score, _ in pairs),
-            skipped_oversize=tuple(oversize),
             skipped_budget=tuple(budget),
             below_threshold=tuple(below),
             fallback_used=fallback_used,
             total_chars=total_chars,
+            work_target_overrun=total_chars > self.policy.target_chars,
         )
 
 
 __all__ = [
     "AUDITOR_SCHEMA",
+    "DormantRelevanceAuditor",
+    "DormantRelevanceDecision",
     "DormantRelevancePolicy",
     "DormantRelevanceScore",
-    "DormantRelevanceDecision",
-    "DormantRelevanceAuditor",
 ]

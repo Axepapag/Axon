@@ -18,6 +18,7 @@ from typing import Any, Mapping
 
 from runtime.field import canonical_json_bytes, canonical_sha256
 from runtime.soul import SoulCommitReceipt, SoulIntegrityError, SoulTransition, apply_soul_transition
+from runtime.source_of_truth import capacity_policy
 
 from .lifecycle import CandidateCheckpointRecord, OptimizationStepReceipt
 from .soul_candidates import CandidateSoulManifest, CandidateSoulWorkspace
@@ -28,6 +29,7 @@ ACCEPTED_TRAINING_STEP_SCHEMA = "axon-accepted-reasoning-training-step-v1"
 ACCEPTED_STEP_POINTER_SCHEMA = "axon-accepted-training-step-pointer-v1"
 ACCEPTED_STEP_SENTINEL_SCHEMA = "axon-accepted-training-step-sentinel-v1"
 _PHASES = ("first", "refined", "consolidated")
+_ROLLING_CHECKPOINT_COUNT = capacity_policy().integer("trainer.rolling_checkpoint_count")
 
 
 def _required(value: str, label: str) -> str:
@@ -270,8 +272,15 @@ class AcceptedStepPointer:
         if isinstance(self.current_step, bool) or not isinstance(self.current_step, int) or self.current_step < 1:
             raise ValueError("accepted-step pointer step must be positive")
         rolling = tuple(_content_id(item, "rolling_bundle_id") for item in self.rolling_bundle_ids)
-        if not rolling or len(rolling) > 3 or rolling[-1] != self.current_bundle_id:
-            raise ValueError("accepted-step pointer must retain one to three bundles ending at current")
+        if (
+            not rolling
+            or len(rolling) > _ROLLING_CHECKPOINT_COUNT
+            or rolling[-1] != self.current_bundle_id
+        ):
+            raise ValueError(
+                "accepted-step pointer exceeds the governed rolling materialization "
+                "count or does not end at current"
+            )
         object.__setattr__(self, "rolling_bundle_ids", rolling)
         object.__setattr__(self, "pointer_id", canonical_sha256(self.to_canonical_dict(False)))
 
@@ -374,7 +383,9 @@ class CandidateStepBundleCoordinator:
             candidate_generation_id=candidate_generation_id,
             current_bundle_id=current.bundle_id,
             current_step=current.step,
-            rolling_bundle_ids=tuple(item.bundle_id for item in chain[-3:]),
+            rolling_bundle_ids=tuple(
+                item.bundle_id for item in chain[-_ROLLING_CHECKPOINT_COUNT:]
+            ),
         )
         sentinel = {
             "schema": ACCEPTED_STEP_SENTINEL_SCHEMA,
@@ -645,7 +656,7 @@ class CandidateStepBundleCoordinator:
             candidate_generation_id=bundle.candidate_generation_id,
             current_bundle_id=bundle.bundle_id,
             current_step=bundle.step,
-            rolling_bundle_ids=rolling[-3:],
+            rolling_bundle_ids=rolling[-_ROLLING_CHECKPOINT_COUNT:],
         )
         sentinel = {
             "schema": ACCEPTED_STEP_SENTINEL_SCHEMA,

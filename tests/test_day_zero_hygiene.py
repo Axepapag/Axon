@@ -11,6 +11,9 @@ def test_authority_mirrors_are_byte_identical() -> None:
 
 
 def test_day_zero_active_python_surface_is_narrow() -> None:
+    runtime_root_files = {path.name for path in (ROOT / "runtime").glob("*.py")}
+    assert runtime_root_files == {"__init__.py", "source_of_truth.py"}
+
     runtime_dirs = {path.name for path in (ROOT / "runtime").iterdir() if path.is_dir() and path.name != "__pycache__"}
     assert runtime_dirs == {
         "axon_runtime",

@@ -29,14 +29,14 @@ def _host(
         host_config=HeartHostConfig(
             idle_interval_seconds=0.01,
             global_budget=ValveBudget(
-                pending_cap=10_000,
                 items_per_beat=global_items,
-                chars_per_beat=32_768,
-                max_item_chars=16_384,
-                max_item_bytes=65_536,
+                target_chars_per_beat=32_768,
             ),
         ),
-        beat_config=BeatConfig(recall_limit=0, region_policies=region_policies),
+        beat_config=BeatConfig(
+            recall_items_per_materialization=0,
+            region_policies=region_policies,
+        ),
     )
 
 
@@ -205,17 +205,16 @@ def test_commit_before_ack_recovery_does_not_duplicate_text(tmp_path: Path, monk
         second.stop()
 
 
-def test_oversize_poison_is_quarantined_and_valid_successor_circulates(tmp_path: Path) -> None:
+def test_payload_beyond_old_ceiling_is_preserved_and_circulates(tmp_path: Path) -> None:
     with _host(tmp_path) as host:
-        rejected = host.submit_user("x" * 10_000)
-        admitted = host.submit_user("ok")
-        assert not rejected.admitted
+        exact = "x" * 20_000
+        admitted = host.submit_user(exact)
         assert admitted.admitted
         result = host.heartbeat()
-        assert result.field.region(LogicalRegion.USER_INPUT).text == "ok"
+        assert result.field.region(LogicalRegion.USER_INPUT).text == exact
         health = host.health()
-        assert health["quarantine_count"] >= 1
-        assert health["rejection_count"] >= 1
+        assert health["quarantine_count"] == 0
+        assert health["rejection_count"] == 0
 
 
 def test_closed_and_wrong_source_valves_cannot_mutate(tmp_path: Path) -> None:
@@ -305,7 +304,7 @@ def test_branch_journal_contains_rich_heart_valve_provenance(tmp_path: Path) -> 
         heart = commit_events[-1]["metadata"]["heart_commit"]
         provenance = heart["valve_provenance"]
         assert provenance["valve_id"] == "user_ingress"
-        assert provenance["valve_version"] == 1
+        assert provenance["valve_version"] == 2
         assert provenance["source_id"] == "external_user"
         assert provenance["item_id"] == event_id
         assert provenance["authority_class"] == "external_ingress"

@@ -177,7 +177,7 @@ def _host(root: Path, *, beta_port: FixtureCorePort | None = None) -> HeartHost:
     )
     return HeartHost(
         state_root=root,
-        beat_config=BeatConfig(recall_limit=0),
+        beat_config=BeatConfig(recall_items_per_materialization=0),
         host_config=HeartHostConfig(idle_interval_seconds=0.01),
         core_registry=registry,
         reasoning_ports=(FixtureCorePort("core-alpha"), beta_port or FixtureCorePort("core-beta")),

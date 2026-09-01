@@ -14,6 +14,7 @@ import json
 import os
 import re
 import sqlite3
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -29,6 +30,7 @@ from runtime.field import (
     canonical_json_bytes,
     canonical_sha256,
 )
+from runtime.source_of_truth import capacity_policy
 
 INDEX_SCHEMA = "axon-dormant-evidence-index-v1"
 INDEX_MANIFEST_SCHEMA = "axon-dormant-evidence-index-manifest-v1"
@@ -687,20 +689,16 @@ class DormantEvidenceIndex:
                 binding_verified=True,
             )
         except Exception:
-            try:
+            with suppress(Exception):
                 connection.close()
-            except Exception:
-                pass
             failed_stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
             for transient in (temp, sidecar_temp):
                 if not transient.exists():
                     continue
                 failed_path = transient.with_name(f"{transient.name}.failed.{failed_stamp}")
-                try:
+                with suppress(OSError):
                     os.replace(transient, failed_path)
-                except OSError:
-                    # Preserve the transient in place if even a same-volume rename fails.
-                    pass
+                # Preserve the transient in place if even a same-volume rename fails.
             raise
 
     @classmethod
@@ -777,8 +775,8 @@ class DormantEvidenceIndex:
         self._require_verified()
         if not isinstance(text, str) or not text.strip():
             raise DormantQueryError("text must be a non-empty string")
-        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 128:
-            raise DormantQueryError("limit must be an integer in [1, 128]")
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+            raise DormantQueryError("limit must be a positive integer")
         rows = self._connection.execute(
             """
             SELECT container_id
@@ -821,8 +819,8 @@ class DormantEvidenceIndex:
         self._require_verified()
         if not isinstance(edge_id, str) or not edge_id:
             raise DormantQueryError("edge_id must be a non-empty string")
-        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 128:
-            raise DormantQueryError("limit must be an integer in [1, 128]")
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+            raise DormantQueryError("limit must be a positive integer")
         rows = self._connection.execute(
             """
             SELECT target.container_id
@@ -849,8 +847,8 @@ class DormantEvidenceIndex:
         self._require_verified()
         if not isinstance(query, str) or not query.strip():
             raise DormantQueryError("query must be a non-empty string")
-        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 128:
-            raise DormantQueryError("limit must be an integer in [1, 128]")
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+            raise DormantQueryError("limit must be a positive integer")
         if not 0.0 <= float(min_confidence) <= 1.0:
             raise DormantQueryError("min_confidence must be in [0, 1]")
         terms = _tokenize(query)
@@ -868,9 +866,19 @@ class DormantEvidenceIndex:
         # context limit. Every unique term is processed in ordered pages and
         # its hits are accumulated before the caller's result-count policy is
         # applied.
+        governed = capacity_policy()
+        term_page_size = governed.integer("dormant.term_query_page_size")
+        lexical_candidate_count = max(
+            limit * governed.integer("dormant.lexical_candidate_multiplier"),
+            governed.integer("dormant.lexical_candidate_floor"),
+        )
+        edge_candidate_count = max(
+            limit * governed.integer("dormant.edge_candidate_multiplier"),
+            governed.integer("dormant.edge_candidate_floor"),
+        )
         ranked_edge_hit_map: dict[int, int] = {}
-        for start in range(0, len(term_hashes), 128):
-            term_page = term_hashes[start : start + 128]
+        for start in range(0, len(term_hashes), term_page_size):
+            term_page = term_hashes[start : start + term_page_size]
             placeholders = ",".join("?" for _ in term_page)
             rows = self._connection.execute(
                 f"""
@@ -881,7 +889,7 @@ class DormantEvidenceIndex:
                 ORDER BY hits DESC, container_rowid ASC
                 LIMIT ?
                 """,
-                (*term_page, max(limit * 40, 200)),
+                (*term_page, lexical_candidate_count),
             )
             for row in rows:
                 container_rowid = int(row["container_rowid"])
@@ -901,7 +909,7 @@ class DormantEvidenceIndex:
                 ORDER BY hits DESC, edge_rowid ASC
                 LIMIT ?
                 """,
-                (*term_page, max(limit * 60, 300)),
+                (*term_page, edge_candidate_count),
             )
             for row in ranked_edge_rows:
                 edge_rowid = int(row["edge_rowid"])
@@ -913,12 +921,13 @@ class DormantEvidenceIndex:
             sorted(
                 ranked_edge_hit_map.items(),
                 key=lambda item: (-item[1], item[0]),
-            )[: max(limit * 60, 300)]
+            )[:edge_candidate_count]
         )
         edge_meta: dict[int, tuple[str, int, bytes]] = {}
         edge_rowids = [edge_rowid for edge_rowid, _ in ranked_edge_hits]
-        for start in range(0, len(edge_rowids), 800):
-            chunk = edge_rowids[start : start + 800]
+        edge_hydration_page_size = governed.integer("dormant.edge_hydration_page_size")
+        for start in range(0, len(edge_rowids), edge_hydration_page_size):
+            chunk = edge_rowids[start : start + edge_hydration_page_size]
             chunk_placeholders = ",".join("?" for _ in chunk)
             rows = self._connection.execute(
                 f"""
@@ -959,7 +968,13 @@ class DormantEvidenceIndex:
             #
             # Support is a bounded best-edge signal, never an additive pile-up:
             # target_support = matched_source_score * edge_query_coverage.
-            matched_cap = min(len(matched_edges), min(max(limit * 16, 64), 1024))
+            matched_cap = min(
+                len(matched_edges),
+                max(
+                    limit * governed.integer("dormant.relation_seed_multiplier"),
+                    governed.integer("dormant.relation_seed_floor"),
+                ),
+            )
             matched = matched_edges[:matched_cap]
             resolved_targets: dict[bytes, tuple[int, ...]] = {}
             for target_key in {item[4] for item in matched}:
@@ -969,9 +984,9 @@ class DormantEvidenceIndex:
                     FROM containers
                     WHERE normalized_key = ?
                     ORDER BY container_rowid ASC
-                    LIMIT 4
+                    LIMIT ?
                     """,
-                    (target_key,),
+                    (target_key, governed.integer("dormant.relation_targets_per_key")),
                 )
                 resolved_targets[target_key] = tuple(int(row["container_rowid"]) for row in rows)
 
@@ -1005,11 +1020,15 @@ class DormantEvidenceIndex:
             seed_rowids = [
                 item[0]
                 for item in sorted(scores.items(), key=lambda item: (-item[1], item[0]))[
-                    : min(max(limit * 2, 12), 128)
+                    : max(
+                        limit * governed.integer("dormant.graph_seed_multiplier"),
+                        governed.integer("dormant.graph_seed_floor"),
+                    )
                 ]
             ]
             seed_scores = {item: scores[item] for item in seed_rowids}
-            fanout_per_direction = 8
+            fanout_per_direction = governed.integer("dormant.graph_fanout_per_direction")
+            graph_hit_saturation = governed.integer("dormant.graph_hit_saturation")
             for seed_rowid in seed_rowids:
                 outgoing = self._connection.execute(
                     """
@@ -1028,7 +1047,7 @@ class DormantEvidenceIndex:
                         continue
                     edge_id = str(row["edge_id"])
                     prior_graph_hits = graph_hits.get(target_rowid, 0)
-                    if prior_graph_hits < 8:
+                    if prior_graph_hits < graph_hit_saturation:
                         graph_hits[target_rowid] = prior_graph_hits + 1
                     scores[target_rowid] = max(
                         scores.get(target_rowid, 0.0),
@@ -1053,7 +1072,7 @@ class DormantEvidenceIndex:
                         continue
                     edge_id = str(row["edge_id"])
                     prior_graph_hits = graph_hits.get(source_rowid, 0)
-                    if prior_graph_hits < 8:
+                    if prior_graph_hits < graph_hit_saturation:
                         graph_hits[source_rowid] = prior_graph_hits + 1
                     scores[source_rowid] = max(
                         scores.get(source_rowid, 0.0),
@@ -1068,8 +1087,8 @@ class DormantEvidenceIndex:
         allowed_kinds = None if kinds is None else {str(value) for value in kinds}
         allowed_statuses = None if statuses is None else {str(value) for value in statuses}
         filtered: list[EvidenceCandidate] = []
-        for start in range(0, len(candidate_rowids), 800):
-            chunk = candidate_rowids[start : start + 800]
+        for start in range(0, len(candidate_rowids), edge_hydration_page_size):
+            chunk = candidate_rowids[start : start + edge_hydration_page_size]
             chunk_placeholders = ",".join("?" for _ in chunk)
             metadata_rows = self._connection.execute(
                 f"""
@@ -1207,7 +1226,7 @@ class DormantEvidenceIndex:
         statuses: Iterable[str] | None = ("dormant", "active"),
         min_confidence: float = 0.0,
         include_graph: bool = True,
-        max_edges_per_evidence: int = 8,
+        edges_per_evidence: int | None = None,
     ) -> tuple[VerifiedDormantEvidence, ...]:
         candidates = self.query_candidates(
             query,
@@ -1217,11 +1236,18 @@ class DormantEvidenceIndex:
             min_confidence=min_confidence,
             include_graph=include_graph,
         )
+        edge_count = (
+            capacity_policy().integer("dormant.edges_per_evidence")
+            if edges_per_evidence is None
+            else int(edges_per_evidence)
+        )
+        if edge_count < 1:
+            raise DormantQueryError("edges_per_evidence must be positive")
         evidence: list[VerifiedDormantEvidence] = []
         for candidate in candidates:
             container = self.dereference_container(candidate.container_id)
             verified_edges: list[VerifiedDormantEdge] = []
-            for edge_id in candidate.edge_ids[:max_edges_per_evidence]:
+            for edge_id in candidate.edge_ids[:edge_count]:
                 edge = self.dereference_edge(edge_id)
                 if edge.source_container_id == container.container_id or candidate.graph_hits:
                     verified_edges.append(edge)
