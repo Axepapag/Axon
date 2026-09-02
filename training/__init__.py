@@ -1,3 +1,7 @@
+from .abc_sequence_curriculum import (
+    DEFAULT_ABC_SPLIT_COUNTS,
+    compile_abc_sequence,
+)
 from .communication_first_c1 import (
     C1_AUTHORED_SOURCE_ID,
     C1_COMPETENCIES,
@@ -110,6 +114,7 @@ __all__ = [
     "D64_SOUL_MEDIA_TYPE",
     "D64_TOURNAMENT_RESULT_SCHEMA",
     "D64_TOURNAMENT_SCHEMA",
+    "DEFAULT_ABC_SPLIT_COUNTS",
     "DEFAULT_C1_SPLIT_COUNTS",
     "DEFAULT_DF_SPLIT_COUNTS",
     "DEFAULT_E_SPLIT_COUNTS",
@@ -161,6 +166,7 @@ __all__ = [
     "build_living_reasoning_preflight",
     "build_living_reasoning_smoke_curriculum",
     "candidate_a_config",
+    "compile_abc_sequence",
     "compile_sequential_first_form",
     "curriculum_manifest_bytes",
     "d64_head_geometry_tournament",

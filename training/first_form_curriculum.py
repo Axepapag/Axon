@@ -88,6 +88,7 @@ class FirstFormCase:
     def __post_init__(self) -> None:
         if self.family not in {
             "A", "B", "C", "D", "E", "F", "C1", "L0", "L1", "L2", "L3", "L4",
+            "ABC",
         }:
             raise ValueError("unsupported FFCS family")
         if not self.competency or not self.lineage_id:
