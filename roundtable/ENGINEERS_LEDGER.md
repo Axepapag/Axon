@@ -1,36 +1,40 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-02T12:21:24-05:00
-Current through event: `evt-20260902T172124287113Z-codex-power-outage-recovery-audit`
+Updated: 2026-09-02T13:36:04-05:00
+Current through event: `evt-20260902T1836046865748Z-codex-l0-l4-c1-kaggle-preparation`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
-## Power-outage recovery audit (2026-09-02)
+## Language-school and Kaggle readiness closeout (2026-09-02)
 
-The repository and local Git object database survived the outage. `main` is at
-local commit `0742e07`, one commit ahead of `origin/main`; that committed Hermes
-legal-development-lineage document is intact but has not been pushed. The
-worktree also preserves an uncommitted, unledgered L0-L4 Language Foundations
-implementation: eleven new Python source/test/launcher files (2,717 lines), two
-tracked integration edits, and a published 349-case immutable curriculum
-manifest at
-`State/training/curricula/language_l0_l4/824aabae2090c721da9b55540a5d890fc958577d2e5c78fde49da870096634f9/manifest.json`.
-The manifest contains the declared L0-L4 train/heldout/regression counts and
-reloads as 349 `VERIFIED_TARGET` cases.
+Kimmy's recovered L0-L4 Language Foundations implementation has been inspected,
+accepted, integrated, and attributed. Its immutable manifest
+`824aabae2090c721da9b55540a5d890fc958577d2e5c78fde49da870096634f9`
+contains 349 objective `VERIFIED_TARGET` cases: 240 train, 56 heldout, and 53
+regression across exact Unicode transport, orthography, vocabulary, morphology,
+and grammar. Compilation uses real `SharedFieldSnapshot -> D64FieldCompiler ->
+three-phase private Soul -> typed transport` anatomy and fails closed on target
+visibility, hidden-target leakage, and cross-split transfer overlap.
 
-Recovery verification passed: Git fsck and diff checks; Ruff; compileall; all
-16 focused Language Foundations tests; actual-manifest load; target-visibility,
-hidden-target leakage, and cross-split transfer checks. Pytest emitted only a
-non-fatal access warning for `.pytest_cache`. No local Axon training process is
-running. The only Kaggle record remains private, prepared, and unsubmitted;
-no cloud job was launched. D: has about 300.85 GiB free. No recovered
-implementation file was edited, committed, or pushed during the audit.
+C1's immutable 36-case historical evidence remains intact, but the Trainer now
+derives a content-addressed teaching view containing only its 22
+`VERIFIED_TARGET` cases. Fourteen `PROCESS_EVIDENCE` cases remain preserved for
+history/evaluation and cannot reach loss construction; the objective boundary
+rejects them even if a caller bypasses scheduling. Learned-capability metrics
+now isolate the verified standard curriculum from synthetic mechanism cases,
+with per-family and per-manifest aggregates derived from one evaluation pass.
+The previous step-193 C1 artifacts remain mechanism diagnostics and are not
+retroactively qualified.
 
-The outage did not leave evidence that the other intended work landed: durable
-restart-safe Heart decoder continuation and C1 eligibility/metric isolation
-remain open. Before further implementation or training, review and commit the
-recovered Language Foundations diff deliberately, reconcile its missing author
-turn ledger entry, and push the intact local commit chain.
+Commit `4944584` contains the language school, C1 closure, SOT updates, and the
+first D64 Language Kaggle recipe; it and the recovered Hermes commit `0742e07`
+are pushed to `origin/main`. A private, unsubmitted Kaggle packet is prepared as
+job `1bf5766b9bedf3b4df787c9227e58c4cb1ec39c03d9f3f94227a5a7988630898`,
+bound to revision `494458469fd2c6cec7ddc639b4df5365aef42147` and packet SHA256
+`425e64d44bbc037d779374f2ebc2694a6ca1595187dcb88076d642ebd68bda32`.
+Its 360-step renewable tranche is one six-lane exposure cycle, not a tissue or
+core ceiling. No upload, kernel submission, optimizer step, quota use, or spend
+has begun.
 
 ## Executive state
 
@@ -120,29 +124,29 @@ liveness, Heart dialect IDs, valve inventory, and checkpoint materialization
 now use source-preserving renewable work controls rather than fixed content
 ceilings. Exact oversized items cross whole; later work defers visibly.
 
-## Current campaign: C1 decisive run and checkpoint retention
+## Current campaign: qualified language-school first tranche
 
-The C1 communication-first curriculum (36 cases, 7 lesson classes, manifest
-`c04ae8c6...`) is published and the bounded local-CUDA campaign has closed at
-accepted step 193 for all three fresh v2 lineages. Candidate 4x16's final
-heldout loss is `3.684934275490897`, token accuracy is `0.03007518796992481`
-against a `0.16165413533834586` constant floor, and both exact rates are zero.
-No Trainer writer lease remains.
+The next governed learning diagnostic is the D64 Language L0-L4 first tranche
+in `configs/kaggle/d64_language_l0_l4_first_tranche.json`. It uses one 64D head,
+two Transformer layers, a 131072-wide FFN, the complete 349-case objective
+manifest, and a 360-step renewable resource tranche. The derivation is explicit:
+six scheduled lanes (mechanism plus L0-L4) multiplied by the largest language
+train lane's 60 cases. Completion/renewal is gate-governed; 360 does not cap the
+core, curriculum, lineage, or lifetime optimizer work.
 
-At step 193, 1x64 and 2x32 both show heldout loss near 3.70, nonzero field/
-proposal/Soul counterfactuals, teacher-forced token accuracy 0.030075 against
-a 0.161654 strongest-constant floor, and zero typed/payload exactness. Loss is
-falling, but no SIGNAL or learned communication capability exists.
+Real-tissue local CPU preflight passed for the 33,981,879-parameter permanent
+architecture. Language receipt
+`ae99a3149485f0fa3d5d0d5dd006d2a89c0bf66f44b08fff8a36a35d4e3070d3`
+proved 349 verified and zero excluded cases. C1 receipt
+`20e532d0d81163998ab92bedba42c286ad5099b7cb826670c3ab42f1b2136f8a`
+proved exactly 22 teaching cases and 14 excluded cases. Preflight performed no
+optimizer mutation.
 
-The run is **not admissible as the predeclared C1 falsification verdict** until
-two contract defects are governed. First, the manifest labels 14 authored
-open-response cases PROCESS_EVIDENCE (9 train / 3 heldout / 2 regression), but
-the unchanged tournament loader ignores eligibility and supervises all of
-their exact target strings. All 36 cases have empty source-record identities.
-Second, the reported heldout metric combines six C1 cases with one synthetic
-mechanism case instead of isolating C1 as the falsification contract states.
-The current artifacts remain useful mechanism/optimization diagnostics; they
-cannot answer the declared evidence-qualified C1 question.
+The prior C1 campaign remains closed at accepted step 193 for all three fresh
+v2 lineages. Candidate 4x16's final heldout loss was `3.684934275490897`, token
+accuracy `0.03007518796992481` against a `0.16165413533834586` constant floor,
+and both exact rates zero. Those artifacts remain mechanism/optimization
+diagnostics, not an admissible learned-communication verdict.
 
 Tranche 2 exposed disk exhaustion (D: 100% during candidate-b step 88; no
 corrupt artifact promoted). Per Jeff's direction, keep-3 checkpoint retention
@@ -381,7 +385,7 @@ and brother-proposal society; only then broaden into reasoning, tools, code,
 math, and science. Each core's Soul remains private perspective and continuity,
 while canonical Identity defines the single shared Axon identity.
 
-The first communication-first implementation shot is now on disk: the C1
+The first communication-first implementation shot is on disk: the C1
 hidden-target single-turn curriculum (`training/communication_first_c1.py`,
 manifest `c04ae8c6815e93b31136fdf833a525388c8439e74fd5317268cb1e1ba1233212`
 under `State/training/curricula/c1/`). It carries 36 authored cases (24 train
@@ -393,11 +397,16 @@ reloaded manifest. Objectively checkable classes are labeled VERIFIED_TARGET;
 authored conversational classes are PROCESS_EVIDENCE. All v1 cases are
 authored fixtures with synthetic provenance (`C1_AUTHORED_SOURCE_ID`); no
 Dormant records supervise. The manifest uses schema
-`axon-first-form-curriculum-v1` and loads through the unchanged tournament
-loader path. That unchanged loader does not enforce eligibility: PROCESS_EVIDENCE
-targets currently receive the same consolidated-response supervision as
-VERIFIED_TARGET. The current campaign therefore diagnoses the neural mechanism
-but does not establish evidence-qualified conversational education.
+`axon-first-form-curriculum-v1`. The Trainer preserves the complete published
+evidence curriculum while deriving a verified-only teaching curriculum. It
+schedules only the latter, rejects non-verified objectives at loss construction,
+and evaluates learned capability on isolated standard-curriculum surfaces.
+
+The objective L0-L4 Language School is now executable at
+`training/language_foundations/`. Its 349 verified cases cover 351-category
+Unicode transport, character generation/denoising, spelling/capitalization/
+punctuation, vocabulary, morphology, grammar, and heldout transfer families.
+Published manifests are immutable and splits remain whole-episode disjoint.
 
 The current Trainer has portable foundations plus a provider-neutral,
 content-addressed packet and private Kaggle adapter. Packets require clean
@@ -409,7 +418,7 @@ continuation-closure resolver remain future work.
 
 ## Verification and Git
 
-- Full repository suite: **501/501 passed**, exit code 0. This includes real
+- Full repository suite: **520/520 passed**, exit code 0. This includes real
   temporary-state Trainer resume/tranche and tournament subprocesses.
 - Post-binding focused no-ceilings/dialect/decoder suite: 9/9 passed.
 - Changed-file Ruff, Python compileall, and `git diff --check` passed.
@@ -417,28 +426,26 @@ continuation-closure resolver remain future work.
   `4a32f18fa296c415ccf34a8c1956d2a4f8afd044265e7f45505782dd53c7b8cd`;
   static preflight rejects an absent, mutated, weakened, or forbidden ceiling.
 - SOT mirrors are byte-identical at SHA256
-  `ED6541C8830AEEB0358739D9B559F99560B40E98180D563D1F9E0CB0EE2B9198`.
+  `23C4B100A01038E6E2D9189278F90F37647A597F42F2B13D381EDEC3F1327373`.
 - `git diff --check`: passed.
-- Kaggle implementation is committed as `a8c52ca`; before this ledger
-  closeout local `main` and `origin/main` both began at `753a728`; concurrent
-  Hermes legal commit `cb8321b` is the direct parent of the no-ceilings commit.
-- No local Trainer writer or Kaggle training job is active. The prepared job
-  remains phase `prepared` with null dataset/kernel references. Kaggle reports
-  0.00h used, 30.00 GPU hours and 20.00 TPU hours remaining.
+- Language/C1/Kaggle preparation is committed as `4944584` and pushed with the
+  recovered Hermes `0742e07` lineage commit.
+- No local Trainer writer or Kaggle training job is active. Job `1bf5766b...`
+  remains private, `prepared`, and `not submitted`, with null dataset/kernel
+  references. Kaggle reports 30.00 GPU and 20.00 TPU hours remaining.
 - Closeout process sweep found zero Axon Python/training processes; D: had
   323,044,671,488 free bytes (about 300.9 GiB).
 - Known non-failing warning: PyTorch nested-tensor optimization warning.
 
 ## Active flags
 
-1. **C1 TARGET-QUALITY BLOCKER:** PROCESS_EVIDENCE is metadata only; the
-   harness currently supervises all 14 authored open-response targets despite
-   the communication contract requiring explicit outcome-qualified evidence.
-2. **C1 METRIC-SCOPE BLOCKER:** the predeclared SIGNAL concerns C1 heldout
-   material, but durable reports aggregate six C1 heldout cases with one
-   mechanism case. No current report can issue the declared C1 verdict.
-3. **LEARNED CAPABILITY BLOCKER:** A/B at step 193 remain far below the
-   constant floor and exact-output rates are zero.
+1. **LEARNED CAPABILITY BLOCKER:** no L0-L4 optimizer tranche has run; C1 A/B at
+   step 193 remain far below the constant floor and exact-output rates are zero.
+2. **SERVING BLOCKER:** durable restart-safe Heart-host decoder continuation
+   must pass EOS, malformed-output, and cancellation tests before learned D64
+   tissue can serve. This does not block governed offline training.
+3. **KAGGLE LAUNCH BOUNDARY:** the language packet is private and prepared but
+   intentionally unsubmitted. Explicit operator launch remains required.
 4. **MID-TRANCHE RECOVERY GAP:** a crash does not strand accepted state, but
    the operator must calculate a residual tranche manually; no durable
    abandonment/residual receipt or dedicated recovery test exists.
@@ -460,18 +467,17 @@ continuation-closure resolver remain future work.
     release remains a governed Jeff-level decision.
 11. **CLAIM BOUNDARY:** persistent behavioral identity is engineerable;
    subjective consciousness or metaphysical continuity is not testable here.
-12. **CURRICULUM GAP (PARTIALLY CLOSED):** C1 exists and has produced optimizer
-    evidence, but its target qualification and metric isolation are not yet
-    admissible; C2-C6 do not exist. FFCS remains the mechanism schoolhouse.
+12. **CURRICULUM GAP (PARTIALLY CLOSED):** C1's teaching eligibility and metric
+    isolation are closed, and objective L0-L4 is ready. C2-C6 do not exist;
+    fluent conversation remains unlearned.
 13. **CLOUD CONTINUATION GAP:** fresh private Kaggle packets are operational,
     but exact parent checkpoint/optimizer/Soul closure is still selected by
     explicit paths; do not claim a continuation until a dedicated resolver
     proves the complete parent lineage.
-14. **DURABLE DECODER-CONTINUATION BLOCKER:** fixed D64 output capacity and
+14. **DURABLE DECODER-CONTINUATION DETAIL:** fixed D64 output capacity and
     long-target exclusion are closed. The core carries exact in-process state
-    across renewable slices, but the current runtime adapter intentionally
-    abstains after one incomplete slice. Durable Heart-host continuation must
-    exist and pass EOS/malformed-output tests before learned D64 tissue serves.
+    across renewable slices, but the runtime adapter intentionally abstains
+    after one incomplete slice; persistent Heart-host orchestration is pending.
 15. **SEMANTIC-OBJECTIVE GAP:** deterministic semantic validators can govern
     evaluation, but required/forbidden atoms alone do not supply differentiable
     token-level training. V1 semantic-content cases must remain evaluation-only
@@ -480,27 +486,17 @@ continuation-closure resolver remain future work.
 
 ## Recommended next actions
 
-0. Preserve the completed C step-193 reports as mechanism diagnostics; issue
-   no continuation under the invalid C1 falsification contract.
-1. Replace C1 with accepted/corrected/endorsed targets or explicitly record
-   human endorsement of a reviewed authored batch; publish a new immutable
-   manifest and fresh campaign identity.
-2. Add C1-only heldout/regression metrics and predeclare the corrected decision
-   surface. Treat the current campaign as mechanism evidence, not falsification.
-3. Version the curriculum envelope so eligibility and exact/categorical/
-   structured/evaluation-only validators survive loading into loss/evaluation;
-   fail closed when a claimed metric has no admissible validator.
-4. Wire durable, restart-safe Heart-host decoder continuation around the
+0. Keep the C step-193 reports as mechanism diagnostics; do not reinterpret
+   them as an evidence-qualified communication verdict.
+1. With explicit operator confirmation, submit the prepared private Kaggle
+   L0-L4 packet and monitor live logs/durable artifacts through AXON_KAGGLE.bat.
+2. Evaluate the first 360-step exposure cycle only on its predeclared isolated
+   language families; renew or adjust from evidence, never an arbitrary
+   max-step ceiling.
+3. Wire durable, restart-safe Heart-host decoder continuation around the
    existing renewable in-process iterator before learned D64 serving; preserve
    explicit EOS, malformed-output rejection, and cancellation evidence.
-5. Build an objective L0-L4 Language campaign that reuses FFCS transport
-   prerequisites and adds character-level generative exposure, spelling,
-   morphology, grammar and rule-transfer holdouts; do not rely only on tiny
-   exercise templates to teach fluent generation.
-6. Run a private bounded Kaggle integration/learning tranche only after the
-   new manifest and metrics preflight; cloud is an execution provider, not a
-   capability or promotion claim.
-7. Add exact mid-tranche residual recovery and automatic cloud continuation
+4. Add exact mid-tranche residual recovery and automatic cloud continuation
    closure. Promote nothing until the complete serving gate passes.
 
 ## Important paths
