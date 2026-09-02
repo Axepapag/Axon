@@ -36,6 +36,7 @@ from runtime.trainer import (
 from training import (
     LivingReasoningCoreD64,
     LivingReasoningCurriculum,
+    TeachingEligibility,
     build_living_reasoning_preflight,
     build_living_reasoning_smoke_curriculum,
     candidate_a_config,
@@ -265,17 +266,18 @@ def _training_lanes(
         )
     ]
     for item in standard_ffcs:
+        teaching_manifest_id = item.teaching_living_curriculum.train_manifest_id
         for family, _counts in item.requested_family_split_counts:
             lanes.append(
                 (
                     f"ffcs-{family}",
                     tuple(
                         (
-                            "episode",
-                            case.episode,
-                            item.living_curriculum.train_manifest_id,
+                            "first_form_case",
+                            case,
+                            teaching_manifest_id,
                         )
-                        for case in item.cases
+                        for case in item.teaching_cases
                         if case.family == family and case.episode.split == "train"
                     ),
                 )
@@ -382,6 +384,13 @@ def _material_objective(
             (),
             tuple(transition for tick_unroll in unrolls for transition in tick_unroll.transitions),
         )
+    if kind == "first_form_case":
+        if material.eligibility is not TeachingEligibility.VERIFIED_TARGET:
+            raise ValueError(
+                "only VERIFIED_TARGET first-form cases may enter optimizer loss"
+            )
+        material = material.episode
+        kind = "episode"
     if kind != "episode":
         raise ValueError(f"unsupported scheduled material kind {kind!r}")
     loss, unroll, phase_metrics = living_episode_objective(
@@ -467,6 +476,31 @@ def main() -> int:
     manifest_identity_hashes = tuple(item.identity_text_sha256 for item in all_ffcs)
     mechanism_curriculum = build_living_reasoning_smoke_curriculum()
     curriculum = mechanism_curriculum
+    teaching_eligibility = [
+        {
+            "manifest_id": item.manifest_id,
+            "total_case_count": len(item.cases),
+            "teaching_case_count": len(item.teaching_cases),
+            "excluded_from_exact_supervision_count": (
+                len(item.cases) - len(item.teaching_cases)
+            ),
+            "eligibility_counts": dict(item.eligibility_counts),
+            "teaching_living_curriculum_id": (
+                item.teaching_living_curriculum.curriculum_id
+            ),
+        }
+        for item in standard_ffcs
+    ]
+    evaluation_family_by_episode = {
+        case.episode.episode_id: case.family
+        for item in standard_ffcs
+        for case in item.teaching_cases
+    }
+    evaluation_manifest_by_episode = {
+        case.episode.episode_id: item.manifest_id
+        for item in standard_ffcs
+        for case in item.teaching_cases
+    }
     if all_ffcs:
         active = CanonicalStateBranch.active_runtime(state_root=args.state_root).load_head()
         active_identity = active.region(LogicalRegion.IDENTITY).text
@@ -474,15 +508,37 @@ def main() -> int:
         if any(observed != active_hash for observed in manifest_identity_hashes):
             raise RuntimeError("FFCS manifest Identity is stale for active canonical state")
         curriculum = LivingReasoningCurriculum(
-            tuple(episode for item in standard_ffcs for episode in item.living_curriculum.episodes)
+            tuple(
+                episode
+                for item in standard_ffcs
+                for episode in item.teaching_living_curriculum.episodes
+            )
             + mechanism_curriculum.episodes
         )
+    primary_curriculum = (
+        LivingReasoningCurriculum(
+            tuple(
+                episode
+                for item in standard_ffcs
+                for episode in item.teaching_living_curriculum.episodes
+            )
+        )
+        if standard_ffcs
+        else mechanism_curriculum
+    )
     campaign_curriculum_id, campaign_curriculum_path = _publish_campaign_curriculum(
         args.state_root,
         {
             "schema": "axon-d64-reasoning-campaign-curriculum-v1",
             "standard_ffcs_manifest_ids": [item.manifest_id for item in standard_ffcs],
             "sequential_ffcs_manifest_ids": [item.manifest_id for item in sequential_ffcs],
+            "teaching_views": teaching_eligibility,
+            "primary_evaluation_curriculum_id": primary_curriculum.curriculum_id,
+            "primary_evaluation_scope": (
+                "verified_target_standard_curricula_only"
+                if standard_ffcs
+                else "synthetic_mechanism_only"
+            ),
             "mechanism_curriculum_id": mechanism_curriculum.curriculum_id,
             "mechanism_train_manifest_id": mechanism_curriculum.train_manifest_id,
             "mechanism_heldout_manifest_id": mechanism_curriculum.heldout_manifest_id,
@@ -572,6 +628,13 @@ def main() -> int:
         "ffcs_manifest_id": (standard_ffcs[0].manifest_id if len(standard_ffcs) == 1 else None),
         "sequential_ffcs_manifest_id": (sequential_ffcs[0].manifest_id if len(sequential_ffcs) == 1 else None),
         "sequential_case_count": sum(len(item.cases) for item in sequential_ffcs),
+        "teaching_eligibility": teaching_eligibility,
+        "primary_evaluation_curriculum_id": primary_curriculum.curriculum_id,
+        "primary_evaluation_scope": (
+            "verified_target_standard_curricula_only"
+            if standard_ffcs
+            else "synthetic_mechanism_only"
+        ),
         "mechanism_curriculum_id": mechanism_curriculum.curriculum_id,
         "curriculum_composition": (
             "synthetic_mechanism_only" if not all_ffcs else "governed_ffcs_campaign_plus_synthetic_mechanism"
@@ -585,12 +648,18 @@ def main() -> int:
         tensor_names = tuple(item.name for item in manifest.tensors if item.requires_grad)
         source_manifest_ids = tuple(
             [campaign_train_scope_id, mechanism_curriculum.train_manifest_id]
-            + [item.living_curriculum.train_manifest_id for item in standard_ffcs]
+            + [
+                item.teaching_living_curriculum.train_manifest_id
+                for item in standard_ffcs
+            ]
             + [item.train_manifest_id for item in sequential_ffcs]
         )
         holdout_manifest_ids = tuple(
             [campaign_heldout_scope_id, mechanism_curriculum.heldout_manifest_id]
-            + [item.living_curriculum.heldout_manifest_id for item in standard_ffcs]
+            + [
+                item.teaching_living_curriculum.heldout_manifest_id
+                for item in standard_ffcs
+            ]
             + [item.heldout_manifest_id for item in sequential_ffcs]
         )
         if args.legacy_plan_v1:
@@ -756,7 +825,7 @@ def main() -> int:
         sequential_train_cases = tuple(case for item in sequential_ffcs for case in item.split("train"))
         sequential_heldout_cases = tuple(case for item in sequential_ffcs for case in item.split("heldout"))
         sequential_regression_cases = tuple(case for item in sequential_ffcs for case in item.split("regression"))
-        all_regression_episodes = curriculum.split("regression")
+        all_regression_episodes = primary_curriculum.split("regression")
         regression_episodes = (
             all_regression_episodes
             if args.evaluation_case_limit is None
@@ -815,7 +884,10 @@ def main() -> int:
             )
         steps: list[dict[str, Any]] = []
         checkpoints = []
-        all_heldout_episodes = curriculum.split("heldout")
+        # Learned-capability gates use the evidence-qualified campaign surface.
+        # Synthetic mechanism material remains a training/regression lane, but
+        # cannot inflate or contaminate C1/Language heldout claims.
+        all_heldout_episodes = primary_curriculum.split("heldout")
         heldout_episodes = (
             all_heldout_episodes
             if args.evaluation_case_limit is None
@@ -856,8 +928,8 @@ def main() -> int:
                 )
                 for case in sequential_heldout
             ]
-            combined_rows = exact_rows + sequential_rows
-            losses = []
+            exact_losses = []
+            sequential_losses = []
             with torch.no_grad():
                 for episode in heldout_episodes:
                     loss, _unroll, _metrics = living_episode_objective(
@@ -867,7 +939,7 @@ def main() -> int:
                         core_id=module_id,
                         parameter_generation=candidate_generation,
                     )
-                    losses.append(float(loss.item()))
+                    exact_losses.append(float(loss.item()))
                 for case in sequential_heldout:
                     loss, _unrolls, _soul = sequential_living_objective(
                         session.candidate_module,
@@ -876,39 +948,94 @@ def main() -> int:
                         core_id=module_id,
                         parameter_generation=candidate_generation,
                     )
-                    losses.append(float(loss.item()))
-            supervised_phase_count = sum(row["supervised_phase_count"] for row in combined_rows)
-            payload_supervised_phase_count = sum(row["payload_supervised_phase_count"] for row in combined_rows)
-            phase_output_count = sum(row["phase_output_count"] for row in combined_rows)
-            payload_token_count = sum(row["payload_teacher_forced_token_count"] for row in combined_rows)
-            payload_token_correct = sum(row["payload_teacher_forced_token_correct"] for row in combined_rows)
-            payload_target_counts = [
-                sum(row["payload_teacher_forced_target_counts"][index] for row in combined_rows)
-                for index in range(session.candidate_module.eos_index + 1)
-            ]
-            return {
-                "heldout_mean_loss": sum(losses) / max(1, len(losses)),
-                "typed_emission_exact_rate": sum(row["typed_emission_exact_count"] for row in combined_rows)
-                / max(1.0, supervised_phase_count),
-                "payload_transport_exact_rate": sum(row["payload_transport_exact_count"] for row in combined_rows)
-                / max(1.0, payload_supervised_phase_count),
-                "complete_field_coverage_rate": sum(row["complete_field_coverage_count"] for row in combined_rows)
-                / max(1.0, phase_output_count),
-                "supervised_phase_count": supervised_phase_count,
-                "payload_supervised_phase_count": payload_supervised_phase_count,
-                "phase_output_count": phase_output_count,
-                "constant_typed_emission_exact_floor": 0.0,
-                "constant_payload_transport_exact_floor": 0.0,
-                "payload_teacher_forced_token_accuracy": payload_token_correct / max(1, payload_token_count),
-                "constant_payload_token_accuracy_floor": max(payload_target_counts) / max(1, payload_token_count),
-                "counterfactuals": living_source_counterfactuals(
-                    session.candidate_module,
-                    heldout_episodes[0],
-                    soul_branch.load_head(),
-                    core_id=module_id,
-                    parameter_generation=candidate_generation,
-                ),
-            }
+                    sequential_losses.append(float(loss.item()))
+
+            def aggregate(
+                rows: list[dict[str, Any]],
+                losses: list[float],
+            ) -> dict[str, Any]:
+                supervised_phase_count = sum(
+                    row["supervised_phase_count"] for row in rows
+                )
+                payload_supervised_phase_count = sum(
+                    row["payload_supervised_phase_count"] for row in rows
+                )
+                phase_output_count = sum(row["phase_output_count"] for row in rows)
+                payload_token_count = sum(
+                    row["payload_teacher_forced_token_count"] for row in rows
+                )
+                payload_token_correct = sum(
+                    row["payload_teacher_forced_token_correct"] for row in rows
+                )
+                payload_target_counts = [
+                    sum(row["payload_teacher_forced_target_counts"][index] for row in rows)
+                    for index in range(session.candidate_module.eos_index + 1)
+                ]
+                return {
+                    "evaluated_case_count": len(rows),
+                    "heldout_mean_loss": sum(losses) / max(1, len(losses)),
+                    "typed_emission_exact_rate": sum(
+                        row["typed_emission_exact_count"] for row in rows
+                    )
+                    / max(1.0, supervised_phase_count),
+                    "payload_transport_exact_rate": sum(
+                        row["payload_transport_exact_count"] for row in rows
+                    )
+                    / max(1.0, payload_supervised_phase_count),
+                    "complete_field_coverage_rate": sum(
+                        row["complete_field_coverage_count"] for row in rows
+                    )
+                    / max(1.0, phase_output_count),
+                    "supervised_phase_count": supervised_phase_count,
+                    "payload_supervised_phase_count": payload_supervised_phase_count,
+                    "phase_output_count": phase_output_count,
+                    "constant_typed_emission_exact_floor": 0.0,
+                    "constant_payload_transport_exact_floor": 0.0,
+                    "payload_teacher_forced_token_accuracy": (
+                        payload_token_correct / max(1, payload_token_count)
+                    ),
+                    "constant_payload_token_accuracy_floor": (
+                        max(payload_target_counts) / max(1, payload_token_count)
+                    ),
+                }
+
+            combined_rows = exact_rows + sequential_rows
+            result = aggregate(
+                combined_rows,
+                exact_losses + sequential_losses,
+            )
+            result["counterfactuals"] = living_source_counterfactuals(
+                session.candidate_module,
+                heldout_episodes[0],
+                soul_branch.load_head(),
+                core_id=module_id,
+                parameter_generation=candidate_generation,
+            )
+            result["isolated_family_evaluations"] = {}
+            for family in sorted(set(evaluation_family_by_episode.values())):
+                indexes = [
+                    index
+                    for index, episode in enumerate(heldout_episodes)
+                    if evaluation_family_by_episode.get(episode.episode_id) == family
+                ]
+                if indexes:
+                    result["isolated_family_evaluations"][family] = aggregate(
+                        [exact_rows[index] for index in indexes],
+                        [exact_losses[index] for index in indexes],
+                    )
+            result["isolated_manifest_evaluations"] = {}
+            for manifest_id in sorted(set(evaluation_manifest_by_episode.values())):
+                indexes = [
+                    index
+                    for index, episode in enumerate(heldout_episodes)
+                    if evaluation_manifest_by_episode.get(episode.episode_id) == manifest_id
+                ]
+                if indexes:
+                    result["isolated_manifest_evaluations"][manifest_id] = aggregate(
+                        [exact_rows[index] for index in indexes],
+                        [exact_losses[index] for index in indexes],
+                    )
+            return result
 
         if progress is not None:
             progress.emit(
@@ -1134,9 +1261,14 @@ def main() -> int:
                 "lifecycle_status": lifecycle_event.status.value,
                 "task_gate_passed": task_gate_passed,
                 "task_gate_policy": (
-                    "heldout loss falls; teacher-forced transport token accuracy exceeds "
-                    "the strongest heldout constant-category floor; field/proposal/Soul "
-                    "counterfactuals are nonzero; every heldout case is evaluated"
+                    (
+                        "on the isolated VERIFIED_TARGET standard-curriculum surface: "
+                        if standard_ffcs
+                        else "on the synthetic mechanism surface: "
+                    )
+                    + "heldout loss falls; teacher-forced transport token accuracy exceeds "
+                    "that surface's strongest constant-category floor; field/proposal/Soul "
+                    "counterfactuals are nonzero; every evidence-qualified heldout case is evaluated"
                 ),
                 "exact_serving_gate_passed": exact_gate_passed,
                 "exact_serving_gate_policy": (

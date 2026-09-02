@@ -14,6 +14,16 @@ tournament lane with the current C1 curriculum and a renewable 64-step
 resource tranche. Sixty-four is not a lifetime ceiling: a later exact-resume
 packet may grant another tranche to the same candidate lineage.
 
+The first objective language recipe is
+`configs/kaggle/d64_language_l0_l4_first_tranche.json`. It uses the published
+349-case L0-L4 Language Foundations manifest with the permanent 1x64-head,
+two-layer, 131072-FFN Candidate-A tissue. Its 360-step tranche is derived from
+the six-lane family scheduler: it reaches every L0-L4/mechanism lane and gives
+the largest 60-case language lane one complete exposure cycle. It is renewable
+work authorization, not a maximum lifespan. The job evaluates only the
+`VERIFIED_TARGET` standard-curriculum surface; synthetic mechanism heldout and
+`PROCESS_EVIDENCE` prose cannot contaminate the language capability gate.
+
 Preparation and launch are intentionally separate:
 
 1. **Prepare** hashes committed executable source plus every explicitly named
@@ -102,4 +112,3 @@ accepts explicit include paths so this closure can be transported, but the
 first recipe intentionally starts fresh. A dedicated closure resolver should
 be used before launching a C1 continuation; omitting any parent evidence must
 fail rather than silently restart.
-

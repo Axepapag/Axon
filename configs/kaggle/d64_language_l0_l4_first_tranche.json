@@ -1,0 +1,36 @@
+{
+  "accelerator": "gpu",
+  "allow_sensitive_state_upload": true,
+  "entrypoint_argv": [
+    "python",
+    "scripts/train_living_reasoning_smoke.py",
+    "--state-root",
+    "State",
+    "--device",
+    "cuda",
+    "--candidate-label",
+    "kaggle-language-l0-l4-a",
+    "--curriculum-manifest",
+    "State/training/curricula/language_l0_l4/824aabae2090c721da9b55540a5d890fc958577d2e5c78fde49da870096634f9/manifest.json",
+    "--heads",
+    "1",
+    "--layers",
+    "2",
+    "--ffn-dim",
+    "131072",
+    "--checkpoint-interval",
+    "30",
+    "--tranche-steps",
+    "360",
+    "--seed",
+    "20260902"
+  ],
+  "include_paths": [
+    "State/active/branches/active",
+    "State/training/curricula/language_l0_l4/824aabae2090c721da9b55540a5d890fc958577d2e5c78fde49da870096634f9/manifest.json"
+  ],
+  "name": "D64 L0-L4 Language Foundations first private Kaggle tranche",
+  "notes": "Fresh 1x64-head Candidate A on the objective 349-case L0-L4 Language Foundations curriculum. The 360-step renewable tranche gives every six-lane family-round-robin lane at least one complete pass through its largest 60-case train lane; it is an execution allowance, never a candidate or tissue ceiling. Full evidence-qualified heldout evaluation remains required before renewal.",
+  "provider": "kaggle",
+  "schema": "axon-cloud-training-job-config-v1"
+}

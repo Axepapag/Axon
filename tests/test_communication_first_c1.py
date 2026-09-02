@@ -6,6 +6,7 @@ import pytest
 
 from runtime.field import LogicalRegion, SharedFieldSnapshot
 from runtime.heart import ReasoningDecision, ReasoningOperationKind
+from scripts.train_living_reasoning_smoke import _material_objective, _training_lanes
 from training.communication_first_c1 import (
     C1_FAMILY,
     DEFAULT_C1_SPLIT_COUNTS,
@@ -24,6 +25,7 @@ from training.first_form_curriculum import (
 from training.living_reasoning_curriculum import (
     LivingReasoningEpisode,
     LivingReasoningTarget,
+    build_living_reasoning_smoke_curriculum,
 )
 
 IDENTITY = "Axon is Axon.\nEvery brother attends the complete canonical field."
@@ -175,3 +177,68 @@ def test_c1_tournament_loader_compatibility(tmp_path) -> None:
     loaded = load_first_form_curriculum(path)
     assert loaded.manifest_id == curriculum.manifest_id
     assert len(loaded.living_curriculum.episodes) == len(loaded.cases)
+
+
+def test_c1_teaching_view_excludes_process_evidence_from_exact_loss() -> None:
+    curriculum = _compile()
+    assert dict(curriculum.eligibility_counts) == {
+        "verified_target": 22,
+        "process_evidence": 14,
+        "observed_only": 0,
+        "quarantined": 0,
+    }
+    assert len(curriculum.teaching_cases) == 22
+    assert len(curriculum.teaching_living_curriculum.episodes) == 22
+    process_ids = {
+        case.episode.episode_id
+        for case in curriculum.cases
+        if case.eligibility is TeachingEligibility.PROCESS_EVIDENCE
+    }
+    assert {
+        episode.episode_id
+        for episode in curriculum.teaching_living_curriculum.episodes
+    }.isdisjoint(process_ids)
+
+
+def test_c1_training_lane_never_schedules_process_evidence() -> None:
+    curriculum = _compile()
+    lanes = _training_lanes(
+        build_living_reasoning_smoke_curriculum(), [curriculum], []
+    )
+    scheduled_ids = {
+        material.episode.episode_id
+        for lane_name, rows in lanes
+        if lane_name == "ffcs-C1"
+        for kind, material, _manifest_id in rows
+        if kind == "first_form_case"
+    }
+    expected_ids = {
+        case.episode.episode_id
+        for case in curriculum.teaching_cases
+        if case.episode.split == "train"
+    }
+    process_ids = {
+        case.episode.episode_id
+        for case in curriculum.cases
+        if case.eligibility is TeachingEligibility.PROCESS_EVIDENCE
+    }
+    assert scheduled_ids == expected_ids
+    assert scheduled_ids.isdisjoint(process_ids)
+
+
+def test_c1_process_evidence_fails_closed_at_objective_boundary() -> None:
+    curriculum = _compile()
+    process_case = next(
+        case
+        for case in curriculum.cases
+        if case.eligibility is TeachingEligibility.PROCESS_EVIDENCE
+    )
+    with pytest.raises(ValueError, match="only VERIFIED_TARGET"):
+        _material_objective(
+            None,  # type: ignore[arg-type] - rejection precedes model access
+            kind="first_form_case",
+            material=process_case,
+            soul=None,
+            core_id="not-reached",
+            parameter_generation="not-reached",
+        )

@@ -1,9 +1,36 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-01T07:54:45-05:00
-Current through event: `evt-20260901T075445911705Z-hermes-privacy-confirmed-legal-upgraded`
+Updated: 2026-09-02T12:21:24-05:00
+Current through event: `evt-20260902T172124287113Z-codex-power-outage-recovery-audit`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
+
+## Power-outage recovery audit (2026-09-02)
+
+The repository and local Git object database survived the outage. `main` is at
+local commit `0742e07`, one commit ahead of `origin/main`; that committed Hermes
+legal-development-lineage document is intact but has not been pushed. The
+worktree also preserves an uncommitted, unledgered L0-L4 Language Foundations
+implementation: eleven new Python source/test/launcher files (2,717 lines), two
+tracked integration edits, and a published 349-case immutable curriculum
+manifest at
+`State/training/curricula/language_l0_l4/824aabae2090c721da9b55540a5d890fc958577d2e5c78fde49da870096634f9/manifest.json`.
+The manifest contains the declared L0-L4 train/heldout/regression counts and
+reloads as 349 `VERIFIED_TARGET` cases.
+
+Recovery verification passed: Git fsck and diff checks; Ruff; compileall; all
+16 focused Language Foundations tests; actual-manifest load; target-visibility,
+hidden-target leakage, and cross-split transfer checks. Pytest emitted only a
+non-fatal access warning for `.pytest_cache`. No local Axon training process is
+running. The only Kaggle record remains private, prepared, and unsubmitted;
+no cloud job was launched. D: has about 300.85 GiB free. No recovered
+implementation file was edited, committed, or pushed during the audit.
+
+The outage did not leave evidence that the other intended work landed: durable
+restart-safe Heart decoder continuation and C1 eligibility/metric isolation
+remain open. Before further implementation or training, review and commit the
+recovered Language Foundations diff deliberately, reconcile its missing author
+turn ledger entry, and push the intact local commit chain.
 
 ## Executive state
 

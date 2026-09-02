@@ -86,7 +86,9 @@ class FirstFormCase:
     case_id: str = field(init=False)
 
     def __post_init__(self) -> None:
-        if self.family not in {"A", "B", "C", "D", "E", "F", "C1"}:
+        if self.family not in {
+            "A", "B", "C", "D", "E", "F", "C1", "L0", "L1", "L2", "L3", "L4",
+        }:
             raise ValueError("unsupported FFCS family")
         if not self.competency or not self.lineage_id:
             raise ValueError("FFCS competency and lineage must be non-empty")
@@ -171,6 +173,43 @@ class FirstFormCurriculum:
     @property
     def living_curriculum(self) -> LivingReasoningCurriculum:
         return LivingReasoningCurriculum(tuple(item.episode for item in self.cases))
+
+    @property
+    def teaching_cases(self) -> tuple[FirstFormCase, ...]:
+        """Cases whose exact targets are authorized to drive optimizer loss.
+
+        Published manifests retain every evidence class and their historical
+        identities.  This derived view is the permanent Trainer boundary:
+        PROCESS_EVIDENCE, OBSERVED_ONLY, and QUARANTINED material may remain
+        inspectable, but cannot silently become exact-string supervision.
+        """
+
+        return tuple(
+            item
+            for item in self.cases
+            if item.eligibility is TeachingEligibility.VERIFIED_TARGET
+        )
+
+    @property
+    def teaching_living_curriculum(self) -> LivingReasoningCurriculum:
+        """Content-addressed optimizer/evaluation view of verified targets."""
+
+        cases = self.teaching_cases
+        if not cases:
+            raise ValueError("FFCS manifest contains no VERIFIED_TARGET teaching cases")
+        return LivingReasoningCurriculum(tuple(item.episode for item in cases))
+
+    @property
+    def eligibility_counts(self) -> tuple[tuple[str, int], ...]:
+        """Deterministic evidence-class inventory for reports and gates."""
+
+        return tuple(
+            (
+                eligibility.value,
+                sum(item.eligibility is eligibility for item in self.cases),
+            )
+            for eligibility in TeachingEligibility
+        )
 
     @property
     def actual_family_split_counts(self) -> tuple[tuple[str, tuple[int, int, int]], ...]:

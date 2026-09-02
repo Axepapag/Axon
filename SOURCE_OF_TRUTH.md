@@ -865,6 +865,32 @@ canonical D signal and exact targets; proposal refinement compares the same
 refined target with and without the first board. Hidden-state movement is not
 reported as learned exact-rate improvement.
 
+The communication-first C1 manifest
+`c04ae8c6815e93b31136fdf833a525388c8439e74fd5317268cb1e1ba1233212`
+retains all 36 authored cases as historical curriculum evidence, including 14
+`PROCESS_EVIDENCE` open-response cases whose prose is not unique gold. Trainer
+execution derives a content-addressed teaching view containing only the 22
+`VERIFIED_TARGET` cases, uses that view for optimizer source identity, and
+rejects every other eligibility class at the first-form objective boundary.
+Learned-capability evaluation likewise uses the isolated verified standard-
+curriculum heldout/regression surface rather than combining it with synthetic
+mechanism cases; reports retain per-manifest and per-family metrics. Historical
+C1 step-193 artifacts predate this contract and remain inadmissible as the
+evidence-qualified C1 verdict.
+
+The first objective Language Foundations curriculum is published at manifest
+`824aabae2090c721da9b55540a5d890fc958577d2e5c78fde49da870096634f9`.
+It contains 349 complete `VERIFIED_TARGET` cases across L0 exact
+character/Unicode transport, L1 orthography, L2 vocabulary, L3 morphology, and
+L4 grammar, with 240 train, 56 heldout, and 53 regression cases. Every lesson
+uses the real Shared Field, exact D64 compiler rail, three-phase private-Soul
+unroll, typed 351-category transport, and exact response-draft address. Hidden-
+target leakage, visibility consistency, and train/heldout/regression transfer-
+item disjointness fail closed. The full 1x64-head/two-layer/131072-FFN tissue
+passed local CPU preflight as receipt
+`ae99a3149485f0fa3d5d0d5dd006d2a89c0bf66f44b08fff8a36a35d4e3070d3`;
+this proves launch anatomy, not learned language.
+
 Full-field recurrent training uses exact page-level activation checkpointing
 while gradients are enabled. It recomputes the same page encoder during
 backpropagation; it does not omit, summarize, detach, or truncate any field
