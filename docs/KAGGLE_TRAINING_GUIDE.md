@@ -44,6 +44,10 @@ with an explicit all-rights-reserved/non-redistribution description. The live
 backend currently rejects the documented `copyright-authors` slug. Kaggle CLI
 2.2.4 can print a dataset-creation error while returning exit code zero, so the
 adapter also parses that semantic failure and refuses to submit a kernel.
+After creation, Axon waits for Kaggle's authenticated dataset status to become
+`ready` before submitting the kernel. The runner prefers the declared dataset
+slug but can discover the single hash-verified packet manifest anywhere under
+`/kaggle/input` if the provider rewrites the private mount name.
 
 Preparation and launch are intentionally separate:
 

@@ -117,6 +117,8 @@ class _FakeKaggle:
             output = "Kaggle API 2.2.4\n"
         elif command[:2] == ("kaggle", "quota"):
             output = '[{"resource":"GPU","remaining":"30.00h","total":"30.00h","refreshAt":"soon"}]'
+        elif command[:3] == ("kaggle", "datasets", "status"):
+            output = "ready\n"
         else:
             output = "ok\n"
         return subprocess.CompletedProcess(command, 0, stdout=output, stderr="")
@@ -183,7 +185,11 @@ def test_kaggle_launch_is_private_idempotent_and_uses_no_credentials_in_argv(tmp
     assert "-u" not in create
     assert "--accelerator" not in push
     assert "unpacked_input_detected" in generated_runner
+    assert 'rglob("axon_packet_manifest.json")' in generated_runner
     assert 'env["PYTHONPATH"]' in generated_runner
+    status_index = next(index for index, call in enumerate(runner.calls) if call[:3] == ("kaggle", "datasets", "status"))
+    push_index = next(index for index, call in enumerate(runner.calls) if call[:3] == ("kaggle", "kernels", "push"))
+    assert status_index < push_index
     assert all("token" not in " ".join(call).lower() for call in runner.calls)
 
 

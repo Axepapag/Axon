@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import time
 from pathlib import Path
 from typing import Any, Callable, Sequence
 
@@ -19,6 +20,8 @@ from .cloud_jobs import (
 
 CommandRunner = Callable[..., subprocess.CompletedProcess[str]]
 KAGGLE_GPU_MACHINE_SHAPE = "NvidiaTeslaT4"
+KAGGLE_DATASET_READY_ATTEMPTS = 24
+KAGGLE_DATASET_READY_INTERVAL_SECONDS = 2.0
 
 
 def _default_runner(
@@ -90,6 +93,7 @@ def publish(status: str, **details) -> None:
 def main() -> int:
     OBS.mkdir(parents=True, exist_ok=True)
     publish("starting", python=sys.version, input=str(INPUT))
+    input_root = Path("/kaggle/input")
     input_dir = INPUT.parent
     WORK.mkdir(parents=True, exist_ok=True)
     if INPUT.is_file():
@@ -105,7 +109,24 @@ def main() -> int:
             elif item.is_dir():
                 shutil.copytree(item, WORK / item.name, dirs_exist_ok=True)
     else:
-        raise RuntimeError(f"Axon packet is missing at {{INPUT}} and no input directory exists")
+        # Provider mount names are not a packet identity. Discover the one
+        # verified manifest if Kaggle rewrites the private dataset mount path.
+        manifests = sorted(input_root.rglob("axon_packet_manifest.json")) if input_root.is_dir() else []
+        publish(
+            "input_discovery",
+            input_root_exists=input_root.is_dir(),
+            manifest_candidates=[str(path) for path in manifests],
+        )
+        if len(manifests) != 1:
+            raise RuntimeError(
+                f"Axon packet is missing at {{INPUT}} and discovery found {{len(manifests)}} manifests"
+            )
+        discovered_root = manifests[0].parent
+        for item in discovered_root.iterdir():
+            if item.is_file():
+                shutil.copy2(item, WORK / item.name)
+            elif item.is_dir():
+                shutil.copytree(item, WORK / item.name, dirs_exist_ok=True)
     manifest_path = WORK / "axon_packet_manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest.get("schema") != "axon-cloud-training-packet-v1":
@@ -233,6 +254,19 @@ class KaggleTrainerAdapter:
             "launched": False,
         }
 
+    def _wait_for_dataset_ready(self, dataset_ref: str) -> None:
+        last_status = "unqueried"
+        for attempt in range(KAGGLE_DATASET_READY_ATTEMPTS):
+            completed = self._run(("kaggle", "datasets", "status", dataset_ref))
+            last_status = completed.stdout.strip().lower()
+            if last_status == "ready":
+                return
+            if attempt + 1 < KAGGLE_DATASET_READY_ATTEMPTS:
+                time.sleep(KAGGLE_DATASET_READY_INTERVAL_SECONDS)
+        raise CloudPacketError(
+            f"Kaggle dataset did not become ready for kernel attachment: {dataset_ref} ({last_status})"
+        )
+
     def _materialize_kaggle_files(self, job_id: str) -> tuple[dict[str, Any], Path, Path]:
         record = read_job_record(self.state_root, job_id)
         job_dir = self.state_root / "training" / "cloud" / "jobs" / job_id
@@ -315,6 +349,7 @@ class KaggleTrainerAdapter:
                     "Kaggle reported dataset creation failure despite returning exit code zero: "
                     f"{(created.stdout or created.stderr).strip()}"
                 )
+            self._wait_for_dataset_ready(dataset_ref)
             record = {
                 **record,
                 "phase": "dataset_uploaded",
