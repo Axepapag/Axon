@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
+import tempfile
 import time
 from pathlib import Path
 from typing import Any, Callable, Sequence
@@ -543,7 +545,44 @@ class KaggleTrainerAdapter:
             raise CloudPacketError("job has not been submitted to Kaggle")
         destination = self.state_root / "training" / "cloud" / "jobs" / job_id / "outputs"
         destination.mkdir(parents=True, exist_ok=True)
-        self._run(("kaggle", "kernels", "output", str(kernel_ref), "-p", str(destination), "-o"))
+        # Kaggle output trees contain Soul snapshot paths that exceed Windows
+        # MAX_PATH when placed directly under the canonical job directory.
+        # Download into a short temp directory first, then move the tree into
+        # canonical position with robocopy (long-path aware on Windows).
+        temp_root = Path(os.environ.get("TEMP") or tempfile.gettempdir()) / "axon_fetch"
+        temp_root.mkdir(parents=True, exist_ok=True)
+        temp_target = Path(tempfile.mkdtemp(prefix="axon_out_", dir=temp_root))
+        self._run(("kaggle", "kernels", "output", str(kernel_ref), "-p", str(temp_target), "-o"))
+        if os.name == "nt":
+            completed = subprocess.run(
+                [
+                    "robocopy",
+                    str(temp_target),
+                    str(destination),
+                    "/E",
+                    "/MOVE",
+                    "/NFL",
+                    "/NDL",
+                    "/NJH",
+                    "/NJS",
+                    "/NP",
+                ],
+                capture_output=True,
+                text=True,
+            )
+            # robocopy exit codes < 8 are success (1 = files copied)
+            if completed.returncode >= 8:
+                raise CloudPacketError(
+                    f"robocopy failed moving outputs into canonical position: rc={completed.returncode}"
+                )
+        else:
+            if temp_target.exists():
+                shutil.copytree(temp_target, destination, dirs_exist_ok=True)
+            shutil.rmtree(temp_target, ignore_errors=True)
+        try:
+            shutil.rmtree(temp_target, ignore_errors=True)
+        except OSError:
+            pass
         result_path = destination / "axon_job_result.json"
         result = None
         if result_path.is_file():

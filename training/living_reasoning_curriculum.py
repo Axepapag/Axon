@@ -439,6 +439,7 @@ def evaluate_living_episode(
     core_id: str,
     parameter_generation: str,
     ablate_temperatures: tuple[SoulTemperature, ...] = (),
+    transcript_sink: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Measure free-running exact typed emissions on one complete episode."""
 
@@ -453,6 +454,8 @@ def evaluate_living_episode(
         refined_workspace_text=episode.refined_workspace_text,
         ablate_temperatures=ablate_temperatures,
     )
+    region_texts = {state.name: state.text for state in episode.snapshot.regions}
+    prompt_text = region_texts.get(LogicalRegion.USER_INPUT, "")
     supervised = 0
     typed_exact = 0
     payload_count = 0
@@ -486,6 +489,20 @@ def evaluate_living_episode(
             payload, terminated = model.decode_transport_greedy(output)
             payload_match = terminated and payload == target.payload
             payload_exact += int(payload_match)
+            if transcript_sink is not None and payload_count <= 3:
+                transcript_sink.append(
+                    {
+                        "episode_id": episode.episode_id,
+                        "prompt": prompt_text,
+                        "predicted_payload": payload,
+                        "expected_payload": target.payload,
+                        "exact_match": bool(payload_match),
+                        "terminated": bool(terminated),
+                        "operation": (operation.name if operation is not None else None),
+                        "region": (region.name if region is not None else None),
+                        "decision": (decision.name if decision is not None else None),
+                    }
+                )
             teacher_logits, teacher_targets = model.decode_teacher(
                 output.reader_state,
                 target.payload,

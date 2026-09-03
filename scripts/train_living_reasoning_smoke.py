@@ -908,6 +908,7 @@ def main() -> int:
 
         def evaluate_candidate() -> dict[str, Any]:
             session.candidate_module.eval()
+            qa_rows: list[dict[str, Any]] = []
             exact_rows = [
                 evaluate_living_episode(
                     session.candidate_module,
@@ -915,6 +916,7 @@ def main() -> int:
                     soul_branch.load_head(),
                     core_id=module_id,
                     parameter_generation=candidate_generation,
+                    transcript_sink=qa_rows,
                 )
                 for episode in heldout_episodes
             ]
@@ -1035,6 +1037,7 @@ def main() -> int:
                         [exact_rows[index] for index in indexes],
                         [exact_losses[index] for index in indexes],
                     )
+            result["qa_transcripts"] = qa_rows[:12]
             return result
 
         if progress is not None:
@@ -1042,6 +1045,23 @@ def main() -> int:
                 "evaluating", phase="initial", global_step=(0 if latest_bundle is None else latest_bundle.step)
             )
         initial_evaluation = evaluate_candidate()
+        if progress is not None:
+            progress.emit(
+                "evaluated",
+                phase="initial",
+                global_step=(0 if latest_bundle is None else latest_bundle.step),
+                heldout_mean_loss=initial_evaluation["heldout_mean_loss"],
+                typed_emission_exact_rate=initial_evaluation["typed_emission_exact_rate"],
+                payload_transport_exact_rate=initial_evaluation["payload_transport_exact_rate"],
+                payload_teacher_forced_token_accuracy=initial_evaluation[
+                    "payload_teacher_forced_token_accuracy"
+                ],
+                constant_payload_token_accuracy_floor=initial_evaluation[
+                    "constant_payload_token_accuracy_floor"
+                ],
+                evaluated_case_count=initial_evaluation["evaluated_case_count"],
+                qa_transcripts=initial_evaluation.get("qa_transcripts", [])[:8],
+            )
         prior_reports = sorted(campaign_report_dir.glob("segment_*.json"))
         campaign_baseline_evaluation = (
             initial_evaluation
@@ -1169,6 +1189,23 @@ def main() -> int:
         if progress is not None:
             progress.emit("evaluating", phase="final", global_step=end_step)
         final_evaluation = evaluate_candidate()
+        if progress is not None:
+            progress.emit(
+                "evaluated",
+                phase="final",
+                global_step=end_step,
+                heldout_mean_loss=final_evaluation["heldout_mean_loss"],
+                typed_emission_exact_rate=final_evaluation["typed_emission_exact_rate"],
+                payload_transport_exact_rate=final_evaluation["payload_transport_exact_rate"],
+                payload_teacher_forced_token_accuracy=final_evaluation[
+                    "payload_teacher_forced_token_accuracy"
+                ],
+                constant_payload_token_accuracy_floor=final_evaluation[
+                    "constant_payload_token_accuracy_floor"
+                ],
+                evaluated_case_count=final_evaluation["evaluated_case_count"],
+                qa_transcripts=final_evaluation.get("qa_transcripts", [])[:8],
+            )
         counterfactuals_passed = all(value > 1e-8 for value in final_evaluation["counterfactuals"].values())
         task_gate_passed = (
             complete_heldout_evaluation
