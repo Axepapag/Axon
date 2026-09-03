@@ -1,11 +1,11 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-02T13:36:04-05:00
-Current through event: `evt-20260902T1836046865748Z-codex-l0-l4-c1-kaggle-preparation`
+Updated: 2026-09-03T12:23:33.8524663-05:00
+Current through event: `evt-20260903T172333852466Z-codex-abc-kaggle-launch-audit`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
-## Language-school and Kaggle readiness closeout (2026-09-02)
+## Language/ABC readiness and Kaggle launch blocker (2026-09-03)
 
 Kimmy's recovered L0-L4 Language Foundations implementation has been inspected,
 accepted, integrated, and attributed. Its immutable manifest
@@ -27,14 +27,29 @@ The previous step-193 C1 artifacts remain mechanism diagnostics and are not
 retroactively qualified.
 
 Commit `4944584` contains the language school, C1 closure, SOT updates, and the
-first D64 Language Kaggle recipe; it and the recovered Hermes commit `0742e07`
-are pushed to `origin/main`. A private, unsubmitted Kaggle packet is prepared as
-job `1bf5766b9bedf3b4df787c9227e58c4cb1ec39c03d9f3f94227a5a7988630898`,
-bound to revision `494458469fd2c6cec7ddc639b4df5365aef42147` and packet SHA256
-`425e64d44bbc037d779374f2ebc2694a6ca1595187dcb88076d642ebd68bda32`.
-Its 360-step renewable tranche is one six-lane exposure cycle, not a tissue or
-core ceiling. No upload, kernel submission, optimizer step, quota use, or spend
-has begun.
+first D64 Language Kaggle recipe. Hermes then published the 104-case ABC/native-
+bank sequence manifest
+`1787a095c23a07348352c6cf5a4aab0bb9a2fd6a04924aa7d7b1779839c91850`
+(80 train, 12 heldout, 12 regression) and a 180-step renewable first tranche.
+The stale 720-step campaign ceiling was removed; no step allowance is tissue
+identity or lifetime capacity.
+
+The first private ABC cloud job is
+`91106fadd21597990196f98094ca8a48c483040e761513fca42aadb5dd45b76f`.
+Its private dataset is ready and attached, packet SHA256 is
+`49c255ee0e28084bb8ec1dc50d23ca360414df90d9c4c38c0397927e88345468`,
+and the notebook controller finds and verifies the packet. Kaggle nevertheless
+ran a CPU-only image while accepting T4 metadata. The live Session options UI
+identified the external cause: this account must complete phone verification
+before GPU/TPU access is enabled. The fail-closed CUDA allocation/compute probe
+stopped every attempt before optimizer step one; fetched result evidence is
+under the job's `outputs/axon_job_result.json`. GPU quota remains 30.00h.
+
+Commits `bc2c5ee` through `8acf73c` harden private dataset creation/readiness,
+packet mount discovery, notebook execution, and real CUDA selection. Commits
+`b73c461` and `e66a21f` prevent quota from being mislabeled as entitlement and
+allow the double-click control center to safely retry an errored/completed job
+without duplicating an active one. All are pushed to `origin/main`.
 
 ## Executive state
 
@@ -86,18 +101,15 @@ step 17 from its exact step-16 parent bundle under a 1-step tranche — same
 plan_id, same generation, `paused_for_next_tranche=true`. Lineages now continue
 additively; no candidate is ever restarted for wanting more compute.
 
-Private persistent Kaggle execution is now a real Trainer adapter (commit
-`a8c52ca`). The official Kaggle CLI 2.2.4 is installed globally and its OAuth
-session is healthy for account `axepapgt`; credentials remain solely in the
-official user store and are never inspected or packaged. `AXON_KAGGLE.bat`
-opens an independent control center; private packet preparation, explicit
-launch confirmation, provider-native status/log following in a separate
-terminal, and output retrieval all survive an engineer harness ending.
-Per-step loss/progress is flushed to Kaggle logs plus durable JSONL/current
-artifacts. One zero-upload fresh D64 packet was prepared and independently
-hash/preflight verified as job `32bdb49a...` (134 files, 2.2 MiB,
-revision `a8c52ca`); no dataset/kernel was uploaded and provider usage remains
-0.00h. Live quota at closeout was 30 GPU and 20 TPU hours.
+Private persistent Kaggle execution is a real Trainer adapter. The official
+Kaggle CLI 2.2.4 is installed globally and its authenticated quota request is
+healthy; credentials remain solely in the official user store and are never
+inspected or packaged. `AXON_KAGGLE.bat` opens an independent control center;
+private packet preparation, explicit launch/retry confirmation, active-job
+duplicate rejection, provider-native monitoring, and output retrieval survive
+an engineer harness ending. Every GPU run performs a real CUDA allocation and
+compute probe before optimizer work. CLI quota is explicitly not reported as
+accelerator entitlement.
 
 ChatGPT's Language Foundations Schoolhouse proposal has been reviewed against
 the live D64 core, FFCS/C1 loaders, loss path, candidate-C evidence, SOT, and
@@ -124,15 +136,19 @@ liveness, Heart dialect IDs, valve inventory, and checkpoint materialization
 now use source-preserving renewable work controls rather than fixed content
 ceilings. Exact oversized items cross whole; later work defers visibly.
 
-## Current campaign: qualified language-school first tranche
+## Current campaign: ABC first tranche, externally blocked
 
-The next governed learning diagnostic is the D64 Language L0-L4 first tranche
-in `configs/kaggle/d64_language_l0_l4_first_tranche.json`. It uses one 64D head,
-two Transformer layers, a 131072-wide FFN, the complete 349-case objective
-manifest, and a 360-step renewable resource tranche. The derivation is explicit:
-six scheduled lanes (mechanism plus L0-L4) multiplied by the largest language
-train lane's 60 cases. Completion/renewal is gate-governed; 360 does not cap the
-core, curriculum, lineage, or lifetime optimizer work.
+The next governed learning diagnostic is the D64 ABC sequence first tranche in
+`configs/kaggle/d64_abc_sequence_first_tranche.json`. It uses one 64D head, two
+Transformer layers, a 131072-wide FFN, the complete 104-case objective manifest,
+and a 180-step renewable resource tranche. Completion/renewal is gate-governed;
+180 does not cap the core, curriculum, lineage, or lifetime optimizer work.
+
+Local real-tissue preflight passed for the 33,981,879-parameter architecture.
+Receipt `d7d06f8ab9e68501eab0c986a9d568da827fae34e2603b0bdf8399104d4f20ed`
+proved 104 verified and zero excluded cases. The cloud packet, private dataset,
+mount, and controller are valid. Training is blocked only at Kaggle account
+accelerator entitlement until phone verification exposes GPU/TPU choices.
 
 Real-tissue local CPU preflight passed for the 33,981,879-parameter permanent
 architecture. Language receipt
@@ -418,9 +434,11 @@ continuation-closure resolver remain future work.
 
 ## Verification and Git
 
-- Full repository suite: **520/520 passed**, exit code 0. This includes real
-  temporary-state Trainer resume/tranche and tournament subprocesses.
-- Post-binding focused no-ceilings/dialect/decoder suite: 9/9 passed.
+- Full repository suite after ABC/L0-L4/C1 integration: **533/533 passed**,
+  exit code 0. This includes real temporary-state Trainer resume/tranche and
+  tournament subprocesses.
+- Final cloud/ABC/no-ceilings focused suite after retry hardening: **24/24
+  passed**. Ruff, compileall, and `git diff --check` passed.
 - Changed-file Ruff, Python compileall, and `git diff --check` passed.
 - The protected capacity registry verifies at canonical SHA256
   `4a32f18fa296c415ccf34a8c1956d2a4f8afd044265e7f45505782dd53c7b8cd`;
@@ -428,24 +446,26 @@ continuation-closure resolver remain future work.
 - SOT mirrors are byte-identical at SHA256
   `23C4B100A01038E6E2D9189278F90F37647A597F42F2B13D381EDEC3F1327373`.
 - `git diff --check`: passed.
-- Language/C1/Kaggle preparation is committed as `4944584` and pushed with the
-  recovered Hermes `0742e07` lineage commit.
-- No local Trainer writer or Kaggle training job is active. Job `1bf5766b...`
-  remains private, `prepared`, and `not submitted`, with null dataset/kernel
-  references. Kaggle reports 30.00 GPU and 20.00 TPU hours remaining.
+- Source and cloud-control code through `e66a21f` is pushed to `origin/main`.
+- No local Trainer writer, Kaggle worker, or browser draft session is active.
+  ABC job `91106fadd...` is private with fetched failure evidence and no
+  optimizer step. Kaggle reports 30.00 GPU and 20.00 TPU hours remaining.
 - Closeout process sweep found zero Axon Python/training processes; D: had
-  323,044,671,488 free bytes (about 300.9 GiB).
+  323,028,135,936 free bytes (about 300.8 GiB).
 - Known non-failing warning: PyTorch nested-tensor optimization warning.
 
 ## Active flags
 
-1. **LEARNED CAPABILITY BLOCKER:** no L0-L4 optimizer tranche has run; C1 A/B at
-   step 193 remain far below the constant floor and exact-output rates are zero.
+1. **LEARNED CAPABILITY BLOCKER:** no ABC or L0-L4 optimizer tranche has run;
+   C1 candidates at step 193 remain far below the constant floor and exact-
+   output rates are zero.
 2. **SERVING BLOCKER:** durable restart-safe Heart-host decoder continuation
    must pass EOS, malformed-output, and cancellation tests before learned D64
    tissue can serve. This does not block governed offline training.
-3. **KAGGLE LAUNCH BOUNDARY:** the language packet is private and prepared but
-   intentionally unsubmitted. Explicit operator launch remains required.
+3. **KAGGLE ACCOUNT BLOCKER:** the live provider UI requires phone verification
+   before enabling GPU/TPU. CLI quota and T4 metadata do not override that
+   entitlement boundary. Retry only after verification and confirm the real
+   CUDA probe succeeds.
 4. **MID-TRANCHE RECOVERY GAP:** a crash does not strand accepted state, but
    the operator must calculate a residual tranche manually; no durable
    abandonment/residual receipt or dedicated recovery test exists.
@@ -488,15 +508,16 @@ continuation-closure resolver remain future work.
 
 0. Keep the C step-193 reports as mechanism diagnostics; do not reinterpret
    them as an evidence-qualified communication verdict.
-1. With explicit operator confirmation, submit the prepared private Kaggle
-   L0-L4 packet and monitor live logs/durable artifacts through AXON_KAGGLE.bat.
-2. Evaluate the first 360-step exposure cycle only on its predeclared isolated
-   language families; renew or adjust from evidence, never an arbitrary
-   max-step ceiling.
-3. Wire durable, restart-safe Heart-host decoder continuation around the
+1. Jeff completes Kaggle's one-time phone verification from the live Session
+   options link; then confirm that T4 is selectable.
+2. Double-click `AXON_KAGGLE.bat`, choose Launch or retry, and submit job
+   `91106fadd...`; watch through the first evaluation and fetch durable output.
+3. Evaluate the 180-step ABC tranche against its predeclared heldout/regression,
+   exact-output, constant-floor, and causal gates; renew or adjust from evidence.
+4. Wire durable, restart-safe Heart-host decoder continuation around the
    existing renewable in-process iterator before learned D64 serving; preserve
    explicit EOS, malformed-output rejection, and cancellation evidence.
-4. Add exact mid-tranche residual recovery and automatic cloud continuation
+5. Add exact mid-tranche residual recovery and automatic cloud continuation
    closure. Promote nothing until the complete serving gate passes.
 
 ## Important paths
@@ -526,6 +547,8 @@ continuation-closure resolver remain future work.
 - Launcher: `scripts/train_living_reasoning_smoke.py`
 - Kaggle control: `AXON_KAGGLE.bat`, `scripts/axon_kaggle.py`,
   `docs/KAGGLE_TRAINING_GUIDE.md`
+- ABC curriculum: `training/abc_sequence_curriculum.py`,
+  `configs/kaggle/d64_abc_sequence_first_tranche.json`
 - Language proposal:
   `roundtable/CHATGPT_LANGUAGE_FOUNDATIONS_SCHOOLHOUSE_PROPOSAL_2026-08-31.md`
 - Full tests: `python -m pytest -q`
