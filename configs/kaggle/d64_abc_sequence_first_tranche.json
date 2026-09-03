@@ -31,6 +31,7 @@
   ],
   "include_paths": [
     "State/active/branches/active",
-    "State/training/curricula/ffcs_v1/1787a095c23a07348352c6cf5a4aab0bb9a2fd6a04924aa7d7b1779839c91850/manifest.json"
+    "State/training/curricula/ffcs_v1/1787a095c23a07348352c6cf5a4aab0bb9a2fd6a04924aa7d7b1779839c91850/manifest.json",
+    "configs/source_of_truth/capacity_policy.json"
   ]
 }
