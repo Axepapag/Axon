@@ -135,6 +135,12 @@ python scripts/axon_kaggle.py status <job-id>
 python scripts/axon_kaggle.py fetch <job-id>
 ```
 
+Running `launch <job-id> --yes` again after an errored or completed/fetched
+version submits a new private version from the same immutable packet and input
+dataset. It first checks provider status and refuses to duplicate a running,
+queued, or pending job. The double-click control center exposes this as
+"Launch or retry"; no raw Kaggle command is required.
+
 `doctor` makes an authenticated live quota request. It proves that the CLI and
 account session work and reports the provider's current quota. It does **not**
 prove accelerator entitlement: Kaggle may accept GPU metadata and expose quota

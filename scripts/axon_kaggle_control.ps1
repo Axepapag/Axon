@@ -23,7 +23,7 @@ while ($true) {
     Write-Host "1  Check login and remaining GPU/TPU time"
     Write-Host "2  List Axon cloud jobs known on this machine"
     Write-Host "3  Prepare the first D64 Kaggle packet (NO upload)"
-    Write-Host "4  Launch a prepared packet privately on Kaggle"
+    Write-Host "4  Launch or retry a packet privately on Kaggle"
     Write-Host "5  Open a separate live monitor window"
     Write-Host "6  Check one job now"
     Write-Host "7  Download completed outputs"
@@ -46,7 +46,8 @@ while ($true) {
         "4" {
             $JobId = (Read-Host "Paste the full prepared job ID").Trim()
             if ($JobId) {
-                Write-Host "This uploads a PRIVATE dataset and submits a PRIVATE Kaggle job." -ForegroundColor Yellow
+                Write-Host "This uploads a PRIVATE dataset if needed and submits a PRIVATE Kaggle job version." -ForegroundColor Yellow
+                Write-Host "An active running/queued job will be detected and will not be duplicated." -ForegroundColor Yellow
                 Write-Host "It may consume Kaggle accelerator quota." -ForegroundColor Yellow
                 $Confirm = (Read-Host "Type LAUNCH to authorize this exact job").Trim()
                 if ($Confirm -ceq "LAUNCH") {

@@ -422,6 +422,19 @@ class KaggleTrainerAdapter:
         slug = f"axon-job-{job_id[:16]}"
         dataset_ref = f"{self.owner}/{slug}-input"
         kernel_ref = f"{self.owner}/{slug}"
+        resubmission_status: str | None = None
+        if record.get("phase") in {"submitted", "outputs_fetched"}:
+            if record.get("dataset_ref") != dataset_ref or record.get("kernel_ref") != kernel_ref:
+                raise CloudPacketError("existing Kaggle references do not match this private job identity")
+            completed = self._run(("kaggle", "kernels", "status", kernel_ref))
+            resubmission_status = completed.stdout.strip()
+            normalized_status = resubmission_status.lower()
+            if any(marker in normalized_status for marker in ("running", "queued", "pending")):
+                raise CloudPacketError(
+                    "Kaggle job is already active; refusing to submit a duplicate version: "
+                    f"{resubmission_status}"
+                )
+            self._wait_for_dataset_ready(dataset_ref)
         if record.get("phase") == "prepared":
             created = self._run(("kaggle", "datasets", "create", "-p", str(dataset_dir), "-r", "skip"))
             combined_output = f"{created.stdout}\n{created.stderr}".lower()
@@ -438,12 +451,21 @@ class KaggleTrainerAdapter:
                 "kernel_ref": kernel_ref,
             }
             write_job_record(self.state_root, job_id, record)
-        if record.get("phase") == "dataset_uploaded":
+        if record.get("phase") == "dataset_uploaded" or resubmission_status is not None:
             # The machine shape is already explicit in kernel metadata. Passing
             # the CLI --accelerator override currently drops dataset_sources
             # from the submitted kernel, so metadata is the single authority.
             self._run(("kaggle", "kernels", "push", "-p", str(kernel_dir)))
-            record = {**record, "phase": "submitted", "kernel_ref": kernel_ref}
+            record = {
+                **record,
+                "phase": "submitted",
+                "kernel_ref": kernel_ref,
+                **(
+                    {"provider_status_before_resubmission": resubmission_status}
+                    if resubmission_status is not None
+                    else {}
+                ),
+            }
             write_job_record(self.state_root, job_id, record)
         return record
 

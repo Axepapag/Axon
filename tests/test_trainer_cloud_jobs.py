@@ -225,6 +225,106 @@ def test_kaggle_launch_requires_explicit_confirmation(tmp_path) -> None:
         adapter.launch("missing", confirmed=False)
 
 
+def test_kaggle_launch_retries_a_finished_private_job_without_reuploading_dataset(tmp_path) -> None:
+    repo = tmp_path / "Axon"
+    state = repo / "State"
+    repo.mkdir()
+    job_id = "9" * 64
+    job_dir = state / "training" / "cloud" / "jobs" / job_id
+    (job_dir / "packet").mkdir(parents=True)
+    (job_dir / "packet" / "axon_packet.zip").write_bytes(b"packet")
+    (job_dir / "packet_manifest.json").write_text(
+        json.dumps(
+            {
+                "schema": "axon-cloud-training-packet-v1",
+                "job_id": job_id,
+                "config": {"accelerator": "gpu"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    slug = f"axon-job-{job_id[:16]}"
+    write_job_record(
+        state,
+        job_id,
+        {
+            "schema": CLOUD_JOB_RECORD_SCHEMA,
+            "job_id": job_id,
+            "provider": "kaggle",
+            "accelerator": "gpu",
+            "phase": "outputs_fetched",
+            "git_revision": "1" * 40,
+            "packet_path": str(job_dir / "packet" / "axon_packet.zip"),
+            "packet_sha256": "2" * 64,
+            "dataset_ref": f"axepapgt/{slug}-input",
+            "kernel_ref": f"axepapgt/{slug}",
+            "public": False,
+        },
+    )
+    runner = _FakeKaggle()
+    adapter = KaggleTrainerAdapter(repo_root=repo, state_root=state, owner="axepapgt", runner=runner)
+    retried = adapter.launch(job_id, confirmed=True)
+    assert retried["phase"] == "submitted"
+    assert retried["provider_status_before_resubmission"] == "ok"
+    assert not any(call[:3] == ("kaggle", "datasets", "create") for call in runner.calls)
+    assert sum(call[:3] == ("kaggle", "kernels", "push") for call in runner.calls) == 1
+
+
+def test_kaggle_launch_refuses_to_duplicate_an_active_job(tmp_path) -> None:
+    class RunningKaggle(_FakeKaggle):
+        def __call__(self, argv, *, cwd=None, capture_output=True):
+            result = super().__call__(argv, cwd=cwd, capture_output=capture_output)
+            if tuple(str(item) for item in argv)[:3] == ("kaggle", "kernels", "status"):
+                return subprocess.CompletedProcess(
+                    result.args,
+                    0,
+                    stdout='status "KernelWorkerStatus.RUNNING"\n',
+                    stderr="",
+                )
+            return result
+
+    repo = tmp_path / "Axon"
+    state = repo / "State"
+    repo.mkdir()
+    job_id = "8" * 64
+    job_dir = state / "training" / "cloud" / "jobs" / job_id
+    (job_dir / "packet").mkdir(parents=True)
+    (job_dir / "packet" / "axon_packet.zip").write_bytes(b"packet")
+    (job_dir / "packet_manifest.json").write_text(
+        json.dumps(
+            {
+                "schema": "axon-cloud-training-packet-v1",
+                "job_id": job_id,
+                "config": {"accelerator": "gpu"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    slug = f"axon-job-{job_id[:16]}"
+    write_job_record(
+        state,
+        job_id,
+        {
+            "schema": CLOUD_JOB_RECORD_SCHEMA,
+            "job_id": job_id,
+            "provider": "kaggle",
+            "accelerator": "gpu",
+            "phase": "submitted",
+            "git_revision": "3" * 40,
+            "packet_path": str(job_dir / "packet" / "axon_packet.zip"),
+            "packet_sha256": "4" * 64,
+            "dataset_ref": f"axepapgt/{slug}-input",
+            "kernel_ref": f"axepapgt/{slug}",
+            "public": False,
+        },
+    )
+    runner = RunningKaggle()
+    adapter = KaggleTrainerAdapter(repo_root=repo, state_root=state, owner="axepapgt", runner=runner)
+    with pytest.raises(CloudPacketError, match="already active"):
+        adapter.launch(job_id, confirmed=True)
+    assert not any(call[:3] == ("kaggle", "kernels", "push") for call in runner.calls)
+
+
 def test_kaggle_dataset_semantic_error_fails_closed(tmp_path) -> None:
     repo = tmp_path / "Axon"
     state = repo / "State"
