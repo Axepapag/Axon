@@ -18,6 +18,7 @@ from .cloud_jobs import (
 )
 
 CommandRunner = Callable[..., subprocess.CompletedProcess[str]]
+KAGGLE_GPU_MACHINE_SHAPE = "NvidiaTeslaT4"
 
 
 def _default_runner(
@@ -260,6 +261,12 @@ class KaggleTrainerAdapter:
             "competition_sources": [],
             "kernel_sources": [],
         }
+        if manifest["config"]["accelerator"] == "gpu":
+            # Kaggle's generic/default GPU may resolve to a CPU image or a P100.
+            # The current default PyTorch cu128 build does not support P100
+            # compute, so select the supported T4 shape explicitly and fail
+            # closed in the training entrypoint if CUDA is still unavailable.
+            kernel_metadata["machine_shape"] = KAGGLE_GPU_MACHINE_SHAPE
         (dataset_dir / "dataset-metadata.json").write_text(
             json.dumps(dataset_metadata, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
             encoding="utf-8",
@@ -294,7 +301,10 @@ class KaggleTrainerAdapter:
             }
             write_job_record(self.state_root, job_id, record)
         if record.get("phase") == "dataset_uploaded":
-            self._run(("kaggle", "kernels", "push", "-p", str(kernel_dir)))
+            accelerator = ()
+            if record.get("accelerator") == "gpu":
+                accelerator = ("--accelerator", KAGGLE_GPU_MACHINE_SHAPE)
+            self._run(("kaggle", "kernels", "push", *accelerator, "-p", str(kernel_dir)))
             record = {**record, "phase": "submitted", "kernel_ref": kernel_ref}
             write_job_record(self.state_root, job_id, record)
         return record

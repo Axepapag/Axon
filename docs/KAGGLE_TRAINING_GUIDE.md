@@ -1,6 +1,6 @@
 # Axon Kaggle Training Guide
 
-Status: operational private-launch surface, 2026-08-31
+Status: operational private-launch surface, 2026-09-03
 
 ## The easy path
 
@@ -23,6 +23,17 @@ the largest 60-case language lane one complete exposure cycle. It is renewable
 work authorization, not a maximum lifespan. The job evaluates only the
 `VERIFIED_TARGET` standard-curriculum surface; synthetic mechanism heldout and
 `PROCESS_EVIDENCE` prose cannot contaminate the language capability gate.
+
+The smallest learned-sequence diagnostic is
+`configs/kaggle/d64_abc_sequence_first_tranche.json`. It carries 104 objective
+ABC/native-bank sequence cases and grants a renewable 180-step first tranche.
+The recipe requires CUDA; it must fail rather than silently train the permanent
+33.98-million-parameter tissue on a cloud CPU.
+
+For GPU jobs the adapter explicitly requests Kaggle's `NvidiaTeslaT4` machine
+shape in both kernel metadata and the CLI submission. Do not use Kaggle's
+generic/default GPU selection: it may resolve to an unsuitable image or P100,
+while the current default PyTorch cu128 build does not support P100 compute.
 
 Preparation and launch are intentionally separate:
 

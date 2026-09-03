@@ -169,8 +169,12 @@ def test_kaggle_launch_is_private_idempotent_and_uses_no_credentials_in_argv(tmp
     assert launched["phase"] == "submitted"
     assert metadata["is_private"] is True
     assert metadata["enable_internet"] is False
+    assert metadata["enable_gpu"] is True
+    assert metadata["machine_shape"] == "NvidiaTeslaT4"
     create = next(call for call in runner.calls if call[:3] == ("kaggle", "datasets", "create"))
+    push = next(call for call in runner.calls if call[:3] == ("kaggle", "kernels", "push"))
     assert "-u" not in create
+    assert push[3:5] == ("--accelerator", "NvidiaTeslaT4")
     assert all("token" not in " ".join(call).lower() for call in runner.calls)
 
 
