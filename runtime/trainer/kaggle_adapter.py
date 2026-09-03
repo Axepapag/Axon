@@ -257,8 +257,11 @@ class KaggleTrainerAdapter:
         dataset_metadata = {
             "title": f"Axon job {job_id[:16]} input",
             "id": dataset_ref,
-            "licenses": [{"name": "copyright-authors"}],
-            "description": "Private, content-addressed Axon training packet.",
+            "licenses": [{"name": "other"}],
+            "description": (
+                "Private, content-addressed Axon training packet. All rights reserved; "
+                "not licensed for public redistribution."
+            ),
         }
         kernel_metadata = {
             "id": kernel_ref,
@@ -305,7 +308,13 @@ class KaggleTrainerAdapter:
         dataset_ref = f"{self.owner}/{slug}-input"
         kernel_ref = f"{self.owner}/{slug}"
         if record.get("phase") == "prepared":
-            self._run(("kaggle", "datasets", "create", "-p", str(dataset_dir), "-r", "skip"))
+            created = self._run(("kaggle", "datasets", "create", "-p", str(dataset_dir), "-r", "skip"))
+            combined_output = f"{created.stdout}\n{created.stderr}".lower()
+            if "dataset creation error" in combined_output:
+                raise CloudPacketError(
+                    "Kaggle reported dataset creation failure despite returning exit code zero: "
+                    f"{(created.stdout or created.stderr).strip()}"
+                )
             record = {
                 **record,
                 "phase": "dataset_uploaded",

@@ -39,6 +39,12 @@ can drop `dataset_sources` when that override is supplied. The generated runner
 also accepts Kaggle's two legitimate dataset presentations: the original ZIP
 or an automatically unpacked input directory.
 
+Transport datasets remain private and use Kaggle's `other` license category
+with an explicit all-rights-reserved/non-redistribution description. The live
+backend currently rejects the documented `copyright-authors` slug. Kaggle CLI
+2.2.4 can print a dataset-creation error while returning exit code zero, so the
+adapter also parses that semantic failure and refuses to submit a kernel.
+
 Preparation and launch are intentionally separate:
 
 1. **Prepare** hashes committed executable source plus every explicitly named

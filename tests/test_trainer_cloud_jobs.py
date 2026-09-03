@@ -169,6 +169,11 @@ def test_kaggle_launch_is_private_idempotent_and_uses_no_credentials_in_argv(tmp
     generated_runner = (job_dir / "kaggle" / "kernel" / "axon_kaggle_runner.py").read_text(encoding="utf-8")
     compile(generated_runner, "axon_kaggle_runner.py", "exec")
     assert launched["phase"] == "submitted"
+    dataset_metadata = json.loads(
+        (job_dir / "kaggle" / "dataset" / "dataset-metadata.json").read_text(encoding="utf-8")
+    )
+    assert dataset_metadata["licenses"] == [{"name": "other"}]
+    assert "All rights reserved" in dataset_metadata["description"]
     assert metadata["is_private"] is True
     assert metadata["enable_internet"] is False
     assert metadata["enable_gpu"] is True
@@ -189,3 +194,62 @@ def test_kaggle_launch_requires_explicit_confirmation(tmp_path) -> None:
     adapter = KaggleTrainerAdapter(repo_root=repo, state_root=state, owner="axepapgt", runner=_FakeKaggle())
     with pytest.raises(CloudPacketError, match="confirmation"):
         adapter.launch("missing", confirmed=False)
+
+
+def test_kaggle_dataset_semantic_error_fails_closed(tmp_path) -> None:
+    repo = tmp_path / "Axon"
+    state = repo / "State"
+    repo.mkdir()
+    job_id = "a" * 64
+    job_dir = state / "training" / "cloud" / "jobs" / job_id
+    (job_dir / "packet").mkdir(parents=True)
+    (job_dir / "packet" / "axon_packet.zip").write_bytes(b"packet")
+    (job_dir / "packet_manifest.json").write_text(
+        json.dumps(
+            {
+                "schema": "axon-cloud-training-packet-v1",
+                "job_id": job_id,
+                "config": {"accelerator": "gpu"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    write_job_record(
+        state,
+        job_id,
+        {
+            "schema": CLOUD_JOB_RECORD_SCHEMA,
+            "job_id": job_id,
+            "provider": "kaggle",
+            "accelerator": "gpu",
+            "phase": "prepared",
+            "git_revision": "b" * 40,
+            "packet_path": str(job_dir / "packet" / "axon_packet.zip"),
+            "packet_sha256": "c" * 64,
+            "dataset_ref": None,
+            "kernel_ref": None,
+            "public": False,
+        },
+    )
+
+    class SemanticFailure(_FakeKaggle):
+        def __call__(self, argv, *, cwd=None, capture_output=True):
+            result = super().__call__(argv, cwd=cwd, capture_output=capture_output)
+            if tuple(str(item) for item in argv)[:3] == ("kaggle", "datasets", "create"):
+                return subprocess.CompletedProcess(
+                    result.args,
+                    0,
+                    stdout="Dataset creation error: Please select a valid license\n",
+                    stderr="",
+                )
+            return result
+
+    adapter = KaggleTrainerAdapter(
+        repo_root=repo,
+        state_root=state,
+        owner="axepapgt",
+        runner=SemanticFailure(),
+    )
+    with pytest.raises(CloudPacketError, match="exit code zero"):
+        adapter.launch(job_id, confirmed=True)
+    assert json.loads((job_dir / "job.json").read_text(encoding="utf-8"))["phase"] == "prepared"
