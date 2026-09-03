@@ -166,6 +166,8 @@ def test_kaggle_launch_is_private_idempotent_and_uses_no_credentials_in_argv(tmp
     )
     launched = adapter.launch(job_id, confirmed=True)
     metadata = json.loads((job_dir / "kaggle" / "kernel" / "kernel-metadata.json").read_text(encoding="utf-8"))
+    generated_runner = (job_dir / "kaggle" / "kernel" / "axon_kaggle_runner.py").read_text(encoding="utf-8")
+    compile(generated_runner, "axon_kaggle_runner.py", "exec")
     assert launched["phase"] == "submitted"
     assert metadata["is_private"] is True
     assert metadata["enable_internet"] is False
@@ -174,7 +176,9 @@ def test_kaggle_launch_is_private_idempotent_and_uses_no_credentials_in_argv(tmp
     create = next(call for call in runner.calls if call[:3] == ("kaggle", "datasets", "create"))
     push = next(call for call in runner.calls if call[:3] == ("kaggle", "kernels", "push"))
     assert "-u" not in create
-    assert push[3:5] == ("--accelerator", "NvidiaTeslaT4")
+    assert "--accelerator" not in push
+    assert "unpacked_input_detected" in generated_runner
+    assert 'env["PYTHONPATH"]' in generated_runner
     assert all("token" not in " ".join(call).lower() for call in runner.calls)
 
 

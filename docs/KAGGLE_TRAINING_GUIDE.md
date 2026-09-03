@@ -31,9 +31,13 @@ The recipe requires CUDA; it must fail rather than silently train the permanent
 33.98-million-parameter tissue on a cloud CPU.
 
 For GPU jobs the adapter explicitly requests Kaggle's `NvidiaTeslaT4` machine
-shape in both kernel metadata and the CLI submission. Do not use Kaggle's
+shape in kernel metadata. Do not use Kaggle's
 generic/default GPU selection: it may resolve to an unsuitable image or P100,
 while the current default PyTorch cu128 build does not support P100 compute.
+The CLI accelerator override is intentionally not used because Kaggle CLI 2.2.4
+can drop `dataset_sources` when that override is supplied. The generated runner
+also accepts Kaggle's two legitimate dataset presentations: the original ZIP
+or an automatically unpacked input directory.
 
 Preparation and launch are intentionally separate:
 

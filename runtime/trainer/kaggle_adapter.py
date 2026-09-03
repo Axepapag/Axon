@@ -44,6 +44,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -89,11 +90,22 @@ def publish(status: str, **details) -> None:
 def main() -> int:
     OBS.mkdir(parents=True, exist_ok=True)
     publish("starting", python=sys.version, input=str(INPUT))
-    if not INPUT.is_file():
-        raise RuntimeError(f"Axon packet is missing at {{INPUT}}")
+    input_dir = INPUT.parent
     WORK.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(INPUT) as archive:
-        archive.extractall(WORK)
+    if INPUT.is_file():
+        with zipfile.ZipFile(INPUT) as archive:
+            archive.extractall(WORK)
+    elif input_dir.is_dir():
+        # Kaggle may expose a dataset ZIP as already-unpacked files. Preserve
+        # the packet tree exactly in either provider representation.
+        publish("unpacked_input_detected", input_dir=str(input_dir))
+        for item in input_dir.iterdir():
+            if item.is_file():
+                shutil.copy2(item, WORK / item.name)
+            elif item.is_dir():
+                shutil.copytree(item, WORK / item.name, dirs_exist_ok=True)
+    else:
+        raise RuntimeError(f"Axon packet is missing at {{INPUT}} and no input directory exists")
     manifest_path = WORK / "axon_packet_manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest.get("schema") != "axon-cloud-training-packet-v1":
@@ -120,6 +132,7 @@ def main() -> int:
     )
     env = dict(os.environ)
     env["PYTHONUNBUFFERED"] = "1"
+    env["PYTHONPATH"] = str(WORK) + os.pathsep + env.get("PYTHONPATH", "")
     completed = subprocess.run(argv, cwd=WORK, env=env, check=False)
     result = {{
         "schema": "axon-cloud-training-result-v1",
@@ -301,10 +314,10 @@ class KaggleTrainerAdapter:
             }
             write_job_record(self.state_root, job_id, record)
         if record.get("phase") == "dataset_uploaded":
-            accelerator = ()
-            if record.get("accelerator") == "gpu":
-                accelerator = ("--accelerator", KAGGLE_GPU_MACHINE_SHAPE)
-            self._run(("kaggle", "kernels", "push", *accelerator, "-p", str(kernel_dir)))
+            # The machine shape is already explicit in kernel metadata. Passing
+            # the CLI --accelerator override currently drops dataset_sources
+            # from the submitted kernel, so metadata is the single authority.
+            self._run(("kaggle", "kernels", "push", "-p", str(kernel_dir)))
             record = {**record, "phase": "submitted", "kernel_ref": kernel_ref}
             write_job_record(self.state_root, job_id, record)
         return record
