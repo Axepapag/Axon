@@ -108,6 +108,7 @@ class Watcher:
         self.wall: deque[float] = deque(maxlen=window)
         self.step_numbers: deque[int] = deque(maxlen=window)
         self.last_step = 0
+        self.segment_start = 0
         self.segment_end = None
         self.last_lane = None
         self.last_loss = None
@@ -124,10 +125,19 @@ class Watcher:
         self.eval_history: deque[tuple[str, float, float]] = deque(maxlen=8)
         self.qa_lines: deque[str] = deque(maxlen=transcript_lines)
         self.event_count = 0
+        self.seen_event_ids: set[str] = set()
+        self.error = None
 
     # -- ingestion ------------------------------------------------------------
 
     def consume(self, payload: dict[str, Any]) -> None:
+        # Kaggle's live stream can replay the same event (including on reconnect).
+        # Never count replayed checkpoints, samples, or steps as new work.
+        event_id = payload.get("event_id")
+        if event_id:
+            if event_id in self.seen_event_ids:
+                return
+            self.seen_event_ids.add(event_id)
         self.event_count += 1
         schema = str(payload.get("schema") or "")
         status = str(payload.get("status") or "")
@@ -151,6 +161,8 @@ class Watcher:
                 self.last_step = max(self.last_step, step)
                 if "segment_end_step" in details:
                     self.segment_end = int(details["segment_end_step"])
+                    if self.tranche_steps is not None:
+                        self.segment_start = self.segment_end - int(self.tranche_steps)
                 if loss is not None:
                     self.losses.append(float(loss))
                     self.last_loss = float(loss)
@@ -166,6 +178,9 @@ class Watcher:
                     self.bundles += 1
             elif status == "evaluating":
                 self.status = f"evaluating({details.get('phase', '?')})"
+                if details.get("phase") == "initial":
+                    self.segment_start = int(details.get("global_step") or 0)
+                    self.last_step = max(self.last_step, self.segment_start)
             elif status == "evaluated":
                 self._consume_evaluated(details)
             elif status in {"completed", "paused"}:
@@ -179,6 +194,14 @@ class Watcher:
                     self.eval_summary["heldout_mean_loss"] = details["heldout_mean_loss"]
                 if details.get("report_path"):
                     self.eval_summary["report_path"] = details["report_path"]
+        elif schema == "axon-kaggle-runner-event-v1":
+            if status == "failed":
+                self.status = "failed"
+                self.error = details.get("error") or f"training process exited {details.get('returncode', '?')}"
+            elif status == "python_selected":
+                self.accelerator = (details.get("probe") or {}).get("device")
+            elif status in {"starting", "running", "completed"}:
+                self.status = f"runner({status})"
         elif schema == "axon-training-eval-event-v1":
             self._consume_evaluated(details)
         elif schema == "axon-training-qa-event-v1":
@@ -259,17 +282,18 @@ class Watcher:
         accel = self.accelerator or "?"
         candidate = self.candidate or "?"
         status_color = GREEN if self.status in {"training", "starting"} else YELLOW
-        tranche = f"/{self.tranche_steps}" if self.tranche_steps else ""
         lines.append(
             f" candidate: {_short(candidate, 28)}  status: {_color(self.status, status_color)}"
             f"  accelerator: {accel}"
         )
         progress_bar = ""
         if self.tranche_steps:
-            done = min(self.last_step, int(self.tranche_steps))
+            done = min(max(0, self.last_step - self.segment_start), int(self.tranche_steps))
             filled = int(34 * done / max(1, int(self.tranche_steps)))
             progress_bar = _color("█" * filled, GREEN) + _color("·" * (34 - filled), DIM)
-            lines.append(f" steps: {self.last_step}{tranche}  [{progress_bar}]")
+            lines.append(
+                f" tranche: {done}/{self.tranche_steps}  global step: {self.last_step}  [{progress_bar}]"
+            )
         else:
             lines.append(f" steps: {self.last_step}")
 
@@ -320,10 +344,12 @@ class Watcher:
             )
             lines.append(f" gates: {gate_text}")
         lines.append(f" events: {self.event_count}  last: {self.last_event_at or '-'}")
+        if self.error:
+            lines.append(_color(f" ERROR: {self.error}", RED))
 
         if self.show_qa:
             lines.append(_color("-" * 74, DIM))
-            lines.append(_color(" Soul Q/A (live transcript)", BOLD))
+            lines.append(_color(" Teacher-forced payload samples (not autonomous conversation)", BOLD))
             if self.qa_lines:
                 lines.extend(list(self.qa_lines)[-self.transcript_lines:])
             else:
@@ -349,7 +375,7 @@ def _iter_progress_lines(handle) -> Iterable[str]:
         line = line.strip()
         if not line:
             continue
-        if "AXON_PROGRESS" in line or "AXON_QA" in line:
+        if any(marker in line for marker in ("AXON_PROGRESS", "AXON_QA", "AXON_KAGGLE")):
             start = line.find("{")
             if start < 0:
                 continue
@@ -413,7 +439,7 @@ def _follow_kaggle(kernel_ref: str, watcher: Watcher) -> int:
     )
     assert process.stdout is not None
     for line in process.stdout:
-        if "AXON_PROGRESS" in line or "AXON_QA" in line:
+        if any(marker in line for marker in ("AXON_PROGRESS", "AXON_QA", "AXON_KAGGLE")):
             start = line.find("{")
             if start < 0:
                 continue
@@ -425,6 +451,10 @@ def _follow_kaggle(kernel_ref: str, watcher: Watcher) -> int:
                 watcher.consume(payload)
                 print("\033[2J\033[H", end="")
                 print(watcher.render())
+        else:
+            # Provider/authentication/traceback diagnostics must not disappear
+            # just because the trainer never managed to emit a progress event.
+            print(line, end="", flush=True)
     return process.wait()
 
 

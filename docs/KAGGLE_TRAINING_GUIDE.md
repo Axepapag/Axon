@@ -154,6 +154,12 @@ tranche contain a wrapper-generated `SystemExit: 0` failure receipt even though
 Kaggle completed all 360 steps. Preserve that artifact as historical evidence;
 use its immutable segment report and accepted bundles for the learning result.
 
+The Training Watch dashboard deduplicates replayed Kaggle event IDs and reports
+both progress within the current tranche and the lifetime global optimizer step.
+Its Q/A samples are teacher-forced payload diagnostics, not evidence of fluent
+autonomous conversation. Provider and runner failures remain visible even if no
+training step is reached.
+
 `doctor` makes an authenticated live quota request. It proves that the CLI and
 account session work and reports the provider's current quota. It does **not**
 prove accelerator entitlement: Kaggle may accept GPU metadata and expose quota
