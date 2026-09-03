@@ -1,9 +1,39 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-03T14:41:52.617352-05:00
-Current through event: `evt-20260903T194152625579Z-hermes-kaggle-account-migration-organism-launch`
+Updated: 2026-09-03T16:14:40.882848-05:00
+Current through event: `evt-20260903T211440882848Z-hermes-training-watch-dashboard`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
+
+## Training Watch dashboard and first-tranche honest results (2026-09-03)
+
+The Axon Organism's first tranche (job `3005d933...`) ran to completion on
+Kaggle T4: 360/360 steps, 24 checkpoints, 24 accepted step bundles, ~5.7s/step.
+Heldout loss collapsed from 10.886 to 2.738 and train loss from ~7.6 to ~1.8-3.0,
+but teacher-forced token accuracy only reached the constant-prediction floor
+(0.0900 == floor) and all three gates FAILED. That is an honest first-tranche
+result, not a failure of the architecture: the tranche is renewable by law, and
+the new transcript evidence exists precisely to watch where the candidate is
+wrong next tranche.
+
+Hermes built the terminal dashboard Jeff asked for: `AXON_TRAINING_WATCH.bat`
+(or `python scripts/axon_training_watch.py <job-id> --qa --steps N`) follows
+Kaggle's live log stream or fetched events.jsonl and renders a configurable
+rolling loss window, lane mix, pacing/ETA, eval metrics (exact rates, token
+accuracy vs constant floor), gate results, and live Soul Q/A transcripts - the
+candidate's actual prompt, its predicted typed-transport payload, the expected
+payload, and an exact-match mark. To power that, the trainer now emits an
+'evaluated' progress event after every full evaluation pass, carrying exact
+rates and up to 8 Q/A transcript rows captured in evaluate_living_episode via
+an optional transcript_sink (default off; all 27 curriculum/trainer tests pass).
+
+Fetch was also repaired for Windows MAX_PATH: Kaggle output trees contain Soul
+snapshot paths that overflow the canonical job directory path length, so fetch
+now downloads into a short temp dir and robocopy-moves the tree into canonical
+position.
+
+Commit `ec74fe4`.
+
 
 ## Axon Organism launch on the correct Kaggle account (2026-09-03)
 
