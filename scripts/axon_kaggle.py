@@ -33,7 +33,10 @@ def _arguments() -> argparse.Namespace:
     parser.add_argument("--owner", default="axepapgt", help="Kaggle account slug")
     parser.add_argument("--json", action="store_true", help="machine-readable output")
     commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("doctor", help="verify CLI, login, and live accelerator quota")
+    commands.add_parser(
+        "doctor",
+        help="verify CLI, login, and live quota (not accelerator entitlement)",
+    )
     prepare = commands.add_parser("prepare", help="build a local packet; uploads nothing")
     prepare.add_argument("config", type=Path)
     launch = commands.add_parser("launch", help="upload privately and submit to Kaggle")
@@ -68,7 +71,7 @@ def _display(value: Any, *, machine: bool) -> None:
         print(json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2))
         return
     if isinstance(value, dict) and value.get("schema") == "axon-kaggle-doctor-v1":
-        print("Kaggle is READY")
+        print("Kaggle CLI/account is READY")
         print(f"Account: {value['owner']}")
         print(f"CLI: {value['cli']}")
         for quota in value["quota"]:
@@ -76,6 +79,8 @@ def _display(value: Any, *, machine: bool) -> None:
                 f"{quota['resource']}: {quota['remaining']} remaining of "
                 f"{quota['total']} (refresh {quota['refreshAt']})"
             )
+        print("Accelerator entitlement: NOT proven by quota; each job must pass a real device compute probe")
+        print("If Kaggle requests phone/identity verification, complete it before GPU/TPU launch")
         print("Credentials: official user store; never copied into Axon")
         return
     if isinstance(value, dict) and "job_id" in value:

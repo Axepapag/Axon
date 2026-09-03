@@ -124,6 +124,20 @@ class _FakeKaggle:
         return subprocess.CompletedProcess(command, 0, stdout=output, stderr="")
 
 
+def test_kaggle_doctor_does_not_claim_accelerator_entitlement_from_quota(tmp_path) -> None:
+    repo = tmp_path / "Axon"
+    state = repo / "State"
+    repo.mkdir()
+    result = KaggleTrainerAdapter(
+        repo_root=repo,
+        state_root=state,
+        owner="axepapgt",
+        runner=_FakeKaggle(),
+    ).doctor()
+    assert result["healthy"] is True
+    assert "not proven by quota" in result["accelerator_entitlement"]
+
+
 def test_kaggle_launch_is_private_idempotent_and_uses_no_credentials_in_argv(tmp_path) -> None:
     repo = tmp_path / "Axon"
     state = repo / "State"

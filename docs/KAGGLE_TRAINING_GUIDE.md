@@ -135,10 +135,22 @@ python scripts/axon_kaggle.py status <job-id>
 python scripts/axon_kaggle.py fetch <job-id>
 ```
 
-`doctor` makes an authenticated live quota request. On 2026-08-31 it verified
-30 GPU hours and 20 TPU hours remaining, with the provider reporting a refresh
-at 2026-09-05T00:00:00. Always run it again before planning spend; Kaggle's
-quota is external and can change.
+`doctor` makes an authenticated live quota request. It proves that the CLI and
+account session work and reports the provider's current quota. It does **not**
+prove accelerator entitlement: Kaggle may accept GPU metadata and expose quota
+while withholding the GPU/TPU choices until account phone or identity
+verification is complete. Every submitted GPU job therefore performs a real
+CUDA allocation and compute probe before optimizer step one and fails closed if
+Kaggle supplied a CPU image. Complete any verification request shown under the
+notebook's Session options before retrying; never weaken the probe or silently
+fall back to CPU.
+
+On 2026-09-03 the Axon account reported 30 GPU hours and 20 TPU hours remaining,
+but the live Session options panel explicitly requested phone verification for
+GPU/TPU access. That external account action blocked the first ABC launch even
+though the private dataset, T4 metadata, and packet mount were valid. Always run
+`doctor` again before planning spend; Kaggle's quota and entitlement can change
+independently.
 
 ## Continuation packets
 

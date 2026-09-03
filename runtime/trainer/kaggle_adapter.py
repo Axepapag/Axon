@@ -311,6 +311,7 @@ class KaggleTrainerAdapter:
             "cli": version,
             "authentication": "verified by authenticated quota request",
             "quota": quota,
+            "accelerator_entitlement": "not proven by quota; proved only by a real device compute probe",
             "credential_storage": "official Kaggle user credential store (not inspected)",
         }
 
