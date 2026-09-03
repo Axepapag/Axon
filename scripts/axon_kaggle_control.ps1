@@ -85,7 +85,7 @@ while ($true) {
             if ($JobId) { Invoke-AxonKaggle fetch $JobId }
         }
         "8" {
-            Start-Process "https://www.kaggle.com/code/axepapgt"
+            Start-Process "https://www.kaggle.com/code/axongliksbot"
         }
         "Q" { break }
         default { Write-Host "Unknown choice." -ForegroundColor Yellow }

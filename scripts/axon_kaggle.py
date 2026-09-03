@@ -30,7 +30,11 @@ def _arguments() -> argparse.Namespace:
         default=ROOT / "State",
         help="Axon's canonical State root",
     )
-    parser.add_argument("--owner", default="axepapgt", help="Kaggle account slug")
+    parser.add_argument(
+        "--owner",
+        default=None,
+        help="Kaggle account slug (default: whoever the Kaggle CLI is authenticated as)",
+    )
     parser.add_argument("--json", action="store_true", help="machine-readable output")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser(

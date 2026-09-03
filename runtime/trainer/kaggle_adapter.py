@@ -277,15 +277,50 @@ class KaggleTrainerAdapter:
         *,
         repo_root: Path | str,
         state_root: Path | str,
-        owner: str,
+        owner: str | None = None,
         runner: CommandRunner = _default_runner,
     ) -> None:
         self.repo_root = Path(repo_root).resolve(strict=True)
         self.state_root = Path(state_root).resolve(strict=False)
-        self.owner = owner.strip().lower()
-        if not self.owner or any(character not in "abcdefghijklmnopqrstuvwxyz0123456789-_" for character in self.owner):
-            raise ValueError("Kaggle owner must be a username slug")
         self.runner = runner
+        self.owner: str | None = None
+        if owner:
+            self.owner = self._validated_owner(owner)
+
+    _OWNER_CHARACTERS = frozenset("abcdefghijklmnopqrstuvwxyz0123456789-_")
+
+    @classmethod
+    def _validated_owner(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if not normalized or any(character not in cls._OWNER_CHARACTERS for character in normalized):
+            raise ValueError("Kaggle owner must be a username slug")
+        return normalized
+
+    def _authenticated_username(self) -> str | None:
+        """Ask the CLI who it is authenticated as (never reads credential files)."""
+        completed = self._run(("kaggle", "config", "view"))
+        for line in completed.stdout.splitlines():
+            key, separator, value = line.partition(":")
+            if not separator:
+                continue
+            if key.strip().lstrip("- ").strip().lower() == "username":
+                username = value.strip().lower()
+                if username and username != "none":
+                    return username
+        return None
+
+    @property
+    def resolved_owner(self) -> str:
+        """Explicit owner, or the CLI's authenticated identity (lazy, cached)."""
+        if self.owner is None:
+            username = self._authenticated_username()
+            if not username:
+                raise CloudPacketError(
+                    "Kaggle owner not specified and the CLI has no authenticated identity; "
+                    "pass --owner explicitly or authenticate first"
+                )
+            self.owner = self._validated_owner(username)
+        return self.owner
 
     def _run(
         self,
@@ -307,7 +342,7 @@ class KaggleTrainerAdapter:
         return {
             "schema": "axon-kaggle-doctor-v1",
             "healthy": True,
-            "owner": self.owner,
+            "owner": self.resolved_owner,
             "cli": version,
             "authentication": "verified by authenticated quota request",
             "quota": quota,
@@ -353,8 +388,8 @@ class KaggleTrainerAdapter:
         manifest = json.loads((job_dir / "packet_manifest.json").read_text(encoding="utf-8"))
         slug = f"axon-job-{job_id[:16]}"
         dataset_slug = f"{slug}-input"
-        dataset_ref = f"{self.owner}/{dataset_slug}"
-        kernel_ref = f"{self.owner}/{slug}"
+        dataset_ref = f"{self.resolved_owner}/{dataset_slug}"
+        kernel_ref = f"{self.resolved_owner}/{slug}"
         dataset_dir = job_dir / "kaggle" / "dataset"
         kernel_dir = job_dir / "kaggle" / "kernel"
         dataset_dir.mkdir(parents=True, exist_ok=True)
@@ -416,12 +451,24 @@ class KaggleTrainerAdapter:
         if not confirmed:
             raise CloudPacketError("Kaggle launch requires explicit operator confirmation")
         self.doctor()
+        # Cross-account gate: Kaggle namespaces by the authenticated identity,
+        # not by what the metadata declares. If the CLI is logged into a
+        # different account than the owner these refs target, dataset creation
+        # returns null slugs (the failure that cost this project a day of work
+        # on 2026-09-03). Fail loudly BEFORE creating anything.
+        authenticated_as = self._authenticated_username()
+        if authenticated_as is not None and authenticated_as != self.resolved_owner:
+            raise CloudPacketError(
+                "Kaggle CLI is authenticated as a different account: "
+                f"authenticated={authenticated_as!r} but job owner={self.resolved_owner!r}. "
+                "Log in as the job owner (or pass the matching --owner) before launching."
+            )
         record, dataset_dir, kernel_dir = self._materialize_kaggle_files(job_id)
         if record.get("public") is not False:
             raise CloudPacketError("Kaggle job record does not prove private visibility")
         slug = f"axon-job-{job_id[:16]}"
-        dataset_ref = f"{self.owner}/{slug}-input"
-        kernel_ref = f"{self.owner}/{slug}"
+        dataset_ref = f"{self.resolved_owner}/{slug}-input"
+        kernel_ref = f"{self.resolved_owner}/{slug}"
         resubmission_status: str | None = None
         if record.get("phase") in {"submitted", "outputs_fetched"}:
             if record.get("dataset_ref") != dataset_ref or record.get("kernel_ref") != kernel_ref:

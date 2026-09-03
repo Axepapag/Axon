@@ -382,3 +382,83 @@ def test_kaggle_dataset_semantic_error_fails_closed(tmp_path) -> None:
     with pytest.raises(CloudPacketError, match="exit code zero"):
         adapter.launch(job_id, confirmed=True)
     assert json.loads((job_dir / "job.json").read_text(encoding="utf-8"))["phase"] == "prepared"
+
+
+def test_kaggle_owner_defaults_to_authenticated_cli_identity(tmp_path) -> None:
+    class IdentityKaggle(_FakeKaggle):
+        def __call__(self, argv, *, cwd=None, capture_output=True):
+            if tuple(str(item) for item in argv)[:2] == ("kaggle", "config"):
+                return subprocess.CompletedProcess(
+                    list(argv),
+                    0,
+                    stdout="Configuration values from /home/tester/.kaggle\n- username: axongliksbot\n- auth_method: OAUTH\n",
+                    stderr="",
+                )
+            return super().__call__(argv, cwd=cwd, capture_output=capture_output)
+
+    repo = tmp_path / "Axon"
+    state = repo / "State"
+    repo.mkdir()
+    adapter = KaggleTrainerAdapter(repo_root=repo, state_root=state, runner=IdentityKaggle())
+    assert adapter.resolved_owner == "axongliksbot"
+
+
+def test_kaggle_launch_refuses_cross_account_ownership(tmp_path) -> None:
+    class IdentityKaggle(_FakeKaggle):
+        def __call__(self, argv, *, cwd=None, capture_output=True):
+            if tuple(str(item) for item in argv)[:2] == ("kaggle", "config"):
+                return subprocess.CompletedProcess(
+                    list(argv),
+                    0,
+                    stdout="Configuration values from /home/tester/.kaggle\n- username: axepapgt\n- auth_method: OAUTH\n",
+                    stderr="",
+                )
+            return super().__call__(argv, cwd=cwd, capture_output=capture_output)
+
+    repo = tmp_path / "Axon"
+    state = repo / "State"
+    repo.mkdir()
+    job_id = "b" * 64
+    job_dir = state / "training" / "cloud" / "jobs" / job_id
+    (job_dir / "packet").mkdir(parents=True)
+    (job_dir / "packet" / "axon_packet.zip").write_bytes(b"packet")
+    (job_dir / "packet_manifest.json").write_text(
+        json.dumps(
+            {
+                "schema": "axon-cloud-training-packet-v1",
+                "job_id": job_id,
+                "config": {"accelerator": "gpu"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    write_job_record(
+        state,
+        job_id,
+        {
+            "schema": CLOUD_JOB_RECORD_SCHEMA,
+            "job_id": job_id,
+            "provider": "kaggle",
+            "accelerator": "gpu",
+            "phase": "prepared",
+            "git_revision": "d" * 40,
+            "packet_path": str(job_dir / "packet" / "axon_packet.zip"),
+            "packet_sha256": "e" * 64,
+            "dataset_ref": None,
+            "kernel_ref": None,
+            "public": False,
+        },
+    )
+    adapter = KaggleTrainerAdapter(
+        repo_root=repo,
+        state_root=state,
+        owner="axongliksbot",
+        runner=IdentityKaggle(),
+    )
+    with pytest.raises(CloudPacketError, match="different account") as caught:
+        adapter.launch(job_id, confirmed=True)
+    message = str(caught.value)
+    assert "axepapgt" in message and "axongliksbot" in message
+    # Nothing was created or uploaded: the gate fires before any side effect.
+    assert not (job_dir / "kaggle" / "dataset" / "dataset-metadata.json").exists()
+    assert not any(call[:3] == ("kaggle", "datasets", "create") for call in adapter.runner.calls)
