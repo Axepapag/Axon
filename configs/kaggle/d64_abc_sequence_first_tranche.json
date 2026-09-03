@@ -1,6 +1,10 @@
 {
+  "schema": "axon-cloud-training-job-config-v1",
+  "name": "axon-abc-sequence-1x64-first-tranche",
+  "provider": "kaggle",
   "accelerator": "gpu",
   "allow_sensitive_state_upload": true,
+  "notes": "ABC sequence curriculum first tranche: 180 steps, 1x64 head, 720-step campaign ceiling. Teaches forward/backward/roundtrip alphabet recitation through the full runtime contract. Manifest 1787a095... (104 VERIFIED_TARGET cases).",
   "entrypoint_argv": [
     "python",
     "scripts/train_living_reasoning_smoke.py",
@@ -28,20 +32,5 @@
   "include_paths": [
     "State/active/branches/active",
     "State/training/curricula/ffcs_v1/1787a095c23a07348352c6cf5a4aab0bb9a2fd6a04924aa7d7b1779839c91850/manifest.json"
-  ],
-  "kernel_metadata": {
-    "title": "Axon ABC Sequence 1x64 First Tranche",
-    "language": "python",
-    "enable_gpu": true,
-    "enable_internet": false,
-    "is_private": true
-  },
-  "output_paths": [
-    "State/training/reasoning",
-    "State/training/trainer/candidates",
-    "State/training/soul_candidates"
-  ],
-  "resource_tranche_steps": 180,
-  "campaign_max_steps": 720,
-  "claim_boundary": "governed ABC sequence learning tranche; no serving promotion or capability claim; results reported against predeclared gates"
+  ]
 }
