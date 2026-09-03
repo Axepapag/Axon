@@ -1,9 +1,40 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-03T12:23:33.8524663-05:00
-Current through event: `evt-20260903T172333852466Z-codex-abc-kaggle-launch-audit`
+Updated: 2026-09-03T14:41:52.617352-05:00
+Current through event: `evt-20260903T194152625579Z-hermes-kaggle-account-migration-organism-launch`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
+
+## Axon Organism launch on the correct Kaggle account (2026-09-03)
+
+The morning's Kaggle OAuth session had authenticated this machine's CLI as
+`axepapgt` (axemanjeffro@gmail.com), not Jeff's intended `axongliksbot`
+(jeff@gliksbot.com). Every kernel and dataset created today - including the
+CPU-image-blocked job `91106fad` - landed on axepapgt by accident. The axongliksbot
+Chrome session was already phone-verified with a fresh 30h GPU allowance.
+
+Hermes minted an axongliksbot API token through Kaggle's settings UI, stored it at
+`~/.kaggle/access_token` (access-token auth precedes OAuth in CLI 2.2.4; the
+axepapgt OAuth login remains untouched as a fallback), and created the fresh-lineage
+recipe `configs/kaggle/axon_organism_l0_l4_first_tranche.json`: candidate label
+`axon-organism-l0l4-1x64`, a brand-new generation-0 candidate Soul with forked-from
+provenance to the live canonical field, the ratified 349-case L0-L4 manifest
+`824aabae...`, permanent 1x64/2-layer/131072-FFN tissue, renewable 360-step tranche.
+
+Two permanent fixes came out of the launch attempts. The control center's hardcoded
+`--owner axepapgt` caused cross-account dataset creation (null slugs, exit code
+zero); the adapter now derives the owner from the CLI's authenticated identity and
+refuses cross-account launches before any side effect (commit `1dedfde`, with
+regression tests). The first CUDA-healthy run then exposed a second latent bug:
+packets omitted `configs/`, so the hash-bound capacity policy could not load and the
+runner crashed at 26.6s; `configs/` joined `_SOURCE_ROOTS` (commit `3e69dc0`).
+
+The Axon Organism's first tranche is live as job
+`3005d9332c1aee8ee835560165b3b990cd745b45c0c338fa6cfae1bbcc1e6852` (revision
+`3e69dc0`, 152 files): CUDA confirmed, generation `r64v2-b05b6dbf67efdd8f`, global
+steps ticking at roughly 5.9s/step across the mechanism and ffcs-L0..L3 lanes, loss
+7.56 -> 5.41 by step 5. Jeff can watch the live log on the kernel page.
+
 
 ## Language/ABC readiness and Kaggle launch blocker (2026-09-03)
 
