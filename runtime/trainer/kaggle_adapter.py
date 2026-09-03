@@ -237,7 +237,31 @@ if __name__ == "__main__":
         atomic_json(Path("/kaggle/working/axon_job_result.json"), failure)
         publish("failed", error_type=type(exc).__name__, error=str(exc))
         raise
-'''
+    '''
+
+
+def _runner_notebook(source: str) -> dict[str, Any]:
+    return {
+        "cells": [
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": source.splitlines(keepends=True),
+            }
+        ],
+        "metadata": {
+            "kernelspec": {
+                "display_name": "Python 3",
+                "language": "python",
+                "name": "python3",
+            },
+            "language_info": {"name": "python", "version": "3"},
+        },
+        "nbformat": 4,
+        "nbformat_minor": 5,
+    }
 
 
 class KaggleTrainerAdapter:
@@ -355,9 +379,9 @@ class KaggleTrainerAdapter:
         kernel_metadata = {
             "id": kernel_ref,
             "title": f"Axon job {job_id[:16]}",
-            "code_file": "axon_kaggle_runner.py",
+            "code_file": "axon_kaggle_runner.ipynb",
             "language": "python",
-            "kernel_type": "script",
+            "kernel_type": "notebook",
             "is_private": True,
             "enable_gpu": manifest["config"]["accelerator"] == "gpu",
             "enable_tpu": manifest["config"]["accelerator"] == "tpu",
@@ -380,8 +404,9 @@ class KaggleTrainerAdapter:
             json.dumps(kernel_metadata, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
             encoding="utf-8",
         )
-        (kernel_dir / "axon_kaggle_runner.py").write_text(
-            _runner_source(dataset_slug),
+        source = _runner_source(dataset_slug)
+        (kernel_dir / "axon_kaggle_runner.ipynb").write_text(
+            json.dumps(_runner_notebook(source), ensure_ascii=False, sort_keys=True, indent=2) + "\n",
             encoding="utf-8",
         )
         return record, dataset_dir, kernel_dir

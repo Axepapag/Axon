@@ -168,7 +168,10 @@ def test_kaggle_launch_is_private_idempotent_and_uses_no_credentials_in_argv(tmp
     )
     launched = adapter.launch(job_id, confirmed=True)
     metadata = json.loads((job_dir / "kaggle" / "kernel" / "kernel-metadata.json").read_text(encoding="utf-8"))
-    generated_runner = (job_dir / "kaggle" / "kernel" / "axon_kaggle_runner.py").read_text(encoding="utf-8")
+    notebook = json.loads(
+        (job_dir / "kaggle" / "kernel" / "axon_kaggle_runner.ipynb").read_text(encoding="utf-8")
+    )
+    generated_runner = "".join(notebook["cells"][0]["source"])
     compile(generated_runner, "axon_kaggle_runner.py", "exec")
     assert launched["phase"] == "submitted"
     dataset_metadata = json.loads(
@@ -177,6 +180,8 @@ def test_kaggle_launch_is_private_idempotent_and_uses_no_credentials_in_argv(tmp
     assert dataset_metadata["licenses"] == [{"name": "other"}]
     assert "All rights reserved" in dataset_metadata["description"]
     assert metadata["is_private"] is True
+    assert metadata["kernel_type"] == "notebook"
+    assert metadata["code_file"] == "axon_kaggle_runner.ipynb"
     assert metadata["enable_internet"] is False
     assert metadata["enable_gpu"] is True
     assert metadata["machine_shape"] == "NvidiaTeslaT4"
@@ -190,6 +195,7 @@ def test_kaggle_launch_is_private_idempotent_and_uses_no_credentials_in_argv(tmp
     assert 'publish("python_selected"' in generated_runner
     assert 'raise RuntimeError("no Kaggle Python interpreter passed a real CUDA compute probe")' in generated_runner
     assert 'env["PYTHONPATH"]' in generated_runner
+    assert notebook["nbformat"] == 4
     status_index = next(index for index, call in enumerate(runner.calls) if call[:3] == ("kaggle", "datasets", "status"))
     push_index = next(index for index, call in enumerate(runner.calls) if call[:3] == ("kaggle", "kernels", "push"))
     assert status_index < push_index

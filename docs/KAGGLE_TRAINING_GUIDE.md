@@ -56,6 +56,12 @@ after `torch.cuda.is_available()` and a real CUDA tensor operation both pass.
 Every probe result is emitted to the runner log. A GPU recipe fails closed when
 no interpreter can execute CUDA; it never falls back to CPU.
 
+The controller is submitted as a standard one-cell Kaggle notebook rather than
+a script kernel. Kaggle's current script-kernel path can report a T4 machine
+shape while still selecting its CPU Docker image; the notebook path is the
+provider-native GPU runtime. The cell contains the same generated, auditable
+runner source and performs the same packet hash verification before training.
+
 Preparation and launch are intentionally separate:
 
 1. **Prepare** hashes committed executable source plus every explicitly named
