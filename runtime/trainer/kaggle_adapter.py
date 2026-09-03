@@ -90,6 +90,60 @@ def publish(status: str, **details) -> None:
     print("AXON_KAGGLE " + json.dumps(event, ensure_ascii=False, sort_keys=True), flush=True)
 
 
+def select_python(accelerator: str) -> str:
+    if accelerator != "gpu":
+        return sys.executable
+    requested = [
+        "/opt/conda/bin/python",
+        "/opt/conda/bin/python3",
+        shutil.which("python"),
+        shutil.which("python3"),
+        "/usr/local/bin/python",
+        "/usr/local/bin/python3",
+        sys.executable,
+    ]
+    candidates = []
+    for raw in requested:
+        if raw and raw not in candidates and Path(raw).is_file():
+            candidates.append(raw)
+    probe_source = (
+        "import json, torch; "
+        "available=bool(torch.cuda.is_available()); "
+        "device=None; compute=False; error=None; "
+        "\\ntry:\\n"
+        " device=torch.cuda.get_device_name(0) if available else None; "
+        " compute=bool(torch.ones(1, device='cuda').item()==1.0) if available else False\\n"
+        "except Exception as exc:\\n error=f'{{type(exc).__name__}}: {{exc}}'\\n"
+        "print(json.dumps({{'torch':torch.__version__,'cuda_available':available,"
+        "'cuda_compute':compute,'device':device,'error':error}}))"
+    )
+    results = []
+    for executable in candidates:
+        completed = subprocess.run(
+            [executable, "-c", probe_source],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        record = {{
+            "executable": executable,
+            "returncode": completed.returncode,
+            "stdout": completed.stdout.strip(),
+            "stderr": completed.stderr.strip(),
+        }}
+        results.append(record)
+        if completed.returncode == 0:
+            try:
+                probe = json.loads(completed.stdout.strip().splitlines()[-1])
+            except (IndexError, json.JSONDecodeError):
+                probe = {{}}
+            if probe.get("cuda_available") is True and probe.get("cuda_compute") is True:
+                publish("python_selected", selected=executable, probe=probe, candidates=results)
+                return executable
+    publish("python_selection_failed", candidates=results)
+    raise RuntimeError("no Kaggle Python interpreter passed a real CUDA compute probe")
+
+
 def main() -> int:
     OBS.mkdir(parents=True, exist_ok=True)
     publish("starting", python=sys.version, input=str(INPUT))
@@ -138,8 +192,9 @@ def main() -> int:
             raise RuntimeError(f"packet file missing or wrong size: {{record['path']}}")
         if sha256_file(candidate) != record["sha256"]:
             raise RuntimeError(f"packet file hash mismatch: {{record['path']}}")
+    accelerator = manifest["config"]["accelerator"]
     argv = list(manifest["config"]["entrypoint_argv"])
-    argv[0] = sys.executable
+    argv[0] = select_python(accelerator)
     if "--progress-dir" not in argv:
         argv.extend(["--progress-dir", str(OBS / "trainer")])
     if "--external-job-id" not in argv:
@@ -148,7 +203,7 @@ def main() -> int:
         "running",
         job_id=manifest["job_id"],
         git_revision=manifest["git_revision"],
-        accelerator=manifest["config"]["accelerator"],
+        accelerator=accelerator,
         argv=argv,
     )
     env = dict(os.environ)

@@ -49,6 +49,13 @@ After creation, Axon waits for Kaggle's authenticated dataset status to become
 slug but can discover the single hash-verified packet manifest anywhere under
 `/kaggle/input` if the provider rewrites the private mount name.
 
+Kaggle script kernels may start under `/usr/bin/python3` even on a T4; that
+interpreter can carry a CPU-only PyTorch build. Before training, the generated
+runner probes the available Kaggle Python environments and selects one only
+after `torch.cuda.is_available()` and a real CUDA tensor operation both pass.
+Every probe result is emitted to the runner log. A GPU recipe fails closed when
+no interpreter can execute CUDA; it never falls back to CPU.
+
 Preparation and launch are intentionally separate:
 
 1. **Prepare** hashes committed executable source plus every explicitly named

@@ -186,6 +186,9 @@ def test_kaggle_launch_is_private_idempotent_and_uses_no_credentials_in_argv(tmp
     assert "--accelerator" not in push
     assert "unpacked_input_detected" in generated_runner
     assert 'rglob("axon_packet_manifest.json")' in generated_runner
+    assert 'torch.ones(1, device=\'cuda\')' in generated_runner
+    assert 'publish("python_selected"' in generated_runner
+    assert 'raise RuntimeError("no Kaggle Python interpreter passed a real CUDA compute probe")' in generated_runner
     assert 'env["PYTHONPATH"]' in generated_runner
     status_index = next(index for index, call in enumerate(runner.calls) if call[:3] == ("kaggle", "datasets", "status"))
     push_index = next(index for index, call in enumerate(runner.calls) if call[:3] == ("kaggle", "kernels", "push"))
