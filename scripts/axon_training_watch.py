@@ -187,7 +187,6 @@ class Watcher:
 
     def _consume_evaluated(self, details: dict[str, Any]) -> None:
         """Detailed evaluation snapshot (loss/accuracy/QA) after a full pass."""
-        self.status = self.status if self.status == "waiting" else self.status
         self.eval_summary = {
             "heldout_mean_loss": details.get("heldout_mean_loss"),
             "typed_emission_exact_rate": details.get("typed_emission_exact_rate"),
@@ -431,7 +430,6 @@ def _follow_kaggle(kernel_ref: str, watcher: Watcher) -> int:
 
 def _replay_local(path: Path, watcher: Watcher, *, follow: bool, poll_seconds: float) -> int:
     print("source: local events.jsonl (replay)")
-    last_render_len = 0
     with path.open("r", encoding="utf-8", errors="replace") as handle:
         for line in handle:
             stripped = line.strip()

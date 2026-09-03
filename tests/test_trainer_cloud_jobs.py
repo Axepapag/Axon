@@ -16,7 +16,7 @@ from runtime.trainer.cloud_jobs import (
     prepare_cloud_job,
     write_job_record,
 )
-from runtime.trainer.kaggle_adapter import KaggleTrainerAdapter
+from runtime.trainer.kaggle_adapter import KaggleTrainerAdapter, _runner_source
 
 
 def _config(*, include_paths=(), sensitive=False) -> CloudJobConfig:
@@ -119,6 +119,8 @@ class _FakeKaggle:
             output = '[{"resource":"GPU","remaining":"30.00h","total":"30.00h","refreshAt":"soon"}]'
         elif command[:3] == ("kaggle", "datasets", "status"):
             output = "ready\n"
+        elif command[:3] == ("kaggle", "kernels", "status"):
+            output = 'status "KernelWorkerStatus.ERROR"\n'
         else:
             output = "ok\n"
         return subprocess.CompletedProcess(command, 0, stdout=output, stderr="")
@@ -225,6 +227,77 @@ def test_kaggle_launch_requires_explicit_confirmation(tmp_path) -> None:
         adapter.launch("missing", confirmed=False)
 
 
+@pytest.mark.parametrize("exit_code", [0, 2])
+def test_generated_runner_preserves_success_and_child_failure_receipts(tmp_path, exit_code) -> None:
+    namespace = {"__name__": "runner_test"}
+    exec(compile(_runner_source("test-input"), "generated_runner.py", "exec"), namespace)
+    writes = []
+    namespace["main"] = lambda: exit_code
+    namespace["OBS"] = tmp_path
+    namespace["atomic_json"] = lambda path, body: writes.append(body)
+    assert namespace["run_guarded"]() == exit_code
+    # main owns the subprocess result receipt; an ordinary return must not be
+    # turned into a synthetic SystemExit failure by the notebook wrapper.
+    assert writes == []
+
+
+def test_generated_runner_records_unexpected_exceptions(tmp_path) -> None:
+    namespace = {"__name__": "runner_test"}
+    exec(compile(_runner_source("test-input"), "generated_runner.py", "exec"), namespace)
+    writes = []
+
+    def fail():
+        raise RuntimeError("broken packet")
+
+    namespace["main"] = fail
+    namespace["OBS"] = tmp_path
+    namespace["atomic_json"] = lambda path, body: writes.append(body)
+    namespace["publish"] = lambda *args, **kwargs: None
+    with pytest.raises(RuntimeError, match="broken packet"):
+        namespace["run_guarded"]()
+    assert writes[0]["status"] == "failed"
+    assert writes[0]["error_type"] == "RuntimeError"
+
+
+def test_dataset_readiness_timeout_preserves_upload_for_retry(tmp_path, monkeypatch) -> None:
+    from runtime.trainer import kaggle_adapter
+
+    monkeypatch.setattr(kaggle_adapter, "KAGGLE_DATASET_READY_ATTEMPTS", 2)
+    monkeypatch.setattr(kaggle_adapter, "KAGGLE_DATASET_READY_INTERVAL_SECONDS", 0)
+    job_id = "7" * 64
+    state = tmp_path / "State"
+    write_job_record(state, job_id, {
+        "schema": CLOUD_JOB_RECORD_SCHEMA,
+        "job_id": job_id,
+        "phase": "prepared",
+        "public": False,
+    })
+
+    class EventuallyReady(_FakeKaggle):
+        ready = False
+
+        def __call__(self, argv, *, cwd=None, capture_output=True):
+            result = super().__call__(argv, cwd=cwd, capture_output=capture_output)
+            if tuple(argv[:3]) == ("kaggle", "datasets", "status") and not self.ready:
+                return subprocess.CompletedProcess(argv, 1, stdout="", stderr="403 not indexed yet")
+            return result
+
+    runner = EventuallyReady()
+    adapter = KaggleTrainerAdapter(repo_root=tmp_path, state_root=state, owner="axepapgt", runner=runner)
+    monkeypatch.setattr(adapter, "_materialize_kaggle_files", lambda key: (
+        cloud_jobs.read_job_record(state, key), tmp_path / "dataset", tmp_path / "kernel",
+    ))
+    with pytest.raises(CloudPacketError, match="403 not indexed yet"):
+        adapter.launch(job_id, confirmed=True)
+    record = cloud_jobs.read_job_record(state, job_id)
+    assert record["phase"] == "dataset_uploaded"
+    assert record["dataset_ref"] == f"axepapgt/axon-job-{job_id[:16]}-input"
+    assert not any(call[:3] == ("kaggle", "kernels", "push") for call in runner.calls)
+    runner.ready = True
+    assert adapter.launch(job_id, confirmed=True)["phase"] == "submitted"
+    assert sum(call[:3] == ("kaggle", "datasets", "create") for call in runner.calls) == 1
+
+
 def test_kaggle_launch_retries_a_finished_private_job_without_reuploading_dataset(tmp_path) -> None:
     repo = tmp_path / "Axon"
     state = repo / "State"
@@ -265,12 +338,13 @@ def test_kaggle_launch_retries_a_finished_private_job_without_reuploading_datase
     adapter = KaggleTrainerAdapter(repo_root=repo, state_root=state, owner="axepapgt", runner=runner)
     retried = adapter.launch(job_id, confirmed=True)
     assert retried["phase"] == "submitted"
-    assert retried["provider_status_before_resubmission"] == "ok"
+    assert retried["provider_status_before_resubmission"] == 'status "KernelWorkerStatus.ERROR"'
     assert not any(call[:3] == ("kaggle", "datasets", "create") for call in runner.calls)
     assert sum(call[:3] == ("kaggle", "kernels", "push") for call in runner.calls) == 1
 
 
-def test_kaggle_launch_refuses_to_duplicate_an_active_job(tmp_path) -> None:
+@pytest.mark.parametrize("provider_status", ["RUNNING", "QUEUED", "UNKNOWN"])
+def test_kaggle_launch_refuses_active_or_unknown_jobs(tmp_path, provider_status) -> None:
     class RunningKaggle(_FakeKaggle):
         def __call__(self, argv, *, cwd=None, capture_output=True):
             result = super().__call__(argv, cwd=cwd, capture_output=capture_output)
@@ -278,7 +352,7 @@ def test_kaggle_launch_refuses_to_duplicate_an_active_job(tmp_path) -> None:
                 return subprocess.CompletedProcess(
                     result.args,
                     0,
-                    stdout='status "KernelWorkerStatus.RUNNING"\n',
+                    stdout=f'status "KernelWorkerStatus.{provider_status}"\n',
                     stderr="",
                 )
             return result
@@ -320,7 +394,7 @@ def test_kaggle_launch_refuses_to_duplicate_an_active_job(tmp_path) -> None:
     )
     runner = RunningKaggle()
     adapter = KaggleTrainerAdapter(repo_root=repo, state_root=state, owner="axepapgt", runner=runner)
-    with pytest.raises(CloudPacketError, match="already active"):
+    with pytest.raises(CloudPacketError, match=r"already active|recognized terminal"):
         adapter.launch(job_id, confirmed=True)
     assert not any(call[:3] == ("kaggle", "kernels", "push") for call in runner.calls)
 

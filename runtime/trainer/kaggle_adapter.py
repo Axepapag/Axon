@@ -224,9 +224,9 @@ def main() -> int:
     return completed.returncode
 
 
-if __name__ == "__main__":
+def run_guarded() -> int:
     try:
-        raise SystemExit(main())
+        return main()
     except BaseException as exc:
         OBS.mkdir(parents=True, exist_ok=True)
         failure = {{
@@ -239,6 +239,12 @@ if __name__ == "__main__":
         atomic_json(Path("/kaggle/working/axon_job_result.json"), failure)
         publish("failed", error_type=type(exc).__name__, error=str(exc))
         raise
+
+
+if __name__ == "__main__":
+    exit_code = run_guarded()
+    if exit_code:
+        raise SystemExit(exit_code)
     '''
 
 
@@ -374,8 +380,14 @@ class KaggleTrainerAdapter:
     def _wait_for_dataset_ready(self, dataset_ref: str) -> None:
         last_status = "unqueried"
         for attempt in range(KAGGLE_DATASET_READY_ATTEMPTS):
-            completed = self._run(("kaggle", "datasets", "status", dataset_ref))
-            last_status = completed.stdout.strip().lower()
+            try:
+                completed = self._run(("kaggle", "datasets", "status", dataset_ref))
+                last_status = completed.stdout.strip().lower()
+            except CloudPacketError as exc:
+                # Kaggle can 403 a fresh dataset's status for a short window
+                # after creation (eventual consistency). Treat as not-ready
+                # and retry within the existing attempt budget.
+                last_status = f"status_unavailable: {exc}"
             if last_status == "ready":
                 return
             if attempt + 1 < KAGGLE_DATASET_READY_ATTEMPTS:
@@ -483,7 +495,14 @@ class KaggleTrainerAdapter:
                     "Kaggle job is already active; refusing to submit a duplicate version: "
                     f"{resubmission_status}"
                 )
-            self._wait_for_dataset_ready(dataset_ref)
+            if not any(
+                f"kernelworkerstatus.{status}" in normalized_status
+                for status in ("complete", "error", "cancelled", "canceled")
+            ):
+                raise CloudPacketError(
+                    "Kaggle job status is not a recognized terminal state; refusing resubmission: "
+                    f"{resubmission_status}"
+                )
         if record.get("phase") == "prepared":
             created = self._run(("kaggle", "datasets", "create", "-p", str(dataset_dir), "-r", "skip"))
             combined_output = f"{created.stdout}\n{created.stderr}".lower()
@@ -492,15 +511,17 @@ class KaggleTrainerAdapter:
                     "Kaggle reported dataset creation failure despite returning exit code zero: "
                     f"{(created.stdout or created.stderr).strip()}"
                 )
-            self._wait_for_dataset_ready(dataset_ref)
             record = {
                 **record,
                 "phase": "dataset_uploaded",
                 "dataset_ref": dataset_ref,
                 "kernel_ref": kernel_ref,
             }
+            # Persist upload success before waiting for provider indexing. A
+            # transient readiness timeout must not cause duplicate creation.
             write_job_record(self.state_root, job_id, record)
         if record.get("phase") == "dataset_uploaded" or resubmission_status is not None:
+            self._wait_for_dataset_ready(dataset_ref)
             # The machine shape is already explicit in kernel metadata. Passing
             # the CLI --accelerator override currently drops dataset_sources
             # from the submitted kernel, so metadata is the single authority.
@@ -553,6 +574,10 @@ class KaggleTrainerAdapter:
         temp_root.mkdir(parents=True, exist_ok=True)
         temp_target = Path(tempfile.mkdtemp(prefix="axon_out_", dir=temp_root))
         self._run(("kaggle", "kernels", "output", str(kernel_ref), "-p", str(temp_target), "-o"))
+        # Validate the exact generated transfer targets before any recursive
+        # move/cleanup; never let an environment value or job reference widen it.
+        temp_target.resolve(strict=True).relative_to(temp_root.resolve(strict=True))
+        destination.resolve(strict=True).relative_to(self.state_root.resolve(strict=True))
         if os.name == "nt":
             completed = subprocess.run(
                 [
@@ -578,11 +603,7 @@ class KaggleTrainerAdapter:
         else:
             if temp_target.exists():
                 shutil.copytree(temp_target, destination, dirs_exist_ok=True)
-            shutil.rmtree(temp_target, ignore_errors=True)
-        try:
-            shutil.rmtree(temp_target, ignore_errors=True)
-        except OSError:
-            pass
+        shutil.rmtree(temp_target, ignore_errors=True)
         result_path = destination / "axon_job_result.json"
         result = None
         if result_path.is_file():

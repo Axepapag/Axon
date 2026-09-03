@@ -141,6 +141,19 @@ dataset. It first checks provider status and refuses to duplicate a running,
 queued, or pending job. The double-click control center exposes this as
 "Launch or retry"; no raw Kaggle command is required.
 
+Dataset-upload success is durably recorded before waiting for Kaggle's indexing
+to become ready. A temporary status 403 or readiness timeout therefore leaves
+the job at `dataset_uploaded`, and the next confirmed launch continues from
+that point without creating a duplicate dataset. Unknown worker statuses are
+not treated as permission to resubmit.
+
+The notebook wrapper preserves the training subprocess's exit receipt. Normal
+exit code zero is success, not an exception; a failed learning gate is reported
+separately from process failure. Historical outputs from the first Organism
+tranche contain a wrapper-generated `SystemExit: 0` failure receipt even though
+Kaggle completed all 360 steps. Preserve that artifact as historical evidence;
+use its immutable segment report and accepted bundles for the learning result.
+
 `doctor` makes an authenticated live quota request. It proves that the CLI and
 account session work and reports the provider's current quota. It does **not**
 prove accelerator entitlement: Kaggle may accept GPU metadata and expose quota
