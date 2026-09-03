@@ -26,6 +26,7 @@ CLOUD_JOB_RECORD_SCHEMA = "axon-cloud-training-job-record-v1"
 
 _SOURCE_ROOTS = (
     "adapters/",
+    "configs/",
     "cores/",
     "curator/",
     "runtime/",
