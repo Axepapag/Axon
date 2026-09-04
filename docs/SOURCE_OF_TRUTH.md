@@ -1,6 +1,6 @@
 # Axon Source Of Truth
 
-Last updated: 2026-08-31 (protected no-tissue-ceilings law and renewable work policy)
+Last updated: 2026-09-04 (foundations-first reasoning curriculum ratification)
 
 ## Core Doctrine
 
@@ -890,6 +890,31 @@ item disjointness fail closed. The full 1x64-head/two-layer/131072-FFN tissue
 passed local CPU preflight as receipt
 `ae99a3149485f0fa3d5d0d5dd006d2a89c0bf66f44b08fff8a36a35d4e3070d3`;
 this proves launch anatomy, not learned language.
+
+Jeff ratified the **foundations-first reasoning curriculum** on 2026-09-04.
+The frozen substrate already represents exact native and Unicode transport;
+an ABC exercise therefore teaches sequence use, not the existence of letters.
+Fresh reasoning education begins narrowly with real typed-delta motor control,
+exact one- and multi-character transport, response-draft addressing, no-op/
+abstain, and EOS. It then uses alphabet, digit, punctuation, Unicode and
+arbitrary sequences as one early sequence-navigation stage before word
+mechanics, short communication, composition, brother circulation and lived-
+experience reasoning. A fixed alphabet recitation cannot establish mastery.
+Heldout and regression work must be split-disjoint, and every evaluation
+operation must include a changed-source pair (plus arbitrary non-alphabet
+sequences) so a memorized song cannot satisfy the gate.
+
+Advancement is competency-gated and cumulative. Teacher forcing may supply
+credit assignment, but it is never mastery evidence. Stage advancement needs
+complete free-running heldout and regression evaluation, exact termination,
+performance above declared trivial baselines, changed-source dependence,
+complete-field coverage and retained prior competencies. Passed foundations
+remain available through adjustable spiral replay. A stage gate advances
+curriculum only; it never authorizes serving or parameter promotion. Failure
+pauses at an exact checkpoint for diagnosis or a renewable resource tranche;
+it is not a lifetime step, curriculum, output, context or tissue ceiling.
+The earlier ABC manifest remains immutable historical evidence and is not the
+foundations gate because its authored patterns repeat across data splits.
 
 Full-field recurrent training uses exact page-level activation checkpointing
 while gradients are enabled. It recomputes the same page encoder during

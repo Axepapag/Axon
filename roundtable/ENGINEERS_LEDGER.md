@@ -1,11 +1,32 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-04T00:33:28Z
-Current through event: `evt-20260904T003328000000Z-codex-kaggle-continuation-recovery`
+Updated: 2026-09-04T19:46:05.642134Z
+Current through event: `evt-20260904T194605642134Z-codex-foundations-training-recommendation`
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
 ## Current mission and verified state
+
+Curriculum clarification (read-only question, September 3 local): the current
+Organism core did not begin with an ABC-song/alphabet-mastery stage. Its recorded
+first six updates were mechanism, L0, L1, L2, L3, L4. L0 includes exact word/Unicode
+copy, letter case, punctuation, no-op and addressed edits. A separate earlier
+`training/abc_sequence_curriculum.py` teaches ordered letters/digits, but is not
+the active campaign. No curriculum or training process was changed for this
+clarification; the live provider state below remains the prior turn's observation.
+
+Curriculum recommendation (September 4 local): begin future fresh candidates
+with a narrow, mastery-gated foundations ladder rather than a memorized ABC song
+or immediate equal interleaving of L0-L4. First prove typed-delta mechanics,
+single/multiple-character transport and EOS; use ABC/digit/punctuation sequences
+as one L0 sequence-navigation family with changed-source and arbitrary-sequence
+counterfactuals; then advance through word mechanics, short communication,
+composition, multi-turn brother circulation, and lived-experience reasoning.
+Training may use teacher forcing for credit assignment, but advancement requires
+free-running exact heldout performance above trivial baselines plus retained
+regression, complete-field, authority, field-dependence and relevant-Soul probes.
+Passed skills remain in adjustable spiral replay. Gates govern competency; step
+allowances remain renewable resource tranches, never tissue ceilings.
 
 The current campaign is **Axon Organism L0–L4**, not the old ABC/account-blocked
 campaign. The correct Kaggle account is `axongliksbot`. No phone-verification
