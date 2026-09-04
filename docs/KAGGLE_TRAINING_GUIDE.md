@@ -141,6 +141,13 @@ dataset. It first checks provider status and refuses to duplicate a running,
 queued, or pending job. The double-click control center exposes this as
 "Launch or retry"; no raw Kaggle command is required.
 
+Retrying a packet reruns that packet's original inputs; it is NOT a learning
+continuation from outputs it subsequently produced. For continued learning,
+prepare a new `--resume` packet with the latest accepted parameter/optimizer/Soul
+bundle and its lineage evidence. Preserve completed outputs before any deliberate
+provider-version rerun. Never interpret another submission as another accepted
+tranche without checking its exact parent.
+
 Dataset-upload success is durably recorded before waiting for Kaggle's indexing
 to become ready. A temporary status 403 or readiness timeout therefore leaves
 the job at `dataset_uploaded`, and the next confirmed launch continues from
