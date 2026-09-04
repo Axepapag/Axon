@@ -1,0 +1,37 @@
+{
+  "schema": "axon-cloud-training-job-config-v1",
+  "name": "Axon Foundations Stage 1 sequence-control smoke",
+  "provider": "kaggle",
+  "accelerator": "gpu",
+  "allow_sensitive_state_upload": true,
+  "notes": "Fresh non-serving D64 foundations sibling. Synthetic typed-delta mechanism replay alternates with 64 split-disjoint Stage-1 sequence lessons; 16 heldout and 16 regression lessons form changed-source pairs. This 60-step renewable tranche is a smoke allowance, never a campaign, output, curriculum, tissue, or lifetime-step ceiling. No subsequent long tranche is authorized unless free-running heldout and regression evidence beats the declared floors and the foundation stage gate passes.",
+  "entrypoint_argv": [
+    "python",
+    "scripts/train_living_reasoning_smoke.py",
+    "--state-root",
+    "State",
+    "--device",
+    "cuda",
+    "--candidate-label",
+    "axon-foundation-sequence-stage1-1x64",
+    "--curriculum-manifest",
+    "State/training/curricula/ffcs_v1/59deccaec864f38d410fac7c4b7856a5ba19b28b9176f0495440f2ca6a318a31/manifest.json",
+    "--heads",
+    "1",
+    "--layers",
+    "2",
+    "--ffn-dim",
+    "131072",
+    "--checkpoint-interval",
+    "15",
+    "--tranche-steps",
+    "60",
+    "--seed",
+    "20260904"
+  ],
+  "include_paths": [
+    "State/active/branches/active",
+    "State/training/curricula/ffcs_v1/59deccaec864f38d410fac7c4b7856a5ba19b28b9176f0495440f2ca6a318a31/manifest.json",
+    "configs/source_of_truth/capacity_policy.json"
+  ]
+}
