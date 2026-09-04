@@ -165,9 +165,13 @@ def test_smoke_script_v2_renews_without_resource_identity_poison(sequential_stat
     run_index = first_command.index("--run-steps")
     del first_command[run_index : run_index + 2]
     first_command.extend(("--tranche-steps", "1"))
+    progress_dir = state_root / "test-cloud-progress"
+    first_command.extend(("--progress-dir", str(progress_dir), "--external-job-id", "wiring-v2-cloud"))
     first = _run(first_command)
     assert first.returncode == 0, first.stderr[-4000:]
-    first_report = json.loads(first.stdout)
+    first_report = json.loads("\n".join(
+        line for line in first.stdout.splitlines() if not line.startswith("AXON_PROGRESS ")
+    ))
     assert first_report["plan_schema"] == "axon-parameter-mutation-plan-v2"
     assert first_report["campaign_max_steps"] is None
     assert first_report["legacy_plan_envelope_exhausted"] is None
@@ -181,7 +185,9 @@ def test_smoke_script_v2_renews_without_resource_identity_poison(sequential_stat
     continuation_command.extend(("--checkpoint-interval", "2", "--resume"))
     continued = _run(continuation_command)
     assert continued.returncode == 0, continued.stderr[-4000:]
-    report = json.loads(continued.stdout)
+    report = json.loads("\n".join(
+        line for line in continued.stdout.splitlines() if not line.startswith("AXON_PROGRESS ")
+    ))
     assert report["candidate_generation_id"] == first_report["candidate_generation_id"]
     assert report["plan_id"] == first_report["plan_id"]
     assert report["learning_policy_id"] == first_report["learning_policy_id"]
@@ -191,6 +197,13 @@ def test_smoke_script_v2_renews_without_resource_identity_poison(sequential_stat
     assert report["tranche_continuation"]["prior_tranche_id"] == first_report[
         "resource_tranche"
     ]["tranche_id"]
+    events = [json.loads(line) for line in (progress_dir / "events.jsonl").read_text(encoding="utf-8").splitlines()]
+    evaluations = [event["details"] for event in events if event["status"] == "evaluated"]
+    assert [(row["phase"], row["global_step"]) for row in evaluations] == [
+        ("initial", 0), ("final", 1), ("initial", 1), ("final", 2),
+    ]
+    assert all("qa_transcripts" in row for row in evaluations)
+    assert len({event["event_id"] for event in events}) == len(events)
 
 
 def test_launcher_runs_all_candidates_on_sequential_manifest(sequential_state) -> None:

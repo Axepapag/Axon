@@ -160,6 +160,13 @@ Its Q/A samples are teacher-forced payload diagnostics, not evidence of fluent
 autonomous conversation. Provider and runner failures remain visible even if no
 training step is reached.
 
+Cloud-mode regression coverage must enable `--progress-dir` through both a real
+first tranche and an exact resume. The `evaluated` status carries completed
+metrics; accepting only `evaluating` is insufficient. Console JSON escapes
+non-ASCII characters losslessly for legacy Windows pipes, while durable journals
+and reports remain UTF-8. A console encoding must never determine what Axon can
+learn or represent.
+
 `doctor` makes an authenticated live quota request. It proves that the CLI and
 account session work and reports the provider's current quota. It does **not**
 prove accelerator entitlement: Kaggle may accept GPU metadata and expose quota

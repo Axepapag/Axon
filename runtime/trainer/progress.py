@@ -22,6 +22,7 @@ _SAFE_STATUSES = {
     "starting",
     "training",
     "evaluating",
+    "evaluated",
     "paused",
     "completed",
     "failed",
@@ -121,7 +122,10 @@ class TrainingProgressJournal:
             os.fsync(handle.fileno())
         self._atomic_json(self.current_path, value)
         print(
-            "AXON_PROGRESS " + json.dumps(value, ensure_ascii=False, sort_keys=True),
+            # Console JSON is losslessly escaped for legacy Windows pipes.
+            # The authoritative journal above remains exact UTF-8; diagnostics
+            # must never kill training because a terminal uses cp1252.
+            "AXON_PROGRESS " + json.dumps(value, ensure_ascii=True, sort_keys=True),
             flush=True,
         )
         return event

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import io
 import json
+import sys
 
 from runtime.trainer import TrainingProgressJournal
 
@@ -34,3 +36,20 @@ def test_progress_directory_cannot_be_reused_by_another_job(tmp_path) -> None:
         assert "another job" in str(exc)
     else:  # pragma: no cover - assertion guard
         raise AssertionError("cross-job progress reuse was accepted")
+
+
+def test_evaluation_metrics_and_unicode_samples_are_durably_supported(tmp_path, monkeypatch) -> None:
+    output = io.BytesIO()
+    legacy_console = io.TextIOWrapper(output, encoding="cp1252")
+    monkeypatch.setattr(sys, "stdout", legacy_console)
+    journal = TrainingProgressJournal(tmp_path, job_id="cloud-resume")
+    event = journal.emit(
+        "evaluated", phase="initial", global_step=360, heldout_mean_loss=2.738,
+        qa_transcripts=[{"prompt": "Copy: 水🙂", "predicted_payload": "水🙂", "expected_payload": "水🙂"}],
+    )
+    current = json.loads(journal.current_path.read_text(encoding="utf-8"))
+    assert current["event_id"] == event.event_id
+    assert current["status"] == "evaluated"
+    assert current["details"]["qa_transcripts"][0]["predicted_payload"] == "水🙂"
+    printed = output.getvalue().decode("cp1252").removeprefix("AXON_PROGRESS ")
+    assert json.loads(printed) == current

@@ -762,7 +762,7 @@ def main() -> int:
                     preflight_only=True,
                     preflight_receipt_id=preflight.receipt_id,
                 )
-            print(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2))
+            print(json.dumps(report, ensure_ascii=True, sort_keys=True, indent=2))
             return 0
 
         if (
@@ -792,7 +792,7 @@ def main() -> int:
             print(
                 json.dumps(
                     {**prior, "report_path": str(prior_path)},
-                    ensure_ascii=False,
+                    ensure_ascii=True,
                     sort_keys=True,
                     indent=2,
                 )
@@ -1338,7 +1338,7 @@ def main() -> int:
             report_path=str(report_path),
             report_id=report["report_id"],
         )
-    print(json.dumps({**report, "report_path": str(report_path)}, ensure_ascii=False, sort_keys=True, indent=2))
+    print(json.dumps({**report, "report_path": str(report_path)}, ensure_ascii=True, sort_keys=True, indent=2))
     return 0
 
 
