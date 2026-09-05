@@ -11,10 +11,12 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Sequence
 
+from .cloud_bundle import parse_sync_step_range, sha256_file, verify_and_extract
 from .cloud_jobs import (
     CLOUD_JOB_RECORD_SCHEMA,
     CloudJobConfig,
     CloudPacketError,
+    _atomic_json,
     prepare_cloud_job,
     read_job_record,
     write_job_record,
@@ -146,6 +148,51 @@ def select_python(accelerator: str) -> str:
     raise RuntimeError("no Kaggle Python interpreter passed a real CUDA compute probe")
 
 
+def write_output_archive(job_id: str) -> dict:
+    """Tar the complete kernel output tree with a detached SHA256 manifest."""
+    # Load the bundling module straight from the packet: the notebook
+    # interpreter is not the CUDA-probed training interpreter and may lack the
+    # training stack, so importing the runtime.trainer package is unsafe here.
+    import importlib.util
+
+    module_path = WORK / "runtime" / "trainer" / "cloud_bundle.py"
+    spec = importlib.util.spec_from_file_location("axon_cloud_bundle", module_path)
+    cloud_bundle = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cloud_bundle)
+
+    root = Path("/kaggle/working")
+    bundle_path = root / f"axon_outputs_{{job_id}}.tar.gz"
+    manifest_path = root / f"axon_outputs_{{job_id}}.sha256.json"
+    members = []
+    for path in sorted(root.rglob("*")):
+        if not path.is_file():
+            continue
+        relative = path.relative_to(root).as_posix()
+        if relative.startswith("axon_outputs_") or "axon_sync_staging" in path.parts:
+            continue
+        members.append((relative, path))
+    document = cloud_bundle.write_bundle(
+        bundle_path,
+        manifest_path,
+        members,
+        kind="outputs",
+        job_id=job_id,
+    )
+    return {{
+        "bundle": bundle_path.name,
+        "archive_sha256": document["archive_sha256"],
+        "member_count": len(document["members"]),
+    }}
+
+
+def try_write_output_archive(job_id: str) -> None:
+    """Archive failures are loud receipts; they never mask the training result."""
+    try:
+        publish("outputs_archived", **write_output_archive(job_id))
+    except Exception as exc:
+        publish("outputs_archive_failed", error_type=type(exc).__name__, error=str(exc))
+
+
 def main() -> int:
     OBS.mkdir(parents=True, exist_ok=True)
     publish("starting", python=sys.version, input=str(INPUT))
@@ -211,6 +258,13 @@ def main() -> int:
     env = dict(os.environ)
     env["PYTHONUNBUFFERED"] = "1"
     env["PYTHONPATH"] = str(WORK) + os.pathsep + env.get("PYTHONPATH", "")
+    if manifest["config"].get("sync_mid_run"):
+        # Opt-in mid-run sync: the training process reads these two variables,
+        # resolves credentials only from the kernel secret store, and runs as a
+        # no-op (with one journal note) when the secret is absent.
+        env["AXON_SYNC_MID_RUN"] = "1"
+        env["AXON_SYNC_DATASET"] = "axon-job-" + manifest["job_id"][:8] + "-sync"
+        publish("sync_enabled", dataset=env["AXON_SYNC_DATASET"])
     completed = subprocess.run(argv, cwd=WORK, env=env, check=False)
     result = {{
         "schema": "axon-cloud-training-result-v1",
@@ -221,6 +275,7 @@ def main() -> int:
     }}
     atomic_json(Path("/kaggle/working/axon_job_result.json"), result)
     publish(result["status"], returncode=completed.returncode, job_id=manifest["job_id"])
+    try_write_output_archive(manifest["job_id"])
     return completed.returncode
 
 
@@ -238,6 +293,16 @@ def run_guarded() -> int:
         }}
         atomic_json(Path("/kaggle/working/axon_job_result.json"), failure)
         publish("failed", error_type=type(exc).__name__, error=str(exc))
+        try:
+            manifest_path = WORK / "axon_packet_manifest.json"
+            if manifest_path.is_file():
+                failed_job_id = json.loads(manifest_path.read_text(encoding="utf-8")).get("job_id")
+                if failed_job_id:
+                    try_write_output_archive(failed_job_id)
+        except Exception:
+            # The governed failure receipt above is the authoritative record;
+            # a broken packet must not gain a second failure from archiving.
+            pass
         raise
 
 
@@ -435,7 +500,9 @@ class KaggleTrainerAdapter:
             "is_private": True,
             "enable_gpu": manifest["config"]["accelerator"] == "gpu",
             "enable_tpu": manifest["config"]["accelerator"] == "tpu",
-            "enable_internet": False,
+            # Mid-run sync is the only feature that needs kernel internet, and
+            # only recipes that explicitly opt in get it.
+            "enable_internet": bool(manifest["config"].get("sync_mid_run")),
             "dataset_sources": [dataset_ref],
             "competition_sources": [],
             "kernel_sources": [],
@@ -480,6 +547,14 @@ class KaggleTrainerAdapter:
         record, dataset_dir, kernel_dir = self._materialize_kaggle_files(job_id)
         if record.get("public") is not False:
             raise CloudPacketError("Kaggle job record does not prove private visibility")
+        if record.get("sync_mid_run") and not record.get("sync_dataset_ref"):
+            # The opt-in sync target is a private per-job dataset on the same
+            # account; recording it binds the job record to its sync identity.
+            record = {
+                **record,
+                "sync_dataset_ref": f"{self.resolved_owner}/axon-job-{job_id[:8]}-sync",
+            }
+            write_job_record(self.state_root, job_id, record)
         slug = f"axon-job-{job_id[:16]}"
         dataset_ref = f"{self.resolved_owner}/{slug}-input"
         kernel_ref = f"{self.resolved_owner}/{slug}"
@@ -559,30 +634,19 @@ class KaggleTrainerAdapter:
         )
         return completed.returncode
 
-    def fetch(self, job_id: str) -> dict[str, Any]:
-        record = read_job_record(self.state_root, job_id)
-        kernel_ref = record.get("kernel_ref")
-        if not kernel_ref:
-            raise CloudPacketError("job has not been submitted to Kaggle")
-        destination = self.state_root / "training" / "cloud" / "jobs" / job_id / "outputs"
-        destination.mkdir(parents=True, exist_ok=True)
-        # Kaggle output trees contain Soul snapshot paths that exceed Windows
-        # MAX_PATH when placed directly under the canonical job directory.
-        # Download into a short temp directory first, then move the tree into
-        # canonical position with robocopy (long-path aware on Windows).
-        temp_root = Path(os.environ.get("TEMP") or tempfile.gettempdir()) / "axon_fetch"
-        temp_root.mkdir(parents=True, exist_ok=True)
-        temp_target = Path(tempfile.mkdtemp(prefix="axon_out_", dir=temp_root))
-        self._run(("kaggle", "kernels", "output", str(kernel_ref), "-p", str(temp_target), "-o"))
+    def _move_into_place(self, source: Path, destination: Path) -> None:
+        """Move a downloaded tree into canonical position (long-path aware)."""
         # Validate the exact generated transfer targets before any recursive
         # move/cleanup; never let an environment value or job reference widen it.
-        temp_target.resolve(strict=True).relative_to(temp_root.resolve(strict=True))
+        source.resolve(strict=True).relative_to(
+            (Path(os.environ.get("TEMP") or tempfile.gettempdir()) / "axon_fetch").resolve(strict=True)
+        )
         destination.resolve(strict=True).relative_to(self.state_root.resolve(strict=True))
         if os.name == "nt":
             completed = subprocess.run(
                 [
                     "robocopy",
-                    str(temp_target),
+                    str(source),
                     str(destination),
                     "/E",
                     "/MOVE",
@@ -601,9 +665,85 @@ class KaggleTrainerAdapter:
                     f"robocopy failed moving outputs into canonical position: rc={completed.returncode}"
                 )
         else:
-            if temp_target.exists():
-                shutil.copytree(temp_target, destination, dirs_exist_ok=True)
+            if source.exists():
+                shutil.copytree(source, destination, dirs_exist_ok=True)
+
+    def _fetch_bundle(self, job_id: str, kernel_ref: str, temp_root: Path, destination: Path) -> bool:
+        """Bundle-first retrieval: two downloads, full rehash, then placement.
+
+        Returns False when the kernel published no output bundle (legacy jobs),
+        so the caller falls back to the per-file fetch.
+        """
+        bundle_name = f"axon_outputs_{job_id}.tar.gz"
+        manifest_name = f"axon_outputs_{job_id}.sha256.json"
+        temp_target = Path(tempfile.mkdtemp(prefix="axon_out_bundle_", dir=temp_root))
+        self._run(
+            (
+                "kaggle",
+                "kernels",
+                "output",
+                kernel_ref,
+                "-p",
+                str(temp_target),
+                "-o",
+                "--file-pattern",
+                f"^axon_outputs_{job_id}",
+            )
+        )
+        bundle_path = temp_target / bundle_name
+        manifest_path = temp_target / manifest_name
+        if not bundle_path.is_file() or not manifest_path.is_file():
+            shutil.rmtree(temp_target, ignore_errors=True)
+            return False
+        job_dir = self.state_root / "training" / "cloud" / "jobs" / job_id
+        staging = temp_target / "extracted"
+        report = verify_and_extract(
+            bundle_path,
+            manifest_path,
+            staging,
+            quarantine_root=job_dir / "quarantine",
+        )
+        if not report["ok"]:
+            shutil.rmtree(temp_target, ignore_errors=True)
+            raise CloudPacketError(
+                "output bundle failed hash verification and was quarantined: "
+                f"{report['quarantine_dir']} ({'; '.join(report['mismatches'])})"
+            )
+        if report.get("job_id") != job_id:
+            shutil.rmtree(temp_target, ignore_errors=True)
+            raise CloudPacketError("output bundle manifest belongs to another Axon job")
+        result_path = staging / "axon_job_result.json"
+        if result_path.is_file():
+            result = json.loads(result_path.read_text(encoding="utf-8"))
+            if result.get("job_id") not in {None, job_id}:
+                raise CloudPacketError("downloaded result belongs to another Axon job")
+        self._move_into_place(staging, destination)
+        # Keep the verified transfer contract alongside the extracted outputs.
+        shutil.copy2(manifest_path, destination / manifest_name)
         shutil.rmtree(temp_target, ignore_errors=True)
+        return True
+
+    def fetch(self, job_id: str, *, bundle: bool = True) -> dict[str, Any]:
+        record = read_job_record(self.state_root, job_id)
+        kernel_ref = record.get("kernel_ref")
+        if not kernel_ref:
+            raise CloudPacketError("job has not been submitted to Kaggle")
+        destination = self.state_root / "training" / "cloud" / "jobs" / job_id / "outputs"
+        destination.mkdir(parents=True, exist_ok=True)
+        # Kaggle output trees contain Soul snapshot paths that exceed Windows
+        # MAX_PATH when placed directly under the canonical job directory.
+        # Download into a short temp directory first, then move the tree into
+        # canonical position with robocopy (long-path aware on Windows).
+        temp_root = Path(os.environ.get("TEMP") or tempfile.gettempdir()) / "axon_fetch"
+        temp_root.mkdir(parents=True, exist_ok=True)
+        fetch_mode = "legacy_per_file"
+        if bundle and self._fetch_bundle(job_id, str(kernel_ref), temp_root, destination):
+            fetch_mode = "bundle"
+        if fetch_mode != "bundle":
+            temp_target = Path(tempfile.mkdtemp(prefix="axon_out_", dir=temp_root))
+            self._run(("kaggle", "kernels", "output", str(kernel_ref), "-p", str(temp_target), "-o"))
+            self._move_into_place(temp_target, destination)
+            shutil.rmtree(temp_target, ignore_errors=True)
         result_path = destination / "axon_job_result.json"
         result = None
         if result_path.is_file():
@@ -615,9 +755,163 @@ class KaggleTrainerAdapter:
             "phase": "outputs_fetched",
             "output_dir": str(destination),
             "result": result,
+            "fetch_mode": fetch_mode,
         }
         write_job_record(self.state_root, job_id, updated)
         return updated
+
+    def _sync_root(self, job_id: str) -> Path:
+        return self.state_root / "training" / "cloud" / "jobs" / job_id / "sync"
+
+    def _sync_dataset_ref(self, job_id: str, record: dict[str, Any]) -> str:
+        ref = record.get("sync_dataset_ref")
+        if ref:
+            return str(ref)
+        return f"{self.resolved_owner}/axon-job-{job_id[:8]}-sync"
+
+    def sync_pull(self, job_id: str) -> dict[str, Any]:
+        """Download the latest sync dataset version, verify, and extract it.
+
+        Extraction lands under ``jobs/<job-id>/sync/`` — observation-only
+        evidence, never canonical training State, never continuation authority.
+        """
+        record = read_job_record(self.state_root, job_id)
+        dataset_ref = self._sync_dataset_ref(job_id, record)
+        sync_root = self._sync_root(job_id)
+        bundles_dir = sync_root / "bundles"
+        members_dir = sync_root / "members"
+        receipts_dir = sync_root / "receipts"
+        temp_root = Path(os.environ.get("TEMP") or tempfile.gettempdir()) / "axon_fetch"
+        temp_root.mkdir(parents=True, exist_ok=True)
+        temp_target = Path(tempfile.mkdtemp(prefix="axon_sync_", dir=temp_root))
+        self._run(
+            ("kaggle", "datasets", "download", "-d", dataset_ref, "-p", str(temp_target), "--unzip", "-o")
+        )
+        pulled: list[dict[str, Any]] = []
+        already_present: list[str] = []
+        for bundle_path in sorted(temp_target.glob("sync_*_steps_*_*.tar.gz")):
+            manifest_path = temp_target / bundle_path.name.replace(".tar.gz", ".sha256.json")
+            step_range = parse_sync_step_range(bundle_path.name)
+            name = bundle_path.name.replace(".tar.gz", "")
+            if step_range is None or not manifest_path.is_file():
+                raise CloudPacketError(f"sync dataset carries an incomplete bundle: {bundle_path.name}")
+            receipt_path = receipts_dir / f"{name}.json"
+            if receipt_path.is_file():
+                existing = json.loads(receipt_path.read_text(encoding="utf-8"))
+                if existing.get("archive_sha256") == sha256_file(bundle_path):
+                    already_present.append(bundle_path.name)
+                    continue
+                raise CloudPacketError(f"a different bundle already occupies {name}")
+            report = verify_and_extract(
+                bundle_path,
+                manifest_path,
+                members_dir,
+                quarantine_root=sync_root / "quarantine",
+            )
+            if not report["ok"]:
+                raise CloudPacketError(
+                    "sync bundle failed hash verification and was quarantined: "
+                    f"{report['quarantine_dir']} ({'; '.join(report['mismatches'])})"
+                )
+            if report.get("job_id") != job_id:
+                raise CloudPacketError("sync bundle belongs to another Axon job")
+            bundles_dir.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(bundle_path), str(bundles_dir / bundle_path.name))
+            shutil.move(str(manifest_path), str(bundles_dir / manifest_path.name))
+            manifest_doc = json.loads((bundles_dir / manifest_path.name).read_text(encoding="utf-8"))
+            receipt = {
+                "schema": "axon-mid-run-sync-local-receipt-v1",
+                "job_id": job_id,
+                "dataset_ref": dataset_ref,
+                "bundle_name": bundle_path.name,
+                "step_range": list(step_range),
+                "archive_sha256": manifest_doc["archive_sha256"],
+                "member_count": report["member_count"],
+                "observation_only": True,
+            }
+            _atomic_json(receipt_path, receipt)
+            pulled.append(receipt)
+        shutil.rmtree(temp_target, ignore_errors=True)
+        return {
+            "schema": "axon-mid-run-sync-pull-v1",
+            "job_id": job_id,
+            "sync_dataset_ref": dataset_ref,
+            "sync_root": str(sync_root),
+            "pulled": pulled,
+            "already_present": already_present,
+            "observation_only": True,
+        }
+
+    def sync_status(self, job_id: str, *, rehash: bool = True) -> dict[str, Any]:
+        """Report which synced step ranges are locally verified.
+
+        With ``rehash`` (the default) every recorded member is rehashed against
+        its manifest before a range is reported as verified; anything failing
+        is listed, never silently skipped.
+        """
+        record = read_job_record(self.state_root, job_id)
+        sync_root = self._sync_root(job_id)
+        bundles_dir = sync_root / "bundles"
+        members_dir = sync_root / "members"
+        receipts_dir = sync_root / "receipts"
+        quarantine_dir = sync_root / "quarantine"
+        verified_ranges: list[list[int]] = []
+        mismatches: list[str] = []
+        member_total = 0
+        if receipts_dir.is_dir():
+            for receipt_path in sorted(receipts_dir.glob("sync_*_steps_*_*.json")):
+                # A receipt that does not parse flags the range, never skips it.
+                try:
+                    json.loads(receipt_path.read_text(encoding="utf-8"))
+                except json.JSONDecodeError:
+                    mismatches.append(f"corrupt sync receipt: {receipt_path.name}")
+                    continue
+                step_range = parse_sync_step_range(receipt_path.name)
+                if step_range is None:
+                    mismatches.append(f"unparseable sync receipt: {receipt_path.name}")
+                    continue
+                start, end = step_range
+                manifest_path = bundles_dir / f"sync_{job_id}_steps_{start}_{end}.sha256.json"
+                if not manifest_path.is_file():
+                    mismatches.append(f"sync manifest missing for steps {start}-{end}")
+                    continue
+                members = json.loads(manifest_path.read_text(encoding="utf-8"))["members"]
+                failed = []
+                if rehash:
+                    for arcname, member in sorted(members.items()):
+                        candidate = members_dir / Path(*arcname.split("/"))
+                        if not candidate.is_file() or sha256_file(candidate) != member["sha256"]:
+                            failed.append(arcname)
+                if failed:
+                    mismatches.append(
+                        f"sync bundle steps {start}-{end} failed rehash: {', '.join(failed)}"
+                    )
+                    continue
+                member_total += len(members)
+                verified_ranges.append([start, end])
+        verified_ranges.sort()
+        verified_through = None
+        if verified_ranges:
+            verified_through = verified_ranges[0][1]
+            for start, end in verified_ranges[1:]:
+                if start <= verified_through + 1:
+                    verified_through = max(verified_through, end)
+        quarantined = (
+            sorted(path.name for path in quarantine_dir.iterdir()) if quarantine_dir.is_dir() else []
+        )
+        return {
+            "schema": "axon-mid-run-sync-status-v1",
+            "job_id": job_id,
+            "sync_dataset_ref": record.get("sync_dataset_ref"),
+            "sync_root": str(sync_root),
+            "verified_ranges": verified_ranges,
+            "verified_through_step": verified_through,
+            "verified_member_count": member_total,
+            "rehashed": rehash,
+            "mismatches": mismatches,
+            "quarantined": quarantined,
+            "observation_only": True,
+        }
 
     def jobs(self) -> list[dict[str, Any]]:
         root = self.state_root / "training" / "cloud" / "jobs"

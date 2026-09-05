@@ -163,6 +163,7 @@ class CloudJobConfig:
     include_paths: tuple[str, ...]
     allow_sensitive_state_upload: bool = False
     notes: str = ""
+    sync_mid_run: bool = False
     config_id: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -186,6 +187,7 @@ class CloudJobConfig:
         object.__setattr__(self, "entrypoint_argv", argv)
         object.__setattr__(self, "include_paths", includes)
         object.__setattr__(self, "notes", str(self.notes))
+        object.__setattr__(self, "sync_mid_run", bool(self.sync_mid_run))
         object.__setattr__(self, "config_id", canonical_sha256(self.to_canonical_dict(False)))
 
     def to_canonical_dict(self, include_id: bool = True) -> dict[str, Any]:
@@ -199,6 +201,10 @@ class CloudJobConfig:
             "allow_sensitive_state_upload": self.allow_sensitive_state_upload,
             "notes": self.notes,
         }
+        if self.sync_mid_run:
+            # Opt-in keys join the identity only when enabled, so existing
+            # recipes keep their historical config and job identities.
+            value["sync_mid_run"] = True
         if include_id:
             value["config_id"] = self.config_id
         return value
@@ -211,6 +217,7 @@ class CloudJobConfig:
         expected_id = item.pop("config_id", None)
         item["entrypoint_argv"] = tuple(item["entrypoint_argv"])
         item["include_paths"] = tuple(item.get("include_paths", ()))
+        item["sync_mid_run"] = bool(item.get("sync_mid_run", False))
         config = cls(**item)
         if expected_id is not None and expected_id != config.config_id:
             raise ValueError("cloud job config identity mismatch")
@@ -311,6 +318,7 @@ def prepare_cloud_job(
         "dataset_ref": None,
         "kernel_ref": None,
         "public": False,
+        "sync_mid_run": config.sync_mid_run,
     }
     _atomic_json(job_dir / "job.json", record)
     return PreparedCloudJob(

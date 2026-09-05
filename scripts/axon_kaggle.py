@@ -57,6 +57,26 @@ def _arguments() -> argparse.Namespace:
     monitor.add_argument("--follow", action="store_true")
     fetch = commands.add_parser("fetch", help="download outputs into canonical cloud job State")
     fetch.add_argument("job_id")
+    fetch.add_argument(
+        "--no-bundle",
+        action="store_true",
+        help="skip the hash-manifested single-archive path and force legacy per-file download",
+    )
+    sync_pull = commands.add_parser(
+        "sync-pull",
+        help="download, verify, and extract the latest mid-run sync dataset version (observation-only)",
+    )
+    sync_pull.add_argument("job_id")
+    sync_status = commands.add_parser(
+        "sync-status",
+        help="show which synced step ranges are locally verified (observation-only)",
+    )
+    sync_status.add_argument("job_id")
+    sync_status.add_argument(
+        "--no-rehash",
+        action="store_true",
+        help="trust pull-time receipts without rehashing members (faster, weaker)",
+    )
     commands.add_parser("jobs", help="list locally known cloud jobs")
     return parser.parse_args()
 
@@ -87,6 +107,36 @@ def _display(value: Any, *, machine: bool) -> None:
         print("If Kaggle requests phone/identity verification, complete it before GPU/TPU launch")
         print("Credentials: official user store; never copied into Axon")
         return
+    if isinstance(value, dict) and value.get("schema") == "axon-mid-run-sync-status-v1":
+        print(f"Mid-run sync status for job {value['job_id']} (observation-only)")
+        print(f"Sync dataset: {value.get('sync_dataset_ref') or '(not recorded)'}")
+        if value["verified_ranges"]:
+            ranges = ", ".join(f"{a}-{b}" for a, b in value["verified_ranges"])
+            print(f"Locally verified step ranges: {ranges}")
+            print(f"Contiguously verified through step: {value['verified_through_step']}")
+            print(f"Verified members: {value['verified_member_count']} (rehashed: {value['rehashed']})")
+        else:
+            print("No locally verified sync bundles yet; run sync-pull while the job runs.")
+        for problem in value["mismatches"]:
+            print(f"MISMATCH: {problem}")
+        for item in value["quarantined"]:
+            print(f"QUARANTINED: {item}")
+        print("Synced artifacts are observations; they never authorize a continuation.")
+        return
+    if isinstance(value, dict) and value.get("schema") == "axon-mid-run-sync-pull-v1":
+        print(f"Sync pull for job {value['job_id']} from {value['sync_dataset_ref']} (observation-only)")
+        for receipt in value["pulled"]:
+            start, end = receipt["step_range"]
+            print(
+                f"  verified steps {start}-{end}: {receipt['member_count']} members, "
+                f"archive {receipt['archive_sha256'][:16]}…"
+            )
+        for name in value["already_present"]:
+            print(f"  already verified locally: {name}")
+        if not value["pulled"] and not value["already_present"]:
+            print("  no sync bundles in the latest dataset version")
+        print(f"Extracted under: {value['sync_root']}")
+        return
     if isinstance(value, dict) and "job_id" in value:
         print(f"Axon cloud job: {value['job_id']}")
         print(f"Phase: {value.get('phase', 'unknown')}")
@@ -102,6 +152,8 @@ def _display(value: Any, *, machine: bool) -> None:
             print(f"Kaggle says: {value['provider_status']}")
         if value.get("output_dir"):
             print(f"Downloaded outputs: {value['output_dir']}")
+        if value.get("fetch_mode"):
+            print(f"Fetch mode: {value['fetch_mode']}")
         return
     if isinstance(value, list):
         if not value:
@@ -129,7 +181,10 @@ def _organ(adapter: KaggleTrainerAdapter) -> TrainerOrgan:
     )
     organ.register_handler(
         TrainerCommandKind.IMPORT_CLOUD_RESULT,
-        lambda command: adapter.fetch(command.arguments["job_id"]),
+        lambda command: adapter.fetch(
+            command.arguments["job_id"],
+            bundle=bool(command.arguments.get("bundle", True)),
+        ),
     )
     return organ
 
@@ -180,13 +235,21 @@ def main() -> int:
             result = organ.dispatch(
                 TrainerOrganCommand(
                     kind="import_cloud_result",
-                    arguments={"job_id": args.job_id, "provider": "kaggle"},
+                    arguments={
+                        "job_id": args.job_id,
+                        "provider": "kaggle",
+                        "bundle": not args.no_bundle,
+                    },
                     requested_by="kaggle-cli",
                 )
             )
             if result.status.value != "completed":
                 raise CloudPacketError(result.error or "Kaggle result import failed")
             value = dict(result.payload)
+        elif args.command == "sync-pull":
+            value = adapter.sync_pull(args.job_id)
+        elif args.command == "sync-status":
+            value = adapter.sync_status(args.job_id, rehash=not args.no_rehash)
         else:
             value = adapter.jobs()
     except (CloudPacketError, OSError, ValueError, json.JSONDecodeError) as exc:

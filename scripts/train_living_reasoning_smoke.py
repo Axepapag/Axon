@@ -32,6 +32,7 @@ from runtime.trainer import (
     TrainingProgressJournal,
     TrancheContinuation,
     TrancheStore,
+    cloud_bundle,
 )
 from training import (
     FOUNDATION_SEQUENCE_GATE_POLICY_ID,
@@ -418,6 +419,15 @@ def main() -> int:
             args.progress_dir,
             job_id=args.external_job_id or f"local-{os.getpid()}",
         )
+    )
+    # Opt-in mid-run artifact sync (ratified 2026-09-04 proposal). Without the
+    # packet-injected AXON_SYNC_* environment this is a no-op with one journal
+    # note; it never blocks or fails training.
+    sync_hook = cloud_bundle.MidRunSyncHook.from_environment(
+        job_id=args.external_job_id or f"local-{os.getpid()}",
+        state_root=args.state_root,
+        staging_root=args.state_root.parent / "axon_sync_staging",
+        receipt_log=(args.progress_dir / "sync_receipts.jsonl") if args.progress_dir is not None else None,
     )
     if args.legacy_plan_v1 and args.max_steps < 1:
         raise ValueError("--max-steps must be positive")
@@ -1105,6 +1115,7 @@ def main() -> int:
             else json.loads(prior_reports[0].read_text(encoding="utf-8"))["initial_evaluation"]
         )
         start_step = 0 if latest_bundle is None else latest_bundle.step
+        sync_hook.set_base_step(start_step)
         if args.evaluate_only:
             end_step = start_step
         elif tranche is not None:
@@ -1189,6 +1200,9 @@ def main() -> int:
                 accepted_segment_receipt_ids = list(segment_receipt_ids)
                 segment_transitions.clear()
                 segment_receipt_ids.clear()
+                # Accepted checkpoint boundary: hand the new artifacts to the
+                # daemon sync worker; GPU compute continues immediately.
+                sync_hook.boundary(step + 1)
             steps.append(
                 {
                     "step": step + 1,
@@ -1391,6 +1405,7 @@ def main() -> int:
             report_id=report["report_id"],
         )
     print(json.dumps({**report, "report_path": str(report_path)}, ensure_ascii=True, sort_keys=True, indent=2))
+    sync_hook.close()
     return 0
 
 

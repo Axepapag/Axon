@@ -113,7 +113,8 @@ Safety is fail-closed:
 - credential filenames, key material, symlinks, and paths outside `D:\Axon`
   are rejected;
 - the generated dataset and kernel are private, public upload flags are never
-  used, and kernel internet access is disabled;
+  used, and kernel internet access is disabled unless a recipe explicitly opts
+  in to mid-run sync (`sync_mid_run`), which is the only feature that uses it;
 - launch requires explicit operator confirmation;
 - cloud results cannot activate a candidate or rewrite canonical State merely
   by being downloaded.
@@ -190,6 +191,84 @@ GPU/TPU access. That external account action blocked the first ABC launch even
 though the private dataset, T4 metadata, and packet mount were valid. Always run
 `doctor` again before planning spend; Kaggle's quota and entitlement can change
 independently.
+
+## Bundled fetch and mid-run sync (ratified 2026-09-04)
+
+Every new packet now ends its run by writing two files into the kernel output
+root: `axon_outputs_<job-id>.tar.gz` and `axon_outputs_<job-id>.sha256.json`
+(a detached manifest mapping every member path to its SHA256, plus the
+archive-level hash). This happens at normal completion and at a governed
+failure receipt, so even a crashed run leaves one verifiable archive.
+
+`fetch` is bundle-first by default:
+
+```powershell
+python scripts/axon_kaggle.py fetch <job-id>          # bundle-first, automatic
+python scripts/axon_kaggle.py fetch <job-id> --no-bundle   # force legacy per-file
+```
+
+The bundle path downloads exactly two files, verifies the archive hash,
+extracts into a short temp staging dir, rehashes every member against the
+manifest, and only then moves the tree into
+`State/training/cloud/jobs/<job-id>/outputs` (robocopy, long-path aware). Any
+mismatch quarantines the bundle under `jobs/<job-id>/quarantine/` and stops
+loudly — nothing half-verified reaches canonical outputs. The verified
+manifest is kept in the outputs directory as the transfer contract. Jobs
+launched before this feature have no bundle; `fetch` detects that and falls
+back to the legacy per-file download automatically. The job record notes which
+path was used (`fetch_mode`).
+
+### One-time Kaggle UI setup for mid-run sync (Jeff only)
+
+Mid-run sync is opt-in per recipe (`"sync_mid_run": true` in the recipe JSON).
+It needs two one-time manual steps in the Kaggle web UI; engineers never
+handle the token:
+
+1. In **Settings → User Secrets** (or the kernel's **Add-ons → Secrets**),
+   create a secret named `AXON_KAGGLE_SYNC`. Either attach the account's API
+   token so the kernel environment carries `KAGGLE_USERNAME`/`KAGGLE_KEY`, or
+   make the secret value a JSON payload `{"username": "...", "key": "..."}`
+   holding an API token for the `axongliksbot` account.
+2. Attach that secret to the job kernel and make sure the session runs with
+   **internet enabled** (the adapter sets `enable_internet` in kernel metadata
+   automatically for sync recipes; Kaggle still requires the account to allow
+   it).
+
+The packet treats the secret as write-only: it is never printed, logged,
+receipted, or persisted. If the secret is absent or internet is unavailable,
+training runs correctly with sync disabled — one journal note, no failure.
+
+When enabled, after every accepted checkpoint boundary (every 30 steps) the
+trainer bundles the artifacts produced since the last boundary into
+`sync_<job-id>_steps_<a>_<b>.tar.gz` plus manifest and pushes it as a new
+version of the private dataset `axongliksbot/axon-job-<short>-sync`
+(`<short>` = first 8 characters of the job id). Uploads run on a daemon
+thread; GPU compute never waits on the network. A failed upload is receipted
+and retried at the next boundary with an extended step range — it is never a
+training failure. Sync receipts also land in
+`axon_observability/trainer/sync_receipts.jsonl` inside the run outputs.
+
+### Watching synced artifacts locally
+
+```powershell
+python scripts/axon_kaggle.py sync-pull <job-id>     # download + verify + extract latest sync version
+python scripts/axon_kaggle.py sync-status <job-id>   # which step ranges are locally verified
+```
+
+`sync-pull` verifies and rehashes everything into
+`State/training/cloud/jobs/<job-id>/sync/` (`bundles/`, `members/`,
+`receipts/`); `sync-status` rehashes again by default (`--no-rehash` is a
+faster, weaker view) and reports contiguous verified coverage. A crash at
+step 700 still leaves verified local artifacts through the last pulled
+boundary. Kaggle dataset downloads always serve the **latest** version, so
+run `sync-pull` regularly during a watched run; anything missed remains fully
+recoverable from the end-of-run bundle.
+
+**Synced mid-run artifacts are observation-only.** They are evidence under
+the same provenance law, but they never write into canonical training State,
+never authorize a continuation, and never relax the exact-parent
+tranche-renewal rule. The continuation decision stays with Jeff after the
+immutable segment and final report arrive and are verified.
 
 ## Continuation packets
 

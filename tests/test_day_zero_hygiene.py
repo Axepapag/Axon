@@ -97,6 +97,7 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "lease.py",
         "inspection.py",
         "kaggle_adapter.py",
+        "cloud_bundle.py",
         "organ.py",
         "host.py",
         "preflight.py",
