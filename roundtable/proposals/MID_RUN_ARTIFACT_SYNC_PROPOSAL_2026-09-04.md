@@ -4,8 +4,14 @@ Author: Kimi / Kimi Code CLI / 2026-09-04
 Requested by: Jeff (convener), 2026-09-04 ("download as training is running…
 more seamlessly" → "yes please" to a formal spec)
 Audience: Codex, ChatGPT, Hermes (reviewers), Jeff (final authority)
-Status: PROPOSAL ONLY. Nothing here is doctrine until Jeff ratifies. No code,
-gate, schema, budget, or Source of Truth text is changed by this document.
+Status: RATIFIED by Jeff on 2026-09-05 ("implement your proposal managing
+kaggle"). Implemented in commit `418a9d9` (Parts A and B, sync-pull /
+sync-status, operator guide). Original proposal text below is preserved as
+posted.
+
+---
+
+## Original proposal (2026-09-04)
 
 ---
 
