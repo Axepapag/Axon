@@ -1,7 +1,7 @@
 """Shared contracts for the L0-L4 Language Foundations curriculum.
 
 Implements the first bounded campaign of the Language Foundations Schoolhouse
-proposal (``roundtable/CHATGPT_LANGUAGE_FOUNDATIONS_SCHOOLHOUSE_PROPOSAL_2026-08-31.md``
+proposal (``roundtable/proposals/CHATGPT_LANGUAGE_FOUNDATIONS_SCHOOLHOUSE_PROPOSAL_2026-08-31.md``
 section 17): objective, tightly structured lessons for character/transport
 fluency (L0), spelling/punctuation (L1), vocabulary (L2), morphology (L3) and
 grammar mechanics (L4).

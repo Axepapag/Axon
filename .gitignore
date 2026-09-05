@@ -25,25 +25,20 @@ ssh_helper.py
 *.pem
 
 # Session-start material remains local, except for the repository-wide
-# engineering ledgers. Those ledgers must travel with every checkout.
+# engineering ledgers and the organized roundtable document folders.
+# Those ledgers and folders must travel with every checkout.
 !/roundtable/
 /roundtable/*
 !/roundtable/ENGINEERS_LEDGER.md
 !/roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl
 !/roundtable/ENGINEERS_LEDGER_PROTOCOL.md
 !/roundtable/ENGINE_TEAM_BUS.md
-!/roundtable/HEART_AMENDMENT_DRAFT.md
-!/roundtable/SEMANTIC_CORTEX_PROPOSAL.md
-!/roundtable/FIXED_CHARACTER_POISON_AUDIT_2026-08-24.md
-!/roundtable/LIVING_D64_CANDIDATE_A_REPORT_2026-08-28.md
-!/roundtable/ENGINEERING_SESSION_HARVEST_PROPOSAL.md
-!/roundtable/CHATGPT_CURRICULUM_FOUNDRY_PROPOSAL.md
-!/roundtable/C1_DECISIVE_CAMPAIGN_FALSIFICATION_2026-08-31.md
-!/roundtable/HERMES_FIRST_FORM_CURRICULUM_PROPOSAL.md
-!/roundtable/CODEX_CURRICULUM_CONVERGENCE_REVIEW_2026-08-29.md
-!/roundtable/CODEX_IDENTITY_FFCS_TOURNAMENT_OPENING_2026-08-29.md
-!/roundtable/CHATGPT_LANGUAGE_FOUNDATIONS_SCHOOLHOUSE_PROPOSAL_2026-08-31.md
-!/roundtable/CODEX_KAGGLE_CONTINUATION_REVIEW_2026-09-03.md
+!/roundtable/README.md
+!/roundtable/proposals/
+!/roundtable/reviews/
+!/roundtable/reports/
+!/roundtable/decisions/
+!/roundtable/drafts/
 
 # Operational state is local. Existing tracked table fixtures remain tracked,
 # but new machine-local runtime/acceptance artifacts are not promoted by default.

@@ -1,9 +1,48 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-04T19:46:05.642134Z
-Current through event: `evt-20260904T194605642134Z-codex-foundations-training-recommendation`
+Updated: 2026-09-05T00:12:36.500940Z
+Current through event: `evt-20260905T001236500940Z-kimi-roundtable-organization`
+
+Roundtable layout: since 2026-09-04 the table is organized into
+`proposals/`, `reviews/`, `reports/`, `decisions/`, `drafts/`; the three
+ledger files, the team bus, and `README.md` (index + house rules) stay at
+root. Historical flat-path references in immutable records resolve by
+filename per the README. The reorganization is **uncommitted** pending
+Jeff's confirmation.
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
+
+## Codex final session (September 4, reconstructed by Kimi)
+
+Codex's last session ended at his usage limit. All of its work survived and is
+committed and pushed; the worktree is clean and main == origin/main at
+`d121391`.
+
+- `77f18db`: foundations-first sequence mastery gate. New
+  `training/foundation_sequence_curriculum.py` (Stage 1
+  `sequence_transport_v1`: split-disjoint paired sources, forward/reverse/
+  every-other/middle-span operations over native and Unicode symbols,
+  advancement gate requiring 0.95 free-running exact rate on both source
+  variants, 1.0 complete-field coverage, teacher-forced above constant floor),
+  `scripts/compile_foundation_sequence.py`, 174-line test file (5 tests,
+  verified passing 2026-09-04), smoke-trainer integration, and a Source of
+  Truth doctrine amendment in both SOT mirrors.
+- `d121391`: governed Stage 1 smoke recipe
+  `configs/kaggle/axon_foundation_sequence_stage1_smoke.json` and the
+  Jeff-ratified decision record
+  `roundtable/decisions/RESOLUTION_FOUNDATIONS_FIRST_CURRICULUM_2026-09-04.md`.
+- Neither commit has a dedicated canonical closeout event (Codex hit his limit
+  first); the reconstruction event above records them.
+
+The second L0-L4 tranche job `48d0ee6a...` now reports
+**KernelWorkerStatus.COMPLETE**. Its step-361-720 outputs are on Kaggle but
+have NOT been fetched, verified, or imported. Local accepted State still ends
+at step 360. The first full fetch (21:05Z) timed out at the 2-hour cap with
+4,741 files staged; the adapter's fresh-temp-dir design cannot resume, so the
+download was resumed via direct CLI into the same staging dir (background
+task, no timeout). On completion: verify completeness against the paged
+remote listing, robocopy into the canonical outputs dir, validate the result
+receipt, rehash key artifacts, then read the step-720 verdict.
 
 ## Current mission and verified state
 
@@ -57,7 +96,7 @@ continuation from a guessed cloud parent. The step-720 result is pending.
 Nothing was promoted, activated, or registered as learned serving tissue.
 
 Full handoff:
-`roundtable/CODEX_KAGGLE_CONTINUATION_REVIEW_2026-09-03.md`.
+`roundtable/reviews/CODEX_KAGGLE_CONTINUATION_REVIEW_2026-09-03.md`.
 Local observation receipt:
 `State/training/cloud/recovery/48d0ee6a/codex_live_observation_20260904T003105Z.json`.
 
@@ -207,9 +246,11 @@ No earlier tournament chose a winner or earned serving promotion.
 2. Retrieve and verify the exact new optimizer/checkpoint/Soul parent before
    another tranche. Retrying a packet replays its original inputs; it is not
    continuation from its newly produced outputs.
-3. Full per-file Kaggle fetch is slow with thousands of Soul artifacts. Add
-   bundled, hash-verified output transfer and an automatic continuation-closure
-   resolver; neither was implemented here. Selective receipt/log fetch works.
+3. Full per-file Kaggle fetch is slow with thousands of Soul artifacts.
+   Proposal now pending ratification:
+   `roundtable/proposals/MID_RUN_ARTIFACT_SYNC_PROPOSAL_2026-09-04.md` (end-of-run
+   single hash-manifested archive + mid-run checkpoint sync via private
+   dataset versions). Selective receipt/log fetch works as a fallback.
 4. Durable restart-safe Heart-host decoder continuation remains a serving
    blocker. In-process output continuation exists; the live adapter still
    abstains after an incomplete slice.
@@ -229,4 +270,4 @@ No earlier tournament chose a winner or earned serving promotion.
 - `python scripts/axon_kaggle.py fetch <job-id>`: full artifact retrieval
   (potentially slow; do not overwrite previous-version evidence casually).
 - `docs/KAGGLE_TRAINING_GUIDE.md`: private launch/retry/recovery instructions.
-- `roundtable/CODEX_KAGGLE_CONTINUATION_REVIEW_2026-09-03.md`: this handoff.
+- `roundtable/reviews/CODEX_KAGGLE_CONTINUATION_REVIEW_2026-09-03.md`: this handoff.
