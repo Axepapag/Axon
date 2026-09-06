@@ -1,17 +1,17 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-06T22:10:00Z
+Updated: 2026-09-06T23:22:15Z
 Current through event:
-`evt-20260906T221000000000Z-copilot-cli-d64-mixer-kaggle-launch`
+`evt-20260906T232215287832Z-copilot-cli-d64-mixer-smoke-fetch`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 Identity stamp: GitHub Copilot CLI / Grok 4.6 (grok-4.6) / 2026-09-06
 
-Continuity note: Jeff ratified invert-shape D64 in conversation. Two
-non-serving mixer smokes are RUNNING on Kaggle. Stage-0 fat-MLP candidate
-remains failed/paused evidence. No serving. No SOT change. Personal
-first-mission opinion stays off-table at D:\Grok\Briefs.
+Continuity note: Jeff ratified invert-shape D64. Both mixer smokes
+completed and were fetched. Stage-0 fat-MLP candidate remains failed
+paused evidence. No serving. No SOT change. Personal first-mission
+opinion stays off-table at D:\Grok\Briefs.
 
 ## Current mission and honest status
 
@@ -23,36 +23,38 @@ that can teach offline cores from authored curricula.
 The immediate objective is still **exact motor writing** on D64: attend the
 rail and produce meaningful copy/delta, not language theater.
 
-Active shot: inverted mixer tissue on motor v2 `copy_alignment`, not a
-third fat-MLP Stage-0 tranche and not a width bump.
+Active evidence: inverted mixer tissue on motor v2 `copy_alignment` now
+has heldout copy-gate and position at 1.0. The stage gate is still failed
+on regression position 0.667. Recommended next is an FFN256
+`copy_alignment` renewal, not a third fat-MLP Stage-0 tranche and not a
+width bump.
 
-## Active mixer comparison (non-serving)
+## Mixer comparison (non-serving, COMPLETE)
 
 Source commit: `999df55906703bac7728cb4f0f2e2112ec15235b`
 
 Motor v2 curriculum: `a872278fd0e8ef926370e1712d01dcf0a277672c4a0088af44aef483d8417740`
-(144 cases; 72/36/36). Trainer starts at `copy_alignment`. Generate-gate
+(144 cases; 72/36/36). Trainer started at `copy_alignment`. Generate-gate
 bias 0.0 is initialization, not architecture identity.
 
-| Shape | Candidate | Job | Packet | Provider |
-|---|---|---|---|---|
-| 1 head, 4 layers, FFN 256 | `axon-d64-mixer-4l-ffn256-h1` | `387a52ebc78e51087b11f461ebc68153069a84fdd46039f812edd43705f3d9b8` | `d5eacf003e2769699b15300ebb0c2ff4279d8e8d459556e42d66d88486fe723f` | RUNNING `axongliksbot/axon-job-387a52ebc78e5108` |
-| 1 head, 4 layers, FFN 512 | `axon-d64-mixer-4l-ffn512-h1` | `26302a3d6f93fa5e93438b92381266832e1c962205c640027e3a2b6704795747` | `72a2b0a199fd78e9d3f7e5b49a63ac2ecab6d91ad939e405cf2e836f41782710` | RUNNING `axongliksbot/axon-job-26302a3d6f93fa5e` |
+Report: `roundtable/reports/GROK_D64_MIXER_COPY_ALIGNMENT_SMOKE_2026-09-06.md`
 
-Local 1-step CUDA probe (GTX 1650, distinct label
-`axon-d64-mixer-4l-ffn256-h1-local-probe`):
+| Shape | Candidate | Job | Result | Heldout copy-gate / position | Regression position |
+|---|---|---|---|---|---|
+| 1h / 4L / FFN256 | `axon-d64-mixer-4l-ffn256-h1` `r64v2-9d4df4d17517d7eb` | `387a52ebc78e51087b11f461ebc68153069a84fdd46039f812edd43705f3d9b8` | completed, returncode 0 | 1.0 / 1.0 | 0.667 |
+| 1h / 4L / FFN512 | `axon-d64-mixer-4l-ffn512-h1` `r64v2-a7dffef9feae5bb5` | `26302a3d6f93fa5e93438b92381266832e1c962205c640027e3a2b6704795747` | completed, returncode 0 | 1.0 / 1.0 | 0.667 |
 
-- architecture `living-d64-1d35977970d59137a91674d1`
-- 331,319 params (~1.3 MiB fp32) vs Candidate A 33,981,879
-- peak CUDA 39,048,192 bytes; train-step wall 11.3s
-- heldout copy-gate accuracy 0.0 -> 1.0 after one step
-- heldout position accuracy 0.0 -> 0.0
-- EOS-gate 1.0 -> 0.0 (copy_alignment weights copy-gate, not EOS)
-- serving promotion claimed: false; stage gate failed as expected
-- report: `State/training/reasoning/r64v2-9115d62260f82e2d/segment_000000001_000000001.json`
+FFN256 last accepted bundle:
+`8501e20f2ae016c4010050a6905de38b2eb85cde548edbb1cd76d7eb06b4397e`
 
-This is a one-step probe, not mastery. Kaggle 60-step smokes are the
-comparison. Do not promote from the probe.
+Copy-gate locked on the train stream from step 2 both shapes. EOS-gate
+fell 1.0 → 0.0; that is expected because `copy_alignment` weights
+copy-gate, not EOS. Extra FFN did not buy regression position. Serving
+claimed: false.
+
+Local 1-step CUDA probe remains distinct (`axon-d64-mixer-4l-ffn256-h1-local-probe`,
+331,319 params, peak CUDA 39,048,192). It first showed copy-gate moving;
+the 60-step smokes now show heldout position moving too.
 
 ## Preserved Stage 0 evidence (failed, paused)
 
@@ -79,27 +81,9 @@ Diagnostic:
   promotion, or learned-serving claim.
 - `D:/00` and teammate houses remain protected.
 
-## Verification this turn
-
-- Targeted tests: generate-gate init identity, frozen architecture IDs
-  `living-d64-675b5ec0f0053cd54c0fbda6` / `40b4ad19...` / `e0a0ad21...`,
-  motor v2 compile script. **5 passed**.
-- Kaggle doctor before launch: READY, account `axongliksbot`,
-  29.59/30 GPU hours remaining (refresh 2026-09-12). Paid spend: zero.
-- Both mixer jobs submitted; Kaggle reported RUNNING for each.
-
 ## Next
 
-1. Wait for both Kaggle jobs. Fetch hash-verified outputs.
-2. Compare copy-gate, position, and coverage. Do not promote.
-3. Only then decide a third mixer shape, Stage-0-v2 joint, or a 256D
-   brother. Width is still the later question.
-
-Operator entry points:
-
-```powershell
-python scripts/axon_kaggle.py doctor
-python scripts/axon_kaggle.py status 387a52ebc78e51087b11f461ebc68153069a84fdd46039f812edd43705f3d9b8
-python scripts/axon_kaggle.py status 26302a3d6f93fa5e93438b92381266832e1c962205c640027e3a2b6704795747
-python scripts/axon_kaggle.py fetch <job-id>
-```
+1. If Jeff authorizes GPU spend: one FFN256 `copy_alignment` renewal from
+   the step-60 parent above.
+2. Do not start `transport_eos` until regression position clears 0.95.
+3. Do not bump width. Do not serve.
