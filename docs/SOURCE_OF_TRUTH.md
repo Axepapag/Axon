@@ -940,6 +940,27 @@ preflight passed as receipt
 `096c3e2b63a463580c8a2d6b72ee386d921fa84303480de039fd192f0b92d89c`;
 it proves launch anatomy only, not learned motor control.
 
+The first two Stage-0 resource tranches are also diagnostic evidence, not a
+pass. Private Kaggle job `c8ba53cb9f7044341fd7a9d072ea460700dbdbf457aed509acf8e2ecf3e58e72`
+trained steps 1-60; job
+`3769a4caf10231a19e3bab940fdb700b2bf3eff8c208274d5232ad2070959137`
+then restored its exact accepted step-60 parameter, optimizer, checkpoint and
+private-Soul parent and trained steps 61-120. Across the two segments heldout
+loss fell from 12.9976677448 to 5.7030190378, but the transient first-segment
+teacher-forced payload advantage (0.53125 against a 0.50 constant floor)
+returned exactly to the floor at step 120. Free-running typed exactness and
+every per-action/source-pair gate remained zero; final payload exactness was
+0.25 because empty delete payloads terminated while the core continued to emit
+the constant `DELTA`/`REPLACE`/empty-payload shell. The Stage-0 gate and task
+gate are false, the candidate is paused and non-serving, and no third tranche
+is authorized on this objective. Training-step evidence shows that the exact
+position pointer sometimes learned its supervised source address while the
+copy/generate gate continued choosing generation for every payload cell. The
+next attempt must first isolate EOS from content metrics, balance decision and
+operation classes, and teach copy-position plus copy-gate control before joint
+typed action; it starts as new tissue unless an explicit governed continuation
+decision establishes compatibility.
+
 Full-field recurrent training uses exact page-level activation checkpointing
 while gradients are enabled. It recomputes the same page encoder during
 backpropagation; it does not omit, summarize, detach, or truncate any field

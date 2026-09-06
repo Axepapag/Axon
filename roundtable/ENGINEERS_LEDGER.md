@@ -1,273 +1,182 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-05T00:12:36.500940Z
-Current through event: `evt-20260905T001236500940Z-kimi-roundtable-organization`
+Updated: 2026-09-06T17:55:00Z
+Current through event:
+`evt-20260906T175500000000Z-codex-foundation-stage0-diagnostic`
 
-Roundtable layout: since 2026-09-04 the table is organized into
-`proposals/`, `reviews/`, `reports/`, `decisions/`, `drafts/`; the three
-ledger files, the team bus, and `README.md` (index + house rules) stay at
-root. Historical flat-path references in immutable records resolve by
-filename per the README. The reorganization is **uncommitted** pending
-Jeff's confirmation.
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
+Identity stamp: Codex / GPT-5 family (exact runtime model ID not exposed) /
+2026-09-06
 
-## Codex final session (September 4, reconstructed by Kimi)
+## Current mission and honest status
 
-Codex's last session ended at his usage limit. All of its work survived and is
-committed and pushed; the worktree is clean and main == origin/main at
-`d121391`.
+Axon is building permanent, additive organism tissue around an exact 16D
+canonical substrate, private layered core Souls, width-specific reasoning rails,
+Heart translation, governed proposal/consolidation, and a Trainer that can teach
+offline cores from authored curricula and eventually lived experience.
 
-- `77f18db`: foundations-first sequence mastery gate. New
-  `training/foundation_sequence_curriculum.py` (Stage 1
-  `sequence_transport_v1`: split-disjoint paired sources, forward/reverse/
-  every-other/middle-span operations over native and Unicode symbols,
-  advancement gate requiring 0.95 free-running exact rate on both source
-  variants, 1.0 complete-field coverage, teacher-forced above constant floor),
-  `scripts/compile_foundation_sequence.py`, 174-line test file (5 tests,
-  verified passing 2026-09-04), smoke-trainer integration, and a Source of
-  Truth doctrine amendment in both SOT mirrors.
-- `d121391`: governed Stage 1 smoke recipe
-  `configs/kaggle/axon_foundation_sequence_stage1_smoke.json` and the
-  Jeff-ratified decision record
-  `roundtable/decisions/RESOLUTION_FOUNDATIONS_FIRST_CURRICULUM_2026-09-04.md`.
-- Neither commit has a dedicated canonical closeout event (Codex hit his limit
-  first); the reconstruction event above records them.
+The immediate objective is **Foundations Stage 0 motor control** for a fresh D64
+reasoning candidate: free-running exact copy, insert, replace, delete, no-op and
+abstain through the real Unicode transport and typed-delta contract.
 
-The second L0-L4 tranche job `48d0ee6a...` now reports
-**KernelWorkerStatus.COMPLETE**. Its step-361-720 outputs are on Kaggle but
-have NOT been fetched, verified, or imported. Local accepted State still ends
-at step 360. The first full fetch (21:05Z) timed out at the 2-hour cap with
-4,741 files staged; the adapter's fresh-temp-dir design cannot resume, so the
-download was resumed via direct CLI into the same staging dir (background
-task, no timeout). On completion: verify completeness against the paged
-remote listing, robocopy into the canonical outputs dir, validate the result
-receipt, rehash key artifacts, then read the step-720 verdict.
+That objective is **not passed**. The first 120 accepted steps are preserved as
+a useful failed experiment. The candidate is paused and non-serving. No third
+tranche is authorized on the same objective, and nothing was promoted or
+activated.
 
-## Current mission and verified state
+## Decisive Stage 0 evidence
 
-Curriculum clarification (read-only question, September 3 local): the current
-Organism core did not begin with an ABC-song/alphabet-mastery stage. Its recorded
-first six updates were mechanism, L0, L1, L2, L3, L4. L0 includes exact word/Unicode
-copy, letter case, punctuation, no-op and addressed edits. A separate earlier
-`training/abc_sequence_curriculum.py` teaches ordered letters/digits, but is not
-the active campaign. No curriculum or training process was changed for this
-clarification; the live provider state below remains the prior turn's observation.
+The F0 curriculum is content-addressed as
+`a273737cdaa399f9b85e1a8ac91326a255a6c3b63ef880fd1bc1273832be857c`.
+It contains 120 complete cases: 72 train, 24 heldout and 24 regression. Copy,
+insert, replace, delete, no-op and abstain are represented by split-disjoint
+changed-source pairs. Copy-bearing targets include exact source-alignment
+contracts over the existing 351-category Unicode transport.
 
-Curriculum recommendation (September 4 local): begin future fresh candidates
-with a narrow, mastery-gated foundations ladder rather than a memorized ABC song
-or immediate equal interleaving of L0-L4. First prove typed-delta mechanics,
-single/multiple-character transport and EOS; use ABC/digit/punctuation sequences
-as one L0 sequence-navigation family with changed-source and arbitrary-sequence
-counterfactuals; then advance through word mechanics, short communication,
-composition, multi-turn brother circulation, and lived-experience reasoning.
-Training may use teacher forcing for credit assignment, but advancement requires
-free-running exact heldout performance above trivial baselines plus retained
-regression, complete-field, authority, field-dependence and relevant-Soul probes.
-Passed skills remain in adjustable spiral replay. Gates govern competency; step
-allowances remain renewable resource tranches, never tissue ceilings.
+Segment 1, steps 1–60:
 
-The current campaign is **Axon Organism L0–L4**, not the old ABC/account-blocked
-campaign. The correct Kaggle account is `axongliksbot`. No phone-verification
-blocker was observed on this account; actual Tesla T4 CUDA compute succeeded.
+- Kaggle job: `c8ba53cb9f7044341fd7a9d072ea460700dbdbf457aed509acf8e2ecf3e58e72`
+- source commit: `4b3bbba009b55535e71a2520779dae3f674ef332`
+- packet: `2cc4ef394656ffc0d71e2757c70e22bc31967638e75fd0868b1085b8cfed4b3d`
+- candidate: `r64v2-d39ec38a0f38f523`
+- accepted bundle: `a3b6a5f33209cb397ab46ceeaa59a8c92714fbcf757ca1d0adb0e8b261497619`
+- checkpoint: `971dd55f2c865ed15a508cf41f0be4bcf1993ccd50c271093d2e23689435c5dd`
+- loss: 12.9976677448 → 6.5498658717
+- teacher payload-token accuracy: 0 → 0.53125, against a 0.50 constant floor
+- free-running payload exact: 0 → 0.3125; typed exact: 0
+- task-signal gate true, strict Stage-0 gate false
 
-The second renewable 360-step diagnostic is RUNNING as:
+Segment 2 restored the exact step-60 parameter, optimizer, checkpoint and Soul
+parent, then trained steps 61–120:
 
-- Job: `48d0ee6a7ecce6b9f52095d2388676497c62a4c75b9141461c218260acdb2e03`
-- Kernel: `axongliksbot/axon-job-48d0ee6a7ecce6b9`
-- Packet source: `4732fe9ee5492378d7f40255a646fc6fd7d03b7c`
-- Packet SHA256: `c34702301b8c7f0790cf92a2c8bbc2102106a5d2781a783970c7b94fe3ce911a`
-- Generation: `r64v2-b05b6dbf67efdd8f`
-- Candidate: `axon-organism-l0l4-1x64`
-- Permanent tissue: D64, one 64D attention head, two layers, FFN 131072;
-  33,981,879 parameters.
-- Requested global steps: 361–720, restoring exact accepted step 360.
-  The allowance is a renewable resource tranche, never a lifetime ceiling.
-- Last detailed live observation: step 512 at 2026-09-04T00:30:18.778379Z.
-  Accepted new parameter/Soul bundles were observed at 390, 420, 450, 480, 510.
-- Step-510 bundle:
-  `2862ca0b55b432e302a09aa14b68b8fda856ad0323544b9700ca09bf86635608`.
-  Checkpoint:
-  `bfc3a6e9e8420b983666eab28782fe3f21c91865feff42100a700b54a8e1b46e`.
+- Kaggle job: `3769a4caf10231a19e3bab940fdb700b2bf3eff8c208274d5232ad2070959137`
+- source commit: `f9533b8de79717a71598ae5c472c048623e95c6d`
+- packet: `dd6737311a3b84284f4093f4463099348f4ba7a94a83cbb40a13bf05561c3041`
+- accepted bundle: `17074c786ae305da67904009b5fce1b1cce70f5cdb68bf7652f641cd2c887147`
+- checkpoint: `baeceed582b46d0b1b4654bdb49bcbfa9c267e35fe85b8a8ce98a2b11aaa315b`
+- checkpoint artifact: `94fe9b730ac05b49c2f556927f88e05afff36ebc2b0d5d16f1811936957e78e4`
+- loss: 6.5498658717 → 5.7030190378
+- teacher payload-token accuracy: 0.53125 → exactly 0.50 floor
+- free-running payload exact: 0.3125 → 0.25; typed exact: 0
+- task gate false; every per-action and changed-source-pair exact rate: 0
 
-**These are live provider observations, not already imported/rehashed artifacts.**
-Local accepted training State still ends at step 360. Do not issue a subsequent
-continuation from a guessed cloud parent. The step-720 result is pending.
-Nothing was promoted, activated, or registered as learned serving tissue.
+The step-61 initial evaluation reproduced step 60 exactly, verifying resume
+fidelity. Both provider jobs are COMPLETE, both output bundles were downloaded
+and hash-verified, and local accepted non-serving Trainer state ends exactly at
+step 120 bundle `17074c...`.
 
-Full handoff:
-`roundtable/reviews/CODEX_KAGGLE_CONTINUATION_REVIEW_2026-09-03.md`.
-Local observation receipt:
-`State/training/cloud/recovery/48d0ee6a/codex_live_observation_20260904T003105Z.json`.
+## Mechanistic conclusion
 
-## First-tranche result — optimization, not learned communication
+The existing source-position mechanism showed learning: later training steps
+sometimes reached exact address accuracy, including nonzero multi-cell Unicode
+alignment. The failure is presently more specific than “D64 cannot work”:
 
-The original successful job is `3005d933...1e6852`, source `3e69dc0`.
-Its immutable segment is:
-`State/training/reasoning/r64v2-b05b6dbf67efdd8f/segment_000000001_000000360.json`.
+- the copy/generate gate classified payload cells as generated;
+- EOS and empty payloads inflated aggregate token/payload metrics;
+- DELTA (four of six actions) and REPLACE (two of four delta actions) supplied
+  exploitable constant class priors; and
+- free-running output collapsed to
+  `DELTA / REPLACE / response_draft / empty payload`.
 
-- Exactly 360 optimizer steps, **12** checkpoints and accepted Soul bundles.
-  The previous 24 count was duplicated telemetry, corrected by a new canonical
-  event; the historical event and original artifacts were not rewritten.
-- Sixty updates each to mechanism and L0/L1/L2/L3/L4.
-- Heldout loss: 10.8857747402 → 2.7382284105.
-- Token accuracy: 0.0819935691 → 0.0900321543; final constant floor is also
-  0.0900321543. No individual L0–L4 family exceeds its own floor.
-- Free-running typed emission and complete-payload exact rates: zero.
-- Heldout/regression evaluation and field coverage: complete.
-- All learning/serving/stage gates remain false for that completed tranche.
+The 0.25 final payload-exact rate is the four empty delete payloads terminating
+with EOS, not copied content. Falling loss did not prove motor control; the
+strict gate prevented a false pass.
 
-The corrected continuation reproduced all 56 initial heldout cases at loss
-2.7382284147398814, within 4.3e-9 of the accepted parent. That supports resume
-fidelity, not a new learning claim. Teacher-forced dashboard samples are not
-autonomous conversations.
+Do not redesign or discard the D64 tissue merely from this run. First test a
+fresh balanced, staged Stage-0-v2 objective with isolated measurements. If that
+still cannot move copy-gate or minority-action behavior, compare architecture
+alternatives under the same evidence surface.
 
-## Exact accepted parent and repaired launch path
+## Recent completed implementation
 
-The second-tranche recipe is:
-`configs/kaggle/axon_organism_l0_l4_second_tranche_resume.json`.
-It is explicitly pinned to step 360, not automatically to the newest cloud
-checkpoint.
+- `8cc828d`: organized `roundtable/` into proposals, reviews, reports,
+  decisions and drafts while retaining the ledgers and bus at root.
+- `418a9d9`: added one hash-manifested cloud output bundle and opt-in
+  checkpoint-boundary mid-run sync.
+- `70a4be9`: recorded ratification and implementation of that transport.
+- `4b3bbba`: added F0 curriculum/compiler/recipe, exact Unicode source
+  alignment, Stage-0 gates, trainer integration, and a frozen-boundary fix so
+  slow mid-run upload cannot mislabel later artifacts.
+- `ec5772c`: taught local bundle verification/extraction to use extended
+  Windows paths, preserving deep canonical Soul ancestry names exactly.
+- `f9533b8`: pinned the second 60-step job to the exact accepted step-60 parent.
 
-- Parent bundle:
-  `17005f0e4abed6ea5e04ac54544e03c2339b256a659a65a10c709b0f089340be`.
-- Checkpoint record:
-  `823ac86ecff9e25b7d3beb9824d5d35b6d42cd29d143d616fb8d79df0c824d07`.
-- Checkpoint artifact hash:
-  `3b13f2b3e155632580c1606a871eff70f981fd3b8fdec00814064f5c2ed8249b`.
-  Artifact was rehashed and loaded with optimizer state.
-- Candidate Soul HEAD:
-  `e439656fbf512ef7620c9668815a905f598bb44da86b22bb2adcdd7f4c3edbbe`,
-  generation 1080; verified against the accepted bundle.
-
-Codex repairs committed and pushed:
-
-1. `54ee17e`: upload success is durable before readiness polling; preserve
-   normal child exit receipts; unknown kernel state cannot authorize a retry;
-   validate transfer targets. Completes Hermes's pending readiness work.
-2. `3395392`: deduplicate replayed event IDs, display tranche-relative versus
-   global progress correctly, expose provider failures, label samples honestly.
-3. `4732fe9`: register the emitted `evaluated` status; preserve Unicode
-   through legacy Windows console pipes using lossless JSON escapes. Journals,
-   reports, canonical text, architecture, and learning policy remain unchanged.
-
-The original continuation job `619b181e...2754398` restored the correct parent
-but crashed before new optimizer work: its immutable `b57aee0` packet emitted
-an unregistered `evaluated` event. Do not relaunch that unchanged packet.
-Its failed-job receipt and logs are preserved under
-`State/training/cloud/recovery/619b181e/failure/`. Its uploaded manifest and
-all 4,613 archive members were verified before orphan-upload record recovery.
-
-The first tranche's `SystemExit: 0` failure receipt is a separate wrapper bug.
-Its successful optimizer work remains real; its failed learning gates also
-remain real. Neither history was rewritten.
+The older Stage-1 sequence smoke and two L0–L4 tranches were recovered and
+preserved. None passed learned communication gates; none serves. They remain
+useful historical diagnostics, not parents to continue by assumption.
 
 ## Binding architecture and governance
 
-- Read `docs/WORKING_CONTRACT.md`, `docs/SOURCE_OF_TRUTH.md`, and the ledger
-  protocol before work. Every turn appends exactly one event; never alter an
-  existing canonical line. Keep the rolling summary compact and current.
-- No silent truncation or tissue ceilings. Pages, output slices, resource
-  tranches, and operator display windows are work controls, not destructive
-  content limits or parameter/Soul identity.
-- Protected capacity policy:
-  `configs/source_of_truth/capacity_policy.json`, canonical SHA256
-  `4a32f18fa296c415ccf34a8c1956d2a4f8afd044265e7f45505782dd53c7b8cd`.
-- Shared Field v3 has 11 canonical regions; historical v1/v2 snapshots remain
-  immutable. Each region's independent mask selects attended cells, leaving
-  dormant cells exactly in place. Identity is always attended and cannot mask.
-- The 95 native 16D cells are frozen. The additive 351-category transport
-  preserves every valid Unicode scalar. D64 compiles exact addressed field and
-  proposal surfaces; wider physical rail renderers remain future work.
-- Identity is shared canonical constitution, not private Soul. Exceptional
-  Identity-steward amendments require evidence and an exact autobiographical
-  record; ordinary core/tool/recall authority cannot change it.
-- Each core owns an opaque, non-shareable, architecture/generation-bound
-  HOT/WARM/COLD/DEEP_COLD Soul. Every successful phase exhales; colder promotion
-  requires governed evidence. DEEP_COLD distillation is a future governed
-  adapter operation, never reinterpretation of opaque bytes as weights.
-- A reasoning tick freezes field/rail images, collects first proposals,
-  collects refinements, and lets only the validated consolidator transaction
-  change canonical state. Brothers share proposals, not Souls.
-- The Trainer uses isolated candidate parameters and candidate Soul, exact
-  accepted checkpoint/Soul bundles, whole-episode splits and explicit outcome
-  quality. Tranche renewal must restore the exact accepted parent.
-- No long blind run before learning evidence, no automatic promotion, no
-  weakening gates to make a run pass. Loss decline alone is not proof.
-- `D:/00` and `D:/ChatGPT_State` were untouched in this work. Credentials
-  stay in the official user store, never in packets, reports or Git.
+- Canonical Shared Field cells are exact 16D substrate. The 95 native cells are
+  frozen; 351 additive Unicode transport categories cover every valid scalar.
+- Each region owns an independent mask. Unmasked cells form the attended Shared
+  Field; masked cells remain exactly in place as dormant state. Identity stays
+  attended and is exceptionally difficult to amend.
+- Heart translates the exact attended field and proposal workspace to each
+  reasoning rail. A rail is a derived image, never canonical truth.
+- A reasoning tick freezes the field/rail view, gathers first proposals,
+  circulates translated proposals for refinement, and permits only a validated
+  consolidator transaction to change canonical state. A canonical change
+  triggers Heart synchronization.
+- Each core owns a private, opaque, architecture/generation-bound layered Soul:
+  HOT, WARM, COLD and DEEP_COLD. Brothers share proposals, not Souls.
+- Trainer work uses isolated candidate parameters and candidate Soul. Accepted
+  checkpoints bind exact parameters, optimizer, curriculum, policy and Soul.
+- Limits are governed work/resource controls, not destructive tissue ceilings.
+  No silent truncation, fixed lifetime step cap, fixed output ceiling, gate
+  weakening, guessed cloud parent, automatic promotion or learned-serving claim.
+- `D:/00` and `D:/ChatGPT_State` remain protected and were not modified.
+  Credentials remain only in the official user store.
 
-## Curriculum continuity
+## Verification and current resources
 
-The active objective L0–L4 manifest is
-`824aabae2090c721da9b55540a5d890fc958577d2e5c78fde49da870096634f9`
-under `State/training/curricula/language_l0_l4/`: 349 verified cases,
-240 train / 56 heldout / 53 regression. Actual canonical field, D64 compilation,
-three-phase private Soul and typed transport are used.
+- Final whole-repository suite before the extraction-only fix: **578 passed**,
+  zero failures, 54 known warnings, 1645.87 seconds.
+- Post-fix cloud-bundle suite: **22 passed**, including a real >260-character
+  Windows path and delayed-uploader boundary regression.
+- Foundation/Unicode focused suite: **25 passed**.
+- Renewal/hygiene focused suite: **7 passed**.
+- Ruff, compileall and diff checks passed for implementation commits.
+- Both SOT mirrors are byte-identical after the Stage-0 verdict amendment.
+- Kaggle account `axongliksbot`: READY; 29.59/30 free GPU hours and 20/20 TPU
+  hours remaining at closeout, refresh 2026-09-12. Each launch still requires
+  a real device probe. Paid spend: zero.
+- Both Stage-0 jobs completed on real Kaggle CUDA. No local or cloud training
+  job is active. The first visible completed-job monitor remains open as
+  `cmd.exe` PID 16136; it owns no training.
+- Disk at closeout: C: 102,493,044,736 bytes free; D: 314,034,774,016 bytes free.
 
-C1's original 36-case historical evidence remains immutable. Only its 22
-VERIFIED_TARGET cases may supervise; 14 PROCESS_EVIDENCE cases stay preserved
-without reaching exact-loss construction. Standard learned-capability metrics
-are isolated from synthetic mechanism cases. Step-193 historical C1 candidates
-are mechanism diagnostics, not retroactively qualified communication results.
+## Active risks and next shot
 
-The ABC/native-bank 104-case manifest and earlier head tournaments remain
-preserved but are not the current cloud campaign. The old 16-step identity
-defect and 512-unit output ceiling are closed; historical tissue was preserved.
-No earlier tournament chose a winner or earned serving promotion.
+1. Build Stage-0-v2 with separate content-token, EOS, copy/generate-gate and
+   exact-position metrics, including changed-source Unicode pairs.
+2. Balance DELTA/NO_OP/ABSTAIN and INSERT/REPLACE/DELETE teaching mass; report
+   per-class baselines so a majority constant cannot satisfy a gate.
+3. Stage learning: exact source position plus explicit copy preference, then
+   EOS, then one control axis at a time, then the complete joint typed delta.
+4. Put component-loss weights and renewal gates in the content-addressed policy
+   before the run. Require changed-source content copying and at least one
+   non-majority action above declared floors before renewing.
+5. Preserve the step-120 lineage as immutable failed evidence and start v2 as
+   new tissue unless a governed compatibility decision explicitly says otherwise.
+6. After motor control passes, proceed through short communication and retained
+   foundations before reasoning and lived-experience curricula. Durable
+   Heart-host decoder continuation remains a separate serving prerequisite.
 
-## Verification, machine and resources
+Full diagnostic:
+`roundtable/reports/CODEX_FOUNDATION_STAGE0_DIAGNOSTIC_2026-09-06.md`.
 
-- Final full suite: **546 passed**, 52 known PyTorch nested-tensor warnings,
-  1408.03 seconds, exit code 0.
-- Focused checks: 44 initial core/curriculum/cloud tests; 3 dashboard tests;
-  4 repaired progress/resume tests, including actual CPU first and renewed
-  tranches and Unicode reporting. Earlier failures are retained in the report.
-- Changed-file Ruff, compileall, and `git diff --check` passed.
-- SOT mirrors remain byte-identical at SHA256
-  `23C4B100A01038E6E2D9189278F90F37647A597F42F2B13D381EDEC3F1327373`.
-- User-visible monitor: PowerShell PID 16796 / Python PID 16556, following the
-  current cloud job. This terminal does not own training. No local trainer or
-  test writer remains; the transient engineer log follower was stopped.
-- At closeout, Kaggle reports **28.79 / 30.00 GPU hours** and 20.00 TPU hours;
-  refresh 2026-09-05T00:00:00. About 0.42 quota-hours elapsed during this recovery,
-  including the failed attempt and current run so far. No paid resource was
-  purchased; the current tranche continues using provider quota.
-- D: free bytes: 320,640,577,536. A partial failed-job download remains at
-  `C:/Users/axema/AppData/Local/Temp/axon_fetch/axon_out_opgp050d`; no source or
-  failed evidence was deleted.
+Operator entry points:
 
-## Active gaps and next shot
+```powershell
+AXON_TRAINER.bat
+python scripts/axon_kaggle.py doctor
+python scripts/axon_kaggle.py status <job-id>
+AXON_TRAINING_WATCH.bat <job-id>
+```
 
-1. At step 720, inspect isolated L0–L4 heldout/regression, constant baselines,
-   exact outputs and causal probes. If outputs remain constant, diagnose
-   per-loss gradients, category/EOS histograms and copy exposure before another
-   large commitment. Do not silently restart the lineage or auto-renew forever.
-2. Retrieve and verify the exact new optimizer/checkpoint/Soul parent before
-   another tranche. Retrying a packet replays its original inputs; it is not
-   continuation from its newly produced outputs.
-3. Full per-file Kaggle fetch is slow with thousands of Soul artifacts.
-   Proposal now pending ratification:
-   `roundtable/proposals/MID_RUN_ARTIFACT_SYNC_PROPOSAL_2026-09-04.md` (end-of-run
-   single hash-manifested archive + mid-run checkpoint sync via private
-   dataset versions). Selective receipt/log fetch works as a fallback.
-4. Durable restart-safe Heart-host decoder continuation remains a serving
-   blocker. In-process output continuation exists; the live adapter still
-   abstains after an incomplete slice.
-5. Mid-tranche residual/abandonment receipts and missing-report regeneration
-   still need dedicated recovery coverage. Accepted state must remain intact.
-6. All future tool/Trainer autobiography hooks, independently multi-writer-safe
-   Soul storage, wider rails and autonomous Cortex are not complete. Runtime
-   circulation is mechanism-functional, not a claim of learned intelligence.
-7. C2–C6/fluent communication remain future curricula. Subjective consciousness
-   is not an engineering result established by these tests.
-
-## Operator entry points
-
-- `AXON_KAGGLE.bat`: provider-neutral Trainer-backed Kaggle control center.
-- `AXON_TRAINING_WATCH.bat <job-id>`: separate live terminal dashboard.
-- `python scripts/axon_kaggle.py status <job-id>`: provider status.
-- `python scripts/axon_kaggle.py fetch <job-id>`: full artifact retrieval
-  (potentially slow; do not overwrite previous-version evidence casually).
-- `docs/KAGGLE_TRAINING_GUIDE.md`: private launch/retry/recovery instructions.
-- `roundtable/reviews/CODEX_KAGGLE_CONTINUATION_REVIEW_2026-09-03.md`: this handoff.
+Known cleanup flag: a rejected first-fetch duplicate remains at
+`C:/Users/axema/AppData/Local/Temp/axon_fetch/axon_out_bundle_8su06a87`
+(approximately 1.05 GiB). Its removal was not authorized by the execution
+environment; no source, accepted state or failed evidence was deleted.
