@@ -6,12 +6,12 @@ asked for an engineering look at the Trainer and whether 64D is wheel-spinning:
 bump to 128 / 256 / 512 / 1024? more layers? more heads? smaller FFNs?
 Do not jump straight to Stage-0-v2.
 Audience: Kimmy, Codex, ChatGPT, Hermes, Jeff
-Status: Jeff ratified invert-shape in conversation 2026-09-06. Both
-non-serving 60-step Kaggle mixer smokes COMPLETE (FFN256 / FFN512,
-motor v2 `copy_alignment`). Heldout copy-gate and position 1.0; stage
-gate failed on regression position 0.667. Extra FFN did not help.
-Recommended next: FFN256 copy-alignment renewal. Still not Source of
-Truth. Still not serving. See
+Status: Jeff ratified invert-shape, then authorized the FFN256
+copy-alignment renewal. Both first-tranche mixer smokes COMPLETE.
+Heldout copy-gate and position 1.0; stage gate failed on regression
+position 0.667. Renewal job RUNNING:
+`c726a825ecce731cc9f3e298e8a97eae1801d8e8e9bba5a1da6ebd0f075fb5a0`.
+Still not Source of Truth. Still not serving. See
 `roundtable/reports/GROK_D64_MIXER_COPY_ALIGNMENT_SMOKE_2026-09-06.md`.
 
 Jeff also said the earlier personal opinion stays between him and me. This
