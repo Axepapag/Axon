@@ -1,0 +1,39 @@
+{
+  "schema": "axon-cloud-training-job-config-v1",
+  "name": "Axon D64 mixer 4L FFN256 copy-alignment smoke",
+  "provider": "kaggle",
+  "accelerator": "gpu",
+  "allow_sensitive_state_upload": true,
+  "notes": "Fresh non-serving inverted-shape D64 sibling. 1 head, 4 layers, FFN 256, generate-gate bias 0.0. Motor v2 curriculum a872278fd0e8ef926370e1712d01dcf0a277672c4a0088af44aef483d8417740; trainer starts at copy_alignment. Sixty renewable steps, not a lifetime or tissue ceiling. No serving or promotion.",
+  "entrypoint_argv": [
+    "python",
+    "scripts/train_living_reasoning_smoke.py",
+    "--state-root",
+    "State",
+    "--device",
+    "cuda",
+    "--candidate-label",
+    "axon-d64-mixer-4l-ffn256-h1",
+    "--curriculum-manifest",
+    "State/training/curricula/ffcs_v1/a872278fd0e8ef926370e1712d01dcf0a277672c4a0088af44aef483d8417740/manifest.json",
+    "--heads",
+    "1",
+    "--layers",
+    "4",
+    "--ffn-dim",
+    "256",
+    "--generate-gate-bias",
+    "0.0",
+    "--checkpoint-interval",
+    "15",
+    "--tranche-steps",
+    "60",
+    "--seed",
+    "20260907"
+  ],
+  "include_paths": [
+    "State/active/branches/active",
+    "State/training/curricula/ffcs_v1/a872278fd0e8ef926370e1712d01dcf0a277672c4a0088af44aef483d8417740/manifest.json",
+    "configs/source_of_truth/capacity_policy.json"
+  ]
+}

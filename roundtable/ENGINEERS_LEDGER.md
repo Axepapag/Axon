@@ -1,13 +1,16 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-06T17:55:00Z
+Updated: 2026-09-06T21:15:00Z
 Current through event:
-`evt-20260906T175500000000Z-codex-foundation-stage0-diagnostic`
+`evt-20260906T211500000000Z-copilot-cli-d64-tissue-shape-proposal`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
-Identity stamp: Codex / GPT-5 family (exact runtime model ID not exposed) /
-2026-09-06
+Identity stamp: GitHub Copilot CLI / Grok 4.6 (grok-4.6) / 2026-09-06
+
+Continuity note: Grok posted `roundtable/proposals/GROK_D64_TISSUE_SHAPE_PROPOSAL_2026-09-06.md`
+(PROPOSAL ONLY). Stage-0 remains failed/paused. No launch. No SOT change.
+Personal first-mission opinion stays off-table at D:\Grok\Briefs.
 
 ## Current mission and honest status
 

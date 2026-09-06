@@ -59,6 +59,9 @@ def test_work_slices_are_not_part_of_current_d64_tissue_config() -> None:
         config = candidate_a_config(n_heads=heads, dropout=0.0)
         assert config.architecture_id == expected
         assert "inference_budget_transport_units" not in config.to_canonical_dict()
+        assert "generate_gate_bias" not in config.to_canonical_dict()
+        fair = candidate_a_config(n_heads=heads, dropout=0.0, generate_gate_bias=0.0)
+        assert fair.architecture_id == expected
 
 
 def test_recall_query_and_curriculum_target_survive_old_512_boundary(

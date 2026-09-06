@@ -69,6 +69,7 @@ class GovernedLearningPolicy:
     precision: PrecisionMode | str = PrecisionMode.FP32
     exact_scope_verification_each_step: bool = True
     full_parameter_telemetry_each_step: bool = True
+    objective_program_id: str | None = None
     policy_id: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -119,6 +120,15 @@ class GovernedLearningPolicy:
             object.__setattr__(self, "max_gradient_l2", _finite_positive(self.max_gradient_l2, "max_gradient_l2"))
         if self.max_update_l2 is not None:
             object.__setattr__(self, "max_update_l2", _finite_positive(self.max_update_l2, "max_update_l2"))
+        if self.objective_program_id is not None:
+            objective_program_id = str(self.objective_program_id).lower()
+            if len(objective_program_id) != 64:
+                raise ValueError("objective_program_id must be a SHA256 identity or None")
+            try:
+                int(objective_program_id, 16)
+            except ValueError as exc:
+                raise ValueError("objective_program_id must be hexadecimal") from exc
+            object.__setattr__(self, "objective_program_id", objective_program_id)
 
         object.__setattr__(self, "policy_id", canonical_sha256(self.to_canonical_dict(include_id=False)))
 
@@ -191,6 +201,8 @@ class GovernedLearningPolicy:
         }
         if self.schedule_steps is not None:
             value["schedule_steps"] = self.schedule_steps
+        if self.objective_program_id is not None:
+            value["objective_program_id"] = self.objective_program_id
         if include_id:
             value["policy_id"] = self.policy_id
         return value

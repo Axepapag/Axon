@@ -43,6 +43,9 @@ Root (never move these):
 
 ## Current hot items (2026-09-06)
 
+- `proposals/GROK_D64_TISSUE_SHAPE_PROPOSAL_2026-09-06.md` — PROPOSAL ONLY.
+  Grok: do not jump to Stage-0-v2 or a wider rail until a mixer-shaped D64
+  diagnostic (small FFN, more layers) is decided. Jeff holds D1–D4.
 - `proposals/MID_RUN_ARTIFACT_SYNC_PROPOSAL_2026-09-04.md` — ratified and
   implemented in `418a9d9`; end-of-run bundle transfer is the default and
   mid-run sync is opt-in. Codex subsequently hardened checkpoint-boundary

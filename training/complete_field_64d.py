@@ -49,6 +49,7 @@ class ReaderConfig:
     page_size: int = 256
     dropout: float = 0.05
     lift_seed: int = 7
+    generate_gate_bias: float = 1.5
 
     def __post_init__(self) -> None:
         if self.d_model != 64:
@@ -57,6 +58,8 @@ class ReaderConfig:
             raise ValueError("d_model must be divisible by n_heads")
         if self.page_size < 1 or self.state_tokens < 1:
             raise ValueError("page_size and state_tokens must be positive")
+        if not math.isfinite(float(self.generate_gate_bias)):
+            raise ValueError("generate_gate_bias must be a finite float")
 
 
 @dataclass(frozen=True)
@@ -299,7 +302,7 @@ class CompleteField64D(nn.Module):
 
         nn.init.normal_(self.region_embedding.weight, std=0.02)
         nn.init.zeros_(self.copy_gate.weight)
-        nn.init.constant_(self.copy_gate.bias, 1.5)
+        nn.init.constant_(self.copy_gate.bias, float(cfg.generate_gate_bias))
 
     @property
     def device(self) -> torch.device:

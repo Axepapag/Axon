@@ -91,6 +91,22 @@ def test_candidate_a_shape_is_exact_and_architecture_identity_changes_with_heads
     assert candidate.architecture_id != candidate_a_config(ffn_dim=4096).architecture_id
 
 
+def test_generate_gate_bias_is_initialization_not_architecture_identity() -> None:
+    default = candidate_a_config(dropout=0.0, ffn_dim=128, n_layers=1)
+    fair = candidate_a_config(dropout=0.0, ffn_dim=128, n_layers=1, generate_gate_bias=0.0)
+    copy_biased = candidate_a_config(
+        dropout=0.0, ffn_dim=128, n_layers=1, generate_gate_bias=-1.5
+    )
+    assert default.architecture_id == fair.architecture_id == copy_biased.architecture_id
+    assert "generate_gate_bias" not in default.to_canonical_dict()
+    default_model = LivingReasoningCoreD64(default)
+    fair_model = LivingReasoningCoreD64(fair)
+    copy_model = LivingReasoningCoreD64(copy_biased)
+    assert torch.allclose(default_model.copy_gate.bias, torch.full_like(default_model.copy_gate.bias, 1.5))
+    assert torch.allclose(fair_model.copy_gate.bias, torch.zeros_like(fair_model.copy_gate.bias))
+    assert torch.allclose(copy_model.copy_gate.bias, torch.full_like(copy_model.copy_gate.bias, -1.5))
+
+
 def test_candidate_a_parameter_estimate_preserves_deliberate_huge_ffn() -> None:
     model = LivingReasoningCoreD64(candidate_a_config(dropout=0.0))
     report = model.architecture_report()

@@ -73,6 +73,7 @@ class LivingReasoningCoreConfig:
     dropout: float = 0.05
     soul_codec_version: str = D64_SOUL_CODEC_VERSION
     lift_seed: int = 7
+    generate_gate_bias: float = 1.5
     architecture_id: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -95,6 +96,9 @@ class LivingReasoningCoreConfig:
             raise ValueError("dropout must be in [0, 1)")
         if not self.soul_codec_version:
             raise ValueError("soul_codec_version must be non-empty")
+        if not math.isfinite(float(self.generate_gate_bias)):
+            raise ValueError("generate_gate_bias must be a finite float")
+        object.__setattr__(self, "generate_gate_bias", float(self.generate_gate_bias))
         object.__setattr__(
             self,
             "architecture_id",
@@ -141,6 +145,7 @@ class LivingReasoningCoreConfig:
             page_size=self.page_size,
             dropout=self.dropout,
             lift_seed=self.lift_seed,
+            generate_gate_bias=self.generate_gate_bias,
         )
 
 
@@ -328,8 +333,9 @@ class LivingReasoningCoreD64(CompleteField64D):
 
         zero = gate_logits.sum() * 0.0
         position_losses: list[torch.Tensor] = []
-        gate_losses: list[torch.Tensor] = []
-        position_correct = gate_correct = supervised_copy_positions = 0
+        copy_gate_losses: list[torch.Tensor] = []
+        eos_gate_losses: list[torch.Tensor] = []
+        position_correct = copy_gate_correct = supervised_copy_positions = 0
         region_to_id = {
             region.value: index for index, region in enumerate(CANONICAL_REGION_ORDER)
         }
@@ -400,35 +406,59 @@ class LivingReasoningCoreD64(CompleteField64D):
                     copy_target = torch.zeros(
                         (1,), device=self.device, dtype=gate_logits.dtype
                     )
-                    gate_losses.append(
+                    copy_gate_losses.append(
                         F.binary_cross_entropy_with_logits(
                             gate_logits[:, target_position], copy_target
                         )
                     )
-                    gate_correct += int(float(gate_logits[0, target_position].item()) < 0.0)
+                    copy_gate_correct += int(
+                        float(gate_logits[0, target_position].item()) < 0.0
+                    )
                     supervised_copy_positions += 1
 
         eos_supervised = bool(specification.get("supervise_eos_generate", True))
+        eos_gate_correct = 0
         if eos_supervised:
             eos_target = torch.ones((1,), device=self.device, dtype=gate_logits.dtype)
-            gate_losses.append(
+            eos_gate_losses.append(
                 F.binary_cross_entropy_with_logits(gate_logits[:, transport_count], eos_target)
             )
-            gate_correct += int(float(gate_logits[0, transport_count].item()) >= 0.0)
+            eos_gate_correct += int(
+                float(gate_logits[0, transport_count].item()) >= 0.0
+            )
         position_loss = torch.stack(position_losses).mean() if position_losses else zero
+        copy_gate_loss = (
+            torch.stack(copy_gate_losses).mean() if copy_gate_losses else zero
+        )
+        eos_gate_loss = torch.stack(eos_gate_losses).mean() if eos_gate_losses else zero
+        gate_losses = copy_gate_losses + eos_gate_losses
         gate_loss = torch.stack(gate_losses).mean() if gate_losses else zero
         gate_count = supervised_copy_positions + int(eos_supervised)
+        gate_correct = copy_gate_correct + eos_gate_correct
         return {
             "position_loss": position_loss,
             "gate_loss": gate_loss,
+            "copy_gate_loss": copy_gate_loss,
+            "eos_gate_loss": eos_gate_loss,
             "copy_positions": supervised_copy_positions,
             "position_correct": position_correct,
             "gate_supervised_positions": gate_count,
             "gate_correct": gate_correct,
+            "copy_gate_correct": copy_gate_correct,
+            "eos_gate_supervised_positions": int(eos_supervised),
+            "eos_gate_correct": eos_gate_correct,
             "position_accuracy": (
                 position_correct / supervised_copy_positions
                 if supervised_copy_positions
                 else 1.0
+            ),
+            "copy_gate_accuracy": (
+                copy_gate_correct / supervised_copy_positions
+                if supervised_copy_positions
+                else 1.0
+            ),
+            "eos_gate_accuracy": (
+                eos_gate_correct / int(eos_supervised) if eos_supervised else 1.0
             ),
             "gate_accuracy": gate_correct / gate_count if gate_count else 1.0,
         }

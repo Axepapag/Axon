@@ -9,6 +9,7 @@ explicit outcome-quality labels.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import math
 from typing import Any, Iterable, Mapping
 
 import torch
@@ -40,6 +41,17 @@ from .living_reasoning_d64 import (
 LIVING_REASONING_TARGET_SCHEMA = "axon-living-reasoning-target-v1"
 LIVING_REASONING_EPISODE_SCHEMA = "axon-living-reasoning-episode-v1"
 LIVING_REASONING_CURRICULUM_SCHEMA = "axon-living-reasoning-curriculum-v1"
+LIVING_OBJECTIVE_COMPONENTS = (
+    "decision",
+    "operation",
+    "region",
+    "start",
+    "end",
+    "payload",
+    "alignment_position",
+    "alignment_copy_gate",
+    "alignment_eos_gate",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -358,13 +370,30 @@ def living_phase_objective(
     model: LivingReasoningCoreD64,
     output: LivingReasoningForward,
     target: LivingReasoningTarget,
+    *,
+    component_weights: Mapping[str, float] | None = None,
 ) -> tuple[torch.Tensor, dict[str, float]]:
+    weights: dict[str, float] | None = None
+    if component_weights is not None:
+        unknown = set(component_weights) - set(LIVING_OBJECTIVE_COMPONENTS)
+        if unknown:
+            raise ValueError(f"unknown living objective components: {sorted(unknown)}")
+        weights = {}
+        for component in LIVING_OBJECTIVE_COMPONENTS:
+            value = float(component_weights.get(component, 0.0))
+            if not math.isfinite(value) or value < 0.0:
+                raise ValueError("living objective component weights must be finite and non-negative")
+            weights[component] = value
+
+    def weighted(component: str, value: torch.Tensor) -> torch.Tensor:
+        return value if weights is None else value * weights[component]
+
     decision_index = tuple(ReasoningDecision).index(target.decision)
     decision_loss = F.cross_entropy(
         output.decision_logits,
         torch.tensor([decision_index], dtype=torch.long, device=model.device),
     )
-    loss = decision_loss
+    loss = weighted("decision", decision_loss)
     metrics = {"decision_loss": float(decision_loss.detach().item())}
     if target.decision is not ReasoningDecision.DELTA:
         return loss, metrics
@@ -409,7 +438,14 @@ def living_phase_objective(
             specification=target.payload_alignment,
         )
     payload_loss = sequence_cross_entropy(payload_logits, payload_targets)
-    loss = loss + operation_loss + region_loss + start_loss + end_loss + payload_loss
+    loss = (
+        loss
+        + weighted("operation", operation_loss)
+        + weighted("region", region_loss)
+        + weighted("start", start_loss)
+        + weighted("end", end_loss)
+        + weighted("payload", payload_loss)
+    )
     metrics.update(
         {
             "operation_loss": float(operation_loss.detach().item()),
@@ -422,13 +458,34 @@ def living_phase_objective(
     if alignment_supervision is not None:
         position_loss = alignment_supervision["position_loss"]
         gate_loss = alignment_supervision["gate_loss"]
-        loss = loss + position_loss + gate_loss
+        copy_gate_loss = alignment_supervision["copy_gate_loss"]
+        eos_gate_loss = alignment_supervision["eos_gate_loss"]
+        if weights is None:
+            # Preserve the historical objective exactly for every existing
+            # manifest/checkpoint. The staged v2 program opts into separated
+            # copy and EOS terms through explicit content-addressed weights.
+            loss = loss + position_loss + gate_loss
+        else:
+            loss = (
+                loss
+                + weighted("alignment_position", position_loss)
+                + weighted("alignment_copy_gate", copy_gate_loss)
+                + weighted("alignment_eos_gate", eos_gate_loss)
+            )
         metrics.update(
             {
                 "alignment_position_loss": float(position_loss.detach().item()),
                 "alignment_gate_loss": float(gate_loss.detach().item()),
+                "alignment_copy_gate_loss": float(copy_gate_loss.detach().item()),
+                "alignment_eos_gate_loss": float(eos_gate_loss.detach().item()),
                 "alignment_copy_positions": float(alignment_supervision["copy_positions"]),
                 "alignment_position_accuracy": float(alignment_supervision["position_accuracy"]),
+                "alignment_copy_gate_accuracy": float(
+                    alignment_supervision["copy_gate_accuracy"]
+                ),
+                "alignment_eos_gate_accuracy": float(
+                    alignment_supervision["eos_gate_accuracy"]
+                ),
                 "alignment_gate_accuracy": float(alignment_supervision["gate_accuracy"]),
             }
         )
@@ -443,6 +500,7 @@ def living_episode_objective(
     core_id: str,
     parameter_generation: str,
     ablate_temperatures: tuple[SoulTemperature, ...] = (),
+    component_weights: Mapping[str, float] | None = None,
 ) -> tuple[torch.Tensor, CausalLivingUnroll, tuple[dict[str, float], ...]]:
     compiled = D64FieldCompiler().compile(episode.snapshot)
     compiled.verify_roundtrip(episode.snapshot)
@@ -457,7 +515,12 @@ def living_episode_objective(
         ablate_temperatures=ablate_temperatures,
     )
     phase_results = tuple(
-        living_phase_objective(model, output, target)
+        living_phase_objective(
+            model,
+            output,
+            target,
+            component_weights=component_weights,
+        )
         for output, target in zip(unroll.outputs, episode.targets, strict=True)
     )
     weights = torch.tensor(
@@ -503,6 +566,30 @@ def evaluate_living_episode(
     payload_exact = 0
     payload_token_count = 0
     payload_token_correct = 0
+    payload_content_token_count = 0
+    payload_content_token_correct = 0
+    payload_eos_token_count = 0
+    payload_eos_token_correct = 0
+    alignment_position_count = 0
+    alignment_position_correct = 0
+    alignment_copy_gate_count = 0
+    alignment_copy_gate_correct = 0
+    alignment_eos_gate_count = 0
+    alignment_eos_gate_correct = 0
+    decision_correct = 0
+    operation_count = 0
+    operation_correct = 0
+    region_count = 0
+    region_correct = 0
+    start_count = 0
+    start_correct = 0
+    end_count = 0
+    end_correct = 0
+    decision_target_counts = [0] * len(ReasoningDecision)
+    decision_correct_by_target = [0] * len(ReasoningDecision)
+    operation_target_counts = [0] * len(ReasoningOperationKind)
+    operation_correct_by_target = [0] * len(ReasoningOperationKind)
+    phase_diagnostics: list[dict[str, Any]] = []
     payload_target_counts = torch.zeros(
         model.eos_index + 1,
         dtype=torch.long,
@@ -515,13 +602,48 @@ def evaluate_living_episode(
         decision = tuple(ReasoningDecision)[
             int(output.decision_logits.argmax(dim=-1).item())
         ]
-        exact = decision is target.decision
+        decision_index = tuple(ReasoningDecision).index(target.decision)
+        decision_is_exact = decision is target.decision
+        decision_target_counts[decision_index] += 1
+        decision_correct_by_target[decision_index] += int(decision_is_exact)
+        decision_correct += int(decision_is_exact)
+        exact = decision_is_exact
+        diagnostic: dict[str, Any] = {
+            "target_decision": target.decision.value,
+            "decision_exact": bool(decision_is_exact),
+        }
         if target.decision is ReasoningDecision.DELTA:
             payload_count += 1
             operation = tuple(ReasoningOperationKind)[
                 int(output.operation_logits.argmax(dim=-1).item())
             ]
             region = tuple(LogicalRegion)[int(output.region_logits.argmax(dim=-1).item())]
+            operation_index = tuple(ReasoningOperationKind).index(target.operation)
+            operation_is_exact = operation is target.operation
+            operation_count += 1
+            operation_correct += int(operation_is_exact)
+            operation_target_counts[operation_index] += 1
+            operation_correct_by_target[operation_index] += int(operation_is_exact)
+            region_is_exact = region is target.region
+            region_count += 1
+            region_correct += int(region_is_exact)
+
+            target_candidates, target_start_logits, target_end_logits = model.boundary_logits(
+                output, target.region
+            )
+            target_start_prediction = target_candidates[
+                int(target_start_logits.argmax(dim=-1).item())
+            ]
+            target_end_prediction = target_candidates[
+                int(target_end_logits.argmax(dim=-1).item())
+            ]
+            start_is_exact = target_start_prediction == target.start
+            end_is_exact = target_end_prediction == target.end
+            start_count += 1
+            start_correct += int(start_is_exact)
+            end_count += 1
+            end_correct += int(end_is_exact)
+
             candidates, start_logits, end_logits = model.boundary_logits(output, region)
             start = candidates[int(start_logits.argmax(dim=-1).item())]
             end = candidates[int(end_logits.argmax(dim=-1).item())]
@@ -544,20 +666,84 @@ def evaluate_living_episode(
                         "decision": (decision.name if decision is not None else None),
                     }
                 )
-            teacher_logits, teacher_targets = model.decode_teacher(
+            teacher_decoded = model.decode_teacher(
                 output.reader_state,
                 target.payload,
                 head=1,
                 memory=output.complete_memory,
+                return_alignment=target.payload_alignment is not None,
             )
+            if target.payload_alignment is None:
+                teacher_logits, teacher_targets = teacher_decoded
+                alignment = None
+            else:
+                teacher_logits, teacher_targets, decoder_alignment = teacher_decoded
+                alignment = model.alignment_supervision(
+                    target_text=target.payload,
+                    memory=output.complete_memory,
+                    decoder_alignment=decoder_alignment,
+                    specification=target.payload_alignment,
+                )
             teacher_predictions = teacher_logits.argmax(dim=-1)
             payload_token_count += int(teacher_targets.numel())
             payload_token_correct += int(
                 teacher_predictions.eq(teacher_targets).sum().item()
             )
+            content_targets = teacher_targets[:, :-1]
+            content_predictions = teacher_predictions[:, :-1]
+            content_count = int(content_targets.numel())
+            content_correct = int(content_predictions.eq(content_targets).sum().item())
+            payload_content_token_count += content_count
+            payload_content_token_correct += content_correct
+            eos_count = int(teacher_targets.shape[0])
+            eos_correct = int(
+                teacher_predictions[:, -1].eq(teacher_targets[:, -1]).sum().item()
+            )
+            payload_eos_token_count += eos_count
+            payload_eos_token_correct += eos_correct
             payload_target_counts += torch.bincount(
                 teacher_targets.reshape(-1),
                 minlength=model.eos_index + 1,
+            )
+            if alignment is not None:
+                alignment_position_count += int(alignment["copy_positions"])
+                alignment_position_correct += int(alignment["position_correct"])
+                alignment_copy_gate_count += int(alignment["copy_positions"])
+                alignment_copy_gate_correct += int(alignment["copy_gate_correct"])
+                alignment_eos_gate_count += int(
+                    alignment["eos_gate_supervised_positions"]
+                )
+                alignment_eos_gate_correct += int(alignment["eos_gate_correct"])
+            diagnostic.update(
+                {
+                    "target_operation": target.operation.value,
+                    "operation_exact": bool(operation_is_exact),
+                    "region_exact": bool(region_is_exact),
+                    "start_exact": bool(start_is_exact),
+                    "end_exact": bool(end_is_exact),
+                    "payload_content_count": content_count,
+                    "payload_content_correct": content_correct,
+                    "payload_content_exact": (
+                        None if content_count == 0 else content_correct == content_count
+                    ),
+                    "payload_eos_exact": bool(eos_correct == eos_count),
+                    "alignment_position_exact": (
+                        None
+                        if alignment is None
+                        else alignment["position_correct"] == alignment["copy_positions"]
+                    ),
+                    "alignment_copy_gate_exact": (
+                        None
+                        if alignment is None
+                        else alignment["copy_gate_correct"] == alignment["copy_positions"]
+                    ),
+                    "alignment_eos_gate_exact": (
+                        None
+                        if alignment is None
+                        else alignment["eos_gate_correct"]
+                        == alignment["eos_gate_supervised_positions"]
+                    ),
+                }
             )
             exact = exact and all(
                 (
@@ -568,6 +754,7 @@ def evaluate_living_episode(
                     payload_match,
                 )
             )
+        phase_diagnostics.append(diagnostic)
         typed_exact += int(exact)
     coverage = sum(item.canonical_coverage.complete for item in unroll.outputs) / len(
         unroll.outputs
@@ -589,11 +776,56 @@ def evaluate_living_episode(
         "payload_teacher_forced_token_count": payload_token_count,
         "payload_teacher_forced_token_correct": payload_token_correct,
         "payload_teacher_forced_target_counts": payload_target_counts.tolist(),
+        "payload_teacher_forced_content_accuracy": payload_content_token_correct
+        / max(1, payload_content_token_count),
+        "payload_teacher_forced_content_count": payload_content_token_count,
+        "payload_teacher_forced_content_correct": payload_content_token_correct,
+        "payload_teacher_forced_eos_accuracy": payload_eos_token_correct
+        / max(1, payload_eos_token_count),
+        "payload_teacher_forced_eos_count": payload_eos_token_count,
+        "payload_teacher_forced_eos_correct": payload_eos_token_correct,
+        "alignment_position_accuracy": alignment_position_correct
+        / max(1, alignment_position_count),
+        "alignment_position_count": alignment_position_count,
+        "alignment_position_correct": alignment_position_correct,
+        "alignment_copy_gate_accuracy": alignment_copy_gate_correct
+        / max(1, alignment_copy_gate_count),
+        "alignment_copy_gate_count": alignment_copy_gate_count,
+        "alignment_copy_gate_correct": alignment_copy_gate_correct,
+        "alignment_eos_gate_accuracy": alignment_eos_gate_correct
+        / max(1, alignment_eos_gate_count),
+        "alignment_eos_gate_count": alignment_eos_gate_count,
+        "alignment_eos_gate_correct": alignment_eos_gate_correct,
+        "decision_accuracy": decision_correct / max(1, supervised),
+        "decision_correct": decision_correct,
+        "decision_target_counts": decision_target_counts,
+        "decision_correct_by_target": decision_correct_by_target,
+        "operation_accuracy": operation_correct / max(1, operation_count),
+        "operation_count": operation_count,
+        "operation_correct": operation_correct,
+        "operation_target_counts": operation_target_counts,
+        "operation_correct_by_target": operation_correct_by_target,
+        "region_accuracy": region_correct / max(1, region_count),
+        "region_count": region_count,
+        "region_correct": region_correct,
+        "start_accuracy": start_correct / max(1, start_count),
+        "start_count": start_count,
+        "start_correct": start_correct,
+        "end_accuracy": end_correct / max(1, end_count),
+        "end_count": end_count,
+        "end_correct": end_correct,
+        "phase_diagnostics": phase_diagnostics,
         "complete_field_coverage_rate": coverage,
         "constant_typed_emission_exact_floor": 0.0,
         "constant_payload_transport_exact_floor": 0.0,
         "constant_payload_token_accuracy_floor": constant_token_correct
         / max(1, payload_token_count),
+        "constant_payload_content_accuracy_floor": (
+            0.0
+            if payload_content_token_count == 0
+            else max(payload_target_counts[:-1]).item()
+            / payload_content_token_count
+        ),
     }
 
 

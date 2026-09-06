@@ -16,6 +16,7 @@ import numpy as np
 import torch
 
 from runtime.field import CanonicalStateBranch, LogicalRegion, canonical_sha256
+from runtime.heart import ReasoningDecision, ReasoningOperationKind
 from runtime.soul import SoulStore
 from runtime.trainer import (
     CandidateSoulWorkspace,
@@ -36,6 +37,8 @@ from runtime.trainer import (
 )
 from training import (
     FOUNDATION_MOTOR_GATE_POLICY_ID,
+    FOUNDATION_MOTOR_V2_PROGRAM_ID,
+    FOUNDATION_MOTOR_V2_STAGE_ORDER,
     FOUNDATION_SEQUENCE_GATE_POLICY_ID,
     LivingReasoningCoreD64,
     LivingReasoningCurriculum,
@@ -45,12 +48,17 @@ from training import (
     candidate_a_config,
     d64_tournament_metric_computation,
     decide_foundation_motor_mastery,
+    decide_foundation_motor_v2_stage,
     decide_foundation_sequence_mastery,
     evaluate_living_episode,
     evaluate_sequential_case,
     foundation_motor_probe,
+    foundation_motor_v2_action,
+    foundation_motor_v2_probe,
+    foundation_motor_v2_stage_policy,
     foundation_sequence_probe,
     is_foundation_motor_episode,
+    is_foundation_motor_v2_episode,
     is_foundation_sequence_episode,
     living_episode_objective,
     living_source_counterfactuals,
@@ -175,6 +183,15 @@ def _arguments() -> argparse.Namespace:
     parser.add_argument("--heads", type=int, default=1)
     parser.add_argument("--layers", type=int, default=2)
     parser.add_argument(
+        "--generate-gate-bias",
+        type=float,
+        default=1.5,
+        help=(
+            "initial copy/generate-gate bias; 1.5 is Candidate A (~82% generate). "
+            "0.0 is a fair coin. Initialization only; not part of architecture identity."
+        ),
+    )
+    parser.add_argument(
         "--checkpoint-interval",
         type=int,
         default=1,
@@ -262,36 +279,63 @@ def _training_lanes(
     mechanism_curriculum: LivingReasoningCurriculum,
     standard_ffcs: list[Any],
     sequential_ffcs: list[Any],
+    *,
+    foundation_motor_v2_training_stage: str | None = None,
 ) -> tuple[tuple[str, tuple[tuple[str, Any, str], ...]], ...]:
     """Build deterministic family lanes without flattening sequential cases."""
 
-    lanes: list[tuple[str, tuple[tuple[str, Any, str], ...]]] = [
-        (
-            "mechanism",
-            tuple(
-                ("episode", episode, mechanism_curriculum.train_manifest_id)
-                for episode in mechanism_curriculum.split("train")
-            ),
+    lanes: list[tuple[str, tuple[tuple[str, Any, str], ...]]] = []
+    if foundation_motor_v2_training_stage is None:
+        lanes.append(
+            (
+                "mechanism",
+                tuple(
+                    ("episode", episode, mechanism_curriculum.train_manifest_id)
+                    for episode in mechanism_curriculum.split("train")
+                ),
+            )
         )
-    ]
+    else:
+        eligible = set(
+            foundation_motor_v2_stage_policy(foundation_motor_v2_training_stage)[
+                "eligible_actions"
+            ]
+        )
     for item in standard_ffcs:
         teaching_manifest_id = item.teaching_living_curriculum.train_manifest_id
         for family, _counts in item.requested_family_split_counts:
+            cases = tuple(
+                case
+                for case in item.teaching_cases
+                if case.family == family and case.episode.split == "train"
+            )
+            if foundation_motor_v2_training_stage is not None:
+                cases = tuple(
+                    case
+                    for case in cases
+                    if is_foundation_motor_v2_episode(case.episode)
+                    and foundation_motor_v2_action(case.episode) in eligible
+                )
             lanes.append(
                 (
-                    f"ffcs-{family}",
+                    (
+                        f"ffcs-{family}-{foundation_motor_v2_training_stage}"
+                        if foundation_motor_v2_training_stage is not None
+                        else f"ffcs-{family}"
+                    ),
                     tuple(
                         (
                             "first_form_case",
                             case,
                             teaching_manifest_id,
                         )
-                        for case in item.teaching_cases
-                        if case.family == family and case.episode.split == "train"
+                        for case in cases
                     ),
                 )
             )
-    for item in sequential_ffcs:
+    for item in (
+        sequential_ffcs if foundation_motor_v2_training_stage is None else ()
+    ):
         lanes.append(
             (
                 "ffcs-E",
@@ -299,6 +343,38 @@ def _training_lanes(
             )
         )
     return tuple((name, rows) for name, rows in lanes if rows)
+
+
+def _foundation_motor_v2_stage_from_reports(
+    campaign_report_dir: Path,
+) -> tuple[str, bool]:
+    """Derive the next lesson solely from immutable prior stage-gate evidence."""
+
+    stage_index = 0
+    program_complete = False
+    for path in sorted(campaign_report_dir.glob("segment_*.json")):
+        body = json.loads(path.read_text(encoding="utf-8"))
+        observed_report_id = body.get("report_id")
+        if observed_report_id is None or canonical_sha256(
+            {key: value for key, value in body.items() if key != "report_id"}
+        ) != observed_report_id:
+            raise RuntimeError(f"foundation motor v2 report identity mismatch: {path}")
+        if body.get("foundation_motor_v2_program_id") != FOUNDATION_MOTOR_V2_PROGRAM_ID:
+            continue
+        if body.get("evaluation_only"):
+            continue
+        expected_stage = FOUNDATION_MOTOR_V2_STAGE_ORDER[stage_index]
+        if body.get("foundation_motor_v2_training_stage") != expected_stage:
+            raise RuntimeError("foundation motor v2 stage history is not contiguous")
+        gate = body.get("foundation_motor_v2_stage_gate")
+        if not isinstance(gate, dict) or gate.get("training_stage") != expected_stage:
+            raise RuntimeError("foundation motor v2 report lacks its exact stage gate")
+        if bool(gate.get("passed")):
+            if stage_index == len(FOUNDATION_MOTOR_V2_STAGE_ORDER) - 1:
+                program_complete = True
+                break
+            stage_index += 1
+    return FOUNDATION_MOTOR_V2_STAGE_ORDER[stage_index], program_complete
 
 
 def _scheduled_material(
@@ -376,10 +452,13 @@ def _material_objective(
     soul: Any,
     core_id: str,
     parameter_generation: str,
+    component_weights: dict[str, float] | None = None,
 ) -> tuple[torch.Tensor, Any, tuple[dict[str, float], ...], tuple[Any, ...]]:
     """Run one scheduled lesson and return its complete Soul lineage."""
 
     if kind == "sequential":
+        if component_weights is not None:
+            raise ValueError("staged component weights do not apply to sequential material")
         loss, unrolls, _final_soul = sequential_living_objective(
             candidate,
             material,
@@ -408,6 +487,7 @@ def _material_objective(
         soul,
         core_id=core_id,
         parameter_generation=parameter_generation,
+        component_weights=component_weights,
     )
     return loss, unroll, phase_metrics, unroll.transitions
 
@@ -468,6 +548,7 @@ def main() -> int:
         ffn_dim=args.ffn_dim,
         page_size=args.page_size,
         dropout=0.0,
+        generate_gate_bias=args.generate_gate_bias,
     )
     model = LivingReasoningCoreD64(config).to(device)
     standard_ffcs = []
@@ -529,6 +610,13 @@ def main() -> int:
         for item in standard_ffcs
         for case in item.teaching_cases
     )
+    foundation_motor_v2_enabled = any(
+        is_foundation_motor_v2_episode(case.episode)
+        for item in standard_ffcs
+        for case in item.teaching_cases
+    )
+    if foundation_motor_enabled and foundation_motor_v2_enabled:
+        raise RuntimeError("one campaign cannot mix motor-v1 and motor-v2 teaching")
     if all_ffcs:
         active = CanonicalStateBranch.active_runtime(state_root=args.state_root).load_head()
         active_identity = active.region(LogicalRegion.IDENTITY).text
@@ -579,6 +667,11 @@ def main() -> int:
             **(
                 {"foundation_motor_gate_policy_id": FOUNDATION_MOTOR_GATE_POLICY_ID}
                 if foundation_motor_enabled
+                else {}
+            ),
+            **(
+                {"foundation_motor_v2_program_id": FOUNDATION_MOTOR_V2_PROGRAM_ID}
+                if foundation_motor_v2_enabled
                 else {}
             ),
             "sequential_cases_remain_grouped": True,
@@ -726,10 +819,37 @@ def main() -> int:
         policy = GovernedLearningPolicy(
             optimizer="adamw",
             learning_rate=args.learning_rate,
+            objective_program_id=(
+                FOUNDATION_MOTOR_V2_PROGRAM_ID
+                if foundation_motor_v2_enabled
+                else None
+            ),
         )
         step_bundles = CandidateStepBundleCoordinator(args.state_root)
         latest_bundle = step_bundles.latest_bundle(module_id, candidate_generation)
         campaign_report_dir = args.state_root.resolve() / "training" / "reasoning" / candidate_generation
+        foundation_motor_v2_training_stage = None
+        foundation_motor_v2_program_complete_before_run = False
+        if foundation_motor_v2_enabled:
+            (
+                foundation_motor_v2_training_stage,
+                foundation_motor_v2_program_complete_before_run,
+            ) = _foundation_motor_v2_stage_from_reports(campaign_report_dir)
+            report.update(
+                {
+                    "foundation_motor_v2_program_id": FOUNDATION_MOTOR_V2_PROGRAM_ID,
+                    "foundation_motor_v2_training_stage": foundation_motor_v2_training_stage,
+                    "foundation_motor_v2_stage_policy": dict(
+                        foundation_motor_v2_stage_policy(
+                            foundation_motor_v2_training_stage
+                        )
+                    ),
+                }
+            )
+            if foundation_motor_v2_program_complete_before_run and not args.evaluate_only:
+                raise RuntimeError(
+                    "foundation motor v2 program is already complete; new optimizer work denied"
+                )
         tranche_store = TrancheStore(args.state_root / "training" / "trainer")
         tranche = None
         prior_tranche_id = None
@@ -759,7 +879,18 @@ def main() -> int:
                 steps=args.tranche_steps,
                 parent_bundle_id=parent_bundle_id,
                 purpose=(
-                    "renewable base-zero training tranche"
+                    (
+                        f"foundation motor v2 stage {foundation_motor_v2_training_stage}; "
+                        "renewable base-zero training tranche"
+                    )
+                    if foundation_motor_v2_training_stage is not None
+                    and parent_bundle_id is None
+                    else (
+                        f"foundation motor v2 stage {foundation_motor_v2_training_stage}; "
+                        f"renewable continuation tranche (parent bundle {parent_bundle_id[:16]})"
+                    )
+                    if foundation_motor_v2_training_stage is not None
+                    else "renewable base-zero training tranche"
                     if parent_bundle_id is None
                     else f"renewable continuation tranche (parent bundle {parent_bundle_id[:16]})"
                 ),
@@ -978,6 +1109,15 @@ def main() -> int:
                         soul_branch.load_head(),
                         core_id=module_id,
                         parameter_generation=candidate_generation,
+                        component_weights=(
+                            None
+                            if foundation_motor_v2_training_stage is None
+                            else dict(
+                                foundation_motor_v2_stage_policy(
+                                    foundation_motor_v2_training_stage
+                                )["component_weights"]
+                            )
+                        ),
                     )
                     exact_losses.append(float(loss.item()))
                 for case in sequential_heldout:
@@ -1020,6 +1160,21 @@ def main() -> int:
                 )
                 for episode in motor_regression_episodes
             ]
+            motor_v2_regression_episodes = tuple(
+                episode
+                for episode in regression_episodes
+                if is_foundation_motor_v2_episode(episode)
+            )
+            motor_v2_regression_rows = [
+                evaluate_living_episode(
+                    session.candidate_module,
+                    episode,
+                    soul_branch.load_head(),
+                    core_id=module_id,
+                    parameter_generation=candidate_generation,
+                )
+                for episode in motor_v2_regression_episodes
+            ]
 
             def aggregate(
                 rows: list[dict[str, Any]],
@@ -1041,6 +1196,32 @@ def main() -> int:
                 payload_target_counts = [
                     sum(row["payload_teacher_forced_target_counts"][index] for row in rows)
                     for index in range(session.candidate_module.eos_index + 1)
+                ]
+                def total(name: str) -> float:
+                    return sum(float(row.get(name, 0.0)) for row in rows)
+
+                payload_content_count = total("payload_teacher_forced_content_count")
+                payload_content_correct = total("payload_teacher_forced_content_correct")
+                payload_eos_count = total("payload_teacher_forced_eos_count")
+                payload_eos_correct = total("payload_teacher_forced_eos_correct")
+                alignment_position_count = total("alignment_position_count")
+                alignment_copy_gate_count = total("alignment_copy_gate_count")
+                alignment_eos_gate_count = total("alignment_eos_gate_count")
+                decision_target_counts = [
+                    sum(int(row.get("decision_target_counts", [0] * len(ReasoningDecision))[index]) for row in rows)
+                    for index in range(len(ReasoningDecision))
+                ]
+                decision_correct_by_target = [
+                    sum(int(row.get("decision_correct_by_target", [0] * len(ReasoningDecision))[index]) for row in rows)
+                    for index in range(len(ReasoningDecision))
+                ]
+                operation_target_counts = [
+                    sum(int(row.get("operation_target_counts", [0] * len(ReasoningOperationKind))[index]) for row in rows)
+                    for index in range(len(ReasoningOperationKind))
+                ]
+                operation_correct_by_target = [
+                    sum(int(row.get("operation_correct_by_target", [0] * len(ReasoningOperationKind))[index]) for row in rows)
+                    for index in range(len(ReasoningOperationKind))
                 ]
                 return {
                     "evaluated_case_count": len(rows),
@@ -1068,6 +1249,41 @@ def main() -> int:
                     "constant_payload_token_accuracy_floor": (
                         max(payload_target_counts) / max(1, payload_token_count)
                     ),
+                    "payload_teacher_forced_content_accuracy": (
+                        payload_content_correct / max(1.0, payload_content_count)
+                    ),
+                    "payload_teacher_forced_content_count": payload_content_count,
+                    "constant_payload_content_accuracy_floor": (
+                        max(payload_target_counts[:-1])
+                        / max(1.0, payload_content_count)
+                    ),
+                    "payload_teacher_forced_eos_accuracy": (
+                        payload_eos_correct / max(1.0, payload_eos_count)
+                    ),
+                    "payload_teacher_forced_eos_count": payload_eos_count,
+                    "alignment_position_accuracy": total("alignment_position_correct")
+                    / max(1.0, alignment_position_count),
+                    "alignment_position_count": alignment_position_count,
+                    "alignment_copy_gate_accuracy": total("alignment_copy_gate_correct")
+                    / max(1.0, alignment_copy_gate_count),
+                    "alignment_copy_gate_count": alignment_copy_gate_count,
+                    "alignment_eos_gate_accuracy": total("alignment_eos_gate_correct")
+                    / max(1.0, alignment_eos_gate_count),
+                    "alignment_eos_gate_count": alignment_eos_gate_count,
+                    "decision_accuracy": total("decision_correct")
+                    / max(1.0, supervised_phase_count),
+                    "decision_target_counts": decision_target_counts,
+                    "decision_correct_by_target": decision_correct_by_target,
+                    "operation_accuracy": total("operation_correct")
+                    / max(1.0, total("operation_count")),
+                    "operation_target_counts": operation_target_counts,
+                    "operation_correct_by_target": operation_correct_by_target,
+                    "region_accuracy": total("region_correct")
+                    / max(1.0, total("region_count")),
+                    "start_accuracy": total("start_correct")
+                    / max(1.0, total("start_count")),
+                    "end_accuracy": total("end_correct")
+                    / max(1.0, total("end_count")),
                 }
 
             combined_rows = exact_rows + sequential_rows
@@ -1097,6 +1313,14 @@ def main() -> int:
             result["foundation_motor_regression_probe"] = foundation_motor_probe(
                 motor_regression_episodes,
                 motor_regression_rows,
+            )
+            result["foundation_motor_v2_heldout_probe"] = foundation_motor_v2_probe(
+                heldout_episodes,
+                exact_rows,
+            )
+            result["foundation_motor_v2_regression_probe"] = foundation_motor_v2_probe(
+                motor_v2_regression_episodes,
+                motor_v2_regression_rows,
             )
             result["isolated_family_evaluations"] = {}
             for family in sorted(set(evaluation_family_by_episode.values())):
@@ -1174,6 +1398,7 @@ def main() -> int:
             mechanism_curriculum,
             standard_ffcs,
             sequential_ffcs,
+            foundation_motor_v2_training_stage=foundation_motor_v2_training_stage,
         )
         if not curriculum_lanes:  # pragma: no cover - mechanism always supplies train
             raise RuntimeError("governed campaign has no supervised training material")
@@ -1198,6 +1423,15 @@ def main() -> int:
                     soul=soul,
                     core_id=module_id,
                     parameter_generation=candidate_generation,
+                    component_weights=(
+                        None
+                        if foundation_motor_v2_training_stage is None
+                        else dict(
+                            foundation_motor_v2_stage_policy(
+                                foundation_motor_v2_training_stage
+                            )["component_weights"]
+                        )
+                    ),
                 )
                 captured.update(
                     {
@@ -1338,6 +1572,27 @@ def main() -> int:
             complete_heldout=complete_heldout_evaluation,
             complete_regression=complete_regression_evaluation,
         )
+        foundation_motor_v2_stage_gate = (
+            None
+            if foundation_motor_v2_training_stage is None
+            else decide_foundation_motor_v2_stage(
+                training_stage=foundation_motor_v2_training_stage,
+                heldout_probe=final_evaluation.get(
+                    "foundation_motor_v2_heldout_probe"
+                ),
+                regression_probe=final_evaluation.get(
+                    "foundation_motor_v2_regression_probe"
+                ),
+                complete_heldout=complete_heldout_evaluation,
+                complete_regression=complete_regression_evaluation,
+            )
+        )
+        foundation_motor_v2_program_complete = bool(
+            foundation_motor_v2_stage_gate is not None
+            and foundation_motor_v2_stage_gate["passed"]
+            and foundation_motor_v2_training_stage
+            == FOUNDATION_MOTOR_V2_STAGE_ORDER[-1]
+        )
         foundation_gates = tuple(
             gate
             for gate in (foundation_motor_gate, foundation_sequence_gate)
@@ -1346,6 +1601,11 @@ def main() -> int:
         curriculum_stage_complete = (
             task_gate_passed
             and exact_gate_passed
+            and (
+                foundation_motor_v2_program_complete
+                if foundation_motor_v2_enabled
+                else True
+            )
             and (
                 all(bool(gate["passed"]) for gate in foundation_gates)
                 if foundation_gates
@@ -1435,6 +1695,8 @@ def main() -> int:
                 "tournament_metric_surface_complete": metric_surface_complete,
                 "foundation_sequence_gate": foundation_sequence_gate,
                 "foundation_motor_gate": foundation_motor_gate,
+                "foundation_motor_v2_stage_gate": foundation_motor_v2_stage_gate,
+                "foundation_motor_v2_program_complete": foundation_motor_v2_program_complete,
             }
         )
 
