@@ -55,6 +55,27 @@ def sha256_file(path: Path | str) -> str:
     return digest.hexdigest()
 
 
+def _io_path(path: Path | str) -> Path:
+    """Return an absolute Windows extended path for filesystem I/O.
+
+    Bundle member names remain ordinary relative POSIX paths for validation
+    and provenance. Only the final local I/O path receives the Windows
+    extended-path prefix, allowing immutable Trainer/Soul ancestry names to exceed the
+    legacy Win32 260-character path limit without shortening or renaming any
+    evidence.
+    """
+
+    resolved = Path(path).resolve(strict=False)
+    if os.name != "nt":
+        return resolved
+    raw = str(resolved)
+    if raw.startswith("\\\\?\\"):
+        return Path(raw)
+    if raw.startswith("\\\\"):
+        return Path("\\\\?\\UNC\\" + raw[2:])
+    return Path("\\\\?\\" + raw)
+
+
 def _atomic_json(path: Path, value: Mapping[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(path.name + f".{os.getpid()}.tmp")
@@ -197,10 +218,10 @@ def verify_and_extract(
                     observed.add(info.name)
                     member_target = (target / Path(*relative.parts)).resolve(strict=False)
                     member_target.relative_to(target.resolve(strict=False))
-                    member_target.parent.mkdir(parents=True, exist_ok=True)
+                    _io_path(member_target.parent).mkdir(parents=True, exist_ok=True)
                     source = archive.extractfile(info)
                     assert source is not None  # guaranteed by info.isfile()
-                    with source, member_target.open("wb") as handle:
+                    with source, _io_path(member_target).open("wb") as handle:
                         shutil.copyfileobj(source, handle)
                     extracted.append(info.name)
             missing = expected - observed
@@ -212,11 +233,12 @@ def verify_and_extract(
         for arcname in sorted(expected & observed):
             record = document["members"][arcname]
             member_target = target / Path(*PurePosixPath(arcname).parts)
-            if sha256_file(member_target) != record["sha256"]:
+            member_io_target = _io_path(member_target)
+            if sha256_file(member_io_target) != record["sha256"]:
                 mismatches.append(f"member sha256 mismatch: {arcname}")
-            elif member_target.stat().st_size != record["bytes"]:
+            elif member_io_target.stat().st_size != record["bytes"]:
                 mismatches.append(f"member byte count mismatch: {arcname}")
-    except (CloudBundleError, KeyError, tarfile.TarError, json.JSONDecodeError) as exc:
+    except (CloudBundleError, KeyError, OSError, tarfile.TarError, json.JSONDecodeError) as exc:
         mismatches.append(f"{type(exc).__name__}: {exc}")
     report: dict[str, Any] = {
         "schema": CLOUD_BUNDLE_REPORT_SCHEMA,
@@ -238,11 +260,12 @@ def verify_and_extract(
         members_stall = stall / "members"
         for arcname in extracted:
             relative = PurePosixPath(arcname)
-            source = target / Path(*relative.parts)
+            source = _io_path(target / Path(*relative.parts))
             if source.is_file():
                 parked = members_stall / Path(*relative.parts)
-                parked.parent.mkdir(parents=True, exist_ok=True)
-                shutil.move(str(source), str(parked))
+                parked_io = _io_path(parked)
+                _io_path(parked.parent).mkdir(parents=True, exist_ok=True)
+                shutil.move(str(source), str(parked_io))
         stall.mkdir(parents=True, exist_ok=True)
         for evidence in (bundle, manifest_file):
             if evidence.is_file():

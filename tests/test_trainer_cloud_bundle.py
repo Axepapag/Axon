@@ -8,6 +8,7 @@ from __future__ import annotations
 import gzip
 import io
 import json
+import os
 import shutil
 import subprocess
 import tarfile
@@ -156,6 +157,45 @@ def test_bundle_roundtrip_verifies_extracts_and_is_deterministic(tmp_path) -> No
         encoding="utf-8"
     ) == '{"unicode":"水🙂"}\n'
     assert not (tmp_path / "quarantine").exists()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Win32 extended-path regression")
+def test_bundle_extracts_without_shortening_a_path_beyond_legacy_win32_limit(
+    tmp_path,
+) -> None:
+    source = tmp_path / "source.json"
+    source.write_text('{"ancestry":"exact"}\n', encoding="utf-8")
+    arcname = "/".join(
+        (
+            "axon_job",
+            "State",
+            "training",
+            "soul_candidates",
+            "r64v2-" + "a" * 56,
+            "reasoning-d64-" + "b" * 52,
+            "branch",
+            "prepared",
+            "c" * 64 + ".json",
+        )
+    )
+    bundle = tmp_path / "long.tar.gz"
+    manifest = tmp_path / "long.sha256.json"
+    write_bundle(bundle, manifest, [(arcname, source)], kind="outputs", job_id=JOB_ID)
+    destination = tmp_path / "extracted"
+
+    report = verify_and_extract(
+        bundle,
+        manifest,
+        destination,
+        quarantine_root=tmp_path / "quarantine",
+    )
+
+    logical_target = destination / Path(*arcname.split("/"))
+    assert len(str(logical_target.resolve(strict=False))) > 260
+    assert report["ok"] is True
+    assert cloud_bundle._io_path(logical_target).read_text(encoding="utf-8") == (
+        '{"ancestry":"exact"}\n'
+    )
 
 
 def test_planted_manifest_corruption_is_quarantined_not_skipped(tmp_path) -> None:
