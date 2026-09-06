@@ -35,6 +35,7 @@ from runtime.trainer import (
     cloud_bundle,
 )
 from training import (
+    FOUNDATION_MOTOR_GATE_POLICY_ID,
     FOUNDATION_SEQUENCE_GATE_POLICY_ID,
     LivingReasoningCoreD64,
     LivingReasoningCurriculum,
@@ -43,10 +44,13 @@ from training import (
     build_living_reasoning_smoke_curriculum,
     candidate_a_config,
     d64_tournament_metric_computation,
+    decide_foundation_motor_mastery,
     decide_foundation_sequence_mastery,
     evaluate_living_episode,
     evaluate_sequential_case,
+    foundation_motor_probe,
     foundation_sequence_probe,
+    is_foundation_motor_episode,
     is_foundation_sequence_episode,
     living_episode_objective,
     living_source_counterfactuals,
@@ -520,6 +524,11 @@ def main() -> int:
         for item in standard_ffcs
         for case in item.teaching_cases
     )
+    foundation_motor_enabled = any(
+        is_foundation_motor_episode(case.episode)
+        for item in standard_ffcs
+        for case in item.teaching_cases
+    )
     if all_ffcs:
         active = CanonicalStateBranch.active_runtime(state_root=args.state_root).load_head()
         active_identity = active.region(LogicalRegion.IDENTITY).text
@@ -562,8 +571,15 @@ def main() -> int:
             "mechanism_train_manifest_id": mechanism_curriculum.train_manifest_id,
             "mechanism_heldout_manifest_id": mechanism_curriculum.heldout_manifest_id,
             "scheduler": "family-round-robin-v1",
-            "foundation_sequence_gate_policy_id": (
-                FOUNDATION_SEQUENCE_GATE_POLICY_ID if foundation_sequence_enabled else None
+            **(
+                {"foundation_sequence_gate_policy_id": FOUNDATION_SEQUENCE_GATE_POLICY_ID}
+                if foundation_sequence_enabled
+                else {}
+            ),
+            **(
+                {"foundation_motor_gate_policy_id": FOUNDATION_MOTOR_GATE_POLICY_ID}
+                if foundation_motor_enabled
+                else {}
             ),
             "sequential_cases_remain_grouped": True,
             "content_limit": None,
@@ -989,6 +1005,21 @@ def main() -> int:
                 )
                 for episode in foundation_regression_episodes
             ]
+            motor_regression_episodes = tuple(
+                episode
+                for episode in regression_episodes
+                if is_foundation_motor_episode(episode)
+            )
+            motor_regression_rows = [
+                evaluate_living_episode(
+                    session.candidate_module,
+                    episode,
+                    soul_branch.load_head(),
+                    core_id=module_id,
+                    parameter_generation=candidate_generation,
+                )
+                for episode in motor_regression_episodes
+            ]
 
             def aggregate(
                 rows: list[dict[str, Any]],
@@ -1058,6 +1089,14 @@ def main() -> int:
             result["foundation_sequence_regression_probe"] = foundation_sequence_probe(
                 foundation_regression_episodes,
                 foundation_regression_rows,
+            )
+            result["foundation_motor_heldout_probe"] = foundation_motor_probe(
+                heldout_episodes,
+                exact_rows,
+            )
+            result["foundation_motor_regression_probe"] = foundation_motor_probe(
+                motor_regression_episodes,
+                motor_regression_rows,
             )
             result["isolated_family_evaluations"] = {}
             for family in sorted(set(evaluation_family_by_episode.values())):
@@ -1292,12 +1331,24 @@ def main() -> int:
             complete_heldout=complete_heldout_evaluation,
             complete_regression=complete_regression_evaluation,
         )
+        foundation_motor_gate = decide_foundation_motor_mastery(
+            heldout_probe=final_evaluation.get("foundation_motor_heldout_probe"),
+            regression_probe=final_evaluation.get("foundation_motor_regression_probe"),
+            evaluation=final_evaluation,
+            complete_heldout=complete_heldout_evaluation,
+            complete_regression=complete_regression_evaluation,
+        )
+        foundation_gates = tuple(
+            gate
+            for gate in (foundation_motor_gate, foundation_sequence_gate)
+            if gate is not None
+        )
         curriculum_stage_complete = (
             task_gate_passed
             and exact_gate_passed
             and (
-                bool(foundation_sequence_gate["passed"])
-                if foundation_sequence_gate is not None
+                all(bool(gate["passed"]) for gate in foundation_gates)
+                if foundation_gates
                 else metric_surface_complete
             )
         )
@@ -1383,6 +1434,7 @@ def main() -> int:
                 "missing_tournament_metrics": list(tournament_metric_computation.missing_metrics),
                 "tournament_metric_surface_complete": metric_surface_complete,
                 "foundation_sequence_gate": foundation_sequence_gate,
+                "foundation_motor_gate": foundation_motor_gate,
             }
         )
 

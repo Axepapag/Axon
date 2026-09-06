@@ -1,0 +1,37 @@
+{
+  "schema": "axon-cloud-training-job-config-v1",
+  "name": "Axon Foundations Stage 0 exact-motor alignment smoke",
+  "provider": "kaggle",
+  "accelerator": "gpu",
+  "allow_sensitive_state_upload": true,
+  "notes": "Fresh non-serving D64 Stage-0 sibling. Synthetic mechanism replay alternates with 72 split-disjoint exact motor lessons covering copy, insert, replace, delete, no-op and abstain. Payload lessons directly supervise exact current-field source positions across one-to-four Unicode transport cells. Twenty-four heldout and twenty-four regression lessons cover every action in changed-source pairs. This 60-step renewable smoke is not a lifetime or tissue ceiling. No long continuation is authorized unless task metrics beat their declared constant floors and the complete Stage-0 gate passes.",
+  "entrypoint_argv": [
+    "python",
+    "scripts/train_living_reasoning_smoke.py",
+    "--state-root",
+    "State",
+    "--device",
+    "cuda",
+    "--candidate-label",
+    "axon-foundation-motor-stage0-aligned-1x64",
+    "--curriculum-manifest",
+    "State/training/curricula/ffcs_v1/a273737cdaa399f9b85e1a8ac91326a255a6c3b63ef880fd1bc1273832be857c/manifest.json",
+    "--heads",
+    "1",
+    "--layers",
+    "2",
+    "--ffn-dim",
+    "131072",
+    "--checkpoint-interval",
+    "15",
+    "--tranche-steps",
+    "60",
+    "--seed",
+    "20260906"
+  ],
+  "include_paths": [
+    "State/active/branches/active",
+    "State/training/curricula/ffcs_v1/a273737cdaa399f9b85e1a8ac91326a255a6c3b63ef880fd1bc1273832be857c/manifest.json",
+    "configs/source_of_truth/capacity_policy.json"
+  ]
+}

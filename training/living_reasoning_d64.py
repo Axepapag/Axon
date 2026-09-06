@@ -9,12 +9,14 @@ Soul successor.  Pages are bounded compute units, never a context limit.
 
 from __future__ import annotations
 
+import hashlib
 import math
 import struct
 from dataclasses import asdict, dataclass, field
 from typing import Any, Iterable, Iterator, Mapping
 
 import torch
+import torch.nn.functional as F
 from torch import nn
 
 from runtime.field import (
@@ -286,6 +288,150 @@ class LivingReasoningCoreD64(CompleteField64D):
             dtype=torch.long,
             device=self.device,
         )
+
+    def alignment_supervision(
+        self,
+        *,
+        target_text: str,
+        memory: AddressableMemory,
+        decoder_alignment: Mapping[str, torch.Tensor],
+        specification: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        """Supervise exact source positions across Unicode transport expansion.
+
+        The inherited V6 helper assumes one decoder category per character.
+        Living tissue uses one category per native scalar or strict UTF-8 byte,
+        so a single canonical scalar may occupy one to four exact rail cells.
+        This override preserves scalar-addressed curriculum contracts while
+        supervising every expanded transport position in order.
+        """
+
+        if specification.get("schema") != "axon-r0-target-alignment-v1":
+            raise ValueError("unsupported R0 target-alignment schema")
+        segments = specification.get("segments", [])
+        if not isinstance(segments, list):
+            raise ValueError("alignment segments must be a list")
+        position_logits = decoder_alignment["position_logits"]
+        gate_logits = decoder_alignment["generate_gate_logits"]
+        if position_logits.ndim != 3 or gate_logits.ndim != 2:
+            raise ValueError("decoder alignment tensors have invalid rank")
+        if position_logits.shape[:2] != gate_logits.shape:
+            raise ValueError("decoder alignment tensor lengths disagree")
+
+        scalar_offsets: list[int] = []
+        transport_count = 0
+        for character in target_text:
+            scalar_offsets.append(transport_count)
+            transport_count += len(encode_unicode_text(character))
+        if gate_logits.shape[1] != transport_count + 1:
+            raise ValueError("decoder alignment length does not match Unicode transport plus EOS")
+
+        zero = gate_logits.sum() * 0.0
+        position_losses: list[torch.Tensor] = []
+        gate_losses: list[torch.Tensor] = []
+        position_correct = gate_correct = supervised_copy_positions = 0
+        region_to_id = {
+            region.value: index for index, region in enumerate(CANONICAL_REGION_ORDER)
+        }
+        required = {
+            "target_start",
+            "target_end",
+            "source_region",
+            "source_start",
+            "source_end",
+            "text_sha256",
+            "authority",
+        }
+        for segment in segments:
+            if not isinstance(segment, Mapping) or set(segment) != required:
+                raise ValueError("alignment segment fields are invalid")
+            target_start = int(segment["target_start"])
+            target_end = int(segment["target_end"])
+            source_start = int(segment["source_start"])
+            source_end = int(segment["source_end"])
+            source_region = str(segment["source_region"])
+            if source_region not in region_to_id:
+                raise ValueError(f"unknown alignment source region {source_region}")
+            if (
+                target_start < 0
+                or target_end > len(target_text)
+                or target_end <= target_start
+                or source_start < 0
+                or source_end <= source_start
+                or target_end - target_start != source_end - source_start
+            ):
+                raise ValueError("alignment segment bounds are invalid or unequal")
+            target_fragment = target_text[target_start:target_end]
+            if hashlib.sha256(target_fragment.encode("utf-8")).hexdigest() != segment["text_sha256"]:
+                raise ValueError("alignment target fragment hash mismatch")
+
+            for scalar_offset, source_position in enumerate(range(source_start, source_end)):
+                target_scalar_position = target_start + scalar_offset
+                expected_tokens = tuple(encode_unicode_text(target_text[target_scalar_position]))
+                matches = (
+                    (
+                        (memory.region_ids[0] == region_to_id[source_region])
+                        & (memory.region_positions[0] == source_position)
+                        & memory.char_indices[0].ge(0)
+                    )
+                    .nonzero(as_tuple=False)
+                    .flatten()
+                )
+                if matches.numel() != len(expected_tokens):
+                    raise ValueError(
+                        "alignment source scalar does not resolve to its exact transport cells"
+                    )
+                observed_tokens = tuple(
+                    int(memory.char_indices[0, int(memory_index)].item())
+                    for memory_index in matches
+                )
+                if observed_tokens != expected_tokens:
+                    raise ValueError("alignment source transport does not equal supervised target")
+                decoder_start = scalar_offsets[target_scalar_position]
+                for token_offset, memory_index in enumerate(matches):
+                    target_position = decoder_start + token_offset
+                    expected_source = torch.tensor(
+                        [int(memory_index.item())], dtype=torch.long, device=self.device
+                    )
+                    source_logits = position_logits[:, target_position, :]
+                    position_losses.append(F.cross_entropy(source_logits, expected_source))
+                    predicted_source = int(source_logits[0].argmax(dim=-1).item())
+                    position_correct += int(predicted_source == int(memory_index.item()))
+                    copy_target = torch.zeros(
+                        (1,), device=self.device, dtype=gate_logits.dtype
+                    )
+                    gate_losses.append(
+                        F.binary_cross_entropy_with_logits(
+                            gate_logits[:, target_position], copy_target
+                        )
+                    )
+                    gate_correct += int(float(gate_logits[0, target_position].item()) < 0.0)
+                    supervised_copy_positions += 1
+
+        eos_supervised = bool(specification.get("supervise_eos_generate", True))
+        if eos_supervised:
+            eos_target = torch.ones((1,), device=self.device, dtype=gate_logits.dtype)
+            gate_losses.append(
+                F.binary_cross_entropy_with_logits(gate_logits[:, transport_count], eos_target)
+            )
+            gate_correct += int(float(gate_logits[0, transport_count].item()) >= 0.0)
+        position_loss = torch.stack(position_losses).mean() if position_losses else zero
+        gate_loss = torch.stack(gate_losses).mean() if gate_losses else zero
+        gate_count = supervised_copy_positions + int(eos_supervised)
+        return {
+            "position_loss": position_loss,
+            "gate_loss": gate_loss,
+            "copy_positions": supervised_copy_positions,
+            "position_correct": position_correct,
+            "gate_supervised_positions": gate_count,
+            "gate_correct": gate_correct,
+            "position_accuracy": (
+                position_correct / supervised_copy_positions
+                if supervised_copy_positions
+                else 1.0
+            ),
+            "gate_accuracy": gate_correct / gate_count if gate_count else 1.0,
+        }
 
     def inhale(
         self,

@@ -58,6 +58,15 @@ def test_foundation_sequence_is_deterministic_and_runtime_faithful() -> None:
         for case in first.cases
     )
     assert all(case.episode.targets[-1].payload for case in first.cases)
+    assert all(
+        case.episode.targets[-1].payload_alignment is not None
+        for case in first.cases
+    )
+    assert all(
+        len(case.episode.targets[-1].payload_alignment["segments"])
+        == len(case.episode.targets[-1].payload)
+        for case in first.cases
+    )
 
 
 def test_foundation_sources_are_disjoint_and_pairs_change_the_answer() -> None:

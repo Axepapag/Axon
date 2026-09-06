@@ -300,7 +300,7 @@ validation/transaction boundary.
 ### Packed substrate rails and the shelf pivot (ratified 2026-08-26)
 
 Jeff ratified the packed-rail pivot on 2026-08-26 after the roundtable
-convergence recorded in `roundtable/PACKED_RAIL_CODEC_PROPOSAL.md`
+convergence recorded in `roundtable/proposals/PACKED_RAIL_CODEC_PROPOSAL.md`
 (including Codex's Q1-Q9 review and ChatGPT's mask-model correction). This
 section is binding doctrine.
 
@@ -915,6 +915,30 @@ pauses at an exact checkpoint for diagnosis or a renewable resource tranche;
 it is not a lifetime step, curriculum, output, context or tissue ceiling.
 The earlier ABC manifest remains immutable historical evidence and is not the
 foundations gate because its authored patterns repeat across data splits.
+
+The first split-disjoint Stage-1 smoke is preserved as a diagnostic, not a
+passed lesson. Kaggle job `37389c3dce3ab86afedcaf0b5230bb9473e09538a499e93a820a8846257e13b8`
+ran 60 accepted optimizer steps on a Tesla T4 and reduced complete heldout loss
+from 10.6677380204 to 5.5501824021. It learned the typed control shell well
+enough to emit `DELTA`/`REPLACE`/`response_draft`/EOS, but emitted empty
+payloads: free-running exact remained zero and teacher-forced payload accuracy
+was 0.055556, below the 0.062500 constant-category floor. The Stage-1 gate
+therefore remained false and no long continuation was authorized.
+
+That falsification activates the ratified prerequisite rather than weakening
+the gate. Foundations Stage 0 is the content-addressed `F0` manifest
+`a273737cdaa399f9b85e1a8ac91326a255a6c3b63ef880fd1bc1273832be857c`:
+120 complete cases (72 train, 24 heldout, 24 regression), with copy, insert,
+replace, delete, no-op and abstain represented in changed-source pairs in every
+split. Copy-bearing targets may now carry an additive exact source-alignment
+contract. The living D64 objective supervises the existing copy pointer at the
+exact current-field scalar address while expanding that scalar to all one-to-
+four Unicode transport cells in order; EOS remains explicit generated output.
+This is decoder exposure for existing tissue, not an alternate substrate,
+normalization, semantic token, or architectural shortcut. Full-size CUDA
+preflight passed as receipt
+`096c3e2b63a463580c8a2d6b72ee386d921fa84303480de039fd192f0b92d89c`;
+it proves launch anatomy only, not learned motor control.
 
 Full-field recurrent training uses exact page-level activation checkpointing
 while gradients are enabled. It recomputes the same page encoder during
@@ -1675,7 +1699,7 @@ The active implementation surface is intentionally narrow:
   restart recovery,
 - `runtime/trainer/` ? permanent Trainer parameter-authority anatomy: heterogeneous parameter+buffer inventory, OS single-writer lease, scoped mutation grants, immutable content-addressed learning policies, isolated candidate optimizer execution with governed accumulation/scheduling/precision/budgets, per-parameter telemetry, exact mid-accumulation checkpoint/restore, deterministic promotion gates, atomic active-generation pointers, exact activation/rollback snapshots and receipts, restart hydration, historical record-reference sessions plus whole-conversation runtime-faithful episode compilation/loading with explicit outcome quality and private-Soul lineage, isolated candidate-Soul branches, immutable lifecycle records, durable per-step progress journals, content-addressed cloud packets, a private Kaggle adapter, and read-only inspection; no model is activated without an explicit governed plan/policy/gate/activation path;
 - `scripts/run_axon_heart.py`, `scripts/evaluate_dormant_relevance.py`, `scripts/maintain_dormant_index.py`, `scripts/verify_d64_dual_surface.py`, and `scripts/axon_kaggle.py` ? permanent Heart runtime, deterministic dormant semantic/relevance evaluation, explicit derived-index maintenance/recovery, read-only live D64 dual-surface verification, and private persistent Kaggle training control entry points;
-- `training/canonical_d64.py`, `training/complete_field_64d.py`, and `training/train_complete_field_64d.py` ? developmental canonical D64 reasoning path with explicit v2-to-v3 region-embedding and optimizer-state migration; `training/living_reasoning_d64.py`, `training/living_reasoning_curriculum.py`, `training/living_reasoning_preflight.py`, `training/reasoning_tournament.py`, and `scripts/train_living_reasoning_smoke.py` ? exact Candidate-A anatomy, causal Soul/runtime unroll, deterministic mechanism curriculum, six-part launch evidence, head-isolation tournament, and one-step governed non-serving smoke; `training/heart_translation.py` plus `scripts/train_heart_translation_smoke.py` ? preserved real-field-D64 Heart translation curriculum/evaluation and Trainer-governed bounded candidate smoke path with no activation,
+- `training/canonical_d64.py`, `training/complete_field_64d.py`, and `training/train_complete_field_64d.py` ? developmental canonical D64 reasoning path with explicit v2-to-v3 region-embedding and optimizer-state migration; `training/living_reasoning_d64.py`, `training/living_reasoning_curriculum.py`, `training/foundation_motor_curriculum.py`, `training/foundation_sequence_curriculum.py`, `training/living_reasoning_preflight.py`, `training/reasoning_tournament.py`, and `scripts/train_living_reasoning_smoke.py` ? exact Candidate-A anatomy, Unicode-aware exact-copy supervision, causal Soul/runtime unroll, governed Stage-0/Stage-1 foundations, deterministic mechanism replay, six-part launch evidence, head-isolation tournament, and renewable non-serving training; `training/heart_translation.py` plus `scripts/train_heart_translation_smoke.py` ? preserved real-field-D64 Heart translation curriculum/evaluation and Trainer-governed bounded candidate smoke path with no activation,
 - `curator/import_d00_memories.py` and the remaining `curator/` recovered-corpus utilities ? protected-source, byte-exact autobiographical import plus offline exact dormant-memory schema/materialization/building tooling; `scripts/compile_lived_experience_sessions.py` ? deterministic governed session compilation from exact Dormant experience,
 
 The former council, old core/soul implementation, ExactV4/identity-v2 runtime stack, 384-slot views/schedules, legacy trainers/curricula, launchers, policies, and dedicated tests are archived beneath `archive/day_zero_legacy_2026-08-20/`. Local historical runs, datasets, checkpoint bundles, and generated distributions are preserved beneath `State/archive/day_zero_legacy_20260820/local_artifacts/`. They may be inspected for provenance or mechanism recovery but may not be imported, launched, resumed, or presented as current Axon without a new explicit convener decision.

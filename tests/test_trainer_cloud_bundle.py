@@ -11,6 +11,7 @@ import json
 import shutil
 import subprocess
 import tarfile
+import threading
 from pathlib import Path
 
 import pytest
@@ -338,6 +339,43 @@ def test_failed_upload_is_receipted_and_retried_with_extended_range(tmp_path) ->
     assert len(uploader.uploads) == 1
     assert uploader.uploads[0]["notes"] == "steps 1-60"
     assert sorted(uploader.uploads[0]["manifest"]["members"]) == ["a.pt", "b.pt"]
+
+
+def test_slow_upload_cannot_mislabel_a_later_boundary_artifact(tmp_path) -> None:
+    class DelayedUploader(_RecordingUploader):
+        def __init__(self) -> None:
+            super().__init__()
+            self.started = threading.Event()
+            self.release = threading.Event()
+
+        def upload(self, folder, *, version_notes: str) -> None:
+            if not self.uploads:
+                self.started.set()
+                assert self.release.wait(timeout=5.0)
+            super().upload(folder, version_notes=version_notes)
+
+    state = tmp_path / "State"
+    state.mkdir()
+    uploader = DelayedUploader()
+    hook = MidRunSyncHook(
+        job_id=JOB_ID,
+        dataset_slug="slug",
+        state_root=state,
+        staging_root=tmp_path / "staging",
+        uploader=uploader,
+    )
+    hook.set_base_step(0)
+    (state / "c30.pt").write_bytes(b"checkpoint-30")
+    hook.boundary(30)
+    assert uploader.started.wait(timeout=5.0)
+    (state / "c60.pt").write_bytes(b"checkpoint-60")
+    hook.boundary(60)
+    uploader.release.set()
+    hook.close()
+
+    assert [upload["notes"] for upload in uploader.uploads] == ["steps 1-30", "steps 31-60"]
+    assert sorted(uploader.uploads[0]["manifest"]["members"]) == ["c30.pt"]
+    assert sorted(uploader.uploads[1]["manifest"]["members"]) == ["c60.pt"]
 
 
 def test_no_secret_noop_mode_runs_training_path_with_one_note(tmp_path, capsys) -> None:

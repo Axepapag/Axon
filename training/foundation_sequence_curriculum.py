@@ -103,6 +103,46 @@ def _operation_target(source: str, operation: str) -> tuple[str, str]:
     raise ValueError(f"unsupported foundation sequence operation: {operation}")
 
 
+def _payload_alignment(
+    *,
+    source: str,
+    operation: str,
+    source_start: int,
+) -> dict[str, Any]:
+    """Bind every emitted scalar to its exact current-field source position."""
+
+    if operation == "forward":
+        positions = tuple(range(len(source)))
+    elif operation == "reverse":
+        positions = tuple(reversed(range(len(source))))
+    elif operation == "every_other":
+        positions = tuple(range(0, len(source), 2))
+    elif operation == "middle_span":
+        start = max(1, len(source) // 4)
+        end = max(start + 1, len(source) - start)
+        positions = tuple(range(start, end))
+    else:
+        raise ValueError(f"unsupported foundation sequence operation: {operation}")
+    answer = "".join(source[position] for position in positions)
+    segments = [
+        {
+            "target_start": target_position,
+            "target_end": target_position + 1,
+            "source_region": LogicalRegion.CORTEX.value,
+            "source_start": source_start + source_position,
+            "source_end": source_start + source_position + 1,
+            "text_sha256": hashlib.sha256(answer[target_position].encode("utf-8")).hexdigest(),
+            "authority": "exact_current_shared_field",
+        }
+        for target_position, source_position in enumerate(positions)
+    ]
+    return {
+        "schema": "axon-r0-target-alignment-v1",
+        "segments": segments,
+        "supervise_eos_generate": True,
+    }
+
+
 def _episode(
     *,
     identity_text: str,
@@ -114,11 +154,12 @@ def _episode(
 ) -> LivingReasoningEpisode:
     prompt, answer = _operation_target(source, operation)
     source_hash = hashlib.sha256(source.encode("utf-8")).hexdigest()
+    source_prefix = f"SOURCE_SEQUENCE[{source_hash[:12]}]="
     snapshot = SharedFieldSnapshot.from_texts(
         {
             LogicalRegion.IDENTITY: identity_text,
             LogicalRegion.USER_INPUT: prompt,
-            LogicalRegion.CORTEX: f"SOURCE_SEQUENCE[{source_hash[:12]}]={source}",
+            LogicalRegion.CORTEX: source_prefix + source,
             LogicalRegion.SCRATCH: "",
             LogicalRegion.RESPONSE_DRAFT: "",
         },
@@ -151,6 +192,11 @@ def _episode(
                 start=0,
                 end=0,
                 payload=answer,
+                payload_alignment=_payload_alignment(
+                    source=source,
+                    operation=operation,
+                    source_start=len(source_prefix),
+                ),
             ),
         ),
         mechanism_tags=(

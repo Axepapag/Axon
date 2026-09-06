@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 import pytest
@@ -156,6 +157,56 @@ def test_unicode_decoder_trains_on_all_351_transport_categories_plus_eos() -> No
     assert logits.shape[-1] == TRANSPORT_VOCAB_SIZE + 2
     assert targets[0, :-1].tolist() == list(encode_unicode_text(target))
     assert int(targets[0, -1]) == TRANSPORT_VOCAB_SIZE + 1
+
+
+def test_exact_alignment_supervises_every_multibyte_unicode_transport_cell() -> None:
+    model = _small_model()
+    compiled = _compiled()
+    output = model.forward_surfaces(
+        soul=_soul(model),
+        expected_core_id="core-a",
+        parameter_generation="g0",
+        phase="first",
+        canonical=compiled,
+    )
+    target = "λ🧠"
+    _logits, _targets, decoder_alignment = model.decode_teacher(
+        output.reader_state,
+        target,
+        head=1,
+        memory=output.complete_memory,
+        return_alignment=True,
+    )
+    source = "Read beginning λ, middle 🧠, and end."
+    segments = []
+    for target_position, character in enumerate(target):
+        source_position = source.index(character)
+        segments.append(
+            {
+                "target_start": target_position,
+                "target_end": target_position + 1,
+                "source_region": LogicalRegion.USER_INPUT.value,
+                "source_start": source_position,
+                "source_end": source_position + 1,
+                "text_sha256": hashlib.sha256(character.encode("utf-8")).hexdigest(),
+                "authority": "exact_current_shared_field",
+            }
+        )
+    supervision = model.alignment_supervision(
+        target_text=target,
+        memory=output.complete_memory,
+        decoder_alignment=decoder_alignment,
+        specification={
+            "schema": "axon-r0-target-alignment-v1",
+            "segments": segments,
+            "supervise_eos_generate": True,
+        },
+    )
+
+    assert supervision["copy_positions"] == len(encode_unicode_text(target)) == 6
+    assert supervision["gate_supervised_positions"] == 7
+    assert supervision["position_loss"].isfinite()
+    assert supervision["gate_loss"].isfinite()
 
 
 def test_free_decoder_resumes_exact_state_across_renewable_work_slices(

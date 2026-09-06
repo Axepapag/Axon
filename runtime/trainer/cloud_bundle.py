@@ -386,7 +386,12 @@ class MidRunSyncHook:
         self._range_start: int | None = None
         self._disabled_note_written = False
         self._lock = threading.Lock()
-        self._queue: queue.Queue[tuple[int, int] | None] = queue.Queue()
+        # Each queue item freezes the paths first observed at that exact
+        # checkpoint boundary. The worker assigns the range start only after
+        # the preceding upload outcome is known. This prevents a slow upload
+        # from leaking later-step artifacts into an earlier-labelled bundle.
+        self._last_enqueued_end: int | None = None
+        self._queue: queue.Queue[tuple[int, dict[str, Path]] | None] = queue.Queue()
         self._worker: threading.Thread | None = None
 
     @classmethod
@@ -481,8 +486,10 @@ class MidRunSyncHook:
             raise ValueError("base step must be a non-negative integer")
         with self._lock:
             self._range_start = base_step
+            self._last_enqueued_end = base_step
 
-    def _collect_new(self) -> None:
+    def _collect_new(self) -> dict[str, Path]:
+        discovered: dict[str, Path] = {}
         for path in sorted(self.state_root.rglob("*")):
             if not path.is_file() or path.name.endswith(".tmp"):
                 continue
@@ -492,11 +499,17 @@ class MidRunSyncHook:
             except ValueError:
                 pass
             relative = path.relative_to(self.state_root).as_posix()
-            if relative in self._baseline or relative in self._synced:
+            if (
+                relative in self._baseline
+                or relative in self._synced
+                or relative in self._pending
+            ):
                 continue
             if self.receipt_log is not None and path == self.receipt_log:
                 continue
-            self._pending[relative] = path
+            discovered[relative] = path
+        self._pending.update(discovered)
+        return discovered
 
     def boundary(self, end_step: int) -> None:
         """Enqueue one sync range ending at an accepted checkpoint boundary."""
@@ -504,12 +517,12 @@ class MidRunSyncHook:
         if not self._enabled:
             return
         with self._lock:
-            if self._range_start is None:
+            if self._range_start is None or self._last_enqueued_end is None:
                 raise RuntimeError("set_base_step must be called before the first sync boundary")
-            if end_step <= self._range_start:
+            if end_step <= self._last_enqueued_end:
                 return
-            self._collect_new()
-            item = (self._range_start + 1, end_step)
+            item = (end_step, self._collect_new())
+            self._last_enqueued_end = end_step
             if self._worker is None:
                 self._worker = threading.Thread(
                     target=self._work,
@@ -520,14 +533,24 @@ class MidRunSyncHook:
         self._queue.put(item)
 
     def _work(self) -> None:
+        carried: dict[str, Path] = {}
         while True:
             item = self._queue.get()
             if item is None:
                 self._queue.task_done()
                 return
-            start, end = item
+            end, newly_observed = item
+            carried.update(newly_observed)
+            if not self._enabled:
+                self._queue.task_done()
+                continue
+            with self._lock:
+                if self._range_start is None:
+                    self._queue.task_done()
+                    raise RuntimeError("sync worker has no base step")
+                start = self._range_start + 1
             try:
-                self._upload_range(start, end)
+                self._upload_range(start, end, sorted(carried.items()))
             except SyncCredentialsMissing as exc:
                 # Permanent for this kernel: disable with one journal note and
                 # let training continue exactly as if sync were never enabled.
@@ -541,6 +564,8 @@ class MidRunSyncHook:
                     step_range=[start, end],
                     error_type=type(exc).__name__,
                 )
+            else:
+                carried.clear()
             finally:
                 self._queue.task_done()
 
@@ -549,9 +574,7 @@ class MidRunSyncHook:
 
         self._queue.join()
 
-    def _upload_range(self, start: int, end: int) -> None:
-        with self._lock:
-            members = sorted(self._pending.items())
+    def _upload_range(self, start: int, end: int, members: list[tuple[str, Path]]) -> None:
         if not members:
             self._receipt("empty", step_range=[start, end])
             with self._lock:

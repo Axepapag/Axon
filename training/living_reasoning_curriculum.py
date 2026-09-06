@@ -9,7 +9,7 @@ explicit outcome-quality labels.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 
 import torch
 import torch.nn.functional as F
@@ -51,6 +51,7 @@ class LivingReasoningTarget:
     start: int | None = None
     end: int | None = None
     payload: str = ""
+    payload_alignment: Mapping[str, Any] | None = None
     supervision_weight: float = 1.0
     target_id: str = field(init=False)
 
@@ -89,6 +90,19 @@ class LivingReasoningTarget:
             for item in (self.operation, self.region, self.start, self.end)
         ) or self.payload:
             raise ValueError("no-op/abstain target cannot carry an operation")
+        if self.payload_alignment is not None:
+            alignment = dict(self.payload_alignment)
+            if decision is not ReasoningDecision.DELTA or operation is ReasoningOperationKind.DELETE:
+                raise ValueError("payload alignment requires a non-delete delta target")
+            if set(alignment) != {"schema", "segments", "supervise_eos_generate"}:
+                raise ValueError("payload alignment fields are invalid")
+            if alignment["schema"] != "axon-r0-target-alignment-v1":
+                raise ValueError("unsupported payload alignment schema")
+            if not isinstance(alignment["segments"], list) or not alignment["segments"]:
+                raise ValueError("payload alignment requires one or more exact source segments")
+            if alignment["supervise_eos_generate"] is not True:
+                raise ValueError("payload alignment must supervise EOS as generated")
+            object.__setattr__(self, "payload_alignment", alignment)
         object.__setattr__(self, "target_id", canonical_sha256(self.to_canonical_dict(False)))
 
     def to_canonical_dict(self, include_id: bool = True) -> dict[str, Any]:
@@ -103,6 +117,8 @@ class LivingReasoningTarget:
             "payload": self.payload,
             "supervision_weight": self.supervision_weight,
         }
+        if self.payload_alignment is not None:
+            value["payload_alignment"] = dict(self.payload_alignment)
         if include_id:
             value["target_id"] = self.target_id
         return value
@@ -374,12 +390,24 @@ def living_phase_objective(
         end_logits,
         torch.tensor([candidates.index(target.end)], dtype=torch.long, device=model.device),
     )
-    payload_logits, payload_targets = model.decode_teacher(
+    decoded = model.decode_teacher(
         output.reader_state,
         target.payload,
         head=1,
         memory=output.complete_memory,
+        return_alignment=target.payload_alignment is not None,
     )
+    if target.payload_alignment is None:
+        payload_logits, payload_targets = decoded
+        alignment_supervision = None
+    else:
+        payload_logits, payload_targets, decoder_alignment = decoded
+        alignment_supervision = model.alignment_supervision(
+            target_text=target.payload,
+            memory=output.complete_memory,
+            decoder_alignment=decoder_alignment,
+            specification=target.payload_alignment,
+        )
     payload_loss = sequence_cross_entropy(payload_logits, payload_targets)
     loss = loss + operation_loss + region_loss + start_loss + end_loss + payload_loss
     metrics.update(
@@ -391,6 +419,19 @@ def living_phase_objective(
             "payload_loss": float(payload_loss.detach().item()),
         }
     )
+    if alignment_supervision is not None:
+        position_loss = alignment_supervision["position_loss"]
+        gate_loss = alignment_supervision["gate_loss"]
+        loss = loss + position_loss + gate_loss
+        metrics.update(
+            {
+                "alignment_position_loss": float(position_loss.detach().item()),
+                "alignment_gate_loss": float(gate_loss.detach().item()),
+                "alignment_copy_positions": float(alignment_supervision["copy_positions"]),
+                "alignment_position_accuracy": float(alignment_supervision["position_accuracy"]),
+                "alignment_gate_accuracy": float(alignment_supervision["gate_accuracy"]),
+            }
+        )
     return loss, metrics
 
 

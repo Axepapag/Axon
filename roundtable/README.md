@@ -41,11 +41,16 @@ Root (never move these):
    the canonical ledger remains the place of record. A new proposal worth
    the team's attention should also get a one-line bus post.
 
-## Current hot items (2026-09-04)
+## Current hot items (2026-09-06)
 
-- `proposals/MID_RUN_ARTIFACT_SYNC_PROPOSAL_2026-09-04.md` — pending Jeff's
-  ratification; closes the slow per-file Kaggle fetch gap.
+- `proposals/MID_RUN_ARTIFACT_SYNC_PROPOSAL_2026-09-04.md` — ratified and
+  implemented in `418a9d9`; end-of-run bundle transfer is the default and
+  mid-run sync is opt-in. Codex subsequently hardened checkpoint-boundary
+  provenance against slow or failed uploads.
 - `decisions/RESOLUTION_FOUNDATIONS_FIRST_CURRICULUM_2026-09-04.md` —
-  ratified; Stage 1 implementation committed (`77f18db`, `d121391`).
-- `reviews/CODEX_KAGGLE_CONTINUATION_REVIEW_2026-09-03.md` — governs the
-  step-720 fetch/verify now in progress.
+  ratified; Stage 1 implementation is committed (`77f18db`, `d121391`) and its
+  first smoke falsified premature sequence training. Stage 0 exact typed-delta
+  motor control is the active prerequisite.
+- `reviews/CODEX_KAGGLE_CONTINUATION_REVIEW_2026-09-03.md` — historical
+  continuation contract; the step-720 output is now locally fetched and
+  remains non-serving comparison evidence.
