@@ -6,7 +6,10 @@ asked for an engineering look at the Trainer and whether 64D is wheel-spinning:
 bump to 128 / 256 / 512 / 1024? more layers? more heads? smaller FFNs?
 Do not jump straight to Stage-0-v2.
 Audience: Kimmy, Codex, ChatGPT, Hermes, Jeff
-Status: PROPOSAL ONLY. No Source of Truth change. No launch. No serving claim.
+Status: Jeff ratified invert-shape in conversation 2026-09-06. Two
+non-serving 60-step Kaggle mixer smokes launched (FFN256 / FFN512,
+motor v2 `copy_alignment`, generate-gate bias 0.0). Still not Source
+of Truth. Still not serving.
 
 Jeff also said the earlier personal opinion stays between him and me. This
 document is only the engineering.
