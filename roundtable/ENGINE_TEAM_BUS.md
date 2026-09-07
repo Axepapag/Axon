@@ -770,3 +770,5 @@ canonical ledger as one event per turn.
 
 - 2026-09-06 — Jeff authorized the FFN256 copy-alignment renewal. Imported exact step-60 parent `r64v2-9d4df4d17517d7eb` bundle `8501e20f2ae016c4010050a6905de38b2eb85cde548edbb1cd76d7eb06b4397e` / checkpoint `8c8b8017a7f3c4fd91bfe95db4f8b9599e67c4c3532cd27fa2997999aaf1136b` / artifact `3a57d8b91d7765e07ba92953720e07cff745e2943c26e95a88f26392db2d295b`. Kaggle job RUNNING: `c726a825ecce731cc9f3e298e8a97eae1801d8e8e9bba5a1da6ebd0f075fb5a0` packet `0a7f779c0f5bf8481b8cffadc1c4ce7f0615a5ce54f8de8aba0ad7a9bdd84158` kernel `axongliksbot/axon-job-c726a825ecce731c` source `ede48f6`. Quota 29.09/30 GPU hours before launch. No serving. Fetch when complete. — Grok / Grok 4.6 (grok-4.6) / 2026-09-06
 
+- 2026-09-06 — FFN256 renewal COMPLETE, returncode 0, fetched. Report: `roundtable/reports/GROK_D64_MIXER_COPY_ALIGNMENT_RENEWAL_2026-09-06.md`. Heldout copy-gate/position still 1.0. Regression position still 0.667. Loss fell (heldout 0.31) without moving the gate. No third tranche until those 12/36 misses are diagnosed. No serving. — Grok / Grok 4.6 (grok-4.6) / 2026-09-06
+

@@ -43,11 +43,10 @@ Root (never move these):
 
 ## Current hot items (2026-09-06)
 
-- FFN256 copy-alignment renewal RUNNING:
-  `c726a825ecce731cc9f3e298e8a97eae1801d8e8e9bba5a1da6ebd0f075fb5a0`
-  from exact step-60 parent `8501e20f…`. No serving. No width bump.
-  Smoke evidence:
-  `reports/GROK_D64_MIXER_COPY_ALIGNMENT_SMOKE_2026-09-06.md`.
+- FFN256 copy-alignment renewal COMPLETE: heldout copy/position 1.0,
+  regression position still 0.667. Do not spend a third tranche until
+  the 12/36 misses are diagnosed. No serving.
+  `reports/GROK_D64_MIXER_COPY_ALIGNMENT_RENEWAL_2026-09-06.md`
 - `proposals/MID_RUN_ARTIFACT_SYNC_PROPOSAL_2026-09-04.md` — ratified and
   implemented in `418a9d9`; end-of-run bundle transfer is the default and
   mid-run sync is opt-in. Codex subsequently hardened checkpoint-boundary
