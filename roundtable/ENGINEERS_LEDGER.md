@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-07T22:42:02Z
+Updated: 2026-09-07T23:42:41Z
 Current through event:
-`evt-20260907T224202643848Z-codex-unicode-walk-shot`
+`evt-20260907T234241221342Z-codex-unicode-walk-fetch`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
@@ -19,8 +19,11 @@ pass while every UTF-8 continuation cell returns to the scalar's first cell.
 Codex added a separate content-addressed Unicode-walk curriculum (`12df4547…`)
 with split-disjoint 2/3/4-cell train, heldout, and regression surfaces while
 preserving the historical `a872278f…` exam. The fresh non-serving Kaggle shot
-`050a3a97…` is now running against both exams. No reasoning core or learned
-Heart tissue is serving.
+`050a3a97…` completed and its hash-verified bundle was fetched. It learned copy
+gating (1.0) and preserved historical one-cell heldout position (1.0), but the
+new Unicode-walk heldout position was only 0.522. Combined heldout/regression
+position was 0.645/0.657, so every gate remained false and the candidate is
+paused/non-serving. No reasoning core or learned Heart tissue is serving.
 
 Grok's smaller 1-head / 4-layer D64 mixers made real progress: FFN256 and
 FFN512 both learned the heldout copy gate and one-cell position at 1.0 within
@@ -37,9 +40,9 @@ overlay did not solve Unicode continuation: regression position remained
 | 61–120 FFN256 renewal | `c726a825…` | completed | 1.0 / 1.0 | 0.667 |
 | 121–180 multi-cell teach | `287787f8…` | fetched, paused, gate fail | 1.0 / 1.0 | 0.667 |
 | 1–60 multicell v2 fresh (corrected identity) | `2c7e912b…` | fetched, paused, gate fail | 1.0 / 1.0 | 0.667 |
-| 1–120 Unicode pointer walk v3 | `050a3a97…` | RUNNING (2026-09-07 22:37Z) | pending | pending |
+| 1–120 Unicode pointer walk v3 | `050a3a97…` | fetched, paused, gate fail | 1.0 / 0.645 | 0.657 |
 
-Active job: `050a3a97336b8645fb13bb6a6a307fd884fa6450ca64c3f0fa29066640d68d59`
+Latest job: `050a3a97336b8645fb13bb6a6a307fd884fa6450ca64c3f0fa29066640d68d59`
 
 ## Blocking audit findings (RESOLVED in `7b1857b`, verified by Hermes)
 
@@ -92,10 +95,12 @@ Active job: `050a3a97336b8645fb13bb6a6a307fd884fa6450ca64c3f0fa29066640d68d59`
   cells correct and all four continuation offsets wrong; manifest `12df4547…`
   verifies 144 cases with disjoint 2/3/4-cell exams; 43 focused tests passed,
   Ruff/diff-check clean; commit `ddbef59` pushed.
-- Kaggle: Unicode-walk job `050a3a97…` launched privately from `ddbef59` and
-  verified `KernelWorkerStatus.RUNNING`; quota at launch GPU 28.32/30.00 hours.
-  Optional mid-run sync has no verified local window; one direct pull returned
-  a visible 403. End-run bundle fetch remains authoritative.
+- Kaggle: Unicode-walk job `050a3a97…` completed and fetched bundle-first with
+  returncode 0 from `ddbef59`; candidate `r64v3-884aaafb15480948` paused at
+  step 120, final checkpoint `a669030b…`. Copy gate reached 1.0, but combined
+  heldout/regression position was 0.645/0.657. The old heldout position stayed
+  1.0 while the new multi-cell heldout position was 0.522. Stage/task/serving
+  gates were false and no promotion was claimed.
 
 ## Binding continuity
 
@@ -111,12 +116,11 @@ Active job: `050a3a97336b8645fb13bb6a6a307fd884fa6450ca64c3f0fa29066640d68d59`
 
 ## Next recommended shot (2026-09-07)
 
-1. Monitor `050a3a97…`; fetch and hash-verify its end-run bundle when COMPLETE.
-2. Grade continuation-cell position on both the preserved historical exam and
-   the new split-disjoint 2/3/4-cell surfaces. Falling loss is not mastery.
-3. Require exact copy-alignment gates before `transport_eos`; do not serve.
-4. If diverse Unicode teaching still stalls on the first cell, add a
-   content-addressed pointer-transition mechanism to D64 rather than repeating
-   blind tranches or widening the rail.
-5. Diagnose the optional mid-run sync 403 separately; it does not authorize or
-   invalidate continuation, and end-run bundle evidence remains authoritative.
+1. Design a content-addressed pointer-transition mechanism that carries the
+   previously selected exact rail cell to its successor while preserving exact
+   source authority and the complete-field contract.
+2. Add focused causal/teacher/free-running tests across native and 2/3/4-cell
+   transport, page boundaries, changed sources, and both preserved exams.
+3. Run a bounded local/Kaggle smoke; require the task metric to improve before
+   any longer tranche.
+4. Require exact copy-alignment gates before `transport_eos`; do not serve.
