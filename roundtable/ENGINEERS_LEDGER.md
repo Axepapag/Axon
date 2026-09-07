@@ -1,22 +1,26 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-07T21:43:10Z
+Updated: 2026-09-07T22:42:02Z
 Current through event:
-`evt-20260907T214310657835Z-hermes-codex-recovery-launch`
+`evt-20260907T224202643848Z-codex-unicode-walk-shot`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
-Identity stamp: Hermes / glm-5.3-flash (cloud) / 2026-09-07
+Identity stamp: Codex / GPT-5 family (exact runtime model ID not exposed) / 2026-09-07
 
 ## Current mission and honest status
 
 The immediate objective remains **exact motor writing on physical D64**. The
-Codex audit's bounded hardening pass is complete: Codex implemented all
-blocking corrections before his usage expired, Hermes verified the orphaned
-work (594 passed, Ruff clean, hashes cross-checked), committed it as
-`7b1857b`, and pushed everything to `origin/main`. The corrected-identity
-fresh multicell shot `2c7e912b…` is in flight (non-serving). No reasoning
-core or learned Heart tissue is serving.
+corrected-identity fresh shot `2c7e912b…` completed and was correctly rejected:
+heldout copy/position was 1.0/1.0, but regression position remained 0.667.
+Immutable checkpoint replay proved the exact defect: all first transport cells
+pass while every UTF-8 continuation cell returns to the scalar's first cell.
+
+Codex added a separate content-addressed Unicode-walk curriculum (`12df4547…`)
+with split-disjoint 2/3/4-cell train, heldout, and regression surfaces while
+preserving the historical `a872278f…` exam. The fresh non-serving Kaggle shot
+`050a3a97…` is now running against both exams. No reasoning core or learned
+Heart tissue is serving.
 
 Grok's smaller 1-head / 4-layer D64 mixers made real progress: FFN256 and
 FFN512 both learned the heldout copy gate and one-cell position at 1.0 within
@@ -32,9 +36,10 @@ overlay did not solve Unicode continuation: regression position remained
 | 1–60 FFN512 | `26302a3d…` | completed | 1.0 / 1.0 | 0.667 |
 | 61–120 FFN256 renewal | `c726a825…` | completed | 1.0 / 1.0 | 0.667 |
 | 121–180 multi-cell teach | `287787f8…` | fetched, paused, gate fail | 1.0 / 1.0 | 0.667 |
-| 1–60 multicell v2 fresh (corrected identity) | `2c7e912b…` | RUNNING (2026-09-07 21:33Z) | — | — |
+| 1–60 multicell v2 fresh (corrected identity) | `2c7e912b…` | fetched, paused, gate fail | 1.0 / 1.0 | 0.667 |
+| 1–120 Unicode pointer walk v3 | `050a3a97…` | RUNNING (2026-09-07 22:37Z) | pending | pending |
 
-Job: `287787f863df48f36cde85e4d8f8db84e0b75f8a0469716aa28c6f8304191033`
+Active job: `050a3a97336b8645fb13bb6a6a307fd884fa6450ca64c3f0fa29066640d68d59`
 
 ## Blocking audit findings (RESOLVED in `7b1857b`, verified by Hermes)
 
@@ -81,8 +86,16 @@ Job: `287787f863df48f36cde85e4d8f8db84e0b75f8a0469716aa28c6f8304191033`
 - Git: recovery commit `7b1857b` (16 files, +938/−133, Co-Authored-By Codex)
   pushed `2a63c9a..7b1857b` — all 17 local commits now on `origin/main`.
 - Kaggle: fresh-shot job `2c7e912b…` submitted and verified
-  `KernelWorkerStatus.RUNNING` as axongliksbot; quota at launch GPU
-  28.54/30.00 hours, TPU 20/20 hours remaining.
+  `KernelWorkerStatus.COMPLETE`; fetched bundle returncode 0; step 60 remained
+  rejected/non-serving with regression position 0.667.
+- Codex Unicode-walk pass: exact checkpoint replay showed 8/12 regression
+  cells correct and all four continuation offsets wrong; manifest `12df4547…`
+  verifies 144 cases with disjoint 2/3/4-cell exams; 43 focused tests passed,
+  Ruff/diff-check clean; commit `ddbef59` pushed.
+- Kaggle: Unicode-walk job `050a3a97…` launched privately from `ddbef59` and
+  verified `KernelWorkerStatus.RUNNING`; quota at launch GPU 28.32/30.00 hours.
+  Optional mid-run sync has no verified local window; one direct pull returned
+  a visible 403. End-run bundle fetch remains authoritative.
 
 ## Binding continuity
 
@@ -92,22 +105,18 @@ Job: `287787f863df48f36cde85e4d8f8db84e0b75f8a0469716aa28c6f8304191033`
 - Do not promote from falling loss or heldout-only success.
 - Preserve `D:/00`, teammate state, exact 16D substrate, and all rejected
   evidence.
-- The v2 fresh-shot candidate never resumes the old base-objective
+- Corrected-identity fresh candidates never resume the old base-objective
   checkpoint; mid-run sync is observation-only and never continuation
   authority.
 
-## Next recommended shot (status after Hermes recovery, 2026-09-07)
+## Next recommended shot (2026-09-07)
 
-1. ~~Content-address the teaching overlay + regression test~~ — **done by
-   Codex, verified by Hermes** (`7b1857b`).
-2. ~~Fail-closed sync integrity~~ — **done by Codex, verified by Hermes**
-   (`SyncDatasetUnavailable`).
-3. ~~Bind generate-gate initialization to candidate identity~~ — **done by
-   Codex, verified by Hermes** (v3 `r64v3-` manifest, legacy `r64v2-`
-   fallback); Ruff/whitespace clean.
-4. ~~Govern the canonical line-ending breach~~ — **done**: `.gitattributes`
-   marks the canonical ledger `-text` (committed in `7b1857b`); no history
-   rewrite.
-5. **In flight**: fresh non-serving multicell v2 smoke `2c7e912b…` RUNNING —
-   grade regression position on the 12-cell surface when COMPLETE; require
-   1.0 before any `transport_eos`. Do not serve.
+1. Monitor `050a3a97…`; fetch and hash-verify its end-run bundle when COMPLETE.
+2. Grade continuation-cell position on both the preserved historical exam and
+   the new split-disjoint 2/3/4-cell surfaces. Falling loss is not mastery.
+3. Require exact copy-alignment gates before `transport_eos`; do not serve.
+4. If diverse Unicode teaching still stalls on the first cell, add a
+   content-addressed pointer-transition mechanism to D64 rather than repeating
+   blind tranches or widening the rail.
+5. Diagnose the optional mid-run sync 403 separately; it does not authorize or
+   invalidate continuation, and end-run bundle evidence remains authoritative.
