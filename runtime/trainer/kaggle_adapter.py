@@ -26,6 +26,70 @@ CommandRunner = Callable[..., subprocess.CompletedProcess[str]]
 KAGGLE_GPU_MACHINE_SHAPE = "NvidiaTeslaT4"
 KAGGLE_DATASET_READY_ATTEMPTS = 24
 KAGGLE_DATASET_READY_INTERVAL_SECONDS = 2.0
+_LIVE_STATUS_RANK = {
+    "running": 0,
+    "queued": 1,
+    "complete": 2,
+    "submitted": 3,
+    "unknown": 4,
+    "error": 5,
+    "fetched": 6,
+    "not_submitted": 7,
+}
+_ENTRYPOINT_VALUE_FLAGS = {
+    "--candidate-label": "candidate_label",
+    "--tranche-steps": "tranche_steps",
+    "--heads": "heads",
+    "--layers": "layers",
+    "--ffn-dim": "ffn_dim",
+}
+
+
+def classify_kaggle_provider_status(text: str | None) -> str:
+    """Map Kaggle's status string to a short operator label."""
+
+    raw = str(text or "").strip()
+    if not raw or raw.lower() == "not submitted":
+        return "not_submitted"
+    upper = raw.upper()
+    if "RUNNING" in upper:
+        return "running"
+    if "QUEUED" in upper or "PENDING" in upper:
+        return "queued"
+    if "COMPLETE" in upper or "SUCCESS" in upper:
+        return "complete"
+    if "CANCEL" in upper:
+        return "error"
+    if "ERROR" in upper or "FAILED" in upper:
+        return "error"
+    return "unknown"
+
+
+def _entrypoint_details(argv: Sequence[str]) -> dict[str, Any]:
+    values: dict[str, Any] = {
+        "candidate_label": None,
+        "tranche_steps": None,
+        "heads": None,
+        "layers": None,
+        "ffn_dim": None,
+        "resume": False,
+        "teach_multicell_copy": False,
+    }
+    items = [str(item) for item in argv]
+    index = 0
+    while index < len(items):
+        item = items[index]
+        mapped = _ENTRYPOINT_VALUE_FLAGS.get(item)
+        if mapped is not None and index + 1 < len(items):
+            values[mapped] = items[index + 1]
+            index += 2
+            continue
+        if item == "--resume":
+            values["resume"] = True
+        elif item == "--teach-multicell-copy":
+            values["teach_multicell_copy"] = True
+        index += 1
+    return values
 
 
 def _default_runner(
@@ -41,6 +105,7 @@ def _default_runner(
         capture_output=capture_output,
         text=True,
         encoding="utf-8",
+        errors="replace",
     )
 
 
@@ -923,3 +988,87 @@ class KaggleTrainerAdapter:
             if value.get("schema") == CLOUD_JOB_RECORD_SCHEMA:
                 values.append(value)
         return values
+
+    def job_catalog(self, *, refresh_live: bool = False, live_limit: int = 12) -> list[dict[str, Any]]:
+        """Local jobs with recipe names, newest first, running jobs on top when live."""
+
+        rows: list[dict[str, Any]] = []
+        root = self.state_root / "training" / "cloud" / "jobs"
+        for record in self.jobs():
+            job_id = str(record.get("job_id") or "")
+            job_dir = root / job_id
+            manifest_path = job_dir / "packet_manifest.json"
+            config: dict[str, Any] = {}
+            if manifest_path.is_file():
+                try:
+                    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                    if isinstance(manifest.get("config"), dict):
+                        config = manifest["config"]
+                except (OSError, json.JSONDecodeError):
+                    config = {}
+            details = _entrypoint_details(config.get("entrypoint_argv") or ())
+            try:
+                mtime = (job_dir / "job.json").stat().st_mtime
+            except OSError:
+                mtime = 0.0
+            phase = str(record.get("phase") or "unknown")
+            live_status = {
+                "outputs_fetched": "fetched",
+                "prepared": "not_submitted",
+                "submitted": "submitted",
+            }.get(phase, phase)
+            heads = details["heads"]
+            layers = details["layers"]
+            ffn_dim = details["ffn_dim"]
+            shape = None
+            if heads and layers and ffn_dim:
+                shape = f"{heads}h/{layers}L/FFN{ffn_dim}"
+            rows.append(
+                {
+                    "schema": "axon-kaggle-job-catalog-row-v1",
+                    "job_id": job_id,
+                    "name": str(config.get("name") or f"Axon job {job_id[:16]}"),
+                    "phase": phase,
+                    "accelerator": record.get("accelerator") or config.get("accelerator"),
+                    "kernel_ref": record.get("kernel_ref"),
+                    "candidate_label": details["candidate_label"],
+                    "tranche_steps": details["tranche_steps"],
+                    "shape": shape,
+                    "resume": bool(details["resume"]),
+                    "teach_multicell_copy": bool(details["teach_multicell_copy"]),
+                    "mtime": mtime,
+                    "provider_status": None,
+                    "live_status": live_status,
+                }
+            )
+        rows.sort(key=lambda row: float(row["mtime"]), reverse=True)
+        if refresh_live:
+            probed = 0
+            for row in rows:
+                if probed >= live_limit:
+                    break
+                if not row.get("kernel_ref"):
+                    continue
+                if row["phase"] not in {"submitted", "dataset_uploaded"}:
+                    continue
+                try:
+                    status = self.status(str(row["job_id"]))
+                except CloudPacketError:
+                    probed += 1
+                    continue
+                provider_status = str(status.get("provider_status") or "").strip()
+                if not provider_status:
+                    probed += 1
+                    continue
+                row["provider_status"] = provider_status
+                classified = classify_kaggle_provider_status(provider_status)
+                if classified != "not_submitted":
+                    row["live_status"] = classified
+                probed += 1
+        rows.sort(
+            key=lambda row: (
+                _LIVE_STATUS_RANK.get(str(row.get("live_status")), 9),
+                -float(row["mtime"]),
+            )
+        )
+        return rows

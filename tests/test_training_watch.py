@@ -40,6 +40,52 @@ def test_resumed_tranche_progress_is_not_mislabeled_complete():
     assert "not autonomous conversation" in watcher.render()
 
 
+def test_motor_v2_copy_metrics_and_recent_steps_are_visible():
+    watcher = _watcher()
+    watcher.job_id = "a" * 64
+    watcher.job_title = "Axon D64 mixer 4L FFN256 multi-cell copy teach"
+    watcher.consume(
+        _event(
+            "eval-initial",
+            "evaluated",
+            phase="initial",
+            heldout_mean_loss=1.2,
+            foundation_motor_v2_heldout_probe={
+                "case_count": 8,
+                "alignment_copy_gate_accuracy": 1.0,
+                "alignment_position_accuracy": 1.0,
+                "pair_copy_gate": 1.0,
+                "pair_position": 1.0,
+            },
+            foundation_motor_v2_regression_probe={
+                "case_count": 8,
+                "alignment_copy_gate_accuracy": 1.0,
+                "alignment_position_accuracy": 0.667,
+                "pair_copy_gate": 1.0,
+                "pair_position": 0.667,
+            },
+        )
+    )
+    watcher.consume(
+        _event(
+            "step-121",
+            "training",
+            global_step=121,
+            loss=0.42,
+            curriculum_lane="copy_alignment",
+            material_kind="authored",
+            wall_seconds=3.5,
+        )
+    )
+    rendered = watcher.render()
+    assert "Axon D64 mixer 4L FFN256 multi-cell copy teach" in rendered
+    assert "motor v2 initial/heldout" in rendered
+    assert "copy-gate 1.000" in rendered
+    assert "position 0.667" in rendered
+    assert "121" in rendered and "0.420" in rendered
+    assert "copy_alignment" in rendered
+
+
 def test_runner_failure_is_visible_even_before_first_training_event():
     watcher = _watcher()
     watcher.consume({

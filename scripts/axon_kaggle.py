@@ -52,9 +52,22 @@ def _arguments() -> argparse.Namespace:
     )
     status = commands.add_parser("status", help="show Kaggle's current job status")
     status.add_argument("job_id")
-    monitor = commands.add_parser("monitor", help="show status or follow live Kaggle logs")
-    monitor.add_argument("job_id")
+    monitor = commands.add_parser(
+        "monitor",
+        help="pick a local job if needed, then follow the live training dashboard",
+    )
+    monitor.add_argument(
+        "job_id",
+        nargs="?",
+        default=None,
+        help="64-hex Axon cloud job id; omit to list running jobs and choose",
+    )
     monitor.add_argument("--follow", action="store_true")
+    monitor.add_argument(
+        "--raw",
+        action="store_true",
+        help="follow raw Kaggle kernel logs instead of the training dashboard",
+    )
     fetch = commands.add_parser("fetch", help="download outputs into canonical cloud job State")
     fetch.add_argument("job_id")
     fetch.add_argument(
@@ -79,6 +92,71 @@ def _arguments() -> argparse.Namespace:
     )
     commands.add_parser("jobs", help="list locally known cloud jobs")
     return parser.parse_args()
+
+
+def _format_job_catalog(rows: list[dict[str, Any]], *, limit: int = 12) -> str:
+    lines = [
+        "Axon Kaggle jobs on this machine",
+        "Pick a number. Closing the monitor never stops cloud training.",
+        "",
+    ]
+    shown = rows[:limit]
+    for index, row in enumerate(shown, start=1):
+        live = str(row.get("live_status") or row.get("phase") or "unknown").upper()
+        name = str(row.get("name") or "Axon job")
+        bits = []
+        if row.get("candidate_label"):
+            bits.append(str(row["candidate_label"]))
+        if row.get("shape"):
+            bits.append(str(row["shape"]))
+        if row.get("tranche_steps"):
+            bits.append(f"{row['tranche_steps']} steps")
+        if row.get("resume"):
+            bits.append("resume")
+        if row.get("teach_multicell_copy"):
+            bits.append("multi-cell teach")
+        if row.get("accelerator"):
+            bits.append(str(row["accelerator"]))
+        lines.append(f" {index:2d}  {live:<14} {name}")
+        if bits:
+            lines.append("     " + "  ".join(bits))
+        lines.append(f"     {row.get('job_id', '')}")
+        lines.append("")
+    if len(rows) > limit:
+        lines.append(f"({len(rows) - limit} older jobs not shown)")
+    return "\n".join(lines).rstrip()
+
+
+def _pick_job(adapter: "KaggleTrainerAdapter") -> str:
+    print("Checking Kaggle for live status of recent jobs...")
+    catalog = adapter.job_catalog(refresh_live=True)
+    if not catalog:
+        raise CloudPacketError("No local Kaggle jobs yet.")
+    print()
+    print(_format_job_catalog(catalog))
+    print()
+    default_index = 0
+    for index, row in enumerate(catalog):
+        if row.get("live_status") in {"running", "queued"}:
+            default_index = index
+            break
+    default_number = default_index + 1
+    if not sys.stdin.isatty():
+        raise CloudPacketError(
+            "job id required when not interactive; listed jobs above"
+        )
+    raw = input(f"Choose a job [Enter = {default_number}]: ").strip()
+    if not raw:
+        return str(catalog[default_index]["job_id"])
+    if raw.isdigit():
+        number = int(raw)
+        if 1 <= number <= min(len(catalog), 12):
+            return str(catalog[number - 1]["job_id"])
+        raise CloudPacketError(f"choice {number} is not on the list")
+    lowered = raw.lower()
+    if len(lowered) == 64 and all(character in "0123456789abcdef" for character in lowered):
+        return lowered
+    raise CloudPacketError("not a listed number or a 64-hex Axon job id")
 
 
 def _short_bytes(size: int) -> str:
@@ -159,6 +237,9 @@ def _display(value: Any, *, machine: bool) -> None:
         if not value:
             print("No local Kaggle jobs yet.")
             return
+        if value[0].get("schema") == "axon-kaggle-job-catalog-row-v1":
+            print(_format_job_catalog(value))
+            return
         print("JOB ID                                                            PHASE")
         for item in value:
             print(f"{item['job_id']}  {item.get('phase', 'unknown')}")
@@ -225,12 +306,25 @@ def main() -> int:
         elif args.command == "status":
             value = adapter.status(args.job_id)
         elif args.command == "monitor":
-            value = adapter.status(args.job_id)
+            job_id = args.job_id
+            if not job_id:
+                job_id = _pick_job(adapter)
+            value = adapter.status(job_id)
             _display(value, machine=args.json)
-            if args.follow:
-                print("\nFollowing Kaggle logs. Closing this window does NOT stop cloud training.\n")
-                return adapter.follow_logs(args.job_id)
-            return 0
+            follow = bool(args.follow or not args.job_id)
+            if not follow:
+                return 0
+            print()
+            print("Closing this window does NOT stop cloud training.")
+            if args.raw:
+                print("Following raw Kaggle logs.\n")
+                return adapter.follow_logs(job_id)
+            print("Opening the live training dashboard.\n")
+            from scripts.axon_training_watch import follow_job
+
+            return follow_job(job_id, qa=True)
+        elif args.command == "jobs":
+            value = adapter.job_catalog(refresh_live=False)
         elif args.command == "fetch":
             result = organ.dispatch(
                 TrainerOrganCommand(
@@ -251,7 +345,7 @@ def main() -> int:
         elif args.command == "sync-status":
             value = adapter.sync_status(args.job_id, rehash=not args.no_rehash)
         else:
-            value = adapter.jobs()
+            raise CloudPacketError(f"unsupported command {args.command}")
     except (CloudPacketError, OSError, ValueError, json.JSONDecodeError) as exc:
         print(f"AXON KAGGLE STOPPED SAFELY: {exc}", file=sys.stderr)
         return 2

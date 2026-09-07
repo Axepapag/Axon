@@ -73,6 +73,26 @@ from training import (
 ROOT = Path(__file__).resolve().parent.parent
 
 
+def _compact_motor_v2_probes(evaluation: dict[str, Any]) -> dict[str, Any]:
+    compact: dict[str, Any] = {}
+    for key in (
+        "foundation_motor_v2_heldout_probe",
+        "foundation_motor_v2_regression_probe",
+    ):
+        probe = evaluation.get(key)
+        if not isinstance(probe, dict):
+            continue
+        pair = probe.get("pair_exact_rates") or {}
+        compact[key] = {
+            "case_count": probe.get("case_count"),
+            "alignment_copy_gate_accuracy": probe.get("alignment_copy_gate_accuracy"),
+            "alignment_position_accuracy": probe.get("alignment_position_accuracy"),
+            "pair_copy_gate": pair.get("copy_gate") if isinstance(pair, dict) else None,
+            "pair_position": pair.get("position") if isinstance(pair, dict) else None,
+        }
+    return compact
+
+
 def _write_immutable_json(path: Path, value: dict[str, Any]) -> None:
     """Publish one immutable JSON artifact or verify an identical replay."""
 
@@ -1396,6 +1416,7 @@ def main() -> int:
                 ],
                 evaluated_case_count=initial_evaluation["evaluated_case_count"],
                 qa_transcripts=initial_evaluation.get("qa_transcripts", [])[:8],
+                **_compact_motor_v2_probes(initial_evaluation),
             )
         prior_reports = sorted(campaign_report_dir.glob("segment_*.json"))
         campaign_baseline_evaluation = (
@@ -1567,6 +1588,7 @@ def main() -> int:
                 ],
                 evaluated_case_count=final_evaluation["evaluated_case_count"],
                 qa_transcripts=final_evaluation.get("qa_transcripts", [])[:8],
+                **_compact_motor_v2_probes(final_evaluation),
             )
         counterfactuals_passed = all(value > 1e-8 for value in final_evaluation["counterfactuals"].values())
         task_gate_passed = (

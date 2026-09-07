@@ -66,15 +66,11 @@ while ($true) {
             }
         }
         "5" {
-            $JobId = (Read-Host "Paste the full job ID").Trim()
-            if ($JobId) {
-                Start-Process powershell.exe -ArgumentList @(
-                    "-NoExit",
-                    "-ExecutionPolicy", "Bypass",
-                    "-File", "$AxonRoot\scripts\axon_kaggle_monitor.ps1",
-                    "-JobId", $JobId
-                )
-            }
+            Start-Process powershell.exe -ArgumentList @(
+                "-NoExit",
+                "-ExecutionPolicy", "Bypass",
+                "-File", "$AxonRoot\scripts\axon_kaggle_monitor.ps1"
+            )
         }
         "6" {
             $JobId = (Read-Host "Paste the full job ID").Trim()

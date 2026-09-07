@@ -16,7 +16,11 @@ from runtime.trainer.cloud_jobs import (
     prepare_cloud_job,
     write_job_record,
 )
-from runtime.trainer.kaggle_adapter import KaggleTrainerAdapter, _runner_source
+from runtime.trainer.kaggle_adapter import (
+    KaggleTrainerAdapter,
+    _runner_source,
+    classify_kaggle_provider_status,
+)
 
 
 def _config(*, include_paths=(), sensitive=False) -> CloudJobConfig:
@@ -536,3 +540,98 @@ def test_kaggle_launch_refuses_cross_account_ownership(tmp_path) -> None:
     # Nothing was created or uploaded: the gate fires before any side effect.
     assert not (job_dir / "kaggle" / "dataset" / "dataset-metadata.json").exists()
     assert not any(call[:3] == ("kaggle", "datasets", "create") for call in adapter.runner.calls)
+
+
+def test_classify_kaggle_provider_status() -> None:
+    assert classify_kaggle_provider_status('status "KernelWorkerStatus.RUNNING"') == "running"
+    assert classify_kaggle_provider_status('status "KernelWorkerStatus.COMPLETE"') == "complete"
+    assert classify_kaggle_provider_status("not submitted") == "not_submitted"
+    assert classify_kaggle_provider_status('status "KernelWorkerStatus.ERROR"') == "error"
+
+
+def test_job_catalog_names_jobs_and_puts_running_first(tmp_path) -> None:
+    repo = tmp_path / "Axon"
+    state = repo / "State"
+    repo.mkdir()
+    running_id = "a" * 64
+    fetched_id = "b" * 64
+
+    def write_job(job_id: str, *, phase: str, name: str, teach: bool) -> None:
+        job_dir = state / "training" / "cloud" / "jobs" / job_id
+        job_dir.mkdir(parents=True)
+        argv = [
+            "python",
+            "scripts/train_living_reasoning_smoke.py",
+            "--candidate-label",
+            "axon-d64-mixer-4l-ffn256-h1",
+            "--heads",
+            "1",
+            "--layers",
+            "4",
+            "--ffn-dim",
+            "256",
+            "--tranche-steps",
+            "60",
+            "--resume",
+        ]
+        if teach:
+            argv.append("--teach-multicell-copy")
+        (job_dir / "packet_manifest.json").write_text(
+            json.dumps(
+                {
+                    "schema": "axon-cloud-training-packet-v1",
+                    "job_id": job_id,
+                    "config": {
+                        "name": name,
+                        "accelerator": "gpu",
+                        "entrypoint_argv": argv,
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        write_job_record(
+            state,
+            job_id,
+            {
+                "schema": CLOUD_JOB_RECORD_SCHEMA,
+                "job_id": job_id,
+                "provider": "kaggle",
+                "accelerator": "gpu",
+                "phase": phase,
+                "kernel_ref": f"axepapgt/axon-job-{job_id[:16]}",
+                "public": False,
+            },
+        )
+
+    write_job(fetched_id, phase="outputs_fetched", name="Old fetched job", teach=False)
+    write_job(running_id, phase="submitted", name="Axon D64 mixer multi-cell copy teach", teach=True)
+
+    class LiveKaggle(_FakeKaggle):
+        def __call__(self, argv, *, cwd=None, capture_output=True):
+            command = tuple(str(item) for item in argv)
+            if command[:3] == ("kaggle", "kernels", "status"):
+                ref = command[3]
+                if running_id[:16] in ref:
+                    output = 'status "KernelWorkerStatus.RUNNING"\n'
+                else:
+                    output = 'status "KernelWorkerStatus.COMPLETE"\n'
+                return subprocess.CompletedProcess(command, 0, stdout=output, stderr="")
+            return super().__call__(argv, cwd=cwd, capture_output=capture_output)
+
+    adapter = KaggleTrainerAdapter(
+        repo_root=repo,
+        state_root=state,
+        owner="axepapgt",
+        runner=LiveKaggle(),
+    )
+    catalog = adapter.job_catalog(refresh_live=True)
+    assert [row["job_id"] for row in catalog] == [running_id, fetched_id]
+    assert catalog[0]["live_status"] == "running"
+    assert catalog[0]["name"] == "Axon D64 mixer multi-cell copy teach"
+    assert catalog[0]["shape"] == "1h/4L/FFN256"
+    assert catalog[0]["teach_multicell_copy"] is True
+    assert catalog[1]["live_status"] == "fetched"
+    local_only = adapter.job_catalog(refresh_live=False)
+    assert local_only[0]["job_id"] == running_id
+    assert local_only[0]["live_status"] == "submitted"

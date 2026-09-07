@@ -99,19 +99,32 @@ def _short(value: Any, width: int = 12) -> str:
 class Watcher:
     """Consumes AXON_PROGRESS / AXON_QA events and renders the dashboard."""
 
-    def __init__(self, *, window: int, show_qa: bool, transcript_lines: int) -> None:
+    def __init__(
+        self,
+        *,
+        window: int,
+        show_qa: bool,
+        transcript_lines: int,
+        job_id: str | None = None,
+        job_title: str | None = None,
+    ) -> None:
         self.window = window
         self.show_qa = show_qa
         self.transcript_lines = transcript_lines
+        self.job_id = job_id
+        self.job_title = job_title
         self.losses: deque[float] = deque(maxlen=window)
         self.lanes: deque[str] = deque(maxlen=window)
         self.wall: deque[float] = deque(maxlen=window)
         self.step_numbers: deque[int] = deque(maxlen=window)
+        self.recent_steps: deque[str] = deque(maxlen=8)
         self.last_step = 0
         self.segment_start = 0
         self.segment_end = None
         self.last_lane = None
         self.last_loss = None
+        self.last_kind = None
+        self.last_checkpoint = None
         self.checkpoints = 0
         self.bundles = 0
         self.status = "waiting"
@@ -123,6 +136,8 @@ class Watcher:
         self.gates: dict[str, Any] = {}
         self.eval_summary: dict[str, Any] = {}
         self.eval_history: deque[tuple[str, float, float]] = deque(maxlen=8)
+        self.motor_v2: dict[str, dict[str, Any]] = {}
+        self.runner_lines: deque[str] = deque(maxlen=6)
         self.qa_lines: deque[str] = deque(maxlen=transcript_lines)
         self.event_count = 0
         self.seen_event_ids: set[str] = set()
@@ -158,6 +173,7 @@ class Watcher:
                 loss = details.get("loss")
                 lane = details.get("curriculum_lane")
                 wall = details.get("wall_seconds")
+                kind = details.get("material_kind")
                 self.last_step = max(self.last_step, step)
                 if "segment_end_step" in details:
                     self.segment_end = int(details["segment_end_step"])
@@ -169,13 +185,24 @@ class Watcher:
                 if lane:
                     self.lanes.append(str(lane))
                     self.last_lane = str(lane)
+                if kind:
+                    self.last_kind = str(kind)
                 if wall is not None:
                     self.wall.append(float(wall))
                 self.step_numbers.append(step)
-                if details.get("checkpoint_id"):
+                checkpoint_id = details.get("checkpoint_id")
+                if checkpoint_id:
                     self.checkpoints += 1
+                    self.last_checkpoint = str(checkpoint_id)
                 if details.get("accepted_step_bundle_id"):
                     self.bundles += 1
+                loss_text = _fmt_loss(self.last_loss)
+                lane_text = str(lane or self.last_lane or "-")
+                kind_text = str(kind or self.last_kind or "-")
+                wall_text = f"{float(wall):.1f}s" if wall is not None else "-"
+                self.recent_steps.append(
+                    f"  {step:>5}  loss {loss_text}  {lane_text}  {kind_text}  {wall_text}"
+                )
             elif status == "evaluating":
                 self.status = f"evaluating({details.get('phase', '?')})"
                 if details.get("phase") == "initial":
@@ -183,6 +210,7 @@ class Watcher:
                     self.last_step = max(self.last_step, self.segment_start)
             elif status == "evaluated":
                 self._consume_evaluated(details)
+                self._consume_motor_v2(details)
             elif status in {"completed", "paused"}:
                 self.status = status
                 self.gates = {
@@ -195,6 +223,15 @@ class Watcher:
                 if details.get("report_path"):
                     self.eval_summary["report_path"] = details["report_path"]
         elif schema == "axon-kaggle-runner-event-v1":
+            detail_text = _one_line(
+                details.get("error")
+                or details.get("selected")
+                or details.get("job_id")
+                or details.get("accelerator")
+                or "",
+                48,
+            )
+            self.runner_lines.append(f"  runner {status}" + (f"  {detail_text}" if detail_text else ""))
             if status == "failed":
                 self.status = "failed"
                 self.error = details.get("error") or f"training process exited {details.get('returncode', '?')}"
@@ -230,6 +267,17 @@ class Watcher:
             )
         for row in details.get("qa_transcripts") or []:
             self.qa_lines.append(self._format_qa(row))
+
+    def _consume_motor_v2(self, details: dict[str, Any]) -> None:
+        phase = str(details.get("phase") or "?")
+        heldout = details.get("foundation_motor_v2_heldout_probe")
+        regression = details.get("foundation_motor_v2_regression_probe")
+        if not isinstance(heldout, dict) and not isinstance(regression, dict):
+            return
+        self.motor_v2[phase] = {
+            "heldout": heldout if isinstance(heldout, dict) else {},
+            "regression": regression if isinstance(regression, dict) else {},
+        }
 
     def render_qa_line(self, details: dict[str, Any]) -> None:
         step = details.get("global_step", "?")
@@ -278,10 +326,14 @@ class Watcher:
         lines.append(_color("=" * 74, CYAN))
         lines.append(_color(f"  {title}", BOLD + CYAN))
         lines.append(_color("=" * 74, CYAN))
+        if self.job_title:
+            lines.append(f" job: {self.job_title}")
+        if self.job_id:
+            lines.append(f" id:  {self.job_id}")
 
         accel = self.accelerator or "?"
         candidate = self.candidate or "?"
-        status_color = GREEN if self.status in {"training", "starting"} else YELLOW
+        status_color = GREEN if self.status in {"training", "starting", "runner(running)"} else YELLOW
         lines.append(
             f" candidate: {_short(candidate, 28)}  status: {_color(self.status, status_color)}"
             f"  accelerator: {accel}"
@@ -336,6 +388,19 @@ class Watcher:
                 f"{phase}@{loss:.3f}/{acc*100:.0f}%" for phase, loss, acc in list(self.eval_history)[-4:]
             )
             lines.append(f" eval history: {history}")
+        for phase, probes in self.motor_v2.items():
+            for split, probe in probes.items():
+                rendered = _motor_v2_line(f"motor v2 {phase}/{split}", probe)
+                if rendered:
+                    lines.append(rendered)
+        if self.recent_steps:
+            lines.append(_color(" last steps:", DIM))
+            lines.extend(list(self.recent_steps)[-5:])
+        if self.last_checkpoint:
+            lines.append(f" last checkpoint: {_short(self.last_checkpoint, 16)}")
+        if self.runner_lines:
+            lines.append(_color(" runner:", DIM))
+            lines.extend(list(self.runner_lines)[-4:])
         if self.gates:
             gate_text = "  ".join(
                 f"{key}={_color('PASS' if value else 'FAIL', GREEN if value else RED)}"
@@ -363,6 +428,35 @@ class Watcher:
 def _one_line(text: Any, width: int = 60) -> str:
     value = " ".join(str(text or "").split())
     return value if len(value) <= width else value[: width - 1] + "…"
+
+
+def _rate_text(value: Any) -> str:
+    if value is None:
+        return "-"
+    return f"{float(value):.3f}"
+
+
+def _motor_v2_line(label: str, probe: dict[str, Any] | None) -> str | None:
+    if not probe:
+        return None
+    gate = probe.get("alignment_copy_gate_accuracy")
+    position = probe.get("alignment_position_accuracy")
+    if gate is None and position is None:
+        return None
+    pair_gate = probe.get("pair_copy_gate")
+    pair_position = probe.get("pair_position")
+    cases = probe.get("case_count")
+    position_color = GREEN if position == 1.0 else (YELLOW if position is not None else DIM)
+    parts = [
+        f" {label}:",
+        f"copy-gate {_rate_text(gate)}",
+        _color(f"position {_rate_text(position)}", position_color),
+    ]
+    if pair_gate is not None or pair_position is not None:
+        parts.append(f"pair-gate {_rate_text(pair_gate)}  pair-pos {_rate_text(pair_position)}")
+    if cases is not None:
+        parts.append(f"n={cases}")
+    return "  ".join(parts)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -497,6 +591,54 @@ def _resolve_kernel_ref(job_id: str) -> str:
     raise SystemExit(f"unknown job id (no kernel_ref in {record_path}); pass --kernel owner/slug")
 
 
+def _job_title(job_id: str) -> str | None:
+    manifest_path = (
+        DEFAULT_STATE / "training" / "cloud" / "jobs" / job_id / "packet_manifest.json"
+    )
+    if not manifest_path.is_file():
+        return None
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    config = manifest.get("config") if isinstance(manifest, dict) else None
+    if isinstance(config, dict) and config.get("name"):
+        return str(config["name"])
+    return None
+
+
+def follow_job(
+    job_id: str,
+    *,
+    kernel: str | None = None,
+    qa: bool = False,
+    steps: int = 60,
+    local: bool = False,
+    replay: bool = False,
+    poll: float = 2.0,
+    qa_lines: int = 12,
+) -> int:
+    watcher = Watcher(
+        window=max(5, steps),
+        show_qa=qa,
+        transcript_lines=max(1, qa_lines),
+        job_id=job_id,
+        job_title=_job_title(job_id),
+    )
+    if local or replay:
+        path = _local_events_path(job_id)
+        if not path.is_file():
+            raise SystemExit(
+                f"no local events at {path}; run 'axon_kaggle.py fetch {job_id}' first "
+                "or drop --local to follow Kaggle live"
+            )
+        if replay:
+            return _replay_local(path, watcher, follow=True, poll_seconds=poll)
+        return _follow_local(path, watcher, poll)
+    kernel_ref = kernel or _resolve_kernel_ref(job_id)
+    return _follow_kaggle(kernel_ref, watcher)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("job_id", help="Axon cloud job id (or use --kernel for owner/slug)")
@@ -508,22 +650,16 @@ def main() -> int:
     parser.add_argument("--qa-lines", type=int, default=12, help="transcript lines to keep on screen")
     parser.add_argument("--poll", type=float, default=2.0, help="local tail poll seconds")
     args = parser.parse_args()
-
-    job_id = args.job_id
-    watcher = Watcher(window=max(5, args.steps), show_qa=args.qa, transcript_lines=max(1, args.qa_lines))
-
-    if args.local or args.replay:
-        path = _local_events_path(job_id)
-        if not path.is_file():
-            raise SystemExit(
-                f"no local events at {path}; run 'axon_kaggle.py fetch {job_id}' first "
-                "or drop --local to follow Kaggle live"
-            )
-        if args.replay:
-            return _replay_local(path, watcher, follow=True, poll_seconds=args.poll)
-        return _follow_local(path, watcher, args.poll)
-    kernel_ref = args.kernel or _resolve_kernel_ref(job_id)
-    return _follow_kaggle(kernel_ref, watcher)
+    return follow_job(
+        args.job_id,
+        kernel=args.kernel,
+        qa=args.qa,
+        steps=args.steps,
+        local=args.local,
+        replay=args.replay,
+        poll=args.poll,
+        qa_lines=args.qa_lines,
+    )
 
 
 if __name__ == "__main__":

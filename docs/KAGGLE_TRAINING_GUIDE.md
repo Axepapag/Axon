@@ -75,7 +75,11 @@ Preparation and launch are intentionally separate:
    is evidence import, not serving activation or promotion.
 
 To reopen monitoring without the menu, double-click
-`MONITOR_AXON_KAGGLE.bat` and paste the job ID.
+`MONITOR_AXON_KAGGLE.bat`. It lists jobs known on this machine, checks Kaggle
+for which are still running, and lets you choose a number. You do not need to
+paste a 64-hex job id. The monitor then opens the live training dashboard
+(step, loss, copy-gate/position when emitted). Closing that window never
+stops the cloud job. Pass `--raw` only if you need the unparsed Kaggle log.
 
 ## What is observable
 
