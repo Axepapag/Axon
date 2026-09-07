@@ -48,6 +48,9 @@ FOUNDATION_MOTOR_V2_STAGE = "typed_motor_v2"
 FOUNDATION_MOTOR_V2_SOURCE_ID = canonical_sha256(
     {"schema": "axon-foundation-motor-authored-generator-v2"}
 )
+FOUNDATION_MOTOR_V2_UNICODE_WALK_SOURCE_ID = canonical_sha256(
+    {"schema": "axon-foundation-motor-unicode-walk-generator-v1"}
+)
 FOUNDATION_MOTOR_V2_STAGE_ORDER = (
     "copy_alignment",
     "transport_eos",
@@ -195,6 +198,42 @@ _SYMBOLS = tuple(
     "λφΩЖя東亰終端心脳éïüñøå✓∞∑∆🙂🧠🚀"
 )
 
+# The original randomized v2 surface happened to place no multi-cell scalar in
+# heldout, while its small regression surface exposed only three.  This second,
+# content-addressed fixture generator does not replace or mutate that exam.  It
+# adds a deliberately split-disjoint transport-walk surface where every aligned
+# payload is two, three, or four UTF-8 cells and every split covers all three
+# widths.  The characters are assigned and human-readable; their disjointness
+# is part of the verifier below rather than an accident of a hash modulo.
+_UNICODE_WALK_SYMBOLS: dict[str, dict[int, tuple[str, ...]]] = {
+    "train": {
+        2: tuple("ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ"),
+        3: tuple("あいうえおかきくけこさしすせそた"),
+        4: tuple("😀😁😂😃😄😅😆😇😈😉😊😋😌😍😎😏"),
+    },
+    "heldout": {
+        2: tuple("ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠ"),
+        3: tuple("アイウエオカキクケコサシスセソタ"),
+        4: tuple("😐😑😒😓😔😕😖😗😘😙😚😛😜😝😞😟"),
+    },
+    "regression": {
+        2: tuple("АБВГДЕЖЗИЙКЛМНОП"),
+        3: tuple("天地玄黄宇宙洪荒日月盈昃辰宿列張"),
+        4: tuple("🤐🤑🤒🤓🤔🤕🤖🤗🤘🤙🤚🤛🤜🤝🤞🤟"),
+    },
+}
+
+
+def _unicode_walk_symbol(split: str, aligned_ordinal: int) -> str:
+    if split not in _UNICODE_WALK_SYMBOLS:
+        raise ValueError(f"unsupported Unicode-walk split {split!r}")
+    width = (2, 3, 4)[aligned_ordinal % 3]
+    pool = _UNICODE_WALK_SYMBOLS[split][width]
+    symbol = pool[(aligned_ordinal // 3) % len(pool)]
+    if len(encode_unicode_text(symbol)) != width:
+        raise AssertionError("Unicode-walk fixture has the wrong transport width")
+    return symbol
+
 
 def _symbol(split: str, pair_index: int, variant: int) -> str:
     digest = hashlib.sha256(
@@ -240,6 +279,7 @@ def _episode(
     example_schema: str = "axon-foundation-motor-example-v1",
     label_prefix: str = "foundation-motor",
     extra_tags: tuple[str, ...] = (),
+    symbol_override: str | None = None,
 ) -> LivingReasoningEpisode:
     action = (
         FOUNDATION_MOTOR_ACTIONS[pair_index % len(FOUNDATION_MOTOR_ACTIONS)]
@@ -248,7 +288,13 @@ def _episode(
     )
     if action not in FOUNDATION_MOTOR_ACTIONS:
         raise ValueError(f"unsupported foundation motor action {action!r}")
-    symbol = _symbol(split, pair_index, variant)
+    symbol = (
+        _symbol(split, pair_index, variant)
+        if symbol_override is None
+        else symbol_override
+    )
+    if len(symbol) != 1:
+        raise ValueError("foundation motor symbol must be exactly one Unicode scalar")
     source_identity = canonical_sha256(
         {
             "schema": source_schema,
@@ -686,6 +732,93 @@ def compile_foundation_motor_v2(
     return curriculum
 
 
+def compile_foundation_motor_v2_unicode_walk(
+    *,
+    identity_text: str,
+    requested_counts: tuple[
+        tuple[str, tuple[int, int, int]], ...
+    ] = DEFAULT_FOUNDATION_MOTOR_V2_SPLIT_COUNTS,
+) -> FirstFormCurriculum:
+    """Compile the honest multi-cell pointer-walk lesson and exam.
+
+    This keeps motor-v2 actions, targets, and gates intact while replacing
+    accidental symbol sampling with explicit 2/3/4-cell Unicode strata.  Its
+    distinct source identity and resulting manifest identity prevent it from
+    being confused with the historical randomized v2 curriculum.
+    """
+
+    if not identity_text:
+        raise ValueError("foundation motor v2 Unicode walk requires canonical Identity")
+    if tuple(family for family, _counts in requested_counts) != ("F0",):
+        raise ValueError("foundation motor v2 Unicode walk uses the registered F0 family")
+    counts = tuple(int(value) for value in requested_counts[0][1])
+    if len(counts) != 3:
+        raise ValueError("foundation motor v2 Unicode walk requires train, heldout and regression counts")
+
+    cases: list[FirstFormCase] = []
+    aligned_actions = {"copy", "insert", "replace"}
+    for split, count in zip(_SPLITS, counts, strict=True):
+        actions = _v2_pair_actions(count)
+        aligned_ordinal = 0
+        for pair_index, action in enumerate(actions):
+            pair_id = canonical_sha256(
+                {
+                    "schema": "axon-foundation-motor-v2-unicode-walk-pair-v1",
+                    "split": split,
+                    "pair_index": pair_index,
+                    "action": action,
+                }
+            )
+            for variant in (0, 1):
+                symbol = None
+                if action in aligned_actions:
+                    symbol = _unicode_walk_symbol(split, aligned_ordinal)
+                    aligned_ordinal += 1
+                episode = _episode(
+                    identity_text=identity_text,
+                    split=split,
+                    pair_id=pair_id,
+                    pair_index=pair_index,
+                    variant=variant,
+                    stage=FOUNDATION_MOTOR_V2_STAGE,
+                    action_override=action,
+                    source_manifest_id=FOUNDATION_MOTOR_V2_UNICODE_WALK_SOURCE_ID,
+                    source_schema="axon-foundation-motor-v2-unicode-walk-source-v1",
+                    example_schema="axon-foundation-motor-v2-unicode-walk-example-v1",
+                    label_prefix="foundation-motor-v2-unicode-walk",
+                    extra_tags=(
+                        "foundation_motor_v2",
+                        "foundation_unicode_walk",
+                        f"foundation_program:{FOUNDATION_MOTOR_V2_PROGRAM_ID}",
+                    ),
+                    symbol_override=symbol,
+                )
+                compiled = D64FieldCompiler().compile(episode.snapshot)
+                compiled.verify_roundtrip(episode.snapshot)
+                cases.append(
+                    FirstFormCase(
+                        family="F0",
+                        competency=f"foundation_motor_v2_unicode_walk_{action}",
+                        eligibility=TeachingEligibility.VERIFIED_TARGET,
+                        lineage_id=f"foundation-motor-v2-unicode-walk:{split}:{pair_index:04d}",
+                        source_record_ids=(),
+                        episode=episode,
+                        transport_pages=len(tuple(compiled.iter_character_pages(32))),
+                        procedural_depth=1,
+                        derived=True,
+                    )
+                )
+    curriculum = FirstFormCurriculum(
+        cases=tuple(cases),
+        source_import_ids=(FOUNDATION_MOTOR_V2_UNICODE_WALK_SOURCE_ID,),
+        requested_family_split_counts=requested_counts,
+        excluded_counts=(),
+        identity_text_sha256=hashlib.sha256(identity_text.encode("utf-8")).hexdigest(),
+    )
+    verify_foundation_motor_v2_unicode_walk_curriculum(curriculum)
+    return curriculum
+
+
 def is_foundation_motor_v2_episode(episode: LivingReasoningEpisode) -> bool:
     return f"foundation_stage:{FOUNDATION_MOTOR_V2_STAGE}" in episode.mechanism_tags
 
@@ -783,6 +916,36 @@ def verify_foundation_motor_v2_curriculum(curriculum: FirstFormCurriculum) -> No
         for split_b in _SPLITS:
             if split_a < split_b and not split_sources[split_a].isdisjoint(split_sources[split_b]):
                 raise ValueError("foundation motor v2 source crosses data splits")
+
+
+def verify_foundation_motor_v2_unicode_walk_curriculum(
+    curriculum: FirstFormCurriculum,
+) -> None:
+    verify_foundation_motor_v2_curriculum(curriculum)
+    symbols: dict[str, set[str]] = defaultdict(set)
+    widths: dict[str, set[int]] = defaultdict(set)
+    aligned_counts: dict[str, int] = defaultdict(int)
+    for case in curriculum.cases:
+        episode = case.episode
+        if "foundation_unicode_walk" not in episode.mechanism_tags:
+            raise ValueError("Unicode-walk curriculum contains a foreign motor-v2 case")
+        target = episode.targets[-1]
+        if target.payload_alignment is None:
+            continue
+        payload = target.payload or ""
+        width = len(encode_unicode_text(payload))
+        if width not in (2, 3, 4):
+            raise ValueError("Unicode-walk aligned payload is not multi-cell")
+        symbols[episode.split].add(payload)
+        widths[episode.split].add(width)
+        aligned_counts[episode.split] += 1
+    for split in _SPLITS:
+        if widths[split] != {2, 3, 4} or aligned_counts[split] < 6:
+            raise ValueError("every Unicode-walk split must cover 2/3/4-cell aligned payloads")
+    for split_a in _SPLITS:
+        for split_b in _SPLITS:
+            if split_a < split_b and not symbols[split_a].isdisjoint(symbols[split_b]):
+                raise ValueError("Unicode-walk scalar crosses data splits")
 
 
 def foundation_motor_v2_probe(
@@ -1043,9 +1206,11 @@ __all__ = [
     "FOUNDATION_MOTOR_V2_SOURCE_ID",
     "FOUNDATION_MOTOR_V2_STAGE",
     "FOUNDATION_MOTOR_V2_STAGE_ORDER",
+    "FOUNDATION_MOTOR_V2_UNICODE_WALK_SOURCE_ID",
     "apply_copy_alignment_multicell_teach_weights",
     "compile_foundation_motor",
     "compile_foundation_motor_v2",
+    "compile_foundation_motor_v2_unicode_walk",
     "decide_foundation_motor_mastery",
     "decide_foundation_motor_v2_stage",
     "foundation_motor_payload_transport_cells",
@@ -1059,4 +1224,5 @@ __all__ = [
     "oversample_multicell_copy_cases",
     "verify_foundation_motor_curriculum",
     "verify_foundation_motor_v2_curriculum",
+    "verify_foundation_motor_v2_unicode_walk_curriculum",
 ]

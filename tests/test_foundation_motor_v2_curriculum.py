@@ -16,11 +16,13 @@ from training.foundation_motor_curriculum import (
     FOUNDATION_MOTOR_V2_STAGE,
     apply_copy_alignment_multicell_teach_weights,
     compile_foundation_motor_v2,
+    compile_foundation_motor_v2_unicode_walk,
     foundation_motor_payload_transport_cells,
     foundation_motor_v2_action,
     foundation_motor_v2_stage_policy,
     oversample_multicell_copy_cases,
     verify_foundation_motor_v2_curriculum,
+    verify_foundation_motor_v2_unicode_walk_curriculum,
 )
 
 from ._short_tmp import short_state_root
@@ -121,6 +123,28 @@ def test_multicell_teach_overlay_does_not_change_program_identity() -> None:
     assert later == dict(foundation_motor_v2_stage_policy("transport_eos")["component_weights"])
     assert COPY_ALIGNMENT_MULTICELL_TEACH["alignment_position_reduction"] == "sum"
     assert canonical_sha256(FOUNDATION_MOTOR_V2_PROGRAM) == FOUNDATION_MOTOR_V2_PROGRAM_ID
+
+
+def test_unicode_walk_curriculum_has_honest_split_disjoint_multicell_exams() -> None:
+    curriculum = compile_foundation_motor_v2_unicode_walk(
+        identity_text=IDENTITY,
+        requested_counts=(("F0", (72, 36, 36)),),
+    )
+    verify_foundation_motor_v2_unicode_walk_curriculum(curriculum)
+    symbols: dict[str, set[str]] = defaultdict(set)
+    widths: dict[str, set[int]] = defaultdict(set)
+    for case in curriculum.cases:
+        target = case.episode.targets[-1]
+        if target.payload_alignment is None:
+            continue
+        symbols[case.episode.split].add(target.payload or "")
+        widths[case.episode.split].add(
+            foundation_motor_payload_transport_cells(case.episode)
+        )
+    assert all(widths[split] == {2, 3, 4} for split in ("train", "heldout", "regression"))
+    assert symbols["train"].isdisjoint(symbols["heldout"])
+    assert symbols["train"].isdisjoint(symbols["regression"])
+    assert symbols["heldout"].isdisjoint(symbols["regression"])
 
 
 def test_oversample_multicell_copy_cases_repeats_authored_multibyte_letters() -> None:

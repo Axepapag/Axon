@@ -19,20 +19,25 @@ from training.foundation_motor_curriculum import (  # noqa: E402
     DEFAULT_FOUNDATION_MOTOR_V2_SPLIT_COUNTS,
     compile_foundation_motor,
     compile_foundation_motor_v2,
+    compile_foundation_motor_v2_unicode_walk,
 )
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--state-root", type=Path, default=ROOT / "State")
-    parser.add_argument("--program", choices=("v1", "v2"), default="v1")
+    parser.add_argument(
+        "--program",
+        choices=("v1", "v2", "v2-unicode-walk"),
+        default="v1",
+    )
     parser.add_argument("--train", type=int, default=None)
     parser.add_argument("--heldout", type=int, default=None)
     parser.add_argument("--regression", type=int, default=None)
     args = parser.parse_args()
     defaults = (
         DEFAULT_FOUNDATION_MOTOR_V2_SPLIT_COUNTS[0][1]
-        if args.program == "v2"
+        if args.program in {"v2", "v2-unicode-walk"}
         else DEFAULT_FOUNDATION_MOTOR_SPLIT_COUNTS[0][1]
     )
     counts = (
@@ -46,7 +51,11 @@ def main() -> int:
         .region(LogicalRegion.IDENTITY)
         .text
     )
-    compiler = compile_foundation_motor_v2 if args.program == "v2" else compile_foundation_motor
+    compiler = {
+        "v1": compile_foundation_motor,
+        "v2": compile_foundation_motor_v2,
+        "v2-unicode-walk": compile_foundation_motor_v2_unicode_walk,
+    }[args.program]
     curriculum = compiler(
         identity_text=identity,
         requested_counts=(("F0", counts),),
