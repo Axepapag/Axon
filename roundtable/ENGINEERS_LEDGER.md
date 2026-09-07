@@ -1,27 +1,27 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-07T16:50:00Z
+Updated: 2026-09-07T17:13:24Z
 Current through event:
-`evt-20260907T165000000000Z-copilot-cli-jeff-soul-before-training`
+`evt-20260907T171324499504Z-copilot-cli-multicell-teach-launch`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
-Identity stamp: GitHub Copilot CLI / Grok 4.6 (grok-4.6) / 2026-09-06
+Identity stamp: GitHub Copilot CLI / Grok 4.6 (grok-4.6) / 2026-09-07
 
-Continuity note: FFN256 copy-alignment renewal completed and was fetched.
-Regression position did not move. No serving. No SOT change. Jeff prefers
-conversation over the roundtable.
+Continuity note: Jeff authorized training the same mixer kid on multi-cell
+copy. Overlay is live. Kaggle job is RUNNING. No serving. No SOT change.
+Jeff prefers conversation over the roundtable.
 
 ## Current mission and honest status
 
 The immediate objective is still **exact motor writing** on D64.
 
-Active evidence: mixer 1h/4L/FFN256 heldout copy-gate and position are 1.0
-after 120 steps. Regression position 0.667 is 8/12 transport cells: the
-core finds the first 16D cell of the source letter and does not walk
-UTF-8 continuation cells (`Ж`, `ñ`, `亰`). Heldout was all native 1-cell
-letters. Extra 60 steps lowered loss and did not teach the walk. Do not
-blindly spend a third tranche. Do not bump width. Do not serve.
+Parent evidence at step 120: heldout copy-gate and position 1.0. Regression
+position 0.667 is 8/12 transport cells — first-cell copy of `Ж`, `ñ`, `亰`.
+A teach overlay is now running for steps 121–180 on the same 1h/4L/FFN256
+candidate. Frozen: architecture, `FOUNDATION_MOTOR_V2_PROGRAM`, exam.
+Train-only overlay: sum position loss, copy-gate weight 0.25, oversample
+authored multi-cell letters. Do not bump width. Do not serve.
 
 ## Mixer lineage (non-serving)
 
@@ -30,12 +30,12 @@ blindly spend a third tranche. Do not bump width. Do not serve.
 | 1–60 FFN256 | `387a52eb…` | completed | 1.0 / 1.0 | 0.667 |
 | 1–60 FFN512 | `26302a3d…` | completed | 1.0 / 1.0 | 0.667 |
 | 61–120 FFN256 renewal | `c726a825…` | completed | 1.0 / 1.0 | 0.667 |
+| 121–180 multi-cell teach | `287787f8…` | RUNNING | pending | pending |
 
-Renewal report:
-`roundtable/reports/GROK_D64_MIXER_COPY_ALIGNMENT_RENEWAL_2026-09-06.md`
-
-Final renewal bundle:
-`2b4aa6dbadc4515a1ac2112eb963940161b1858c2f35bbbcfd3f062853584298`
+Teach source: `772cd614f9c3f16cc3b4b6f0c55d595df943ce73`
+Parent bundle: `2b4aa6dbadc4515a1ac2112eb963940161b1858c2f35bbbcfd3f062853584298`
+Job: `287787f863df48f36cde85e4d8f8db84e0b75f8a0469716aa28c6f8304191033`
+Kernel: `axongliksbot/axon-job-287787f863df48f3`
 
 ## Binding
 
@@ -45,6 +45,7 @@ Final renewal bundle:
 
 ## Next
 
-1. Teach multi-cell / byte-transport copy on D64 before another blind tranche.
-2. Do not start `transport_eos` until `copy_alignment` passes.
-3. Do not bump width. Do not serve.
+1. Monitor with `MONITOR_AXON_KAGGLE.bat` and the 64-hex job id only.
+2. Fetch when COMPLETE. Success is regression position 1.0 on 12 cells.
+3. Do not start `transport_eos` until `copy_alignment` passes.
+4. Do not bump width. Do not serve.
