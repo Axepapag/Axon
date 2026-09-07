@@ -36,6 +36,7 @@ from runtime.trainer import (
     cloud_bundle,
 )
 from training import (
+    COPY_ALIGNMENT_MULTICELL_TEACH,
     FOUNDATION_MOTOR_GATE_POLICY_ID,
     FOUNDATION_MOTOR_V2_PROGRAM_ID,
     FOUNDATION_MOTOR_V2_STAGE_ORDER,
@@ -48,6 +49,7 @@ from training import (
     candidate_a_config,
     d64_tournament_metric_computation,
     decide_foundation_motor_mastery,
+    apply_copy_alignment_multicell_teach_weights,
     decide_foundation_motor_v2_stage,
     decide_foundation_sequence_mastery,
     evaluate_living_episode,
@@ -62,6 +64,7 @@ from training import (
     is_foundation_sequence_episode,
     living_episode_objective,
     living_source_counterfactuals,
+    oversample_multicell_copy_cases,
     load_first_form_curriculum,
     load_sequential_first_form,
     sequential_living_objective,
@@ -256,6 +259,15 @@ def _arguments() -> argparse.Namespace:
         default=None,
         help="provider-neutral durable job identity used only for progress correlation",
     )
+    parser.add_argument(
+        "--teach-multicell-copy",
+        action="store_true",
+        help=(
+            "copy_alignment teaching overlay: sum position loss, stop paying "
+            "copy-gate 4x, and oversample authored multi-cell train letters. "
+            "Does not change program_id, architecture, or the heldout/regression exam."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -281,6 +293,7 @@ def _training_lanes(
     sequential_ffcs: list[Any],
     *,
     foundation_motor_v2_training_stage: str | None = None,
+    teach_multicell_copy: bool = False,
 ) -> tuple[tuple[str, tuple[tuple[str, Any, str], ...]], ...]:
     """Build deterministic family lanes without flattening sequential cases."""
 
@@ -316,6 +329,8 @@ def _training_lanes(
                     if is_foundation_motor_v2_episode(case.episode)
                     and foundation_motor_v2_action(case.episode) in eligible
                 )
+                if teach_multicell_copy and foundation_motor_v2_training_stage == "copy_alignment":
+                    cases = oversample_multicell_copy_cases(cases)
             lanes.append(
                 (
                     (
@@ -453,6 +468,7 @@ def _material_objective(
     core_id: str,
     parameter_generation: str,
     component_weights: dict[str, float] | None = None,
+    alignment_position_reduction: str = "mean",
 ) -> tuple[torch.Tensor, Any, tuple[dict[str, float], ...], tuple[Any, ...]]:
     """Run one scheduled lesson and return its complete Soul lineage."""
 
@@ -488,6 +504,7 @@ def _material_objective(
         core_id=core_id,
         parameter_generation=parameter_generation,
         component_weights=component_weights,
+        alignment_position_reduction=alignment_position_reduction,
     )
     return loss, unroll, phase_metrics, unroll.transitions
 
@@ -844,6 +861,15 @@ def main() -> int:
                             foundation_motor_v2_training_stage
                         )
                     ),
+                    "teach_multicell_copy": {
+                        "enabled": bool(args.teach_multicell_copy),
+                        **(
+                            dict(COPY_ALIGNMENT_MULTICELL_TEACH)
+                            if args.teach_multicell_copy
+                            and foundation_motor_v2_training_stage == "copy_alignment"
+                            else {}
+                        ),
+                    },
                 }
             )
             if foundation_motor_v2_program_complete_before_run and not args.evaluate_only:
@@ -1394,11 +1420,31 @@ def main() -> int:
         segment_receipt_ids = []
         ephemeral_soul = soul_branch.load_head()
         segment_start_soul = ephemeral_soul
+        train_component_weights = (
+            None
+            if foundation_motor_v2_training_stage is None
+            else dict(
+                foundation_motor_v2_stage_policy(foundation_motor_v2_training_stage)[
+                    "component_weights"
+                ]
+            )
+        )
+        train_position_reduction = "mean"
+        if args.teach_multicell_copy and foundation_motor_v2_training_stage is not None:
+            train_component_weights = apply_copy_alignment_multicell_teach_weights(
+                train_component_weights or {},
+                training_stage=foundation_motor_v2_training_stage,
+            )
+            if foundation_motor_v2_training_stage == "copy_alignment":
+                train_position_reduction = str(
+                    COPY_ALIGNMENT_MULTICELL_TEACH["alignment_position_reduction"]
+                )
         curriculum_lanes = _training_lanes(
             mechanism_curriculum,
             standard_ffcs,
             sequential_ffcs,
             foundation_motor_v2_training_stage=foundation_motor_v2_training_stage,
+            teach_multicell_copy=bool(args.teach_multicell_copy),
         )
         if not curriculum_lanes:  # pragma: no cover - mechanism always supplies train
             raise RuntimeError("governed campaign has no supervised training material")
@@ -1423,15 +1469,8 @@ def main() -> int:
                     soul=soul,
                     core_id=module_id,
                     parameter_generation=candidate_generation,
-                    component_weights=(
-                        None
-                        if foundation_motor_v2_training_stage is None
-                        else dict(
-                            foundation_motor_v2_stage_policy(
-                                foundation_motor_v2_training_stage
-                            )["component_weights"]
-                        )
-                    ),
+                    component_weights=train_component_weights,
+                    alignment_position_reduction=train_position_reduction,
                 )
                 captured.update(
                     {

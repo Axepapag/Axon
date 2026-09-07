@@ -14,6 +14,7 @@ from typing import Any, Mapping, Sequence
 
 from runtime.field import D64FieldCompiler, LogicalRegion, SharedFieldSnapshot, canonical_sha256
 from runtime.heart import ProposalPass, ReasoningDecision, ReasoningOperationKind
+from substrate import encode_unicode_text
 
 from .first_form_curriculum import FirstFormCase, FirstFormCurriculum, TeachingEligibility, _workspace
 from .living_reasoning_curriculum import LivingReasoningEpisode, LivingReasoningTarget
@@ -156,6 +157,17 @@ FOUNDATION_MOTOR_V2_PROGRAM = {
     "complete_field_coverage_rate": 1.0,
 }
 FOUNDATION_MOTOR_V2_PROGRAM_ID = canonical_sha256(FOUNDATION_MOTOR_V2_PROGRAM)
+# Teaching overlay only. Not part of FOUNDATION_MOTOR_V2_PROGRAM identity.
+# Same exam, same gates, same architecture; changes optimizer pressure.
+COPY_ALIGNMENT_MULTICELL_TEACH = {
+    "schema": "axon-foundation-motor-copy-alignment-multicell-teach-v1",
+    "alignment_position_reduction": "sum",
+    "component_weight_overrides": {
+        "alignment_position": 4.0,
+        "alignment_copy_gate": 0.25,
+    },
+    "oversample_multicell": True,
+}
 DEFAULT_FOUNDATION_MOTOR_V2_SPLIT_COUNTS: tuple[
     tuple[str, tuple[int, int, int]], ...
 ] = (("F0", (72, 36, 36)),)
@@ -674,6 +686,44 @@ def foundation_motor_v2_stage_policy(stage: str) -> Mapping[str, Any]:
     raise KeyError(stage)
 
 
+def foundation_motor_payload_transport_cells(episode: LivingReasoningEpisode) -> int:
+    payload = episode.targets[-1].payload or ""
+    return len(encode_unicode_text(payload)) if payload else 0
+
+
+def apply_copy_alignment_multicell_teach_weights(
+    weights: Mapping[str, float],
+    *,
+    training_stage: str,
+) -> dict[str, float]:
+    result = {key: float(value) for key, value in weights.items()}
+    if training_stage != "copy_alignment":
+        return result
+    result.update(COPY_ALIGNMENT_MULTICELL_TEACH["component_weight_overrides"])
+    return result
+
+
+def oversample_multicell_copy_cases(
+    cases: Sequence[FirstFormCase],
+) -> tuple[FirstFormCase, ...]:
+    """Repeat authored multi-cell letters until they fill half the training lane."""
+
+    ordered = tuple(cases)
+    single: list[FirstFormCase] = []
+    multi: list[FirstFormCase] = []
+    for case in ordered:
+        if foundation_motor_payload_transport_cells(case.episode) > 1:
+            multi.append(case)
+        else:
+            single.append(case)
+    if not multi:
+        return ordered
+    repeated = list(multi)
+    while len(repeated) < max(len(single), len(multi)):
+        repeated.extend(multi)
+    return tuple(single + repeated)
+
+
 def verify_foundation_motor_v2_curriculum(curriculum: FirstFormCurriculum) -> None:
     split_sources: dict[str, set[str]] = defaultdict(set)
     pairs: dict[tuple[str, str], list[str]] = defaultdict(list)
@@ -947,11 +997,13 @@ __all__ = [
     "FOUNDATION_MOTOR_GATE_POLICY_ID",
     "FOUNDATION_MOTOR_SOURCE_ID",
     "FOUNDATION_MOTOR_STAGE",
+    "COPY_ALIGNMENT_MULTICELL_TEACH",
     "FOUNDATION_MOTOR_V2_PROGRAM",
     "FOUNDATION_MOTOR_V2_PROGRAM_ID",
     "FOUNDATION_MOTOR_V2_SOURCE_ID",
     "FOUNDATION_MOTOR_V2_STAGE",
     "FOUNDATION_MOTOR_V2_STAGE_ORDER",
+    "apply_copy_alignment_multicell_teach_weights",
     "compile_foundation_motor",
     "compile_foundation_motor_v2",
     "decide_foundation_motor_mastery",
@@ -959,8 +1011,10 @@ __all__ = [
     "foundation_motor_probe",
     "foundation_motor_v2_action",
     "foundation_motor_v2_probe",
+    "foundation_motor_payload_transport_cells",
     "foundation_motor_v2_stage_policy",
     "is_foundation_motor_episode",
+    "oversample_multicell_copy_cases",
     "is_foundation_motor_v2_episode",
     "verify_foundation_motor_curriculum",
     "verify_foundation_motor_v2_curriculum",

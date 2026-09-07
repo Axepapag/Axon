@@ -301,6 +301,7 @@ class LivingReasoningCoreD64(CompleteField64D):
         memory: AddressableMemory,
         decoder_alignment: Mapping[str, torch.Tensor],
         specification: Mapping[str, Any],
+        position_reduction: str = "mean",
     ) -> dict[str, Any]:
         """Supervise exact source positions across Unicode transport expansion.
 
@@ -426,7 +427,16 @@ class LivingReasoningCoreD64(CompleteField64D):
             eos_gate_correct += int(
                 float(gate_logits[0, transport_count].item()) >= 0.0
             )
-        position_loss = torch.stack(position_losses).mean() if position_losses else zero
+        if not position_losses:
+            position_loss = zero
+        elif position_reduction == "mean":
+            position_loss = torch.stack(position_losses).mean()
+        elif position_reduction == "sum":
+            position_loss = torch.stack(position_losses).sum()
+        else:
+            raise ValueError(
+                f"unsupported alignment position reduction {position_reduction!r}"
+            )
         copy_gate_loss = (
             torch.stack(copy_gate_losses).mean() if copy_gate_losses else zero
         )

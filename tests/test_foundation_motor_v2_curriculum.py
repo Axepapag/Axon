@@ -6,12 +6,20 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+from runtime.field import canonical_sha256
 from runtime.heart import HeartHost
 from training.foundation_motor_curriculum import (
+    COPY_ALIGNMENT_MULTICELL_TEACH,
     FOUNDATION_MOTOR_ACTIONS,
+    FOUNDATION_MOTOR_V2_PROGRAM,
     FOUNDATION_MOTOR_V2_PROGRAM_ID,
     FOUNDATION_MOTOR_V2_STAGE,
+    apply_copy_alignment_multicell_teach_weights,
     compile_foundation_motor_v2,
+    foundation_motor_payload_transport_cells,
+    foundation_motor_v2_action,
+    foundation_motor_v2_stage_policy,
+    oversample_multicell_copy_cases,
     verify_foundation_motor_v2_curriculum,
 )
 
@@ -95,3 +103,47 @@ def test_compile_script_program_v2_publishes() -> None:
     assert result["program"] == "v2"
     assert result["case_count"] == 108
     assert Path(result["manifest_path"]).is_file()
+
+
+def test_multicell_teach_overlay_does_not_change_program_identity() -> None:
+    policy = foundation_motor_v2_stage_policy("copy_alignment")
+    taught = apply_copy_alignment_multicell_teach_weights(
+        policy["component_weights"],
+        training_stage="copy_alignment",
+    )
+    assert taught["alignment_position"] == 4.0
+    assert taught["alignment_copy_gate"] == 0.25
+    assert policy["component_weights"]["alignment_copy_gate"] == 4.0
+    later = apply_copy_alignment_multicell_teach_weights(
+        foundation_motor_v2_stage_policy("transport_eos")["component_weights"],
+        training_stage="transport_eos",
+    )
+    assert later == dict(foundation_motor_v2_stage_policy("transport_eos")["component_weights"])
+    assert COPY_ALIGNMENT_MULTICELL_TEACH["alignment_position_reduction"] == "sum"
+    assert canonical_sha256(FOUNDATION_MOTOR_V2_PROGRAM) == FOUNDATION_MOTOR_V2_PROGRAM_ID
+
+
+def test_oversample_multicell_copy_cases_repeats_authored_multibyte_letters() -> None:
+    curriculum = compile_foundation_motor_v2(
+        identity_text=IDENTITY,
+        requested_counts=(("F0", (72, 36, 36)),),
+    )
+    eligible = set(foundation_motor_v2_stage_policy("copy_alignment")["eligible_actions"])
+    train = tuple(
+        case
+        for case in curriculum.cases
+        if case.episode.split == "train"
+        and foundation_motor_v2_action(case.episode) in eligible
+    )
+    multi = tuple(
+        case
+        for case in train
+        if foundation_motor_payload_transport_cells(case.episode) > 1
+    )
+    assert len(multi) >= 1
+    taught = oversample_multicell_copy_cases(train)
+    assert all(case in taught for case in train)
+    assert taught.count(multi[0]) > train.count(multi[0])
+    assert sum(
+        1 for case in taught if foundation_motor_payload_transport_cells(case.episode) > 1
+    ) >= len(train) - len(multi)

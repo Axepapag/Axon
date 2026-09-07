@@ -223,6 +223,33 @@ def test_exact_alignment_supervises_every_multibyte_unicode_transport_cell() -> 
     assert supervision["gate_supervised_positions"] == 7
     assert supervision["position_loss"].isfinite()
     assert supervision["gate_loss"].isfinite()
+    summed = model.alignment_supervision(
+        target_text=target,
+        memory=output.complete_memory,
+        decoder_alignment=decoder_alignment,
+        specification={
+            "schema": "axon-r0-target-alignment-v1",
+            "segments": segments,
+            "supervise_eos_generate": True,
+        },
+        position_reduction="sum",
+    )
+    assert torch.allclose(
+        summed["position_loss"],
+        supervision["position_loss"] * supervision["copy_positions"],
+    )
+    with pytest.raises(ValueError, match="position reduction"):
+        model.alignment_supervision(
+            target_text=target,
+            memory=output.complete_memory,
+            decoder_alignment=decoder_alignment,
+            specification={
+                "schema": "axon-r0-target-alignment-v1",
+                "segments": segments,
+                "supervise_eos_generate": True,
+            },
+            position_reduction="all_cells",
+        )
 
 
 def test_free_decoder_resumes_exact_state_across_renewable_work_slices(

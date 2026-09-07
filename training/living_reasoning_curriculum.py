@@ -372,6 +372,7 @@ def living_phase_objective(
     target: LivingReasoningTarget,
     *,
     component_weights: Mapping[str, float] | None = None,
+    alignment_position_reduction: str = "mean",
 ) -> tuple[torch.Tensor, dict[str, float]]:
     weights: dict[str, float] | None = None
     if component_weights is not None:
@@ -436,6 +437,7 @@ def living_phase_objective(
             memory=output.complete_memory,
             decoder_alignment=decoder_alignment,
             specification=target.payload_alignment,
+            position_reduction=alignment_position_reduction,
         )
     payload_loss = sequence_cross_entropy(payload_logits, payload_targets)
     loss = (
@@ -501,6 +503,7 @@ def living_episode_objective(
     parameter_generation: str,
     ablate_temperatures: tuple[SoulTemperature, ...] = (),
     component_weights: Mapping[str, float] | None = None,
+    alignment_position_reduction: str = "mean",
 ) -> tuple[torch.Tensor, CausalLivingUnroll, tuple[dict[str, float], ...]]:
     compiled = D64FieldCompiler().compile(episode.snapshot)
     compiled.verify_roundtrip(episode.snapshot)
@@ -520,6 +523,7 @@ def living_episode_objective(
             output,
             target,
             component_weights=component_weights,
+            alignment_position_reduction=alignment_position_reduction,
         )
         for output, target in zip(unroll.outputs, episode.targets, strict=True)
     )
