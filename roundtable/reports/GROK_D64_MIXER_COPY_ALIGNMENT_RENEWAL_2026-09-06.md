@@ -41,8 +41,26 @@ Heldout position remains 1.0. EOS-gate remains 0.0 (not this stage).
 Free-running typed exact remains 0. Extra steps bought cheaper loss,
 not the missing dozen regression cases.
 
+## What the 0.667 actually is
+
+`copy_alignment` only *trains* copy/insert/replace. In a 36-case split
+that is 8 cases. Heldout's 8 are all native one-cell letters
+(`Q ] Z l k K v o`). Regression's 8 are `w 9 o k e` plus `Ж` (2 cells),
+`ñ` (2 cells), `亰` (3 cells) — 12 transport cells total.
+
+8/12 = 0.667. Pair position 0.5 is the two ASCII pairs passing and the
+two multi-cell pairs failing. Train steps that land on 3-cell symbols
+show position **0.333** in the renewal curve — first cell only.
+
+The core finds the start of the source scalar. It does not walk the
+extra 16D byte-transport cells. Falling loss did not teach the walk.
+Copy-gate is weighted 4× position.
+
+Free-running QA still emits empty `DELTA/REPLACE` payloads. That is a
+later lesson (`transport_eos`). This hole is pointer-width, not speech.
+
 ## Verdict
 
 Do not promote. Do not treat falling loss as motor mastery. Do not
-blindly spend a third copy_alignment tranche until those 12/36
-regression misses are diagnosed. Width is still not the next spend.
+blindly spend a third copy_alignment tranche. Next honest work is
+teaching multi-cell copy on the existing D64 rail, not a width bump.
