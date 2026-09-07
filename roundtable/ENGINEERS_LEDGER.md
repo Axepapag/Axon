@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-07T00:35:00Z
+Updated: 2026-09-07T01:27:00Z
 Current through event:
-`evt-20260907T003500000000Z-copilot-cli-jeff-copy-alignment-diagnosis`
+`evt-20260907T012700000000Z-copilot-cli-jeff-multicell-teach`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
