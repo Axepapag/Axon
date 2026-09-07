@@ -11,7 +11,13 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Sequence
 
-from .cloud_bundle import parse_sync_step_range, sha256_file, verify_and_extract
+from .cloud_bundle import (
+    SYNC_PAYLOAD_KEEP,
+    parse_sync_step_range,
+    prune_sync_payloads,
+    sha256_file,
+    verify_and_extract,
+)
 from .cloud_jobs import (
     CLOUD_JOB_RECORD_SCHEMA,
     CloudJobConfig,
@@ -26,6 +32,12 @@ CommandRunner = Callable[..., subprocess.CompletedProcess[str]]
 KAGGLE_GPU_MACHINE_SHAPE = "NvidiaTeslaT4"
 KAGGLE_DATASET_READY_ATTEMPTS = 24
 KAGGLE_DATASET_READY_INTERVAL_SECONDS = 2.0
+
+
+class SyncDatasetUnavailable(CloudPacketError):
+    """The optional mid-run sync dataset has not been published yet."""
+
+
 _LIVE_STATUS_RANK = {
     "running": 0,
     "queued": 1,
@@ -849,63 +861,94 @@ class KaggleTrainerAdapter:
         temp_root = Path(os.environ.get("TEMP") or tempfile.gettempdir()) / "axon_fetch"
         temp_root.mkdir(parents=True, exist_ok=True)
         temp_target = Path(tempfile.mkdtemp(prefix="axon_sync_", dir=temp_root))
-        self._run(
-            ("kaggle", "datasets", "download", "-d", dataset_ref, "-p", str(temp_target), "--unzip", "-o")
-        )
-        pulled: list[dict[str, Any]] = []
-        already_present: list[str] = []
-        for bundle_path in sorted(temp_target.glob("sync_*_steps_*_*.tar.gz")):
-            manifest_path = temp_target / bundle_path.name.replace(".tar.gz", ".sha256.json")
-            step_range = parse_sync_step_range(bundle_path.name)
-            name = bundle_path.name.replace(".tar.gz", "")
-            if step_range is None or not manifest_path.is_file():
-                raise CloudPacketError(f"sync dataset carries an incomplete bundle: {bundle_path.name}")
-            receipt_path = receipts_dir / f"{name}.json"
-            if receipt_path.is_file():
-                existing = json.loads(receipt_path.read_text(encoding="utf-8"))
-                if existing.get("archive_sha256") == sha256_file(bundle_path):
-                    already_present.append(bundle_path.name)
-                    continue
-                raise CloudPacketError(f"a different bundle already occupies {name}")
-            report = verify_and_extract(
-                bundle_path,
-                manifest_path,
-                members_dir,
-                quarantine_root=sync_root / "quarantine",
-            )
-            if not report["ok"]:
-                raise CloudPacketError(
-                    "sync bundle failed hash verification and was quarantined: "
-                    f"{report['quarantine_dir']} ({'; '.join(report['mismatches'])})"
+        try:
+            try:
+                self._run(
+                    (
+                        "kaggle",
+                        "datasets",
+                        "download",
+                        "-d",
+                        dataset_ref,
+                        "-p",
+                        str(temp_target),
+                        "--unzip",
+                        "-o",
+                    )
                 )
-            if report.get("job_id") != job_id:
-                raise CloudPacketError("sync bundle belongs to another Axon job")
-            bundles_dir.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(bundle_path), str(bundles_dir / bundle_path.name))
-            shutil.move(str(manifest_path), str(bundles_dir / manifest_path.name))
-            manifest_doc = json.loads((bundles_dir / manifest_path.name).read_text(encoding="utf-8"))
-            receipt = {
-                "schema": "axon-mid-run-sync-local-receipt-v1",
+            except CloudPacketError as exc:
+                message = str(exc).lower()
+                if any(
+                    marker in message
+                    for marker in ("404", "not found", "does not exist", "no such dataset")
+                ):
+                    raise SyncDatasetUnavailable(
+                        f"mid-run sync dataset is not available yet: {dataset_ref}"
+                    ) from exc
+                raise
+            pulled: list[dict[str, Any]] = []
+            already_present: list[str] = []
+            for bundle_path in sorted(temp_target.glob("sync_*_steps_*_*.tar.gz")):
+                manifest_path = temp_target / bundle_path.name.replace(
+                    ".tar.gz", ".sha256.json"
+                )
+                step_range = parse_sync_step_range(bundle_path.name)
+                name = bundle_path.name.replace(".tar.gz", "")
+                if step_range is None or not manifest_path.is_file():
+                    raise CloudPacketError(
+                        f"sync dataset carries an incomplete bundle: {bundle_path.name}"
+                    )
+                receipt_path = receipts_dir / f"{name}.json"
+                if receipt_path.is_file():
+                    existing = json.loads(receipt_path.read_text(encoding="utf-8"))
+                    if existing.get("archive_sha256") == sha256_file(bundle_path):
+                        already_present.append(bundle_path.name)
+                        continue
+                    raise CloudPacketError(f"a different bundle already occupies {name}")
+                report = verify_and_extract(
+                    bundle_path,
+                    manifest_path,
+                    members_dir,
+                    quarantine_root=sync_root / "quarantine",
+                )
+                if not report["ok"]:
+                    raise CloudPacketError(
+                        "sync bundle failed hash verification and was quarantined: "
+                        f"{report['quarantine_dir']} ({'; '.join(report['mismatches'])})"
+                    )
+                if report.get("job_id") != job_id:
+                    raise CloudPacketError("sync bundle belongs to another Axon job")
+                bundles_dir.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(bundle_path), str(bundles_dir / bundle_path.name))
+                shutil.move(str(manifest_path), str(bundles_dir / manifest_path.name))
+                manifest_doc = json.loads(
+                    (bundles_dir / manifest_path.name).read_text(encoding="utf-8")
+                )
+                receipt = {
+                    "schema": "axon-mid-run-sync-local-receipt-v1",
+                    "job_id": job_id,
+                    "dataset_ref": dataset_ref,
+                    "bundle_name": bundle_path.name,
+                    "step_range": list(step_range),
+                    "archive_sha256": manifest_doc["archive_sha256"],
+                    "member_count": report["member_count"],
+                    "observation_only": True,
+                }
+                _atomic_json(receipt_path, receipt)
+                pulled.append(receipt)
+            retention = prune_sync_payloads(sync_root, keep=SYNC_PAYLOAD_KEEP)
+            return {
+                "schema": "axon-mid-run-sync-pull-v1",
                 "job_id": job_id,
-                "dataset_ref": dataset_ref,
-                "bundle_name": bundle_path.name,
-                "step_range": list(step_range),
-                "archive_sha256": manifest_doc["archive_sha256"],
-                "member_count": report["member_count"],
+                "sync_dataset_ref": dataset_ref,
+                "sync_root": str(sync_root),
+                "pulled": pulled,
+                "already_present": already_present,
+                "payload_retention": retention,
                 "observation_only": True,
             }
-            _atomic_json(receipt_path, receipt)
-            pulled.append(receipt)
-        shutil.rmtree(temp_target, ignore_errors=True)
-        return {
-            "schema": "axon-mid-run-sync-pull-v1",
-            "job_id": job_id,
-            "sync_dataset_ref": dataset_ref,
-            "sync_root": str(sync_root),
-            "pulled": pulled,
-            "already_present": already_present,
-            "observation_only": True,
-        }
+        finally:
+            shutil.rmtree(temp_target, ignore_errors=True)
 
     def sync_status(self, job_id: str, *, rehash: bool = True) -> dict[str, Any]:
         """Report which synced step ranges are locally verified.
@@ -923,6 +966,24 @@ class KaggleTrainerAdapter:
         verified_ranges: list[list[int]] = []
         mismatches: list[str] = []
         member_total = 0
+        released_ranges: list[list[int]] = []
+        retention_keep = SYNC_PAYLOAD_KEEP
+        retention_path = sync_root / "payload_retention.json"
+        released_set: set[tuple[int, int]] = set()
+        if retention_path.is_file():
+            try:
+                retention = json.loads(retention_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                retention = {}
+            if isinstance(retention, dict):
+                if isinstance(retention.get("keep"), int) and retention["keep"] >= 1:
+                    retention_keep = int(retention["keep"])
+                for item in retention.get("released_ranges") or []:
+                    if isinstance(item, list) and len(item) == 2:
+                        start, end = int(item[0]), int(item[1])
+                        released_set.add((start, end))
+                        released_ranges.append([start, end])
+        released_ranges.sort()
         if receipts_dir.is_dir():
             for receipt_path in sorted(receipts_dir.glob("sync_*_steps_*_*.json")):
                 # A receipt that does not parse flags the range, never skips it.
@@ -936,6 +997,8 @@ class KaggleTrainerAdapter:
                     mismatches.append(f"unparseable sync receipt: {receipt_path.name}")
                     continue
                 start, end = step_range
+                if (start, end) in released_set:
+                    continue
                 manifest_path = bundles_dir / f"sync_{job_id}_steps_{start}_{end}.sha256.json"
                 if not manifest_path.is_file():
                     mismatches.append(f"sync manifest missing for steps {start}-{end}")
@@ -972,6 +1035,8 @@ class KaggleTrainerAdapter:
             "verified_ranges": verified_ranges,
             "verified_through_step": verified_through,
             "verified_member_count": member_total,
+            "released_ranges": released_ranges,
+            "payload_keep": retention_keep,
             "rehashed": rehash,
             "mismatches": mismatches,
             "quarantined": quarantined,

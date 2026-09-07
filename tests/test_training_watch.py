@@ -84,6 +84,36 @@ def test_motor_v2_copy_metrics_and_recent_steps_are_visible():
     assert "position 0.667" in rendered
     assert "121" in rendered and "0.420" in rendered
     assert "copy_alignment" in rendered
+    assert "sync:" not in rendered
+
+
+def test_sync_dashboard_reports_verified_windows_and_disabled_recipe():
+    watcher = _watcher()
+    watcher.note_sync(
+        enabled=True,
+        verified_through_step=45,
+        verified_ranges=[[16, 30], [31, 45]],
+        released_ranges=[[1, 15]],
+        pulled=1,
+    )
+    rendered = watcher.render()
+    assert "verified through step 45" in rendered
+    assert "kept 2/3 windows" in rendered
+    assert "released 1 older payloads" in rendered
+    watcher.note_sync(enabled=False, waiting="recipe did not enable mid-run checkpoint uploads")
+    assert "did not enable mid-run checkpoint uploads" in watcher.render()
+
+
+def test_axon_sync_kernel_receipt_is_visible_on_the_dashboard():
+    watcher = _watcher()
+    watcher.consume(
+        {
+            "schema": "axon-mid-run-sync-receipt-v1",
+            "status": "uploaded",
+            "details": {"step_range": [16, 30]},
+        }
+    )
+    assert "uploaded steps 16-30" in watcher.render()
 
 
 def test_runner_failure_is_visible_even_before_first_training_event():

@@ -19,11 +19,13 @@ import pytest
 
 from runtime.trainer import cloud_bundle
 from runtime.trainer.cloud_bundle import (
+    SYNC_PAYLOAD_KEEP,
     CloudBundleError,
     KaggleDatasetUploader,
     MidRunSyncHook,
     SyncCredentialsMissing,
     parse_sync_step_range,
+    prune_sync_payloads,
     verify_and_extract,
     write_bundle,
 )
@@ -34,6 +36,7 @@ from runtime.trainer.cloud_jobs import (
     write_job_record,
 )
 from runtime.trainer.kaggle_adapter import KaggleTrainerAdapter, _runner_source
+from scripts.axon_training_watch import Watcher, apply_sync_pull
 
 # 32 hex chars keep paths short enough for deep pytest temp dirs on Windows
 # (real job ids are 64 chars; the logic is length-independent).
@@ -571,6 +574,8 @@ def test_sync_pull_verifies_extracts_and_is_idempotent(tmp_path) -> None:
     again = adapter.sync_pull(JOB_ID)
     assert again["pulled"] == []
     assert again["already_present"] == [bundle.name]
+    assert again["payload_retention"]["keep"] == SYNC_PAYLOAD_KEEP
+    assert again["payload_retention"]["kept_ranges"] == [[361, 390]]
 
 
 def test_sync_status_reports_verified_ranges_and_quarantine(tmp_path) -> None:
@@ -606,12 +611,110 @@ def test_sync_status_reports_verified_ranges_and_quarantine(tmp_path) -> None:
     assert status["mismatches"] == []
     assert status["quarantined"] == [f"sync_{JOB_ID}_steps_61_90.tar.gz.1"]
     assert status["observation_only"] is True
+    assert status["released_ranges"] == []
+    assert status["payload_keep"] == SYNC_PAYLOAD_KEEP
 
     # A tampered member is flagged by rehash, never silently trusted.
     (members_dir / "checkpoints" / "c60.pt").write_text("tampered\n", encoding="utf-8")
     degraded = adapter.sync_status(JOB_ID)
     assert degraded["verified_ranges"] == [[1, 30]]
     assert any("31-60" in item for item in degraded["mismatches"])
+
+
+def test_sync_payload_retention_releases_older_than_three_windows(tmp_path) -> None:
+    state = tmp_path / "State"
+    _job(state)
+    adapter = _adapter(tmp_path, state, _FakeKaggle())
+    sync_root = state / "training" / "cloud" / "jobs" / JOB_ID / "sync"
+    for start, end in ((1, 15), (16, 30), (31, 45), (46, 60)):
+        source = tmp_path / f"src{end}"
+        members = _members(source, {f"checkpoints/c{end}.pt": f"bytes-{end}\n"})
+        bundles_dir = sync_root / "bundles"
+        members_dir = sync_root / "members"
+        receipts_dir = sync_root / "receipts"
+        bundles_dir.mkdir(parents=True, exist_ok=True)
+        bundle = bundles_dir / f"sync_{JOB_ID}_steps_{start}_{end}.tar.gz"
+        manifest = bundles_dir / f"sync_{JOB_ID}_steps_{start}_{end}.sha256.json"
+        document = write_bundle(bundle, manifest, members, kind="mid_run_sync", job_id=JOB_ID)
+        for arcname, path in members:
+            target = members_dir / Path(*arcname.split("/"))
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(path.read_bytes())
+        receipts_dir.mkdir(parents=True, exist_ok=True)
+        (receipts_dir / f"sync_{JOB_ID}_steps_{start}_{end}.json").write_text(
+            json.dumps(
+                {
+                    "schema": "axon-mid-run-sync-local-receipt-v1",
+                    "job_id": JOB_ID,
+                    "bundle_name": bundle.name,
+                    "step_range": [start, end],
+                    "archive_sha256": document["archive_sha256"],
+                    "observation_only": True,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    retention = prune_sync_payloads(sync_root, keep=3)
+    assert retention["released_ranges"] == [[1, 15]]
+    assert retention["kept_ranges"] == [[16, 30], [31, 45], [46, 60]]
+    members_dir = sync_root / "members" / "checkpoints"
+    assert not (members_dir / "c15.pt").is_file()
+    assert (members_dir / "c30.pt").read_text(encoding="utf-8") == "bytes-30\n"
+    assert not (sync_root / "bundles" / f"sync_{JOB_ID}_steps_1_15.tar.gz").is_file()
+    assert (sync_root / "bundles" / f"sync_{JOB_ID}_steps_1_15.sha256.json").is_file()
+    assert (sync_root / "receipts" / f"sync_{JOB_ID}_steps_1_15.json").is_file()
+
+    status = adapter.sync_status(JOB_ID)
+    assert status["released_ranges"] == [[1, 15]]
+    assert status["verified_ranges"] == [[16, 30], [31, 45], [46, 60]]
+    assert status["verified_through_step"] == 60
+    assert status["mismatches"] == []
+
+
+def test_apply_sync_pull_skips_jobs_without_sync_flag(tmp_path) -> None:
+    state = tmp_path / "State"
+    _job(state)
+    watcher = Watcher(window=8, show_qa=False, transcript_lines=1)
+    result = apply_sync_pull(JOB_ID, watcher, state_root=state)
+    assert result["skipped"] is True
+    assert watcher.sync_enabled is False
+    assert "did not enable mid-run checkpoint uploads" in watcher.render()
+
+
+def test_apply_sync_pull_treats_missing_dataset_as_waiting(tmp_path) -> None:
+    state = tmp_path / "State"
+    _job(state, sync_mid_run=True, sync_dataset_ref="axongliksbot/axon-job-abababab-sync")
+
+    class FailKaggle(_FakeKaggle):
+        def __call__(self, argv, *, cwd=None, capture_output=True):
+            command = tuple(str(item) for item in argv)
+            if command[:3] == ("kaggle", "datasets", "download"):
+                return subprocess.CompletedProcess(command, 1, stdout="", stderr="404 Not Found")
+            return super().__call__(argv, cwd=cwd, capture_output=capture_output)
+
+    adapter = _adapter(tmp_path, state, FailKaggle())
+    watcher = Watcher(window=8, show_qa=False, transcript_lines=1)
+    result = apply_sync_pull(JOB_ID, watcher, adapter=adapter)
+    assert result["waiting"] is True
+    assert "waiting for first checkpoint upload" in watcher.render()
+
+
+def test_apply_sync_pull_surfaces_integrity_failure_as_fatal(tmp_path) -> None:
+    state = tmp_path / "State"
+    _job(state, sync_mid_run=True, sync_dataset_ref="axongliksbot/axon-job-abababab-sync")
+
+    class CorruptSyncAdapter:
+        state_root = state
+
+        def sync_pull(self, job_id):
+            raise CloudPacketError("sync bundle failed hash verification")
+
+    watcher = Watcher(window=8, show_qa=False, transcript_lines=1)
+    result = apply_sync_pull(JOB_ID, watcher, adapter=CorruptSyncAdapter())
+    assert result["fatal"] is True
+    assert watcher.status == "failed"
+    assert "sync integrity/provider failure" in watcher.render()
 
 
 # ── config flag, launch metadata, generated runner ──────────────────────────

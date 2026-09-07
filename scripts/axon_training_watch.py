@@ -22,12 +22,15 @@ import json
 import os
 import subprocess
 import sys
+import threading
 import time
 from collections import Counter, deque
 from pathlib import Path
 from typing import Any, Iterable
 
 ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 DEFAULT_STATE = ROOT / "State"
 PYTHON = sys.executable or "python"
 
@@ -142,10 +145,51 @@ class Watcher:
         self.event_count = 0
         self.seen_event_ids: set[str] = set()
         self.error = None
+        self._lock = threading.Lock()
+        self.sync_enabled: bool | None = None
+        self.sync_waiting: str | None = None
+        self.sync_verified_through: int | None = None
+        self.sync_verified_ranges: list[list[int]] = []
+        self.sync_released_ranges: list[list[int]] = []
+        self.sync_last_pulled = 0
+        self.sync_kernel_note: str | None = None
+        self.sync_error_type: str | None = None
 
     # -- ingestion ------------------------------------------------------------
 
     def consume(self, payload: dict[str, Any]) -> None:
+        with self._lock:
+            self._consume_unlocked(payload)
+
+    def note_sync(
+        self,
+        *,
+        enabled: bool,
+        waiting: str | None = None,
+        verified_through_step: int | None = None,
+        verified_ranges: list[list[int]] | None = None,
+        released_ranges: list[list[int]] | None = None,
+        pulled: int = 0,
+        error_type: str | None = None,
+        failed: bool = False,
+    ) -> None:
+        """Observation-only sync dashboard fields. Never continuation authority."""
+
+        with self._lock:
+            self.sync_enabled = enabled
+            self.sync_waiting = waiting
+            if verified_through_step is not None:
+                self.sync_verified_through = verified_through_step
+            if verified_ranges is not None:
+                self.sync_verified_ranges = list(verified_ranges)
+            if released_ranges is not None:
+                self.sync_released_ranges = list(released_ranges)
+            self.sync_last_pulled = int(pulled)
+            self.sync_error_type = error_type
+            if failed:
+                self.status = "failed"
+
+    def _consume_unlocked(self, payload: dict[str, Any]) -> None:
         # Kaggle's live stream can replay the same event (including on reconnect).
         # Never count replayed checkpoints, samples, or steps as new work.
         event_id = payload.get("event_id")
@@ -244,6 +288,12 @@ class Watcher:
         elif schema == "axon-training-qa-event-v1":
             self.status = self.status if self.status != "waiting" else "training"
             self.render_qa_line(details)
+        elif schema == "axon-mid-run-sync-receipt-v1":
+            rng = details.get("step_range")
+            range_text = ""
+            if isinstance(rng, list) and len(rng) == 2:
+                range_text = f" steps {rng[0]}-{rng[1]}"
+            self.sync_kernel_note = f"{status or 'sync'}{range_text}"
 
     def _consume_evaluated(self, details: dict[str, Any]) -> None:
         """Detailed evaluation snapshot (loss/accuracy/QA) after a full pass."""
@@ -321,6 +371,10 @@ class Watcher:
     # -- rendering ------------------------------------------------------------
 
     def render(self) -> str:
+        with self._lock:
+            return self._render_unlocked()
+
+    def _render_unlocked(self) -> str:
         lines: list[str] = []
         title = "AXON TRAINING WATCH"
         lines.append(_color("=" * 74, CYAN))
@@ -398,6 +452,28 @@ class Watcher:
             lines.extend(list(self.recent_steps)[-5:])
         if self.last_checkpoint:
             lines.append(f" last checkpoint: {_short(self.last_checkpoint, 16)}")
+        if self.sync_enabled is False:
+            lines.append(_color(" sync: recipe did not enable mid-run checkpoint uploads", DIM))
+        elif self.sync_enabled:
+            bits = [" sync:"]
+            if self.sync_verified_through is not None:
+                bits.append(f"verified through step {self.sync_verified_through}")
+                bits.append(f"kept {len(self.sync_verified_ranges)}/3 windows")
+            if self.sync_released_ranges:
+                bits.append(f"released {len(self.sync_released_ranges)} older payloads")
+            if self.sync_last_pulled:
+                bits.append(f"new +{self.sync_last_pulled}")
+            if self.sync_waiting:
+                bits.append(self.sync_waiting)
+            if self.sync_kernel_note:
+                bits.append(f"kernel {self.sync_kernel_note}")
+            if self.sync_error_type:
+                bits.append(_color(self.sync_error_type, YELLOW))
+            if len(bits) == 1:
+                bits.append("waiting for first checkpoint upload")
+            lines.append("  ".join(bits))
+        elif self.sync_kernel_note:
+            lines.append(f" sync kernel: {self.sync_kernel_note}")
         if self.runner_lines:
             lines.append(_color(" runner:", DIM))
             lines.extend(list(self.runner_lines)[-4:])
@@ -469,7 +545,7 @@ def _iter_progress_lines(handle) -> Iterable[str]:
         line = line.strip()
         if not line:
             continue
-        if any(marker in line for marker in ("AXON_PROGRESS", "AXON_QA", "AXON_KAGGLE")):
+        if any(marker in line for marker in ("AXON_PROGRESS", "AXON_QA", "AXON_KAGGLE", "AXON_SYNC")):
             start = line.find("{")
             if start < 0:
                 continue
@@ -519,7 +595,133 @@ def _follow_local(path: Path, watcher: Watcher, poll_seconds: float) -> int:
                     time.sleep(0.2)
 
 
-def _follow_kaggle(kernel_ref: str, watcher: Watcher) -> int:
+def job_enables_mid_run_sync(job_id: str, *, state_root: Path = DEFAULT_STATE) -> bool:
+    """True when this job opted into observation-only mid-run checkpoint uploads."""
+
+    record_path = state_root / "training" / "cloud" / "jobs" / job_id / "job.json"
+    if record_path.is_file():
+        try:
+            record = json.loads(record_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            record = {}
+        if isinstance(record, dict) and (record.get("sync_mid_run") or record.get("sync_dataset_ref")):
+            return True
+    manifest_path = state_root / "training" / "cloud" / "jobs" / job_id / "packet_manifest.json"
+    if manifest_path.is_file():
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            manifest = {}
+        config = manifest.get("config") if isinstance(manifest, dict) else None
+        if isinstance(config, dict) and config.get("sync_mid_run"):
+            return True
+    return False
+
+
+def apply_sync_pull(
+    job_id: str,
+    watcher: Watcher,
+    *,
+    adapter: Any | None = None,
+    state_root: Path | None = None,
+) -> dict[str, Any]:
+    """One observation-only pull + payload retention. Missing dataset is waiting."""
+
+    from runtime.trainer.cloud_jobs import CloudPacketError
+    from runtime.trainer.kaggle_adapter import KaggleTrainerAdapter, SyncDatasetUnavailable
+
+    if adapter is not None:
+        root = Path(adapter.state_root)
+    elif state_root is not None:
+        root = Path(state_root)
+    else:
+        root = DEFAULT_STATE
+    if not job_enables_mid_run_sync(job_id, state_root=root):
+        watcher.note_sync(
+            enabled=False,
+            waiting="recipe did not enable mid-run checkpoint uploads",
+        )
+        return {"skipped": True, "reason": "sync_mid_run_disabled"}
+    if adapter is None:
+        adapter = KaggleTrainerAdapter(repo_root=ROOT, state_root=root)
+    try:
+        pulled = adapter.sync_pull(job_id)
+        status = adapter.sync_status(job_id, rehash=False)
+    except SyncDatasetUnavailable:
+        if watcher.sync_verified_through is None:
+            watcher.note_sync(enabled=True, waiting="waiting for first checkpoint upload")
+        else:
+            watcher.note_sync(
+                enabled=True,
+                waiting="waiting on next Kaggle dataset version",
+                verified_through_step=watcher.sync_verified_through,
+                verified_ranges=list(watcher.sync_verified_ranges),
+                released_ranges=list(watcher.sync_released_ranges),
+            )
+        return {"waiting": True}
+    except CloudPacketError as exc:
+        watcher.note_sync(
+            enabled=True,
+            waiting="sync integrity/provider failure",
+            error_type=type(exc).__name__,
+            failed=True,
+        )
+        return {"fatal": True, "error_type": type(exc).__name__, "error": str(exc)}
+    except Exception as exc:
+        watcher.note_sync(
+            enabled=True,
+            waiting="sync poll failure",
+            error_type=type(exc).__name__,
+            failed=True,
+        )
+        return {"fatal": True, "error_type": type(exc).__name__, "error": str(exc)}
+    waiting = None
+    if not status.get("verified_ranges"):
+        waiting = "waiting for first checkpoint upload"
+    watcher.note_sync(
+        enabled=True,
+        waiting=waiting,
+        verified_through_step=status.get("verified_through_step"),
+        verified_ranges=list(status.get("verified_ranges") or []),
+        released_ranges=list(status.get("released_ranges") or []),
+        pulled=len(pulled.get("pulled") or []),
+    )
+    return pulled
+
+
+def _sync_poll_loop(
+    job_id: str,
+    watcher: Watcher,
+    interval: float,
+    redraw,
+    stop: threading.Event,
+) -> None:
+    from runtime.trainer.kaggle_adapter import KaggleTrainerAdapter
+
+    if not job_enables_mid_run_sync(job_id):
+        apply_sync_pull(job_id, watcher)
+        redraw()
+        return
+    adapter = KaggleTrainerAdapter(repo_root=ROOT, state_root=DEFAULT_STATE)
+    first = True
+    while not stop.is_set():
+        if not first and stop.wait(interval):
+            break
+        first = False
+        result = apply_sync_pull(job_id, watcher, adapter=adapter)
+        redraw()
+        if result.get("fatal"):
+            break
+
+
+def _follow_kaggle(
+    kernel_ref: str,
+    watcher: Watcher,
+    *,
+    job_id: str | None = None,
+    sync_poll: bool = True,
+    sync_interval: float = 30.0,
+) -> int:
     print(f"source: kaggle live log stream ({kernel_ref})")
     argv = ["kaggle", "kernels", "logs", "-f", kernel_ref]
     process = subprocess.Popen(
@@ -532,24 +734,45 @@ def _follow_kaggle(kernel_ref: str, watcher: Watcher) -> int:
         cwd=str(ROOT),
     )
     assert process.stdout is not None
-    for line in process.stdout:
-        if any(marker in line for marker in ("AXON_PROGRESS", "AXON_QA", "AXON_KAGGLE")):
-            start = line.find("{")
-            if start < 0:
-                continue
-            try:
-                payload = json.loads(line[start:])
-            except json.JSONDecodeError:
-                continue
-            if isinstance(payload, dict):
-                watcher.consume(payload)
-                print("\033[2J\033[H", end="")
-                print(watcher.render())
-        else:
-            # Provider/authentication/traceback diagnostics must not disappear
-            # just because the trainer never managed to emit a progress event.
-            print(line, end="", flush=True)
-    return process.wait()
+    stop = threading.Event()
+    render_lock = threading.Lock()
+
+    def redraw() -> None:
+        with render_lock:
+            print("\033[2J\033[H", end="")
+            print(watcher.render(), flush=True)
+
+    poller = None
+    if sync_poll and job_id:
+        poller = threading.Thread(
+            target=_sync_poll_loop,
+            args=(job_id, watcher, max(5.0, float(sync_interval)), redraw, stop),
+            daemon=True,
+            name="axon-sync-poll",
+        )
+        poller.start()
+    try:
+        for line in process.stdout:
+            if any(marker in line for marker in ("AXON_PROGRESS", "AXON_QA", "AXON_KAGGLE", "AXON_SYNC")):
+                start = line.find("{")
+                if start < 0:
+                    continue
+                try:
+                    payload = json.loads(line[start:])
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(payload, dict):
+                    watcher.consume(payload)
+                    redraw()
+            else:
+                # Provider/authentication/traceback diagnostics must not disappear
+                # just because the trainer never managed to emit a progress event.
+                print(line, end="", flush=True)
+        return process.wait()
+    finally:
+        stop.set()
+        if poller is not None:
+            poller.join(timeout=2.0)
 
 
 def _replay_local(path: Path, watcher: Watcher, *, follow: bool, poll_seconds: float) -> int:
@@ -617,6 +840,8 @@ def follow_job(
     replay: bool = False,
     poll: float = 2.0,
     qa_lines: int = 12,
+    sync_poll: bool = True,
+    sync_interval: float = 30.0,
 ) -> int:
     watcher = Watcher(
         window=max(5, steps),
@@ -636,7 +861,13 @@ def follow_job(
             return _replay_local(path, watcher, follow=True, poll_seconds=poll)
         return _follow_local(path, watcher, poll)
     kernel_ref = kernel or _resolve_kernel_ref(job_id)
-    return _follow_kaggle(kernel_ref, watcher)
+    return _follow_kaggle(
+        kernel_ref,
+        watcher,
+        job_id=job_id,
+        sync_poll=sync_poll,
+        sync_interval=sync_interval,
+    )
 
 
 def main() -> int:
@@ -649,6 +880,17 @@ def main() -> int:
     parser.add_argument("--qa", action="store_true", help="show Soul Q/A transcripts when the trainer emits them")
     parser.add_argument("--qa-lines", type=int, default=12, help="transcript lines to keep on screen")
     parser.add_argument("--poll", type=float, default=2.0, help="local tail poll seconds")
+    parser.add_argument(
+        "--no-sync-poll",
+        action="store_true",
+        help="do not auto-download mid-run checkpoint windows while following",
+    )
+    parser.add_argument(
+        "--sync-interval",
+        type=float,
+        default=30.0,
+        help="seconds between observation-only sync pulls (default 30)",
+    )
     args = parser.parse_args()
     return follow_job(
         args.job_id,
@@ -659,6 +901,8 @@ def main() -> int:
         replay=args.replay,
         poll=args.poll,
         qa_lines=args.qa_lines,
+        sync_poll=not args.no_sync_poll,
+        sync_interval=args.sync_interval,
     )
 
 

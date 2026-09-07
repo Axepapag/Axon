@@ -34,7 +34,10 @@ from typing import Any, Iterable, Mapping
 CLOUD_BUNDLE_MANIFEST_SCHEMA = "axon-cloud-bundle-manifest-v1"
 CLOUD_BUNDLE_REPORT_SCHEMA = "axon-cloud-bundle-verification-v1"
 SYNC_RECEIPT_SCHEMA = "axon-mid-run-sync-receipt-v1"
+SYNC_PAYLOAD_RETENTION_SCHEMA = "axon-mid-run-sync-payload-retention-v1"
 SYNC_SECRET_LABEL = "AXON_KAGGLE_SYNC"
+SYNC_PAYLOAD_KEEP = 3
+"""Observation payload windows retained locally (receipts and manifests stay)."""
 # Fixed archive epoch, matching the packet ZIP convention in cloud_jobs.py.
 _ARCHIVE_EPOCH = 1767225600  # 2026-01-01T00:00:00Z
 
@@ -671,3 +674,110 @@ def parse_sync_step_range(name: str) -> tuple[int, int] | None:
     except ValueError:
         return None
     return (start, end) if start <= end else None
+
+
+def _sync_job_id_from_name(name: str) -> str:
+    """Recover the job id from a ``sync_<job>_steps_<a>_<b>`` filename."""
+
+    stem = Path(name).name
+    for suffix in (".tar.gz", ".sha256.json", ".json"):
+        if stem.endswith(suffix):
+            stem = stem[: -len(suffix)]
+            break
+    if not stem.startswith("sync_") or "_steps_" not in stem:
+        return ""
+    return stem[len("sync_") :].rsplit("_steps_", 1)[0]
+
+
+def prune_sync_payloads(
+    sync_root: Path | str,
+    *,
+    keep: int = SYNC_PAYLOAD_KEEP,
+) -> dict[str, Any]:
+    """Release observation payload bytes older than the last ``keep`` windows.
+
+    Receipts and manifests remain. This is disk paging of mid-run evidence,
+    never a tissue ceiling and never continuation authority. Canonical
+    ``checkpoint_records`` and accepted bundles are not in this tree and are
+    never touched.
+    """
+
+    if isinstance(keep, bool) or not isinstance(keep, int) or keep < 1:
+        raise ValueError("keep must be a positive integer")
+    root = Path(sync_root)
+    receipts_dir = root / "receipts"
+    bundles_dir = root / "bundles"
+    members_dir = root / "members"
+    items: list[tuple[list[int], str, dict[str, Any], Path]] = []
+    if receipts_dir.is_dir():
+        for path in sorted(receipts_dir.glob("sync_*_steps_*_*.json")):
+            try:
+                receipt = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            if not isinstance(receipt, dict):
+                continue
+            parsed = parse_sync_step_range(path.name)
+            if parsed is None:
+                continue
+            start, end = parsed
+            job_id = str(receipt.get("job_id") or _sync_job_id_from_name(path.name))
+            if not job_id:
+                continue
+            items.append(([start, end], job_id, receipt, path))
+    items.sort(key=lambda item: (item[0][1], item[0][0], item[3].name))
+    kept_items = items[-keep:]
+    released_items = items[:-keep] if len(items) > keep else []
+    kept_arcnames: set[str] = set()
+    for step_range, job_id, _receipt, _path in kept_items:
+        manifest_path = bundles_dir / f"sync_{job_id}_steps_{step_range[0]}_{step_range[1]}.sha256.json"
+        if not manifest_path.is_file():
+            continue
+        try:
+            members = json.loads(manifest_path.read_text(encoding="utf-8")).get("members") or {}
+        except (OSError, json.JSONDecodeError):
+            continue
+        if isinstance(members, dict):
+            kept_arcnames.update(str(name) for name in members)
+    document = {
+        "schema": SYNC_PAYLOAD_RETENTION_SCHEMA,
+        "keep": keep,
+        "kept_ranges": [item[0] for item in kept_items],
+        "released_ranges": [item[0] for item in released_items],
+        "observation_only": True,
+        "note": (
+            "Released payloads are disk paging. Receipts and manifests remain. "
+            "Not continuation authority."
+        ),
+    }
+    _atomic_json(root / "payload_retention.json", document)
+    deleted_members = 0
+    deleted_bundles = 0
+    for step_range, job_id, _receipt, _path in released_items:
+        start, end = step_range
+        manifest_path = bundles_dir / f"sync_{job_id}_steps_{start}_{end}.sha256.json"
+        bundle_path = bundles_dir / f"sync_{job_id}_steps_{start}_{end}.tar.gz"
+        members: dict[str, Any] = {}
+        if manifest_path.is_file():
+            try:
+                loaded = json.loads(manifest_path.read_text(encoding="utf-8")).get("members") or {}
+            except (OSError, json.JSONDecodeError):
+                loaded = {}
+            if isinstance(loaded, dict):
+                members = loaded
+        for arcname in members:
+            if arcname in kept_arcnames:
+                continue
+            candidate = members_dir / Path(*str(arcname).split("/"))
+            io_path = _io_path(candidate)
+            if io_path.is_file():
+                io_path.unlink()
+                deleted_members += 1
+        bundle_io = _io_path(bundle_path)
+        if bundle_io.is_file():
+            bundle_io.unlink()
+            deleted_bundles += 1
+    document["deleted_member_count"] = deleted_members
+    document["deleted_bundle_count"] = deleted_bundles
+    _atomic_json(root / "payload_retention.json", document)
+    return document

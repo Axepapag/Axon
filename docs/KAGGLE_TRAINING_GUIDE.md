@@ -242,8 +242,9 @@ The packet treats the secret as write-only: it is never printed, logged,
 receipted, or persisted. If the secret is absent or internet is unavailable,
 training runs correctly with sync disabled — one journal note, no failure.
 
-When enabled, after every accepted checkpoint boundary (every 30 steps) the
-trainer bundles the artifacts produced since the last boundary into
+When enabled, after every accepted checkpoint boundary (the recipe's
+`--checkpoint-interval`, 15 steps on the mixer teach packet) the trainer
+bundles the artifacts produced since the last boundary into
 `sync_<job-id>_steps_<a>_<b>.tar.gz` plus manifest and pushes it as a new
 version of the private dataset `axongliksbot/axon-job-<short>-sync`
 (`<short>` = first 8 characters of the job id). Uploads run on a daemon
@@ -254,19 +255,29 @@ training failure. Sync receipts also land in
 
 ### Watching synced artifacts locally
 
+The live monitor (`MONITOR_AXON_KAGGLE.bat` / `axon_kaggle.py monitor`)
+auto-pulls those observation windows about every 30 seconds while following a
+job that opted into `sync_mid_run`. The dashboard line `sync: verified through
+step N` is the hash-verified local coverage, not a continuation grant.
+Missing dataset (nothing uploaded yet) is shown as waiting; it does not crash
+the monitor. Use `--no-sync-poll` only if you want logs without downloads.
+
 ```powershell
-python scripts/axon_kaggle.py sync-pull <job-id>     # download + verify + extract latest sync version
+python scripts/axon_kaggle.py sync-pull <job-id>     # one-shot download + verify + extract
 python scripts/axon_kaggle.py sync-status <job-id>   # which step ranges are locally verified
 ```
 
 `sync-pull` verifies and rehashes everything into
 `State/training/cloud/jobs/<job-id>/sync/` (`bundles/`, `members/`,
 `receipts/`); `sync-status` rehashes again by default (`--no-rehash` is a
-faster, weaker view) and reports contiguous verified coverage. A crash at
-step 700 still leaves verified local artifacts through the last pulled
-boundary. Kaggle dataset downloads always serve the **latest** version, so
-run `sync-pull` regularly during a watched run; anything missed remains fully
-recoverable from the end-of-run bundle.
+faster, weaker view) and reports contiguous verified coverage. Local disk
+keeps the last **3** payload windows. Older `.tar.gz` / extracted member
+bytes are released; receipts and manifests stay. Canonical
+`checkpoint_records` are never overwritten. A crash at step 700 still leaves
+verified local artifacts through the last pulled kept window. Kaggle dataset
+downloads always serve the **latest** version. Anything missed remains fully
+recoverable from the end-of-run bundle. Already-running jobs launched without
+`sync_mid_run` cannot grow this path retroactively.
 
 **Synced mid-run artifacts are observation-only.** They are evidence under
 the same provenance law, but they never write into canonical training State,

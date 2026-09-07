@@ -4,7 +4,8 @@
   "provider": "kaggle",
   "accelerator": "gpu",
   "allow_sensitive_state_upload": true,
-  "notes": "Bounded 60-step continuation of the SAME non-serving mixer candidate axon-d64-mixer-4l-ffn256-h1 / r64v2-9d4df4d17517d7eb. Exact accepted parent is global step 120 bundle 2b4aa6dbadc4515a1ac2112eb963940161b1858c2f35bbbcfd3f062853584298, checkpoint 2f9f40328b414f9f3ff58510a122818d27dc9e59acbf9f936ee23ae96d762e0d, artifact 53f12c2fa6d3c629eed26c1de618485e8d4454a5d10ed14bcec09727f0e3d727, Soul 63fe7abcec114cb9fc9ddd2cdbefde9a30c436214d8a51ad34ce8b02f122dc3a. Same motor v2 program a872278fd0e8ef926370e1712d01dcf0a277672c4a0088af44aef483d8417740 and same heldout/regression exam. Teaching overlay only: sum position loss, copy-gate weight 0.25 instead of 4.0, oversample authored multi-cell train letters (終 端 ø 脳 Ω Ж). Generate-gate bias 0.0. No serving or promotion. No width bump.",
+  "sync_mid_run": true,
+  "notes": "SUPERSEDED; DO NOT LAUNCH. Historical continuation recipe for step 120. The multi-cell optimizer overlay changes the effective objective and cannot truthfully resume the old learning policy. a872278fd0e8ef926370e1712d01dcf0a277672c4a0088af44aef483d8417740 is the curriculum manifest, not the objective program. Base program: 00d5d3847f3adf66869530573855f7500ca0545545d1925d3db4fa171139924e. Use the fresh multicell-v2 recipe instead.",
   "entrypoint_argv": [
     "python",
     "scripts/train_living_reasoning_smoke.py",

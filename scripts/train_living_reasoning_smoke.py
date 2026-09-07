@@ -37,6 +37,7 @@ from runtime.trainer import (
 )
 from training import (
     COPY_ALIGNMENT_MULTICELL_TEACH,
+    COPY_ALIGNMENT_MULTICELL_TEACH_ID,
     FOUNDATION_MOTOR_GATE_POLICY_ID,
     FOUNDATION_MOTOR_V2_PROGRAM_ID,
     FOUNDATION_MOTOR_V2_STAGE_ORDER,
@@ -44,18 +45,19 @@ from training import (
     LivingReasoningCoreD64,
     LivingReasoningCurriculum,
     TeachingEligibility,
+    apply_copy_alignment_multicell_teach_weights,
     build_living_reasoning_preflight,
     build_living_reasoning_smoke_curriculum,
     candidate_a_config,
     d64_tournament_metric_computation,
     decide_foundation_motor_mastery,
-    apply_copy_alignment_multicell_teach_weights,
     decide_foundation_motor_v2_stage,
     decide_foundation_sequence_mastery,
     evaluate_living_episode,
     evaluate_sequential_case,
     foundation_motor_probe,
     foundation_motor_v2_action,
+    foundation_motor_v2_objective_program_id,
     foundation_motor_v2_probe,
     foundation_motor_v2_stage_policy,
     foundation_sequence_probe,
@@ -64,9 +66,9 @@ from training import (
     is_foundation_sequence_episode,
     living_episode_objective,
     living_source_counterfactuals,
-    oversample_multicell_copy_cases,
     load_first_form_curriculum,
     load_sequential_first_form,
+    oversample_multicell_copy_cases,
     sequential_living_objective,
 )
 
@@ -654,6 +656,15 @@ def main() -> int:
     )
     if foundation_motor_enabled and foundation_motor_v2_enabled:
         raise RuntimeError("one campaign cannot mix motor-v1 and motor-v2 teaching")
+    if args.teach_multicell_copy and not foundation_motor_v2_enabled:
+        raise RuntimeError("--teach-multicell-copy requires a motor-v2 curriculum")
+    effective_objective_program_id = (
+        foundation_motor_v2_objective_program_id(
+            teach_multicell_copy=bool(args.teach_multicell_copy)
+        )
+        if foundation_motor_v2_enabled
+        else None
+    )
     if all_ffcs:
         active = CanonicalStateBranch.active_runtime(state_root=args.state_root).load_head()
         active_identity = active.region(LogicalRegion.IDENTITY).text
@@ -711,6 +722,14 @@ def main() -> int:
                 if foundation_motor_v2_enabled
                 else {}
             ),
+            **(
+                {
+                    "effective_objective_program_id": effective_objective_program_id,
+                    "teaching_overlay_ids": [COPY_ALIGNMENT_MULTICELL_TEACH_ID],
+                }
+                if args.teach_multicell_copy
+                else {}
+            ),
             "sequential_cases_remain_grouped": True,
             "content_limit": None,
         },
@@ -753,7 +772,29 @@ def main() -> int:
             }
         )[:16]
     else:
-        candidate_generation = "r64v2-" + canonical_sha256(candidate_identity)[:16]
+        legacy_candidate_generation = "r64v2-" + canonical_sha256(candidate_identity)[:16]
+        candidate_initialization = {
+            "schema": "axon-reasoning-candidate-initialization-v1",
+            "architecture_id": config.architecture_id,
+            "seed": args.seed,
+            "generate_gate_bias": args.generate_gate_bias,
+        }
+        candidate_initialization_id = canonical_sha256(candidate_initialization)
+        candidate_identity_v3 = {
+            **candidate_identity,
+            "initialization_id": candidate_initialization_id,
+        }
+        candidate_generation_v3 = "r64v3-" + canonical_sha256(candidate_identity_v3)[:16]
+        step_bundles = CandidateStepBundleCoordinator(args.state_root)
+        if args.resume and step_bundles.latest_bundle(module_id, candidate_generation_v3):
+            candidate_generation = candidate_generation_v3
+            candidate_identity_version = "v3"
+        elif args.resume and step_bundles.latest_bundle(module_id, legacy_candidate_generation):
+            candidate_generation = legacy_candidate_generation
+            candidate_identity_version = "legacy-v2"
+        else:
+            candidate_generation = candidate_generation_v3
+            candidate_identity_version = "v3"
     if progress is not None:
         progress.emit(
             "starting",
@@ -790,6 +831,17 @@ def main() -> int:
         "train_manifest_id": curriculum.train_manifest_id,
         "heldout_manifest_id": curriculum.heldout_manifest_id,
         "candidate_label": candidate_label,
+        "candidate_identity_version": (
+            "legacy-v1" if args.legacy_plan_v1 else candidate_identity_version
+        ),
+        "candidate_initialization": (
+            None
+            if args.legacy_plan_v1
+            else {
+                **candidate_initialization,
+                "initialization_id": candidate_initialization_id,
+            }
+        ),
         "ffcs_manifest_ids": list(ffcs_manifest_ids),
         "standard_ffcs_manifest_ids": [item.manifest_id for item in standard_ffcs],
         "sequential_ffcs_manifest_ids": [item.manifest_id for item in sequential_ffcs],
@@ -856,15 +908,22 @@ def main() -> int:
         policy = GovernedLearningPolicy(
             optimizer="adamw",
             learning_rate=args.learning_rate,
-            objective_program_id=(
-                FOUNDATION_MOTOR_V2_PROGRAM_ID
-                if foundation_motor_v2_enabled
-                else None
-            ),
+            objective_program_id=effective_objective_program_id,
         )
-        step_bundles = CandidateStepBundleCoordinator(args.state_root)
+        if args.legacy_plan_v1:
+            step_bundles = CandidateStepBundleCoordinator(args.state_root)
         latest_bundle = step_bundles.latest_bundle(module_id, candidate_generation)
         campaign_report_dir = args.state_root.resolve() / "training" / "reasoning" / candidate_generation
+        if not args.legacy_plan_v1:
+            _write_immutable_json(
+                campaign_report_dir / "candidate_initialization.json",
+                {
+                    **candidate_initialization,
+                    "initialization_id": candidate_initialization_id,
+                    "candidate_generation_id": candidate_generation,
+                    "candidate_identity_version": candidate_identity_version,
+                },
+            )
         foundation_motor_v2_training_stage = None
         foundation_motor_v2_program_complete_before_run = False
         if foundation_motor_v2_enabled:
@@ -875,6 +934,7 @@ def main() -> int:
             report.update(
                 {
                     "foundation_motor_v2_program_id": FOUNDATION_MOTOR_V2_PROGRAM_ID,
+                    "effective_objective_program_id": effective_objective_program_id,
                     "foundation_motor_v2_training_stage": foundation_motor_v2_training_stage,
                     "foundation_motor_v2_stage_policy": dict(
                         foundation_motor_v2_stage_policy(

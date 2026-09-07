@@ -157,8 +157,8 @@ FOUNDATION_MOTOR_V2_PROGRAM = {
     "complete_field_coverage_rate": 1.0,
 }
 FOUNDATION_MOTOR_V2_PROGRAM_ID = canonical_sha256(FOUNDATION_MOTOR_V2_PROGRAM)
-# Teaching overlay only. Not part of FOUNDATION_MOTOR_V2_PROGRAM identity.
-# Same exam, same gates, same architecture; changes optimizer pressure.
+# Same exam, same gates, same architecture; this overlay changes optimizer
+# pressure and therefore MUST participate in the effective objective identity.
 COPY_ALIGNMENT_MULTICELL_TEACH = {
     "schema": "axon-foundation-motor-copy-alignment-multicell-teach-v1",
     "alignment_position_reduction": "sum",
@@ -168,6 +168,23 @@ COPY_ALIGNMENT_MULTICELL_TEACH = {
     },
     "oversample_multicell": True,
 }
+COPY_ALIGNMENT_MULTICELL_TEACH_ID = canonical_sha256(COPY_ALIGNMENT_MULTICELL_TEACH)
+FOUNDATION_MOTOR_V2_MULTICELL_PROGRAM = {
+    "schema": "axon-foundation-motor-teaching-program-variant-v1",
+    "base_program_id": FOUNDATION_MOTOR_V2_PROGRAM_ID,
+    "teaching_overlay_ids": [COPY_ALIGNMENT_MULTICELL_TEACH_ID],
+}
+FOUNDATION_MOTOR_V2_MULTICELL_PROGRAM_ID = canonical_sha256(
+    FOUNDATION_MOTOR_V2_MULTICELL_PROGRAM
+)
+
+
+def foundation_motor_v2_objective_program_id(*, teach_multicell_copy: bool) -> str:
+    """Return the exact optimizer objective identity for this campaign."""
+
+    if teach_multicell_copy:
+        return FOUNDATION_MOTOR_V2_MULTICELL_PROGRAM_ID
+    return FOUNDATION_MOTOR_V2_PROGRAM_ID
 DEFAULT_FOUNDATION_MOTOR_V2_SPLIT_COUNTS: tuple[
     tuple[str, tuple[int, int, int]], ...
 ] = (("F0", (72, 36, 36)),)
@@ -922,13 +939,33 @@ def decide_foundation_motor_v2_stage(
             if probe["complete_field_coverage_rate"] != 1.0:
                 failures.append(f"{label} complete-field coverage is not exact")
 
-            def require(metric: str) -> None:
-                if float(probe[metric]) < threshold:
-                    failures.append(f"{label} {metric} below {threshold}")
+            def require(
+                metric: str,
+                *,
+                observed_probe: Mapping[str, Any] = probe,
+                observed_threshold: float = threshold,
+                observed_label: str = label,
+            ) -> None:
+                if float(observed_probe[metric]) < observed_threshold:
+                    failures.append(
+                        f"{observed_label} {metric} below {observed_threshold}"
+                    )
 
-            def require_pair(component: str) -> None:
-                if float(probe["pair_exact_rates"][component]) < threshold:
-                    failures.append(f"{label} changed-source {component} below {threshold}")
+            def require_pair(
+                component: str,
+                *,
+                observed_probe: Mapping[str, Any] = probe,
+                observed_threshold: float = threshold,
+                observed_label: str = label,
+            ) -> None:
+                if (
+                    float(observed_probe["pair_exact_rates"][component])
+                    < observed_threshold
+                ):
+                    failures.append(
+                        f"{observed_label} changed-source {component} below "
+                        f"{observed_threshold}"
+                    )
 
             if training_stage == "copy_alignment":
                 require("alignment_position_accuracy")
@@ -990,6 +1027,8 @@ def decide_foundation_motor_v2_stage(
 
 
 __all__ = [
+    "COPY_ALIGNMENT_MULTICELL_TEACH",
+    "COPY_ALIGNMENT_MULTICELL_TEACH_ID",
     "DEFAULT_FOUNDATION_MOTOR_SPLIT_COUNTS",
     "DEFAULT_FOUNDATION_MOTOR_V2_SPLIT_COUNTS",
     "FOUNDATION_MOTOR_ACTIONS",
@@ -997,7 +1036,8 @@ __all__ = [
     "FOUNDATION_MOTOR_GATE_POLICY_ID",
     "FOUNDATION_MOTOR_SOURCE_ID",
     "FOUNDATION_MOTOR_STAGE",
-    "COPY_ALIGNMENT_MULTICELL_TEACH",
+    "FOUNDATION_MOTOR_V2_MULTICELL_PROGRAM",
+    "FOUNDATION_MOTOR_V2_MULTICELL_PROGRAM_ID",
     "FOUNDATION_MOTOR_V2_PROGRAM",
     "FOUNDATION_MOTOR_V2_PROGRAM_ID",
     "FOUNDATION_MOTOR_V2_SOURCE_ID",
@@ -1008,14 +1048,15 @@ __all__ = [
     "compile_foundation_motor_v2",
     "decide_foundation_motor_mastery",
     "decide_foundation_motor_v2_stage",
+    "foundation_motor_payload_transport_cells",
     "foundation_motor_probe",
     "foundation_motor_v2_action",
+    "foundation_motor_v2_objective_program_id",
     "foundation_motor_v2_probe",
-    "foundation_motor_payload_transport_cells",
     "foundation_motor_v2_stage_policy",
     "is_foundation_motor_episode",
-    "oversample_multicell_copy_cases",
     "is_foundation_motor_v2_episode",
+    "oversample_multicell_copy_cases",
     "verify_foundation_motor_curriculum",
     "verify_foundation_motor_v2_curriculum",
 ]

@@ -1,0 +1,3 @@
+# Preserve the canonical append-only ledger's exact bytes. Historical lines
+# are never normalized or rewritten by Git line-ending conversion.
+roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl -text

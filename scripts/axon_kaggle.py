@@ -194,7 +194,13 @@ def _display(value: Any, *, machine: bool) -> None:
             print(f"Contiguously verified through step: {value['verified_through_step']}")
             print(f"Verified members: {value['verified_member_count']} (rehashed: {value['rehashed']})")
         else:
-            print("No locally verified sync bundles yet; run sync-pull while the job runs.")
+            print("No locally verified sync bundles yet; the live monitor auto-pulls while watching.")
+        released = value.get("released_ranges") or []
+        if released:
+            text = ", ".join(f"{a}-{b}" for a, b in released)
+            print(
+                f"Released older payload windows (receipts remain, keep {value.get('payload_keep', 3)}): {text}"
+            )
         for problem in value["mismatches"]:
             print(f"MISMATCH: {problem}")
         for item in value["quarantined"]:

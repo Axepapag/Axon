@@ -1,0 +1,41 @@
+{
+  "schema": "axon-cloud-training-job-config-v1",
+  "name": "Axon D64 mixer 4L FFN256 multi-cell v2 fresh shot",
+  "provider": "kaggle",
+  "accelerator": "gpu",
+  "allow_sensitive_state_upload": true,
+  "sync_mid_run": true,
+  "notes": "Fresh non-serving D64 candidate; never resumes the old base-objective checkpoint. 1 head, 4 layers, FFN 256, generate-gate bias 0.0. Curriculum manifest a872278fd0e8ef926370e1712d01dcf0a277672c4a0088af44aef483d8417740. Base objective program 00d5d3847f3adf66869530573855f7500ca0545545d1925d3db4fa171139924e plus multi-cell overlay e4bfc686daee34112e798152cd01aef772172a262be2dc4875ed4823d8186d3d yields effective objective eedeb511fcfeba102d1b30a4f140a3c38b1e2c224b0d92bde9180e25d2f5fa3d. Sixty renewable steps; no serving, promotion, width ceiling, or lifetime ceiling. Mid-run sync is observation-only and never continuation authority.",
+  "entrypoint_argv": [
+    "python",
+    "scripts/train_living_reasoning_smoke.py",
+    "--state-root",
+    "State",
+    "--device",
+    "cuda",
+    "--teach-multicell-copy",
+    "--candidate-label",
+    "axon-d64-mixer-4l-ffn256-h1-multicell-v2",
+    "--curriculum-manifest",
+    "State/training/curricula/ffcs_v1/a872278fd0e8ef926370e1712d01dcf0a277672c4a0088af44aef483d8417740/manifest.json",
+    "--heads",
+    "1",
+    "--layers",
+    "4",
+    "--ffn-dim",
+    "256",
+    "--generate-gate-bias",
+    "0.0",
+    "--checkpoint-interval",
+    "15",
+    "--tranche-steps",
+    "60",
+    "--seed",
+    "20260907"
+  ],
+  "include_paths": [
+    "State/active/branches/active",
+    "State/training/curricula/ffcs_v1/a872278fd0e8ef926370e1712d01dcf0a277672c4a0088af44aef483d8417740/manifest.json",
+    "configs/source_of_truth/capacity_policy.json"
+  ]
+}
