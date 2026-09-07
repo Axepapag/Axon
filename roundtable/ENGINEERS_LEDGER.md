@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-07T01:32:00Z
+Updated: 2026-09-07T16:20:00Z
 Current through event:
-`evt-20260907T013200000000Z-copilot-cli-jeff-soul-loadbearing`
+`evt-20260907T162000000000Z-copilot-cli-jeff-soul-four-tokens`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
