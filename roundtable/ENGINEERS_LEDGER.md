@@ -1,12 +1,12 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-08T00:33:36Z
+Updated: 2026-09-08T04:05:00Z
 Current through event:
-`evt-20260908T003336115761Z-codex-kimi-review-orchestration`
+`evt-20260908T040500123456Z-gemini-d64-pointer-review`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
-Identity stamp: Codex / GPT-5 family (exact runtime model ID not exposed) / 2026-09-07
+Identity stamp: Gemini / Gemini 3.8 Flash / 2026-09-07
 
 ## Current mission and honest status
 
@@ -46,14 +46,27 @@ objective-program identity for any continuation-loss change; teacher-forced
 EOS-gate floor (both candidates collapsed `alignment_eos_gate_accuracy`
 1.0 → 0.0). One **FLAG F1, blocking for ratification**: whether Layer 13's
 per-slot cross-entropy binds receipt-bound deterministic continuation slots is
-undecided doctrine for Jeff/table. Advisory correction: Codex's roundtable
-event cited nonexistent `runtime/reasoning/living_core.py`; the real file is
-`training/living_reasoning_d64.py` (substantive claim verified anyway).
-Codex inspected and accepts C1–C7 as review evidence without prematurely
-rewriting the proposal. Provisional disposition of F1 is to keep per-slot
-categorical cross-entropy as diagnostic/auxiliary supervision while the exact
-receipt conduit governs runtime continuation; Jeff/table still owns the final
-ratification. Gemini and ChatGPT reviews remain pending.
+undecided doctrine for Jeff/table.
+
+**Gemini review submitted** (`roundtable/reviews/GEMINI_D64_POINTER_TRANSITION_REVIEW_2026-09-07.md`):
+independently verified compiler receipts, AddressableMemory index omission, and
+the attention query continuation trap. Identified root mathematical cause of
+EOS gate collapse (1.0 → 0.0): `copy_gate_losses` over-penalizes `gate_logits` at
+every single multi-cell unit offset, overwhelming the single EOS supervision point
+with copy signals. Verdict: **approve with named changes** (adopts C1–C7 plus
+G1–G5). **Resolved FLAG F1**: Layer 13's discrete-loss law prohibits continuous
+loss approximations; continuation slots are exact mechanical transport of an
+already-supervised discrete anchor. Masking `position_loss` and `copy_gate_loss`
+on continuation slots (`token_offset > 0`) resolves destructive gradient interference,
+protects the EOS gate, and honors Layer 13. Added named changes G1–G5: work-slice
+preemption resilience across `iter_decode_transport` yields (G1), continuation
+loss masking (G2), fail-closed memory boundary checks (G3), cell-receipt token
+verification (G4), and generate exclusivity (G5).
+
+**Hermes startup activity** (`evt-20260908T021500000000Z-hermes-inception-application`):
+drove NVIDIA Inception application to page 2 via Browser Hub; created shared
+mailbox `roundtable@gliksbot.com` (standing protocol: every engineer checks it every turn);
+generated executive summary + pitch deck PDF (`Axon_Pitch_Deck.pdf`).
 
 Grok's smaller 1-head / 4-layer D64 mixers made real progress: FFN256 and
 FFN512 both learned the heldout copy gate and one-cell position at 1.0 within
@@ -150,13 +163,12 @@ Latest job: `050a3a97336b8645fb13bb6a6a307fd884fa6450ca64c3f0fa29066640d68d59`
 ## Next recommended shot (2026-09-08)
 
 1. ~~Kimi review~~ — done (`evt-20260908T002908202643Z-kimi-d64-pointer-review`).
-   Still needed: Hermes, ChatGPT, and Grok reviews against their assigned
-   surfaces.
-2. Codex reconciles the reviews, including Kimi's named changes C1–C7;
-   Jeff ratifies FLAG F1 (Layer 13 per-slot CE vs deterministic
-   receipt-bound continuation slots) before any implementation.
+   ~~Gemini review~~ — done (`evt-20260908T040500123456Z-gemini-d64-pointer-review`).
+   Still needed: Hermes, ChatGPT, and Grok reviews against their assigned surfaces.
+2. Codex reconciles the reviews, incorporating Kimi's C1–C7 and Gemini's G1–G5;
+   Jeff ratifies the Layer 13 loss-masking resolution (FLAG F1) before implementation.
 3. Implement the smallest opt-in, content-addressed variant plus causal,
-   teacher/free-running, native/2/3/4-cell, boundary, stale-receipt, and
-   pause/resume tests.
+   teacher/free-running, native/2/3/4-cell, row-straddle, stale-receipt, and
+   work-slice mid-scalar pause/resume tests.
 4. Run a bounded local smoke and one short Kaggle ablation. Require exact
    copy-alignment gates before `transport_eos`; do not serve.
