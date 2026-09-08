@@ -1,6 +1,6 @@
 # Axon Source Of Truth
 
-Last updated: 2026-09-04 (foundations-first reasoning curriculum ratification)
+Last updated: 2026-09-08 (D64 pointer-transition ratification)
 
 ## Core Doctrine
 
@@ -382,6 +382,85 @@ section is binding doctrine.
   with exhaustive substrate roundtrip, mask-gap and provenance-boundary,
   cross-width repack, and rejection evidence before any packed-reader
   training begins.
+
+### D64 receipt-continuation transport (ratified 2026-09-08)
+
+Jeff ratified the complete R1–R12 resolution in
+`roundtable/decisions/RESOLUTION_D64_POINTER_TRANSITION_2026-09-08.md` after
+independent Kimi, Gemini, and ChatGPT review. This is a narrow clarification of
+Layer 13, not permission for a semantic bypass: after learned D64 tissue has
+explicitly selected COPY and the exact first cell of a non-native Unicode
+scalar, exact compiler receipts may govern emission of the remaining cells of
+that same scalar. Those remaining cells are categorical serialization of the
+already-selected scalar, not new learned decisions.
+
+The binding contract is:
+
+- Scope is intra-scalar only. Receipt continuation never crosses a scalar,
+  region, attended interval, source/provenance span, memory segment, rail,
+  field, view, tick, pass, or head boundary.
+- Every output category declares exactly one observable route:
+  `learned_generate`, `learned_copy_anchor`, or
+  `deterministic_receipt_continuation`. Mechanical continuation is never
+  reported as learned pointer accuracy or learned intelligence.
+- The learned copy/generate decision and exact learned pointer anchor remain
+  explicit. The conduit may arm only from a learned COPY of unit zero of a
+  multi-cell scalar. Matching category content alone cannot arm it. The
+  conduit lives above the learned probability mixture and never injects forced
+  probability mass into decoder logits.
+- Addressable neural memory preserves immutable, compiler-derived per-slot
+  receipts plus explicit memory-segment identity. One validation path proves
+  exact category, scalar address, transport unit index/count, region, spans,
+  provenance, interval, row/lane, rail, field, and tick before a receipt may be
+  used. Joining memories never manufactures adjacency.
+- Durable decode state includes the recurrent GRU hidden state, prior emitted
+  category, pending receipt and next unit index, exact field/tick/view/rail/
+  surface/memory/pass/head bindings, output/trace position, renewable work
+  accounting, and architecture/parameter/state-schema identities. Exact
+  serialize/reload/resume is required; an in-process generator is insufficient
+  serving evidence.
+- Teacher-forced, scheduled, greedy, local diagnostic, and runtime execution
+  use one causal transition primitive for the receipt-enabled architecture.
+  Every continuation consumes one renewable decoder work unit and advances the
+  GRU once with the preceding emitted category. It performs no new learned
+  route or pointer choice. Optional diagnostic logits are detached and cannot
+  influence emission.
+- Missing, malformed, duplicate, reordered, stale, substituted, mismatched, or
+  out-of-bounds receipts fail closed. So do direct mid-scalar anchors, EMPTY,
+  EOS, padding, mask/provenance boundaries, identity changes, or unavailable
+  continuation memory. A partial Unicode scalar is never returned as accepted
+  output.
+- Layer 13 continues to bind every learned discrete decision: generated
+  categories, copy/generate route, learned source anchor, EOS, operation,
+  region, and address keep registered categorical losses. Deterministic
+  continuation events require exact categorical transport equality while
+  gradient-bearing payload, pointer-position, and copy-gate losses are masked
+  at those events. Detached diagnostics remain visibly separate.
+- EOS is co-supervised in the same copy-conduit stage and may not have zero
+  objective weight there. Advancement requires exact teacher-forced and
+  free-running EOS/termination plus declared baseline retention.
+- Metrics separately report learned route and anchor quality, changed-source
+  exactness, deterministic receipt integrity, final categorical/Unicode stream,
+  EOS/termination, free-running typed emission, rejection/resume evidence, and
+  legacy compatibility. Continuation slots are excluded from learned pointer
+  and learned payload-category accuracy.
+- The feature is opt-in and content-addressed. Disabled mode remains bit-exact
+  with existing D64 behavior. Architecture, objective program, decoder-state
+  schema, parameter generation, and candidate lineage change explicitly. Old
+  checkpoints remain immutable; migration creates a new lineage with exact
+  tensor and initialization receipts and never masquerades as resume.
+- Before cloud training, local acceptance covers native and 2/3/4-cell
+  scalars, repeated sources, changed-source pairs, row straddles, page-adjacent
+  groups, joined-memory seams and coordinate collisions, receipt/category
+  corruption, mid-scalar anchors, boundary and stale-identity rejection,
+  serialized mid-scalar resume, causal hidden-state/trace parity, metric
+  isolation, EOS retention, identity change detection, legacy bit-exactness,
+  complete-field coverage, and field/proposal/Soul counterfactuals.
+
+Only after that local matrix passes may one bounded, non-serving Kaggle
+ablation run against both preserved copy-alignment examinations. Falling loss
+is not acceptance. No checkpoint promotion, serving activation, wider-rail
+claim, or curriculum-stage advancement follows from mechanism success alone.
 
 ### Heart intelligence and semantic conduction
 
