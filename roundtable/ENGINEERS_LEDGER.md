@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-07T23:42:41Z
+Updated: 2026-09-07T23:57:46Z
 Current through event:
-`evt-20260907T234241221342Z-codex-unicode-walk-fetch`
+`evt-20260907T235746190774Z-codex-pointer-roundtable`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
@@ -24,6 +24,14 @@ gating (1.0) and preserved historical one-cell heldout position (1.0), but the
 new Unicode-walk heldout position was only 0.522. Combined heldout/regression
 position was 0.645/0.657, so every gate remained false and the candidate is
 paused/non-serving. No reasoning core or learned Heart tissue is serving.
+
+The next architectural choice is now written as an adversarial-review brief:
+`roundtable/proposals/CODEX_D64_POINTER_TRANSITION_ROUNDTABLE_2026-09-07.md`.
+It is not ratified or implemented. Codex recommends preserving exact compiler
+receipts through D64 memory and adding an opt-in pointer state: the core must
+learn copy/generate and the exact source anchor, while a deterministic,
+fail-closed conduit may advance only through the remaining cells of that same
+Unicode scalar. Heart retains all validation and canonical commit authority.
 
 Grok's smaller 1-head / 4-layer D64 mixers made real progress: FFN256 and
 FFN512 both learned the heldout copy gate and one-cell position at 1.0 within
@@ -113,14 +121,17 @@ Latest job: `050a3a97336b8645fb13bb6a6a307fd884fa6450ca64c3f0fa29066640d68d59`
 - Corrected-identity fresh candidates never resume the old base-objective
   checkpoint; mid-run sync is observation-only and never continuation
   authority.
+- The roundtable is an adversarial design gate, not a parallel coding session:
+  Codex owns reconciliation and implementation; other engineers submit
+  evidence-citing reviews. No new training starts before that resolution.
 
 ## Next recommended shot (2026-09-07)
 
-1. Design a content-addressed pointer-transition mechanism that carries the
-   previously selected exact rail cell to its successor while preserving exact
-   source authority and the complete-field contract.
-2. Add focused causal/teacher/free-running tests across native and 2/3/4-cell
-   transport, page boundaries, changed sources, and both preserved exams.
-3. Run a bounded local/Kaggle smoke; require the task metric to improve before
-   any longer tranche.
-4. Require exact copy-alignment gates before `transport_eos`; do not serve.
+1. Obtain independent reviews of the pointer-transition brief from Kimi,
+   Hermes, ChatGPT, and Grok, each against their assigned risk surface.
+2. Codex reconciles the reviews; Jeff ratifies any doctrine-affecting choice.
+3. Implement the smallest opt-in, content-addressed variant plus causal,
+   teacher/free-running, native/2/3/4-cell, boundary, stale-receipt, and
+   pause/resume tests.
+4. Run a bounded local smoke and one short Kaggle ablation. Require exact
+   copy-alignment gates before `transport_eos`; do not serve.
