@@ -1,12 +1,12 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-08T04:05:00Z
+Updated: 2026-09-08T15:16:56Z
 Current through event:
-`evt-20260908T040500123456Z-gemini-d64-pointer-review`
+`evt-20260908T151656195911Z-codex-pointer-review-reconciliation`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
-Identity stamp: Gemini / Gemini 3.8 Flash / 2026-09-07
+Identity stamp: Codex / GPT-5 family (exact runtime model ID not exposed) / 2026-09-08
 
 ## Current mission and honest status
 
@@ -50,18 +50,33 @@ undecided doctrine for Jeff/table.
 
 **Gemini review submitted** (`roundtable/reviews/GEMINI_D64_POINTER_TRANSITION_REVIEW_2026-09-07.md`):
 independently verified compiler receipts, AddressableMemory index omission, and
-the attention query continuation trap. Identified root mathematical cause of
-EOS gate collapse (1.0 → 0.0): `copy_gate_losses` over-penalizes `gate_logits` at
-every single multi-cell unit offset, overwhelming the single EOS supervision point
-with copy signals. Verdict: **approve with named changes** (adopts C1–C7 plus
-G1–G5). **Resolved FLAG F1**: Layer 13's discrete-loss law prohibits continuous
-loss approximations; continuation slots are exact mechanical transport of an
-already-supervised discrete anchor. Masking `position_loss` and `copy_gate_loss`
-on continuation slots (`token_offset > 0`) resolves destructive gradient interference,
-protects the EOS gate, and honors Layer 13. Added named changes G1–G5: work-slice
-preemption resilience across `iter_decode_transport` yields (G1), continuation
-loss masking (G2), fail-closed memory boundary checks (G3), cell-receipt token
-verification (G4), and generate exclusivity (G5).
+the attention-query continuation trap. Verdict: **approve with named changes**
+(C1–C7 plus G1–G5), including work-slice resilience, continuation loss masking,
+fail-closed bounds, receipt/category cross-checking, and generate exclusivity.
+Gemini's stronger EOS-cause claim is corrected by source inspection: active
+`copy_alignment` gave EOS loss weight `0.0`, copy loss is averaged across copy
+positions, and the multi-cell overlay lowers its weight to `0.25`. Shared gate
+parameters likely biased toward COPY while EOS was unprotected, but continuation
+masking alone does not prove EOS retention. EOS must be co-supervised and gated
+in the same conduit stage.
+
+**ChatGPT review received and preserved** (`roundtable/reviews/CHATGPT_D64_POINTER_TRANSITION_REVIEW_2026-09-08.md`):
+verdict **approve with named changes**. It independently requires exact compiler
+receipts rather than `memory_index + 1`, an explicit route above learned logits,
+one causal transition primitive for teacher/scheduled/greedy execution, complete
+serializable decoder state (not pointer alone), seam/collision/counterfactual
+tests, and honest learned-versus-mechanical metrics. Jeff supplied the review;
+its exact model/date identity was not embedded in the source text.
+
+**Codex reconciliation candidate written** (`roundtable/proposals/CODEX_D64_POINTER_TRANSITION_RESOLUTION_CANDIDATE_2026-09-08.md`):
+the three independent reviews converge. R1–R12 bind the mechanism to exact
+intra-scalar receipt continuation, preserve GRU causality and complete durable
+execution state, keep learned anchors and EOS categorical, mask learned losses
+only for deterministic continuation events, separate metrics, version every
+changed architecture/objective/state identity, preserve legacy evidence, and
+require a 16-surface local acceptance matrix before one bounded Kaggle ablation.
+The candidate is **not binding, not implemented, and authorizes no training**
+until Jeff explicitly ratifies the Layer 13 clarification.
 
 **Hermes startup activity** (`evt-20260908T021500000000Z-hermes-inception-application`):
 drove NVIDIA Inception application to page 2 via Browser Hub; created shared
@@ -162,11 +177,13 @@ Latest job: `050a3a97336b8645fb13bb6a6a307fd884fa6450ca64c3f0fa29066640d68d59`
 
 ## Next recommended shot (2026-09-08)
 
-1. ~~Kimi review~~ — done (`evt-20260908T002908202643Z-kimi-d64-pointer-review`).
-   ~~Gemini review~~ — done (`evt-20260908T040500123456Z-gemini-d64-pointer-review`).
-   Still needed: Hermes, ChatGPT, and Grok reviews against their assigned surfaces.
-2. Codex reconciles the reviews, incorporating Kimi's C1–C7 and Gemini's G1–G5;
-   Jeff ratifies the Layer 13 loss-masking resolution (FLAG F1) before implementation.
+1. Jeff reviews and explicitly ratifies or revises
+   `CODEX_D64_POINTER_TRANSITION_RESOLUTION_CANDIDATE_2026-09-08.md`. Kimi,
+   Gemini, and ChatGPT reviews are sufficient for a bounded decision; Hermes or
+   Grok may still review if Jeff wants another perspective, but they are not a
+   blocker.
+2. After ratification, amend both Source-of-Truth mirrors with R1–R12 before
+   implementation.
 3. Implement the smallest opt-in, content-addressed variant plus causal,
    teacher/free-running, native/2/3/4-cell, row-straddle, stale-receipt, and
    work-slice mid-scalar pause/resume tests.
