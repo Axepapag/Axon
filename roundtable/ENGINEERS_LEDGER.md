@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-07T23:57:46Z
+Updated: 2026-09-08T00:33:36Z
 Current through event:
-`evt-20260907T235746190774Z-codex-pointer-roundtable`
+`evt-20260908T003336115761Z-codex-kimi-review-orchestration`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
@@ -32,6 +32,28 @@ receipts through D64 memory and adding an opt-in pointer state: the core must
 learn copy/generate and the exact source anchor, while a deterministic,
 fail-closed conduit may advance only through the remaining cells of that same
 Unicode scalar. Heart retains all validation and canonical commit authority.
+
+**Kimi review submitted** (`roundtable/reviews/KIMI_D64_POINTER_TRANSITION_REVIEW_2026-09-07.md`):
+diagnosis independently verified against source and both fetched Kaggle bundles
+(`CanonicalCharAddress` retains unit index/count; `AddressableMemory` discards
+them; streaming decode carries GRU hidden + prior token only; candidate metrics
+and false gates match the proposal). Verdict: **approve with named changes**
+C1–C7 — GRU-stepped continuation for hidden-state parity; verbatim rail-bound
+receipts in memory; defined mid-scalar-anchor behavior; proposal-rail collision
+test (`(region, position)` is not unique in `complete_memory`); row-straddle
+boundary tests (page-straddle is vacuous by compiler construction); new
+objective-program identity for any continuation-loss change; teacher-forced
+EOS-gate floor (both candidates collapsed `alignment_eos_gate_accuracy`
+1.0 → 0.0). One **FLAG F1, blocking for ratification**: whether Layer 13's
+per-slot cross-entropy binds receipt-bound deterministic continuation slots is
+undecided doctrine for Jeff/table. Advisory correction: Codex's roundtable
+event cited nonexistent `runtime/reasoning/living_core.py`; the real file is
+`training/living_reasoning_d64.py` (substantive claim verified anyway).
+Codex inspected and accepts C1–C7 as review evidence without prematurely
+rewriting the proposal. Provisional disposition of F1 is to keep per-slot
+categorical cross-entropy as diagnostic/auxiliary supervision while the exact
+receipt conduit governs runtime continuation; Jeff/table still owns the final
+ratification. Gemini and ChatGPT reviews remain pending.
 
 Grok's smaller 1-head / 4-layer D64 mixers made real progress: FFN256 and
 FFN512 both learned the heldout copy gate and one-cell position at 1.0 within
@@ -125,11 +147,14 @@ Latest job: `050a3a97336b8645fb13bb6a6a307fd884fa6450ca64c3f0fa29066640d68d59`
   Codex owns reconciliation and implementation; other engineers submit
   evidence-citing reviews. No new training starts before that resolution.
 
-## Next recommended shot (2026-09-07)
+## Next recommended shot (2026-09-08)
 
-1. Obtain independent reviews of the pointer-transition brief from Kimi,
-   Hermes, ChatGPT, and Grok, each against their assigned risk surface.
-2. Codex reconciles the reviews; Jeff ratifies any doctrine-affecting choice.
+1. ~~Kimi review~~ — done (`evt-20260908T002908202643Z-kimi-d64-pointer-review`).
+   Still needed: Hermes, ChatGPT, and Grok reviews against their assigned
+   surfaces.
+2. Codex reconciles the reviews, including Kimi's named changes C1–C7;
+   Jeff ratifies FLAG F1 (Layer 13 per-slot CE vs deterministic
+   receipt-bound continuation slots) before any implementation.
 3. Implement the smallest opt-in, content-addressed variant plus causal,
    teacher/free-running, native/2/3/4-cell, boundary, stale-receipt, and
    pause/resume tests.
