@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-09T22:23:15Z
+Updated: 2026-09-09T22:33:45Z
 Current through event:
-`evt-20260909T222315778109Z-codex-d64-v2-and-kimi`
+`evt-20260909T223345779020Z-codex-next-shot-boundary`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
@@ -109,11 +109,13 @@ formally adjudicated:
 
 1. Add a bounded D64 diagnostic that records per-position route logits and
    compares the untouched v2 checkpoint with a zero-bias clamp. Do not promote
-   or rewrite the candidate.
+   or rewrite the candidate. This observation-only diagnostic needs no new
+   ratification.
 2. If the counterfactual confirms bias dominance, compare a longer fresh
    tranche and non-zero gate initialization under new content-addressed
    identities. If it falsifies the hypothesis, inspect contextual separability
-   before changing architecture.
+   before changing architecture. Present any training or architecture
+   intervention to Jeff for ratification first.
 3. **Google Cloud meeting**: Assemble an operator demo package
    demonstrating verified, production-ready deterministic subsystems:
    - Heart transaction OS: live fail-closed rejection of injection proposals vs.
@@ -127,8 +129,8 @@ formally adjudicated:
 
 ## Continuity health
 
-- Canonical ledger: 199 valid unique event lines plus one preserved historical
-  blank line through `evt-20260909T222315778109Z-codex-d64-v2-and-kimi`.
+- Canonical ledger: 200 valid unique event lines plus one preserved historical
+  blank line through `evt-20260909T223345779020Z-codex-next-shot-boundary`.
 - `scripts/append_engineers_ledger_event.py` validated and cleanly appended the turn event.
 - Kimi CLI is globally pinned to standard K2.7 Coding; its first bounded,
   read-only Codex-directed evidence audit completed without repository writes.
