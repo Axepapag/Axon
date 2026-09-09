@@ -563,6 +563,7 @@ def test_job_catalog_names_jobs_and_puts_running_first(tmp_path) -> None:
         name: str,
         teach: bool,
         receipt: bool = False,
+        receipt_profile: str | None = None,
     ) -> None:
         job_dir = state / "training" / "cloud" / "jobs" / job_id
         job_dir.mkdir(parents=True)
@@ -585,6 +586,8 @@ def test_job_catalog_names_jobs_and_puts_running_first(tmp_path) -> None:
             argv.append("--teach-multicell-copy")
         if receipt:
             argv.append("--receipt-continuation")
+        if receipt_profile is not None:
+            argv.extend(("--receipt-teaching-profile", receipt_profile))
         (job_dir / "packet_manifest.json").write_text(
             json.dumps(
                 {
@@ -620,6 +623,7 @@ def test_job_catalog_names_jobs_and_puts_running_first(tmp_path) -> None:
         name="Axon D64 mixer receipt continuation",
         teach=True,
         receipt=True,
+        receipt_profile="route_eos_balanced_v2",
     )
 
     class LiveKaggle(_FakeKaggle):
@@ -647,7 +651,9 @@ def test_job_catalog_names_jobs_and_puts_running_first(tmp_path) -> None:
     assert catalog[0]["shape"] == "1h/4L/FFN256"
     assert catalog[0]["teach_multicell_copy"] is True
     assert catalog[0]["receipt_continuation"] is True
+    assert catalog[0]["receipt_teaching_profile"] == "route_eos_balanced_v2"
     assert catalog[1]["receipt_continuation"] is False
+    assert catalog[1]["receipt_teaching_profile"] is None
     assert catalog[1]["live_status"] == "fetched"
     local_only = adapter.job_catalog(refresh_live=False)
     assert local_only[0]["job_id"] == running_id

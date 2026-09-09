@@ -259,6 +259,9 @@ class Watcher:
                 self.status = status
                 self.gates = {
                     "task_gate_passed": details.get("task_gate_passed"),
+                    "nonzero_exact_output_observed": details.get(
+                        "nonzero_exact_output_observed"
+                    ),
                     "exact_serving_gate_passed": details.get("exact_serving_gate_passed"),
                     "curriculum_stage_complete": details.get("curriculum_stage_complete"),
                 }

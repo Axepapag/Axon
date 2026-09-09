@@ -54,6 +54,7 @@ _ENTRYPOINT_VALUE_FLAGS = {
     "--heads": "heads",
     "--layers": "layers",
     "--ffn-dim": "ffn_dim",
+    "--receipt-teaching-profile": "receipt_teaching_profile",
 }
 
 
@@ -87,6 +88,7 @@ def _entrypoint_details(argv: Sequence[str]) -> dict[str, Any]:
         "resume": False,
         "teach_multicell_copy": False,
         "receipt_continuation": False,
+        "receipt_teaching_profile": None,
     }
     items = [str(item) for item in argv]
     index = 0
@@ -1105,6 +1107,9 @@ class KaggleTrainerAdapter:
                     "resume": bool(details["resume"]),
                     "teach_multicell_copy": bool(details["teach_multicell_copy"]),
                     "receipt_continuation": bool(details["receipt_continuation"]),
+                    "receipt_teaching_profile": details[
+                        "receipt_teaching_profile"
+                    ],
                     "mtime": mtime,
                     "provider_status": None,
                     "live_status": live_status,

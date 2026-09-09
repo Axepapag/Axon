@@ -42,8 +42,8 @@ from training import (
     FOUNDATION_MOTOR_V2_PROGRAM_ID,
     FOUNDATION_MOTOR_V2_STAGE_ORDER,
     FOUNDATION_SEQUENCE_GATE_POLICY_ID,
-    RECEIPT_CONTINUATION_TEACH,
-    RECEIPT_CONTINUATION_TEACH_ID,
+    RECEIPT_TEACHING_PROFILE_CONTINUATION_V1,
+    RECEIPT_TEACHING_PROFILES,
     LivingReasoningCoreD64,
     LivingReasoningCurriculum,
     TeachingEligibility,
@@ -72,6 +72,7 @@ from training import (
     load_first_form_curriculum,
     load_sequential_first_form,
     oversample_multicell_copy_cases,
+    receipt_continuation_teach_profile,
     sequential_living_objective,
 )
 
@@ -96,6 +97,37 @@ def _compact_motor_v2_probes(evaluation: dict[str, Any]) -> dict[str, Any]:
             "pair_position": pair.get("position") if isinstance(pair, dict) else None,
         }
     return compact
+
+
+def nonzero_exact_output_observed(evaluation: dict[str, Any]) -> bool:
+    """Report weak behavioral progress without implying serving readiness."""
+
+    return bool(
+        evaluation["typed_emission_exact_rate"]
+        > evaluation["constant_typed_emission_exact_floor"]
+        and evaluation["payload_transport_exact_rate"]
+        > evaluation["constant_payload_transport_exact_floor"]
+    )
+
+
+def exact_serving_gate_passed(
+    evaluation: dict[str, Any],
+    *,
+    curriculum_stage_complete: bool,
+    complete_heldout: bool,
+    complete_regression: bool,
+    tournament_metric_surface_complete: bool,
+) -> bool:
+    """Fail closed unless the complete serving evidence surface is exact."""
+
+    return bool(
+        curriculum_stage_complete
+        and complete_heldout
+        and complete_regression
+        and tournament_metric_surface_complete
+        and evaluation["typed_emission_exact_rate"] == 1.0
+        and evaluation["payload_transport_exact_rate"] == 1.0
+    )
 
 
 def _write_immutable_json(path: Path, value: dict[str, Any]) -> None:
@@ -300,6 +332,15 @@ def _arguments() -> argparse.Namespace:
             "opt into the ratified receipt-governed intra-scalar conduit, its new "
             "architecture/state/objective identities, continuation-loss masking, and "
             "same-stage EOS co-supervision; legacy mode remains the default"
+        ),
+    )
+    parser.add_argument(
+        "--receipt-teaching-profile",
+        choices=RECEIPT_TEACHING_PROFILES,
+        default=RECEIPT_TEACHING_PROFILE_CONTINUATION_V1,
+        help=(
+            "content-addressed receipt objective profile; changing this value creates "
+            "a new candidate lineage and is never a checkpoint resume"
         ),
     )
     return parser.parse_args()
@@ -591,6 +632,14 @@ def main() -> int:
         )
     if args.candidate_label is not None and re.fullmatch(r"[a-z0-9][a-z0-9-]{0,63}", args.candidate_label) is None:
         raise ValueError("--candidate-label must be a short lowercase slug")
+    if (
+        not args.receipt_continuation
+        and args.receipt_teaching_profile
+        != RECEIPT_TEACHING_PROFILE_CONTINUATION_V1
+    ):
+        raise ValueError(
+            "a non-default --receipt-teaching-profile requires --receipt-continuation"
+        )
     _seed_everything(args.seed)
     device = _device(args.device)
     config = candidate_a_config(
@@ -673,10 +722,19 @@ def main() -> int:
         raise RuntimeError("--teach-multicell-copy requires a motor-v2 curriculum")
     if args.receipt_continuation and not foundation_motor_v2_enabled:
         raise RuntimeError("--receipt-continuation requires a motor-v2 curriculum")
+    receipt_teach = (
+        receipt_continuation_teach_profile(args.receipt_teaching_profile)
+        if args.receipt_continuation
+        else None
+    )
+    receipt_teach_id = (
+        canonical_sha256(receipt_teach) if receipt_teach is not None else None
+    )
     effective_objective_program_id = (
         foundation_motor_v2_objective_program_id(
             teach_multicell_copy=bool(args.teach_multicell_copy),
             receipt_continuation=bool(args.receipt_continuation),
+            receipt_teaching_profile=args.receipt_teaching_profile,
         )
         if foundation_motor_v2_enabled
         else None
@@ -743,12 +801,17 @@ def main() -> int:
                     "effective_objective_program_id": effective_objective_program_id,
                     "teaching_overlay_ids": [
                         (
-                            RECEIPT_CONTINUATION_TEACH_ID
+                            receipt_teach_id
                             if args.receipt_continuation
                             else COPY_ALIGNMENT_MULTICELL_TEACH_ID
                         )
                     ],
                     "receipt_continuation": bool(args.receipt_continuation),
+                    "receipt_teaching_profile": (
+                        args.receipt_teaching_profile
+                        if args.receipt_continuation
+                        else None
+                    ),
                 }
                 if args.teach_multicell_copy or args.receipt_continuation
                 else {}
@@ -968,7 +1031,7 @@ def main() -> int:
                         "enabled": bool(args.teach_multicell_copy or args.receipt_continuation),
                         **(
                             dict(
-                                RECEIPT_CONTINUATION_TEACH
+                                receipt_teach
                                 if args.receipt_continuation
                                 else COPY_ALIGNMENT_MULTICELL_TEACH
                             )
@@ -978,6 +1041,11 @@ def main() -> int:
                         ),
                     },
                     "receipt_continuation": bool(args.receipt_continuation),
+                    "receipt_teaching_profile": (
+                        args.receipt_teaching_profile
+                        if args.receipt_continuation
+                        else None
+                    ),
                 }
             )
             if foundation_motor_v2_program_complete_before_run and not args.evaluate_only:
@@ -1544,6 +1612,7 @@ def main() -> int:
                 apply_receipt_continuation_teach_weights(
                     train_component_weights or {},
                     training_stage=foundation_motor_v2_training_stage,
+                    receipt_teaching_profile=args.receipt_teaching_profile,
                 )
                 if args.receipt_continuation
                 else apply_copy_alignment_multicell_teach_weights(
@@ -1554,7 +1623,7 @@ def main() -> int:
             if foundation_motor_v2_training_stage == "copy_alignment":
                 train_position_reduction = str(
                     (
-                        RECEIPT_CONTINUATION_TEACH
+                        receipt_teach
                         if args.receipt_continuation
                         else COPY_ALIGNMENT_MULTICELL_TEACH
                     )["alignment_position_reduction"]
@@ -1699,11 +1768,7 @@ def main() -> int:
             > final_evaluation["constant_payload_token_accuracy_floor"]
             and counterfactuals_passed
         )
-        exact_gate_passed = (
-            final_evaluation["typed_emission_exact_rate"] > final_evaluation["constant_typed_emission_exact_floor"]
-            and final_evaluation["payload_transport_exact_rate"]
-            > final_evaluation["constant_payload_transport_exact_floor"]
-        )
+        nonzero_exact_output = nonzero_exact_output_observed(final_evaluation)
         promotion_plan = soul_workspace.promotion_plan(soul_manifest)
         tournament_metric_computation = d64_tournament_metric_computation(
             session.candidate_module,
@@ -1748,6 +1813,7 @@ def main() -> int:
                 complete_heldout=complete_heldout_evaluation,
                 complete_regression=complete_regression_evaluation,
                 receipt_continuation=bool(args.receipt_continuation),
+                receipt_teaching_profile=args.receipt_teaching_profile,
             )
         )
         foundation_motor_v2_program_complete = bool(
@@ -1763,7 +1829,7 @@ def main() -> int:
         )
         curriculum_stage_complete = (
             task_gate_passed
-            and exact_gate_passed
+            and nonzero_exact_output
             and (
                 foundation_motor_v2_program_complete
                 if foundation_motor_v2_enabled
@@ -1774,6 +1840,13 @@ def main() -> int:
                 if foundation_gates
                 else metric_surface_complete
             )
+        )
+        exact_serving_gate = exact_serving_gate_passed(
+            final_evaluation,
+            curriculum_stage_complete=curriculum_stage_complete,
+            complete_heldout=complete_heldout_evaluation,
+            complete_regression=complete_regression_evaluation,
+            tournament_metric_surface_complete=metric_surface_complete,
         )
         final_checkpoint_id = (
             checkpoints[-1].checkpoint_id
@@ -1846,10 +1919,16 @@ def main() -> int:
                     "that surface's strongest constant-category floor; field/proposal/Soul "
                     "counterfactuals are nonzero; every evidence-qualified heldout case is evaluated"
                 ),
-                "exact_serving_gate_passed": exact_gate_passed,
-                "exact_serving_gate_policy": (
+                "nonzero_exact_output_observed": nonzero_exact_output,
+                "nonzero_exact_output_policy": (
                     "free-running typed emission and complete Unicode payload exact rates "
-                    "must both exceed their constant zero floors"
+                    "both exceed their constant zero floors; progress signal only"
+                ),
+                "exact_serving_gate_passed": exact_serving_gate,
+                "exact_serving_gate_policy": (
+                    "curriculum stage complete; heldout, regression, and tournament metric "
+                    "surfaces complete; free-running typed emission and complete Unicode "
+                    "payload transport both exactly 1.0"
                 ),
                 "serving_promotion_claimed": False,
                 "tournament_metrics": tournament_metrics,
@@ -1876,6 +1955,7 @@ def main() -> int:
             global_step=report["segment_end_step"],
             curriculum_stage_complete=report["curriculum_stage_complete"],
             task_gate_passed=report["task_gate_passed"],
+            nonzero_exact_output_observed=report["nonzero_exact_output_observed"],
             exact_serving_gate_passed=report["exact_serving_gate_passed"],
             heldout_mean_loss=report["final_evaluation"]["heldout_mean_loss"],
             report_path=str(report_path),

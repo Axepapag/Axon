@@ -215,16 +215,88 @@ FOUNDATION_MOTOR_V2_RECEIPT_PROGRAM_ID = canonical_sha256(
     FOUNDATION_MOTOR_V2_RECEIPT_PROGRAM
 )
 
+# The first receipt objective proved exact position and EOS retention but drove
+# the learned copy/generate route to zero.  Preserve that objective and its
+# evidence immutably; this separately identified profile restores strong route
+# supervision while keeping deterministic continuation outside learned loss.
+RECEIPT_ROUTE_EOS_BALANCED_TEACH = {
+    "schema": "axon-foundation-motor-receipt-continuation-teach-v2",
+    "profile": "route_eos_balanced_v2",
+    "requires_architecture_feature": "receipt_continuation",
+    "deterministic_continuation_losses_masked": [
+        "payload",
+        "alignment_position",
+        "alignment_copy_gate",
+    ],
+    "learned_decisions_retained": [
+        "payload_anchor_category",
+        "copy_generate_route",
+        "source_anchor",
+        "eos",
+    ],
+    "component_weight_overrides": {
+        "payload": 1.0,
+        "alignment_position": 1.0,
+        "alignment_copy_gate": 4.0,
+        "alignment_eos_gate": 2.0,
+    },
+    "alignment_position_reduction": "mean",
+    "oversample_multicell": True,
+    "same_stage_eos_retention_required": True,
+    "experimental_target": (
+        "retain exact source position and EOS while recovering the learned "
+        "copy/generate route"
+    ),
+}
+RECEIPT_ROUTE_EOS_BALANCED_TEACH_ID = canonical_sha256(
+    RECEIPT_ROUTE_EOS_BALANCED_TEACH
+)
+FOUNDATION_MOTOR_V2_RECEIPT_ROUTE_EOS_BALANCED_PROGRAM = {
+    "schema": "axon-foundation-motor-teaching-program-variant-v3",
+    "base_program_id": FOUNDATION_MOTOR_V2_PROGRAM_ID,
+    "teaching_overlay_ids": [RECEIPT_ROUTE_EOS_BALANCED_TEACH_ID],
+    "layer_13_resolution": "deterministic_receipt_continuation_is_categorical_transport",
+}
+FOUNDATION_MOTOR_V2_RECEIPT_ROUTE_EOS_BALANCED_PROGRAM_ID = canonical_sha256(
+    FOUNDATION_MOTOR_V2_RECEIPT_ROUTE_EOS_BALANCED_PROGRAM
+)
+
+RECEIPT_TEACHING_PROFILE_CONTINUATION_V1 = "continuation_v1"
+RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2 = "route_eos_balanced_v2"
+RECEIPT_TEACHING_PROFILES = (
+    RECEIPT_TEACHING_PROFILE_CONTINUATION_V1,
+    RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2,
+)
+
+
+def receipt_continuation_teach_profile(profile: str) -> Mapping[str, Any]:
+    if profile == RECEIPT_TEACHING_PROFILE_CONTINUATION_V1:
+        return RECEIPT_CONTINUATION_TEACH
+    if profile == RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2:
+        return RECEIPT_ROUTE_EOS_BALANCED_TEACH
+    raise ValueError(f"unknown receipt teaching profile {profile!r}")
+
 
 def foundation_motor_v2_objective_program_id(
     *,
     teach_multicell_copy: bool,
     receipt_continuation: bool = False,
+    receipt_teaching_profile: str = RECEIPT_TEACHING_PROFILE_CONTINUATION_V1,
 ) -> str:
     """Return the exact optimizer objective identity for this campaign."""
 
     if receipt_continuation:
+        if receipt_teaching_profile == RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2:
+            return FOUNDATION_MOTOR_V2_RECEIPT_ROUTE_EOS_BALANCED_PROGRAM_ID
+        if receipt_teaching_profile != RECEIPT_TEACHING_PROFILE_CONTINUATION_V1:
+            raise ValueError(
+                f"unknown receipt teaching profile {receipt_teaching_profile!r}"
+            )
         return FOUNDATION_MOTOR_V2_RECEIPT_PROGRAM_ID
+    if receipt_teaching_profile != RECEIPT_TEACHING_PROFILE_CONTINUATION_V1:
+        raise ValueError(
+            "a non-default receipt teaching profile requires receipt_continuation=True"
+        )
     if teach_multicell_copy:
         return FOUNDATION_MOTOR_V2_MULTICELL_PROGRAM_ID
     return FOUNDATION_MOTOR_V2_PROGRAM_ID
@@ -897,11 +969,13 @@ def apply_receipt_continuation_teach_weights(
     weights: Mapping[str, float],
     *,
     training_stage: str,
+    receipt_teaching_profile: str = RECEIPT_TEACHING_PROFILE_CONTINUATION_V1,
 ) -> dict[str, float]:
     result = {key: float(value) for key, value in weights.items()}
     if training_stage != "copy_alignment":
         return result
-    result.update(RECEIPT_CONTINUATION_TEACH["component_weight_overrides"])
+    overlay = receipt_continuation_teach_profile(receipt_teaching_profile)
+    result.update(overlay["component_weight_overrides"])
     return result
 
 
@@ -1143,6 +1217,7 @@ def decide_foundation_motor_v2_stage(
     complete_heldout: bool,
     complete_regression: bool,
     receipt_continuation: bool = False,
+    receipt_teaching_profile: str = RECEIPT_TEACHING_PROFILE_CONTINUATION_V1,
 ) -> dict[str, Any]:
     if training_stage not in FOUNDATION_MOTOR_V2_STAGE_ORDER:
         raise ValueError(f"unknown foundation motor v2 training stage {training_stage!r}")
@@ -1245,8 +1320,12 @@ def decide_foundation_motor_v2_stage(
         "effective_objective_program_id": foundation_motor_v2_objective_program_id(
             teach_multicell_copy=receipt_continuation,
             receipt_continuation=receipt_continuation,
+            receipt_teaching_profile=receipt_teaching_profile,
         ),
         "receipt_continuation": receipt_continuation,
+        "receipt_teaching_profile": (
+            receipt_teaching_profile if receipt_continuation else None
+        ),
     }
     return {**body, "decision_id": canonical_sha256(body)}
 
@@ -1267,12 +1346,19 @@ __all__ = [
     "FOUNDATION_MOTOR_V2_PROGRAM_ID",
     "FOUNDATION_MOTOR_V2_RECEIPT_PROGRAM",
     "FOUNDATION_MOTOR_V2_RECEIPT_PROGRAM_ID",
+    "FOUNDATION_MOTOR_V2_RECEIPT_ROUTE_EOS_BALANCED_PROGRAM",
+    "FOUNDATION_MOTOR_V2_RECEIPT_ROUTE_EOS_BALANCED_PROGRAM_ID",
     "FOUNDATION_MOTOR_V2_SOURCE_ID",
     "FOUNDATION_MOTOR_V2_STAGE",
     "FOUNDATION_MOTOR_V2_STAGE_ORDER",
     "FOUNDATION_MOTOR_V2_UNICODE_WALK_SOURCE_ID",
     "RECEIPT_CONTINUATION_TEACH",
     "RECEIPT_CONTINUATION_TEACH_ID",
+    "RECEIPT_ROUTE_EOS_BALANCED_TEACH",
+    "RECEIPT_ROUTE_EOS_BALANCED_TEACH_ID",
+    "RECEIPT_TEACHING_PROFILES",
+    "RECEIPT_TEACHING_PROFILE_CONTINUATION_V1",
+    "RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2",
     "apply_copy_alignment_multicell_teach_weights",
     "apply_receipt_continuation_teach_weights",
     "compile_foundation_motor",
@@ -1289,6 +1375,7 @@ __all__ = [
     "is_foundation_motor_episode",
     "is_foundation_motor_v2_episode",
     "oversample_multicell_copy_cases",
+    "receipt_continuation_teach_profile",
     "verify_foundation_motor_curriculum",
     "verify_foundation_motor_v2_curriculum",
     "verify_foundation_motor_v2_unicode_walk_curriculum",
