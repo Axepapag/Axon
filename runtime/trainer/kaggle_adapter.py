@@ -885,7 +885,14 @@ class KaggleTrainerAdapter:
                 message = str(exc).lower()
                 if any(
                     marker in message
-                    for marker in ("404", "not found", "does not exist", "no such dataset")
+                    for marker in (
+                        "403",
+                        "404",
+                        "forbidden",
+                        "not found",
+                        "does not exist",
+                        "no such dataset",
+                    )
                 ):
                     raise SyncDatasetUnavailable(
                         f"mid-run sync dataset is not available yet: {dataset_ref}"

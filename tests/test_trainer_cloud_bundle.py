@@ -682,7 +682,11 @@ def test_apply_sync_pull_skips_jobs_without_sync_flag(tmp_path) -> None:
     assert "did not enable mid-run checkpoint uploads" in watcher.render()
 
 
-def test_apply_sync_pull_treats_missing_dataset_as_waiting(tmp_path) -> None:
+@pytest.mark.parametrize("provider_error", ("404 Not Found", "403 Client Error: Forbidden"))
+def test_apply_sync_pull_treats_missing_dataset_as_waiting(
+    tmp_path,
+    provider_error: str,
+) -> None:
     state = tmp_path / "State"
     _job(state, sync_mid_run=True, sync_dataset_ref="axongliksbot/axon-job-abababab-sync")
 
@@ -690,7 +694,12 @@ def test_apply_sync_pull_treats_missing_dataset_as_waiting(tmp_path) -> None:
         def __call__(self, argv, *, cwd=None, capture_output=True):
             command = tuple(str(item) for item in argv)
             if command[:3] == ("kaggle", "datasets", "download"):
-                return subprocess.CompletedProcess(command, 1, stdout="", stderr="404 Not Found")
+                return subprocess.CompletedProcess(
+                    command,
+                    1,
+                    stdout="",
+                    stderr=provider_error,
+                )
             return super().__call__(argv, cwd=cwd, capture_output=capture_output)
 
     adapter = _adapter(tmp_path, state, FailKaggle())
