@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Validate and append exactly one immutable engineer-ledger JSONL event."""
+
 from __future__ import annotations
 
 import argparse
 import json
 import os
 from pathlib import Path
-
 
 SCHEMA = "axon-engineers-ledger-event-v1"
 REQUIRED = {
@@ -43,6 +43,10 @@ def append_event(ledger: Path, event_path: Path) -> str:
     if existing and not existing.endswith(b"\n"):
         raise ValueError("canonical ledger does not end at a complete JSONL boundary")
     for line_number, line in enumerate(existing.decode("utf-8").splitlines(), 1):
+        if not line.strip():
+            # Historical blank lines are immutable too.  Ignore them while
+            # validating uniqueness; never normalize or rewrite the ledger.
+            continue
         observed = json.loads(line)
         if observed.get("event_id") == event_id:
             if line == canonical:
@@ -64,9 +68,7 @@ def main() -> int:
     parser.add_argument(
         "--ledger",
         type=Path,
-        default=Path(__file__).resolve().parent.parent
-        / "roundtable"
-        / "ENGINEERS_LEDGER_CANONICAL.jsonl",
+        default=Path(__file__).resolve().parent.parent / "roundtable" / "ENGINEERS_LEDGER_CANONICAL.jsonl",
     )
     args = parser.parse_args()
     print(append_event(args.ledger.resolve(), args.event.resolve()))
