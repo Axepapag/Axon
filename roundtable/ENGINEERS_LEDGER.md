@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-09T16:14:39Z
+Updated: 2026-09-09T22:23:15Z
 Current through event:
-`evt-20260909T161439244370Z-codex-d64-receipt-result`
+`evt-20260909T222315778109Z-codex-d64-v2-and-kimi`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
@@ -15,82 +15,61 @@ Jeff ratified R1-R12 and the Layer 13 clarification: deterministic continuation
 inside a selected Unicode scalar is categorical transport, while route choice,
 the exact source anchor, generate output, and EOS remain learned decisions.
 
-The receipt-continuation implementation is complete, tested, committed, and
-pushed in `f7cadb0` plus formatting cleanup `1e00b20`. It is opt-in and
-non-serving. The complete local R12 surface passed logically 85/85: 84 tests
-passed together, and the sole Windows long-temp-path failure passed unchanged
-under `D:\tmp\axr12`. A one-step GTX 1650 smoke verified governed execution,
-portable decoder state, checkpoint/Soul acceptance, complete-field coverage,
-and nonzero field/proposal/Soul counterfactuals without claiming intelligence.
+Two cloud ablation runs on Kaggle have now been executed, fetched, verified, and
+formally adjudicated:
 
-The one authorized private Kaggle ablation completed and its output was fetched
-through the bundle-first full-rehash path. It is an architectural mechanism win
-and a learned-candidate stage failure:
+| Metric | Prior Unicode-walk v3 | Receipt D64 v1 (`4b228ccd...`) | Receipt D64 v2 (`2f5687a6...`) |
+|---|---:|---:|---:|
+| Objective Profile | Standard | `continuation_v1` | `route_eos_balanced_v2` |
+| Heldout source position | 0.645 | **1.000** | **1.000** |
+| Regression source position | 0.657 | **1.000** | **1.000** |
+| Heldout teacher-forced content only | 0.645 | **1.000** | **1.000** |
+| Regression content-only probe | 0.657 | **1.000** | **1.000** |
+| Heldout/regression copy route | 1.000 / 1.000 | 0.000 / 0.000 | **1.000 / 1.000** |
+| Heldout/regression EOS route | 0.000 / 0.000 | **1.000 / 1.000** | 0.000 / 0.000 |
+| Heldout emitted EOS token | 0.000 | 0.125 | 0.125 |
+| Regression emitted EOS token | 0.000 | 0.208 | **0.333** |
+| Heldout teacher-forced token accuracy | 0.364 | 0.475 | 0.475 |
+| Heldout exact terminated payload transport | 0.000 | **0.333** | 0.000 |
+| Heldout typed-emission exact rate | 0.000 | **0.333** | **0.333** |
+| Heldout final mean loss | 0.5760 | 0.7322 | **0.4461** |
 
-| Metric | Prior Unicode-walk v3 | Receipt D64 |
-|---|---:|---:|
-| Heldout source position | 0.645 | **1.000** |
-| Regression source position | 0.657 | **1.000** |
-| Heldout payload content | 0.645 | **1.000** |
-| Regression payload content | 0.657 | **1.000** |
-| Heldout/regression copy route | 1.000 / 1.000 | **0.000 / 0.000** |
-| Heldout/regression EOS route | 0.000 / 0.000 | **1.000 / 1.000** |
-| Heldout/regression emitted EOS | 0.000 / 0.000 | **0.125 / 0.208** |
+### What the Two Ablations Establish
 
-The old continuation/address defect is gone: under the supervised decoder path,
-the core finds the correct anchor and reconstructs complete Unicode content on
-both full examinations. It does not autonomously choose that copy route. QA
-transcripts mostly abstain and emit an empty payload. The copy-alignment stage,
-general task, curriculum, campaign, and serving-promotion gates remain false.
-
-`exact_serving_gate_passed: true` is not serving permission. Its current policy
-only requires two aggregate exactness rates to exceed zero floors; both reached
-0.333 partly through empty/abstain-like cases while every non-abstain action was
-inexact. The name is stronger than the policy and must be corrected or renamed.
+1. Receipt continuation retained 1.000 source-position and teacher-forced
+   content-only accuracy on complete heldout and changed-source regression
+   examinations. This is strong mechanism evidence, not exact emitted transport.
+2. The v2 D64 mixer reached 1.000 copy-route alignment across both probes.
+3. The current failure is joint copy/EOS/transport behavior:
+   In v1 (copy weight 0.25, EOS 1.0), the gate logit biased positive (always GENERATE;
+   EOS=1.000, Copy=0.000). In v2 (copy weight 4.0, EOS 2.0), the gate logit biased
+   negative (always COPY; Copy=1.000, EOS=0.000). Parameter inspection of checkpoint
+   `a91fcd16` confirmed `copy_gate.bias = -0.00978` with `copy_gate.weight` norm at only
+   `0.09427`. This is consistent with bias-dominated routing, but no direct
+   counterfactual yet proves that mechanism. v2's exact terminated transport is
+   0.000 and its 0.333 typed-emission rate comes from exact supervised phases,
+   including empty/abstain-like cases.
 
 ## Current D64 receipt evidence
 
 - Decision: `roundtable/decisions/RESOLUTION_D64_POINTER_TRANSITION_2026-09-08.md`
-- Local acceptance:
-  `roundtable/reports/D64_RECEIPT_LOCAL_ACCEPTANCE_2026-09-08.md`
-- Cloud adjudication:
-  `roundtable/reports/D64_RECEIPT_KAGGLE_ABLATION_2026-09-09.md`
-- Recipe:
-  `configs/kaggle/axon_d64_mixer_4l_ffn256_h1_receipt_ablation_v1.json`
-- Cloud job:
-  `4b228ccd6dcf2bfdddb09eed59d293c162b18486bd20f42ab70d52721c37f669`
-- Candidate: `r64v3-075d61127ec9f3b8`
+- Local acceptance: `roundtable/reports/D64_RECEIPT_LOCAL_ACCEPTANCE_2026-09-08.md`
+- Cloud adjudication v1: `roundtable/reports/D64_RECEIPT_KAGGLE_ABLATION_2026-09-09.md`
+- Cloud adjudication v2: `roundtable/reports/D64_RECEIPT_KAGGLE_ABLATION_V2_2026-09-09.md`
+- Cloud job v1: `4b228ccd6dcf2bfdddb09eed59d293c162b18486bd20f42ab70d52721c37f669`
+- Cloud job v2: `2f5687a63bd691a5c1b3af6823fabaebbae927ad1b74f43271fb5745edc94a5a`
+- Candidate v2: `r64v3-a80504169350a5ce`
 - Architecture: `living-d64-receipt-823973aed39c1fe14276d2c3`
-- Geometry: D64 / 1 head / 4 layers / FFN256 / 331,319 parameters
-- Exact step-120 checkpoint:
-  `7a94d1934c2dd1999d3de1c8b33965b06d2eae6831529a1943dc7f63f46bf45c`
-- Report ID:
-  `f19c30f3a47d8a1e519450a12c59b454843ed4e1d505cc4edad5aa256ce81c2d`
-- Report SHA256:
-  `dafbeecb4764669591113aeec992fa0a6b9abee3f33f68164408c0c75f8d6280`
-- Fetched archive SHA256:
-  `422767f2c7bf340f67a05e85ac0e659e20d9fbfc355e74fac1ce727a70a559f8`
-- Heldout loss: 2.382640 -> 0.732245 (69.27% reduction; not a promotion gate)
+- Final checkpoint v2: `a91fcd16b5870661a82940c8ea11f27fd90502cf6ec2b5caf78d9faedf07e487`
+- Inspected step-120 checkpoint file: `22af77fa0bcedb396f1b1aea189863a2e4299ee33a19ab198cfa6d4abfa7088d.pt`
+- Report ID v2: `685024aeda64fe8fc71db334471403fff42f56187bd0d84066886448a5a46b09`
+- Report SHA256 v2: `28184f7950dbfddf3efeda8cd28aa5edd4846bcdbac874902b6f1e97180b4607`
+- Fetched archive SHA256 v2: `c48c6740877f46c05761ce14a25965956ad7926acceeb1a3d665c2531b718b7c`
+- Heldout final loss: 0.576025 (walk v3), 0.732245 (v1), 0.446148 (v2);
+  v2 also fell 81.28% from its own 2.382640 step-zero loss
 - Complete heldout/regression evaluation: true / true
 - Candidate lifecycle: paused at an exact accepted checkpoint, renewable
 - Serving promotion claimed: false
-
-FFN256 was chosen only because it exactly matches the rejected v3 geometry and
-therefore isolates the receipt mechanism. It has not defeated the large-FFN
-D64 candidate. Architecture selection still belongs to a later governed
-tournament.
-
-## Why the next bottleneck is probably curricular
-
-The active receipt teaching overlay used effective weights of position `4.0`,
-copy route `0.25`, payload `1.0`, and EOS route `1.0`. Position saturated while
-the shared route logit learned the EOS-positive side and not the
-content-negative/COPY side. This is evidence for a targeted, content-addressed
-objective rebalance before blaming D64 capacity or redesigning receipts.
-
-Any weight change creates a new effective objective identity. The exact
-step-120 checkpoint may be used as governed parent evidence, but the new tranche
-must never masquerade as continuation under the old objective identity.
 
 ## Binding continuity
 
@@ -112,45 +91,45 @@ must never masquerade as continuation under the old objective identity.
 
 ## Active flags
 
-1. **Candidate blocker:** heldout and regression copy-route accuracy are 0.0;
-   emitted payload EOS is 0.125/0.208. The copy-alignment stage gate is false.
+1. **Joint gate/transport failure:** v2 recovered copy alignment but EOS-route
+   accuracy and exact terminated payload transport are 0.000. Scalar-bias
+   dominance is a plausible hypothesis, not yet a proved cause.
 2. **Serving blocker:** durable HeartHost ownership and reload of decoder
    execution state is not integrated.
-3. **Metric hazard:** the weak `exact_serving_gate_passed` name can be mistaken
-   for promotion permission despite false task/stage gates.
+3. **Metric hazard:** the weak `exact_serving_gate_passed` name was renamed in code
+   to `nonzero_exact_output_observed` (progress signal only), with `exact_serving_gate_passed`
+   requiring strict 1.0 exact rates across all complete metric surfaces.
 4. **Cloud resilience:** optional mid-run off-kernel sync lacked
    provider-managed credentials. The final bundle completed and is verified,
    but future long runs need a secure secret path.
 5. **Windows tooling:** default Pytest temp/cache cleanup has local access and
-   long-path defects. Short controlled temp roots pass affected tests.
-6. Repository-wide Ruff still reports a pre-existing unsorted `__all__` in
-   unchanged `training/canonical_d64.py`.
+   long-path defects.
 
 ## Next recommended shot
 
-1. Correct or rename the weak exact-serving metric before it can mislead an
-   operator or engineer.
-2. Define a new content-addressed renewal objective with strong copy-route
-   pressure while retaining EOS co-supervision and exact receipt continuation.
-3. Continue from exact checkpoint `7a94d193…` for one bounded renewable tranche.
-   Require heldout and regression copy route, position, content, and emitted EOS
-   to clear 0.95 together.
-4. If the gate passes, continue the staged motor curriculum. If it fails under
-   balanced pressure, falsify the current gate architecture before adding
-   capacity.
-5. After this mechanism/curriculum question closes, run the governed D64
-   architecture tournament including large-FFN candidates.
-6. Then rehearse the deterministic Google demo: exact field/masks, Heart
-   rejection and commit, real Dormant retrieval/provenance, and Trainer
-   interruption/resume. Present D512 as registered future anatomy, not current
-   measured tissue.
+1. Add a bounded D64 diagnostic that records per-position route logits and
+   compares the untouched v2 checkpoint with a zero-bias clamp. Do not promote
+   or rewrite the candidate.
+2. If the counterfactual confirms bias dominance, compare a longer fresh
+   tranche and non-zero gate initialization under new content-addressed
+   identities. If it falsifies the hypothesis, inspect contextual separability
+   before changing architecture.
+3. **Google Cloud meeting**: Assemble an operator demo package
+   demonstrating verified, production-ready deterministic subsystems:
+   - Heart transaction OS: live fail-closed rejection of injection proposals vs.
+     accepted typed deltas.
+   - Autobiographical memory: SQLite evidence bridge querying 59,875 records in
+     `State/dormant/experience_v1` (<0.5s latency).
+   - Spot-native trainer: pause and resume with zero state loss.
+   - Present 512D / 1024D as the funded compute milestone for Google Cloud credits.
+4. **Wider Rail Migration**: Only after the D64 mechanism is fully closed and ratified,
+   implement the width-generic packed compiler (`d_model // 16` lanes) for 512D.
 
 ## Continuity health
 
-- Canonical ledger: 196 valid unique event lines plus one preserved historical
-  blank line through the event named above.
-- `scripts/append_engineers_ledger_event.py` now tolerates that immutable blank
-  line without rewriting it; regression coverage is in
-  `tests/test_engineers_ledger_append.py`.
-- `origin/main` contained D64 implementation commits through `1e00b20` before
-  this result/ledger closeout commit.
+- Canonical ledger: 199 valid unique event lines plus one preserved historical
+  blank line through `evt-20260909T222315778109Z-codex-d64-v2-and-kimi`.
+- `scripts/append_engineers_ledger_event.py` validated and cleanly appended the turn event.
+- Kimi CLI is globally pinned to standard K2.7 Coding; its first bounded,
+  read-only Codex-directed evidence audit completed without repository writes.
+- After this closeout commit, `legal/` remains protected and untracked.
