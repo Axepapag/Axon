@@ -8,8 +8,8 @@ explicit outcome-quality labels.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import math
+from dataclasses import dataclass, field
 from typing import Any, Iterable, Mapping
 
 import torch
@@ -30,6 +30,7 @@ from runtime.heart import (
     ReasoningOperationKind,
 )
 from runtime.soul import SoulSnapshot, SoulTemperature
+from runtime.source_of_truth import capacity_policy
 
 from .complete_field_64d import sequence_cross_entropy
 from .living_reasoning_d64 import (
@@ -439,7 +440,15 @@ def living_phase_objective(
             specification=target.payload_alignment,
             position_reduction=alignment_position_reduction,
         )
-    payload_loss = sequence_cross_entropy(payload_logits, payload_targets)
+    payload_loss = sequence_cross_entropy(
+        payload_logits,
+        payload_targets,
+        token_mask=(
+            None
+            if alignment_supervision is None
+            else alignment_supervision["learned_decision_mask"]
+        ),
+    )
     loss = (
         loss
         + weighted("operation", operation_loss)
@@ -481,6 +490,9 @@ def living_phase_objective(
                 "alignment_copy_gate_loss": float(copy_gate_loss.detach().item()),
                 "alignment_eos_gate_loss": float(eos_gate_loss.detach().item()),
                 "alignment_copy_positions": float(alignment_supervision["copy_positions"]),
+                "deterministic_continuation_positions": float(
+                    alignment_supervision["deterministic_continuation_positions"]
+                ),
                 "alignment_position_accuracy": float(alignment_supervision["position_accuracy"]),
                 "alignment_copy_gate_accuracy": float(
                     alignment_supervision["copy_gate_accuracy"]
@@ -580,6 +592,8 @@ def evaluate_living_episode(
     alignment_copy_gate_correct = 0
     alignment_eos_gate_count = 0
     alignment_eos_gate_correct = 0
+    deterministic_continuation_count = 0
+    deterministic_continuation_correct = 0
     decision_correct = 0
     operation_count = 0
     operation_correct = 0
@@ -653,7 +667,37 @@ def evaluate_living_episode(
             end = candidates[int(end_logits.argmax(dim=-1).item())]
             if operation is ReasoningOperationKind.INSERT:
                 end = start
-            payload, terminated = model.decode_transport_greedy(output)
+            phase_continuations = 0
+            phase_continuations_correct = 0
+            if model.living_config.receipt_continuation:
+                execution = model.initial_decoder_execution_state(output)
+                decoded_result = model.advance_decoder_execution(
+                    output,
+                    execution,
+                    work_units=capacity_policy().integer(
+                        "reasoning.emission_work_slice_transport_units"
+                    ),
+                )
+                payload = decoded_result.text
+                terminated = decoded_result.complete
+                continuation_events = tuple(
+                    item
+                    for item in decoded_result.state.trace
+                    if item.route.value == "deterministic_receipt_continuation"
+                )
+                phase_continuations = len(continuation_events)
+                for item in continuation_events:
+                    if item.memory_index is None:
+                        continue
+                    receipt = output.complete_memory.receipt(item.memory_index)
+                    phase_continuations_correct += int(
+                        receipt.receipt_id == item.receipt_id
+                        and receipt.address.transport_token_id == item.category
+                    )
+                deterministic_continuation_count += phase_continuations
+                deterministic_continuation_correct += phase_continuations_correct
+            else:
+                payload, terminated = model.decode_transport_greedy(output)
             payload_match = terminated and payload == target.payload
             payload_exact += int(payload_match)
             if transcript_sink is not None and payload_count <= 3:
@@ -689,12 +733,20 @@ def evaluate_living_episode(
                     specification=target.payload_alignment,
                 )
             teacher_predictions = teacher_logits.argmax(dim=-1)
-            payload_token_count += int(teacher_targets.numel())
-            payload_token_correct += int(
-                teacher_predictions.eq(teacher_targets).sum().item()
+            learned_mask = (
+                torch.ones_like(teacher_targets, dtype=torch.bool)
+                if alignment is None
+                else alignment["learned_decision_mask"]
             )
-            content_targets = teacher_targets[:, :-1]
-            content_predictions = teacher_predictions[:, :-1]
+            learned_targets = teacher_targets[learned_mask]
+            learned_predictions = teacher_predictions[learned_mask]
+            payload_token_count += int(learned_targets.numel())
+            payload_token_correct += int(
+                learned_predictions.eq(learned_targets).sum().item()
+            )
+            content_mask = learned_mask[:, :-1]
+            content_targets = teacher_targets[:, :-1][content_mask]
+            content_predictions = teacher_predictions[:, :-1][content_mask]
             content_count = int(content_targets.numel())
             content_correct = int(content_predictions.eq(content_targets).sum().item())
             payload_content_token_count += content_count
@@ -706,7 +758,7 @@ def evaluate_living_episode(
             payload_eos_token_count += eos_count
             payload_eos_token_correct += eos_correct
             payload_target_counts += torch.bincount(
-                teacher_targets.reshape(-1),
+                learned_targets.reshape(-1),
                 minlength=model.eos_index + 1,
             )
             if alignment is not None:
@@ -746,6 +798,14 @@ def evaluate_living_episode(
                         if alignment is None
                         else alignment["eos_gate_correct"]
                         == alignment["eos_gate_supervised_positions"]
+                    ),
+                    "deterministic_continuation_count": (
+                        phase_continuations
+                    ),
+                    "deterministic_continuation_integrity_exact": (
+                        None
+                        if phase_continuations == 0
+                        else phase_continuations_correct == phase_continuations
                     ),
                 }
             )
@@ -800,6 +860,10 @@ def evaluate_living_episode(
         / max(1, alignment_eos_gate_count),
         "alignment_eos_gate_count": alignment_eos_gate_count,
         "alignment_eos_gate_correct": alignment_eos_gate_correct,
+        "deterministic_continuation_integrity_rate": deterministic_continuation_correct
+        / max(1, deterministic_continuation_count),
+        "deterministic_continuation_count": deterministic_continuation_count,
+        "deterministic_continuation_correct": deterministic_continuation_correct,
         "decision_accuracy": decision_correct / max(1, supervised),
         "decision_correct": decision_correct,
         "decision_target_counts": decision_target_counts,

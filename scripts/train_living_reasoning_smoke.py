@@ -42,10 +42,13 @@ from training import (
     FOUNDATION_MOTOR_V2_PROGRAM_ID,
     FOUNDATION_MOTOR_V2_STAGE_ORDER,
     FOUNDATION_SEQUENCE_GATE_POLICY_ID,
+    RECEIPT_CONTINUATION_TEACH,
+    RECEIPT_CONTINUATION_TEACH_ID,
     LivingReasoningCoreD64,
     LivingReasoningCurriculum,
     TeachingEligibility,
     apply_copy_alignment_multicell_teach_weights,
+    apply_receipt_continuation_teach_weights,
     build_living_reasoning_preflight,
     build_living_reasoning_smoke_curriculum,
     candidate_a_config,
@@ -212,7 +215,7 @@ def _arguments() -> argparse.Namespace:
         type=float,
         default=1.5,
         help=(
-            "initial copy/generate-gate bias; 1.5 is Candidate A (~82% generate). "
+            "initial copy/generate-gate bias; 1.5 is Candidate A (~82%% generate). "
             "0.0 is a fair coin. Initialization only; not part of architecture identity."
         ),
     )
@@ -288,6 +291,15 @@ def _arguments() -> argparse.Namespace:
             "copy_alignment teaching overlay: sum position loss, stop paying "
             "copy-gate 4x, and oversample authored multi-cell train letters. "
             "Does not change program_id, architecture, or the heldout/regression exam."
+        ),
+    )
+    parser.add_argument(
+        "--receipt-continuation",
+        action="store_true",
+        help=(
+            "opt into the ratified receipt-governed intra-scalar conduit, its new "
+            "architecture/state/objective identities, continuation-loss masking, and "
+            "same-stage EOS co-supervision; legacy mode remains the default"
         ),
     )
     return parser.parse_args()
@@ -588,6 +600,7 @@ def main() -> int:
         page_size=args.page_size,
         dropout=0.0,
         generate_gate_bias=args.generate_gate_bias,
+        receipt_continuation=bool(args.receipt_continuation),
     )
     model = LivingReasoningCoreD64(config).to(device)
     standard_ffcs = []
@@ -658,9 +671,12 @@ def main() -> int:
         raise RuntimeError("one campaign cannot mix motor-v1 and motor-v2 teaching")
     if args.teach_multicell_copy and not foundation_motor_v2_enabled:
         raise RuntimeError("--teach-multicell-copy requires a motor-v2 curriculum")
+    if args.receipt_continuation and not foundation_motor_v2_enabled:
+        raise RuntimeError("--receipt-continuation requires a motor-v2 curriculum")
     effective_objective_program_id = (
         foundation_motor_v2_objective_program_id(
-            teach_multicell_copy=bool(args.teach_multicell_copy)
+            teach_multicell_copy=bool(args.teach_multicell_copy),
+            receipt_continuation=bool(args.receipt_continuation),
         )
         if foundation_motor_v2_enabled
         else None
@@ -725,9 +741,16 @@ def main() -> int:
             **(
                 {
                     "effective_objective_program_id": effective_objective_program_id,
-                    "teaching_overlay_ids": [COPY_ALIGNMENT_MULTICELL_TEACH_ID],
+                    "teaching_overlay_ids": [
+                        (
+                            RECEIPT_CONTINUATION_TEACH_ID
+                            if args.receipt_continuation
+                            else COPY_ALIGNMENT_MULTICELL_TEACH_ID
+                        )
+                    ],
+                    "receipt_continuation": bool(args.receipt_continuation),
                 }
-                if args.teach_multicell_copy
+                if args.teach_multicell_copy or args.receipt_continuation
                 else {}
             ),
             "sequential_cases_remain_grouped": True,
@@ -942,14 +965,19 @@ def main() -> int:
                         )
                     ),
                     "teach_multicell_copy": {
-                        "enabled": bool(args.teach_multicell_copy),
+                        "enabled": bool(args.teach_multicell_copy or args.receipt_continuation),
                         **(
-                            dict(COPY_ALIGNMENT_MULTICELL_TEACH)
-                            if args.teach_multicell_copy
+                            dict(
+                                RECEIPT_CONTINUATION_TEACH
+                                if args.receipt_continuation
+                                else COPY_ALIGNMENT_MULTICELL_TEACH
+                            )
+                            if (args.teach_multicell_copy or args.receipt_continuation)
                             and foundation_motor_v2_training_stage == "copy_alignment"
                             else {}
                         ),
                     },
+                    "receipt_continuation": bool(args.receipt_continuation),
                 }
             )
             if foundation_motor_v2_program_complete_before_run and not args.evaluate_only:
@@ -1511,21 +1539,34 @@ def main() -> int:
             )
         )
         train_position_reduction = "mean"
-        if args.teach_multicell_copy and foundation_motor_v2_training_stage is not None:
-            train_component_weights = apply_copy_alignment_multicell_teach_weights(
-                train_component_weights or {},
-                training_stage=foundation_motor_v2_training_stage,
+        if (args.teach_multicell_copy or args.receipt_continuation) and foundation_motor_v2_training_stage is not None:
+            train_component_weights = (
+                apply_receipt_continuation_teach_weights(
+                    train_component_weights or {},
+                    training_stage=foundation_motor_v2_training_stage,
+                )
+                if args.receipt_continuation
+                else apply_copy_alignment_multicell_teach_weights(
+                    train_component_weights or {},
+                    training_stage=foundation_motor_v2_training_stage,
+                )
             )
             if foundation_motor_v2_training_stage == "copy_alignment":
                 train_position_reduction = str(
-                    COPY_ALIGNMENT_MULTICELL_TEACH["alignment_position_reduction"]
+                    (
+                        RECEIPT_CONTINUATION_TEACH
+                        if args.receipt_continuation
+                        else COPY_ALIGNMENT_MULTICELL_TEACH
+                    )["alignment_position_reduction"]
                 )
         curriculum_lanes = _training_lanes(
             mechanism_curriculum,
             standard_ffcs,
             sequential_ffcs,
             foundation_motor_v2_training_stage=foundation_motor_v2_training_stage,
-            teach_multicell_copy=bool(args.teach_multicell_copy),
+            teach_multicell_copy=bool(
+                args.teach_multicell_copy or args.receipt_continuation
+            ),
         )
         if not curriculum_lanes:  # pragma: no cover - mechanism always supplies train
             raise RuntimeError("governed campaign has no supervised training material")
@@ -1706,6 +1747,7 @@ def main() -> int:
                 ),
                 complete_heldout=complete_heldout_evaluation,
                 complete_regression=complete_regression_evaluation,
+                receipt_continuation=bool(args.receipt_continuation),
             )
         )
         foundation_motor_v2_program_complete = bool(

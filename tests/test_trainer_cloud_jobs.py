@@ -556,7 +556,14 @@ def test_job_catalog_names_jobs_and_puts_running_first(tmp_path) -> None:
     running_id = "a" * 64
     fetched_id = "b" * 64
 
-    def write_job(job_id: str, *, phase: str, name: str, teach: bool) -> None:
+    def write_job(
+        job_id: str,
+        *,
+        phase: str,
+        name: str,
+        teach: bool,
+        receipt: bool = False,
+    ) -> None:
         job_dir = state / "training" / "cloud" / "jobs" / job_id
         job_dir.mkdir(parents=True)
         argv = [
@@ -576,6 +583,8 @@ def test_job_catalog_names_jobs_and_puts_running_first(tmp_path) -> None:
         ]
         if teach:
             argv.append("--teach-multicell-copy")
+        if receipt:
+            argv.append("--receipt-continuation")
         (job_dir / "packet_manifest.json").write_text(
             json.dumps(
                 {
@@ -605,7 +614,13 @@ def test_job_catalog_names_jobs_and_puts_running_first(tmp_path) -> None:
         )
 
     write_job(fetched_id, phase="outputs_fetched", name="Old fetched job", teach=False)
-    write_job(running_id, phase="submitted", name="Axon D64 mixer multi-cell copy teach", teach=True)
+    write_job(
+        running_id,
+        phase="submitted",
+        name="Axon D64 mixer receipt continuation",
+        teach=True,
+        receipt=True,
+    )
 
     class LiveKaggle(_FakeKaggle):
         def __call__(self, argv, *, cwd=None, capture_output=True):
@@ -628,9 +643,11 @@ def test_job_catalog_names_jobs_and_puts_running_first(tmp_path) -> None:
     catalog = adapter.job_catalog(refresh_live=True)
     assert [row["job_id"] for row in catalog] == [running_id, fetched_id]
     assert catalog[0]["live_status"] == "running"
-    assert catalog[0]["name"] == "Axon D64 mixer multi-cell copy teach"
+    assert catalog[0]["name"] == "Axon D64 mixer receipt continuation"
     assert catalog[0]["shape"] == "1h/4L/FFN256"
     assert catalog[0]["teach_multicell_copy"] is True
+    assert catalog[0]["receipt_continuation"] is True
+    assert catalog[1]["receipt_continuation"] is False
     assert catalog[1]["live_status"] == "fetched"
     local_only = adapter.job_catalog(refresh_live=False)
     assert local_only[0]["job_id"] == running_id

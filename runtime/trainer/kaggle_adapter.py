@@ -86,6 +86,7 @@ def _entrypoint_details(argv: Sequence[str]) -> dict[str, Any]:
         "ffn_dim": None,
         "resume": False,
         "teach_multicell_copy": False,
+        "receipt_continuation": False,
     }
     items = [str(item) for item in argv]
     index = 0
@@ -100,6 +101,8 @@ def _entrypoint_details(argv: Sequence[str]) -> dict[str, Any]:
             values["resume"] = True
         elif item == "--teach-multicell-copy":
             values["teach_multicell_copy"] = True
+        elif item == "--receipt-continuation":
+            values["receipt_continuation"] = True
         index += 1
     return values
 
@@ -1101,6 +1104,7 @@ class KaggleTrainerAdapter:
                     "shape": shape,
                     "resume": bool(details["resume"]),
                     "teach_multicell_copy": bool(details["teach_multicell_copy"]),
+                    "receipt_continuation": bool(details["receipt_continuation"]),
                     "mtime": mtime,
                     "provider_status": None,
                     "live_status": live_status,

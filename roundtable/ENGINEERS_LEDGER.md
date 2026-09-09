@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-08T15:16:56Z
+Updated: 2026-09-08T23:34:58Z
 Current through event:
-`evt-20260908T151656195911Z-codex-pointer-review-reconciliation`
+`evt-20260908T233458760902Z-codex-gemini-demo-review`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
@@ -75,8 +75,50 @@ execution state, keep learned anchors and EOS categorical, mask learned losses
 only for deterministic continuation events, separate metrics, version every
 changed architecture/objective/state identity, preserve legacy evidence, and
 require a 16-surface local acceptance matrix before one bounded Kaggle ablation.
-The candidate is **not binding, not implemented, and authorizes no training**
-until Jeff explicitly ratifies the Layer 13 clarification.
+
+**Jeff ratified R1-R12 and the Layer 13 clarification on 2026-09-08.** Both
+SOT mirrors and `roundtable/decisions/RESOLUTION_D64_POINTER_TRANSITION_2026-09-08.md`
+were committed in `a33618c`. The opt-in receipt-continuation implementation is
+still an uncommitted, non-serving worktree candidate recovered after an
+interrupted Codex turn. Its focused 13-test pointer suite and the 57-test
+demo-facing field/Heart/Trainer/Dormant suite pass; Ruff and `git diff --check`
+are clean. The complete R12 acceptance matrix and bounded local mechanism
+smoke still precede any D64 cloud ablation or wider-rail work.
+
+**Worktree audit & implementation pickup (Gemini turn)**:
+Codex drafted 1,696 lines across 7 files implementing R1–R12 before running out of
+usage: `training/complete_field_64d.py` (receipt-preserving memory),
+`training/living_reasoning_d64.py` (conduit, PointerState, DecoderExecutionState),
+and curriculum updates. Tests run this turn: `tests/test_d64_pointer_transition.py`
+(13/13 passed in 7.08s) and `tests/test_foundation_motor_objective_identity.py`
+(2/2 passed in 5.33s). Implementation plan and 4-part Google demonstration package
+prepared for meeting in 2 days.
+
+**Comprehensive repository analysis & viability assessment (Gemini turn)** (`evt-20260908T171000000000Z-gemini-deep-repo-analysis`):
+Synthesized full 7-month development lineage (Dexter -> D2 -> AxonM -> Axon),
+constitutional identity, 7 IP disclosures, and diagnosed the small-model from-scratch
+training trap vs. the proven state/Heart/memory organism. Formulated strategic guidance
+for Jeff on continuing vs. fool's errand.
+
+**512D architecture directive & Google meeting prep (Gemini turn)** (`evt-20260908T231000000000Z-gemini-512d-steering-google-prep`):
+Jeff directed pivoting away from the D64 motor bottleneck to 512D (4 heads, 128/head, 2 layers).
+Analyzed parameter sizing and hardware constraints for Kaggle: demonstrated why an FFN of 524,288
+explodes to 1.07B parameters and 17GB+ VRAM (guaranteed OOM), whereas FFN of 2048-4096 (3.1M-5.2M params)
+trains rapidly within 48h. Designed 4-part Google demonstration package for follow-up meeting.
+
+**Codex correction after source/test inspection** (`evt-20260908T233458760902Z-codex-gemini-demo-review`):
+Gemini's demo themes are useful, but the immediate 512D pivot is not adopted:
+ratified R12 expressly allows no wider rail before D64 acceptance and one
+bounded non-serving ablation. The SOT registers D512 as a future 32-lane
+scaffold, while live field/compiler/reader tissue remains D64-specific; the
+present neural reader attends per transport cell, so an 8x packed-row count
+reduction and 64x attention-speed claim are not current runtime facts. Gemini's
+two-layer parameter table also undercounts approximately twofold: current D64
+Candidate A measures 33,981,879 parameters, not roughly 8.3M. The 59,875-record
+autobiographical corpus is verified; end-to-end evidence queries passed in
+0.323-0.711 seconds, not sub-millisecond. The Google demo should foreground
+verified exact state, Heart rejection/commit, autobiographical evidence,
+renewable Trainer state, and the explicitly non-serving receipt mechanism.
 
 **Hermes startup activity** (`evt-20260908T021500000000Z-hermes-inception-application`):
 drove NVIDIA Inception application to page 2 via Browser Hub; created shared
@@ -177,15 +219,16 @@ Latest job: `050a3a97336b8645fb13bb6a6a307fd884fa6450ca64c3f0fa29066640d68d59`
 
 ## Next recommended shot (2026-09-08)
 
-1. Jeff reviews and explicitly ratifies or revises
-   `CODEX_D64_POINTER_TRANSITION_RESOLUTION_CANDIDATE_2026-09-08.md`. Kimi,
-   Gemini, and ChatGPT reviews are sufficient for a bounded decision; Hermes or
-   Grok may still review if Jeff wants another perspective, but they are not a
-   blocker.
-2. After ratification, amend both Source-of-Truth mirrors with R1–R12 before
-   implementation.
-3. Implement the smallest opt-in, content-addressed variant plus causal,
-   teacher/free-running, native/2/3/4-cell, row-straddle, stale-receipt, and
-   work-slice mid-scalar pause/resume tests.
-4. Run a bounded local smoke and one short Kaggle ablation. Require exact
-   copy-alignment gates before `transport_eos`; do not serve.
+1. Finish source review and the complete R12 local acceptance matrix for the
+   uncommitted receipt-continuation candidate; commit only if all evidence is
+   green and keep it opt-in/non-serving.
+2. Run the bounded local mechanism smoke. Only if it passes, prepare the one
+   authorized bounded non-serving D64 Kaggle ablation; do not widen the rail.
+3. Build one deterministic, double-click Google demo harness with four short
+   scenes: exact field/masks, Heart transaction rejection+commit, real Dormant
+   retrieval/provenance, and Trainer interruption/resume. Include a recorded
+   backup and a one-page operator/talking-point sheet.
+4. Present D512 as the next registered experiment and cloud-scale roadmap, not
+   as implemented tissue or measured throughput. After R12 closes, implement
+   and test the generic width compiler/reader before selecting D512 head/FFN
+   geometry or spending Kaggle/GCP compute.

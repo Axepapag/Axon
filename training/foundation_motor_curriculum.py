@@ -180,11 +180,51 @@ FOUNDATION_MOTOR_V2_MULTICELL_PROGRAM = {
 FOUNDATION_MOTOR_V2_MULTICELL_PROGRAM_ID = canonical_sha256(
     FOUNDATION_MOTOR_V2_MULTICELL_PROGRAM
 )
+RECEIPT_CONTINUATION_TEACH = {
+    "schema": "axon-foundation-motor-receipt-continuation-teach-v1",
+    "requires_architecture_feature": "receipt_continuation",
+    "deterministic_continuation_losses_masked": [
+        "payload",
+        "alignment_position",
+        "alignment_copy_gate",
+    ],
+    "learned_decisions_retained": [
+        "payload_anchor_category",
+        "copy_generate_route",
+        "source_anchor",
+        "eos",
+    ],
+    "component_weight_overrides": {
+        "payload": 1.0,
+        "alignment_position": 4.0,
+        "alignment_copy_gate": 0.25,
+        "alignment_eos_gate": 1.0,
+    },
+    "alignment_position_reduction": "sum",
+    "oversample_multicell": True,
+    "same_stage_eos_retention_required": True,
+}
+RECEIPT_CONTINUATION_TEACH_ID = canonical_sha256(RECEIPT_CONTINUATION_TEACH)
+FOUNDATION_MOTOR_V2_RECEIPT_PROGRAM = {
+    "schema": "axon-foundation-motor-teaching-program-variant-v2",
+    "base_program_id": FOUNDATION_MOTOR_V2_PROGRAM_ID,
+    "teaching_overlay_ids": [RECEIPT_CONTINUATION_TEACH_ID],
+    "layer_13_resolution": "deterministic_receipt_continuation_is_categorical_transport",
+}
+FOUNDATION_MOTOR_V2_RECEIPT_PROGRAM_ID = canonical_sha256(
+    FOUNDATION_MOTOR_V2_RECEIPT_PROGRAM
+)
 
 
-def foundation_motor_v2_objective_program_id(*, teach_multicell_copy: bool) -> str:
+def foundation_motor_v2_objective_program_id(
+    *,
+    teach_multicell_copy: bool,
+    receipt_continuation: bool = False,
+) -> str:
     """Return the exact optimizer objective identity for this campaign."""
 
+    if receipt_continuation:
+        return FOUNDATION_MOTOR_V2_RECEIPT_PROGRAM_ID
     if teach_multicell_copy:
         return FOUNDATION_MOTOR_V2_MULTICELL_PROGRAM_ID
     return FOUNDATION_MOTOR_V2_PROGRAM_ID
@@ -853,6 +893,18 @@ def apply_copy_alignment_multicell_teach_weights(
     return result
 
 
+def apply_receipt_continuation_teach_weights(
+    weights: Mapping[str, float],
+    *,
+    training_stage: str,
+) -> dict[str, float]:
+    result = {key: float(value) for key, value in weights.items()}
+    if training_stage != "copy_alignment":
+        return result
+    result.update(RECEIPT_CONTINUATION_TEACH["component_weight_overrides"])
+    return result
+
+
 def oversample_multicell_copy_cases(
     cases: Sequence[FirstFormCase],
 ) -> tuple[FirstFormCase, ...]:
@@ -1090,6 +1142,7 @@ def decide_foundation_motor_v2_stage(
     regression_probe: Mapping[str, Any] | None,
     complete_heldout: bool,
     complete_regression: bool,
+    receipt_continuation: bool = False,
 ) -> dict[str, Any]:
     if training_stage not in FOUNDATION_MOTOR_V2_STAGE_ORDER:
         raise ValueError(f"unknown foundation motor v2 training stage {training_stage!r}")
@@ -1135,6 +1188,10 @@ def decide_foundation_motor_v2_stage(
                 require("alignment_copy_gate_accuracy")
                 require_pair("position")
                 require_pair("copy_gate")
+                if receipt_continuation:
+                    require("alignment_eos_gate_accuracy")
+                    require("payload_eos_accuracy")
+                    require_pair("eos_gate")
             elif training_stage == "transport_eos":
                 for metric in (
                     "alignment_position_accuracy",
@@ -1185,6 +1242,11 @@ def decide_foundation_motor_v2_stage(
         "heldout_probe": None if heldout_probe is None else dict(heldout_probe),
         "regression_probe": None if regression_probe is None else dict(regression_probe),
         "program_id": FOUNDATION_MOTOR_V2_PROGRAM_ID,
+        "effective_objective_program_id": foundation_motor_v2_objective_program_id(
+            teach_multicell_copy=receipt_continuation,
+            receipt_continuation=receipt_continuation,
+        ),
+        "receipt_continuation": receipt_continuation,
     }
     return {**body, "decision_id": canonical_sha256(body)}
 
@@ -1203,11 +1265,16 @@ __all__ = [
     "FOUNDATION_MOTOR_V2_MULTICELL_PROGRAM_ID",
     "FOUNDATION_MOTOR_V2_PROGRAM",
     "FOUNDATION_MOTOR_V2_PROGRAM_ID",
+    "FOUNDATION_MOTOR_V2_RECEIPT_PROGRAM",
+    "FOUNDATION_MOTOR_V2_RECEIPT_PROGRAM_ID",
     "FOUNDATION_MOTOR_V2_SOURCE_ID",
     "FOUNDATION_MOTOR_V2_STAGE",
     "FOUNDATION_MOTOR_V2_STAGE_ORDER",
     "FOUNDATION_MOTOR_V2_UNICODE_WALK_SOURCE_ID",
+    "RECEIPT_CONTINUATION_TEACH",
+    "RECEIPT_CONTINUATION_TEACH_ID",
     "apply_copy_alignment_multicell_teach_weights",
+    "apply_receipt_continuation_teach_weights",
     "compile_foundation_motor",
     "compile_foundation_motor_v2",
     "compile_foundation_motor_v2_unicode_walk",

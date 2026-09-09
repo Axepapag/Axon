@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import math
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any, Mapping
 
 import numpy as np
@@ -22,6 +22,7 @@ from torch.utils.checkpoint import checkpoint
 from runtime.field import (
     CANONICAL_REGION_ORDER,
     PRE_IDENTITY_REGION_ORDER,
+    CanonicalCharAddress,
     CompiledD64Field,
     D64CharacterPage,
     D64FieldCompiler,
@@ -37,6 +38,9 @@ from substrate import assert_supported_text, encode_unicode_text, get_letter_ban
 REGION_ORDER: tuple[str, ...] = tuple(region.value for region in CANONICAL_REGION_ORDER)
 REGION_TO_ID = {name: index for index, name in enumerate(REGION_ORDER)}
 IDENTITY_REGION_EMBEDDING_MIGRATION_SCHEMA = "axon-d64-identity-region-embedding-migration-v1"
+ADDRESSABLE_MEMORY_SCHEMA = "axon-addressable-memory-v2"
+MEMORY_CELL_RECEIPT_SCHEMA = "axon-addressable-memory-cell-receipt-v1"
+MEMORY_SEGMENT_SCHEMA = "axon-addressable-memory-segment-v1"
 
 
 @dataclass(frozen=True)
@@ -81,6 +85,119 @@ class CoverageManifest:
 
 
 @dataclass(frozen=True)
+class MemoryCellReceipt:
+    """Exact compiler receipt retained beside one neural-memory slot."""
+
+    segment_id: str
+    segment_kind: str
+    source_field_id: str
+    source_tick_id: int
+    rail_id: str
+    address: CanonicalCharAddress
+    receipt_id: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        for name in ("segment_id", "segment_kind", "source_field_id", "rail_id"):
+            if not isinstance(getattr(self, name), str) or not getattr(self, name):
+                raise ValueError(f"MemoryCellReceipt.{name} must be non-empty")
+        if isinstance(self.source_tick_id, bool) or not isinstance(self.source_tick_id, int):
+            raise TypeError("MemoryCellReceipt.source_tick_id must be an integer")
+        if not isinstance(self.address, CanonicalCharAddress):
+            raise TypeError("MemoryCellReceipt.address must be CanonicalCharAddress")
+        object.__setattr__(
+            self,
+            "receipt_id",
+            canonical_sha256(self.to_canonical_dict(include_id=False)),
+        )
+
+    def to_canonical_dict(self, *, include_id: bool = True) -> dict[str, Any]:
+        value = {
+            "schema": MEMORY_CELL_RECEIPT_SCHEMA,
+            "segment_id": self.segment_id,
+            "segment_kind": self.segment_kind,
+            "source_field_id": self.source_field_id,
+            "source_tick_id": self.source_tick_id,
+            "rail_id": self.rail_id,
+            "address": self.address.to_canonical_dict(),
+        }
+        if include_id:
+            value["receipt_id"] = self.receipt_id
+        return value
+
+    @property
+    def scalar_identity(self) -> tuple[Any, ...]:
+        address = self.address
+        return (
+            self.segment_id,
+            self.source_field_id,
+            self.source_tick_id,
+            self.rail_id,
+            address.region,
+            address.region_position,
+            address.global_position,
+            address.span_id,
+            address.span_position,
+            address.source,
+            address.provenance,
+            address.character,
+            address.attended_interval_index,
+            address.attended_interval_start,
+            address.attended_interval_end,
+        )
+
+
+@dataclass(frozen=True)
+class MemorySegmentReceipt:
+    """Content-addressed proof for the complete valid address set of one segment."""
+
+    segment_kind: str
+    segment_label: str | None
+    source_field_id: str
+    source_tick_id: int
+    rail_id: str
+    address_sha256: str
+    valid_receipt_count: int
+    segment_id: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        for name in ("segment_kind", "source_field_id", "rail_id", "address_sha256"):
+            if not isinstance(getattr(self, name), str) or not getattr(self, name):
+                raise ValueError(f"MemorySegmentReceipt.{name} must be non-empty")
+        if self.segment_label is not None and (
+            not isinstance(self.segment_label, str) or not self.segment_label
+        ):
+            raise ValueError("MemorySegmentReceipt.segment_label must be None or non-empty")
+        if isinstance(self.source_tick_id, bool) or not isinstance(self.source_tick_id, int):
+            raise TypeError("MemorySegmentReceipt.source_tick_id must be an integer")
+        if (
+            isinstance(self.valid_receipt_count, bool)
+            or not isinstance(self.valid_receipt_count, int)
+            or self.valid_receipt_count < 0
+        ):
+            raise ValueError("MemorySegmentReceipt.valid_receipt_count must be non-negative")
+        object.__setattr__(
+            self,
+            "segment_id",
+            canonical_sha256(self.to_canonical_dict(include_id=False)),
+        )
+
+    def to_canonical_dict(self, *, include_id: bool = True) -> dict[str, Any]:
+        value = {
+            "schema": MEMORY_SEGMENT_SCHEMA,
+            "segment_kind": self.segment_kind,
+            "segment_label": self.segment_label,
+            "source_field_id": self.source_field_id,
+            "source_tick_id": self.source_tick_id,
+            "rail_id": self.rail_id,
+            "address_sha256": self.address_sha256,
+            "valid_receipt_count": self.valid_receipt_count,
+        }
+        if include_id:
+            value["segment_id"] = self.segment_id
+        return value
+
+
+@dataclass(frozen=True)
 class AddressableMemory:
     """Encoded field tokens paired with their immutable source identities."""
 
@@ -88,6 +205,129 @@ class AddressableMemory:
     char_indices: torch.Tensor
     region_ids: torch.Tensor
     region_positions: torch.Tensor
+    receipts: tuple[MemoryCellReceipt | None, ...]
+    segments: tuple[MemorySegmentReceipt, ...]
+    memory_id: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        if self.states.ndim != 3 or self.states.shape[0] != 1:
+            raise ValueError("AddressableMemory.states must have shape [1, slots, d_model]")
+        expected = (1, self.states.shape[1])
+        for name in ("char_indices", "region_ids", "region_positions"):
+            tensor = getattr(self, name)
+            if tensor.shape != expected:
+                raise ValueError(f"AddressableMemory.{name} must have shape {expected}")
+        if len(self.receipts) != self.states.shape[1]:
+            raise ValueError("AddressableMemory receipt count must equal neural-memory slots")
+        if not self.segments:
+            raise ValueError("AddressableMemory requires at least one segment receipt")
+        if len({segment.segment_id for segment in self.segments}) != len(self.segments):
+            raise ValueError("AddressableMemory contains duplicate segment receipts")
+        segments_by_id = {segment.segment_id: segment for segment in self.segments}
+
+        receipt_ids: set[str] = set()
+        scalar_groups: dict[tuple[Any, ...], list[tuple[int, MemoryCellReceipt]]] = {}
+        segment_addresses: dict[str, list[dict[str, Any]]] = {
+            segment.segment_id: [] for segment in self.segments
+        }
+        for slot, receipt in enumerate(self.receipts):
+            token_id = int(self.char_indices[0, slot].item())
+            region_id = int(self.region_ids[0, slot].item())
+            region_position = int(self.region_positions[0, slot].item())
+            if receipt is None:
+                if token_id >= 0 or region_position >= 0:
+                    raise ValueError("addressable memory valid slot is missing its compiler receipt")
+                continue
+            if token_id < -1:
+                raise ValueError("addressable memory receipt has an invalid decoder category marker")
+            segment = segments_by_id.get(receipt.segment_id)
+            if segment is None:
+                raise ValueError("addressable memory receipt names an undeclared segment")
+            if (
+                receipt.segment_kind != segment.segment_kind
+                or receipt.source_field_id != segment.source_field_id
+                or receipt.source_tick_id != segment.source_tick_id
+                or receipt.rail_id != segment.rail_id
+            ):
+                raise ValueError("addressable memory receipt disagrees with its segment binding")
+            address = receipt.address
+            if token_id >= 0 and token_id != address.transport_token_id:
+                raise ValueError("addressable memory category disagrees with compiler receipt")
+            if region_id != CANONICAL_REGION_ORDER.index(address.region):
+                raise ValueError("addressable memory region disagrees with compiler receipt")
+            if region_position != address.region_position:
+                raise ValueError("addressable memory position disagrees with compiler receipt")
+            if receipt.receipt_id in receipt_ids:
+                raise ValueError("addressable memory contains a duplicate compiler receipt")
+            receipt_ids.add(receipt.receipt_id)
+            scalar_groups.setdefault(receipt.scalar_identity, []).append((slot, receipt))
+            segment_addresses[receipt.segment_id].append(address.to_canonical_dict())
+
+        for segment in self.segments:
+            addresses = segment_addresses[segment.segment_id]
+            if len(addresses) != segment.valid_receipt_count:
+                raise ValueError("addressable memory segment receipt count is incomplete")
+            if canonical_sha256(addresses) != segment.address_sha256:
+                raise ValueError("addressable memory segment address proof is invalid")
+
+        for group in scalar_groups.values():
+            ordered = sorted(group, key=lambda item: item[1].address.transport_unit_index)
+            first = ordered[0][1].address
+            if len(ordered) != first.transport_unit_count:
+                raise ValueError("addressable memory scalar receipt set is incomplete")
+            if [item[1].address.transport_unit_index for item in ordered] != list(
+                range(first.transport_unit_count)
+            ):
+                raise ValueError("addressable memory scalar receipts are reordered or duplicated")
+            if [item[0] for item in ordered] != sorted(item[0] for item in ordered):
+                raise ValueError("addressable memory scalar slots are out of compiler order")
+            expected_tokens = tuple(encode_unicode_text(first.character))
+            observed_tokens = tuple(item[1].address.transport_token_id for item in ordered)
+            if observed_tokens != expected_tokens:
+                raise ValueError("addressable memory scalar categories fail exact Unicode receipt proof")
+
+        object.__setattr__(
+            self,
+            "memory_id",
+            canonical_sha256(
+                {
+                    "schema": ADDRESSABLE_MEMORY_SCHEMA,
+                    "shape": list(self.states.shape),
+                    "char_indices": self.char_indices.detach().to(device="cpu").tolist(),
+                    "region_ids": self.region_ids.detach().to(device="cpu").tolist(),
+                    "region_positions": self.region_positions.detach().to(device="cpu").tolist(),
+                    "receipts": [
+                        None if receipt is None else receipt.to_canonical_dict()
+                        for receipt in self.receipts
+                    ],
+                    "segments": [segment.to_canonical_dict() for segment in self.segments],
+                }
+            ),
+        )
+
+    def receipt(self, memory_index: int) -> MemoryCellReceipt:
+        if memory_index < 0 or memory_index >= len(self.receipts):
+            raise IndexError("addressable memory index is out of range")
+        receipt = self.receipts[memory_index]
+        if receipt is None:
+            raise ValueError("addressable memory slot has no compiler receipt")
+        return receipt
+
+    def continuation_index(
+        self,
+        anchor: MemoryCellReceipt,
+        unit_index: int,
+    ) -> int:
+        matches = [
+            index
+            for index, receipt in enumerate(self.receipts)
+            if receipt is not None
+            and receipt.scalar_identity == anchor.scalar_identity
+            and receipt.address.transport_unit_index == unit_index
+        ]
+        if len(matches) != 1:
+            raise ValueError("receipt continuation does not resolve uniquely")
+        return matches[0]
 
 
 def _sha(text: str) -> str:
@@ -362,12 +602,35 @@ class CompleteField64D(nn.Module):
         compiled: CompiledD64Field,
         *,
         initial_state: torch.Tensor | None = None,
+        memory_segment_kind: str = "canonical",
+        memory_segment_label: str | None = None,
     ) -> tuple[torch.Tensor, AddressableMemory, CoverageManifest]:
         """Read every exact character from a complete canonical D64 rail."""
         if not isinstance(compiled, CompiledD64Field):
             raise TypeError("compiled must be CompiledD64Field")
         if not compiled.coverage.complete:
             raise RuntimeError("incomplete canonical D64 rail cannot be read")
+        if not isinstance(memory_segment_kind, str) or not memory_segment_kind:
+            raise ValueError("memory_segment_kind must be non-empty")
+        if memory_segment_label is not None and (
+            not isinstance(memory_segment_label, str) or not memory_segment_label
+        ):
+            raise ValueError("memory_segment_label must be None or non-empty")
+        valid_addresses = [
+            address.to_canonical_dict()
+            for page in compiled.iter_character_pages(self.cfg.page_size)
+            for address in page.addresses
+        ]
+        segment_receipt = MemorySegmentReceipt(
+            segment_kind=memory_segment_kind,
+            segment_label=memory_segment_label,
+            source_field_id=compiled.source_field_id,
+            source_tick_id=compiled.source_tick_id,
+            rail_id=compiled.rail_id,
+            address_sha256=canonical_sha256(valid_addresses),
+            valid_receipt_count=len(valid_addresses),
+        )
+        segment_id = segment_receipt.segment_id
         pages = list(compiled.iter_character_pages(self.cfg.page_size))
         manifest = coverage_manifest_from_compiled(compiled, self.cfg.page_size)
         if not manifest.complete:
@@ -389,6 +652,7 @@ class CompleteField64D(nn.Module):
         memory_char_indices: list[torch.Tensor] = []
         memory_region_ids: list[torch.Tensor] = []
         memory_region_positions: list[torch.Tensor] = []
+        memory_receipts: list[MemoryCellReceipt | None] = []
         for page in pages:
             tokens = self._compiled_page_tensor(page).unsqueeze(0)
             page_input = torch.cat((state, tokens), dim=1)
@@ -417,9 +681,21 @@ class CompleteField64D(nn.Module):
                     dtype=torch.long,
                     device=self.device,
                 )
+                memory_receipts.extend(
+                    MemoryCellReceipt(
+                        segment_id=segment_id,
+                        segment_kind=memory_segment_kind,
+                        source_field_id=compiled.source_field_id,
+                        source_tick_id=compiled.source_tick_id,
+                        rail_id=compiled.rail_id,
+                        address=address,
+                    )
+                    for address in page.addresses
+                )
             else:
                 page_chars = torch.full((1,), -1, dtype=torch.long, device=self.device)
                 page_positions = torch.full((1,), -1, dtype=torch.long, device=self.device)
+                memory_receipts.append(None)
             memory_char_indices.append(page_chars.unsqueeze(0))
             memory_region_ids.append(
                 torch.full(
@@ -436,6 +712,8 @@ class CompleteField64D(nn.Module):
             char_indices=torch.cat(memory_char_indices, dim=1),
             region_ids=torch.cat(memory_region_ids, dim=1),
             region_positions=torch.cat(memory_region_positions, dim=1),
+            receipts=tuple(memory_receipts),
+            segments=(segment_receipt,),
         )
         return self.state_norm(state), addressable_memory, manifest
 
@@ -479,11 +757,13 @@ class CompleteField64D(nn.Module):
         supervisable instead of crediting every matching character.
         """
         if memory is None:
-            logits = self.decoder_output(self.decoder_norm(output))
+            generated_logits = self.decoder_output(self.decoder_norm(output))
+            logits = generated_logits
             if return_alignment:
                 empty = torch.empty(output.shape[0], output.shape[1], 0, device=output.device, dtype=output.dtype)
                 return logits, {
                     "position_logits": empty,
+                    "generated_logits": generated_logits,
                     "generate_gate_logits": torch.full(
                         (output.shape[0], output.shape[1]),
                         30.0,
@@ -500,7 +780,8 @@ class CompleteField64D(nn.Module):
             need_weights=False,
         )
         fused = self.decoder_norm(output + context)
-        generated = F.softmax(self.decoder_output(fused), dim=-1)
+        generated_logits = self.decoder_output(fused)
+        generated = F.softmax(generated_logits, dim=-1)
 
         query = self.position_query(fused)
         key = self.position_key(memory.states)
@@ -538,6 +819,7 @@ class CompleteField64D(nn.Module):
         if return_alignment:
             return log_probabilities, {
                 "position_logits": masked_position_logits,
+                "generated_logits": generated_logits,
                 "generate_gate_logits": generate_gate_logits,
             }
         return log_probabilities
@@ -981,6 +1263,7 @@ def sequence_cross_entropy(
     logits: torch.Tensor,
     targets: torch.Tensor,
     eos_weight: float = 4.0,
+    token_mask: torch.Tensor | None = None,
 ) -> torch.Tensor:
     per_token = F.cross_entropy(
         logits.reshape(-1, logits.shape[-1]),
@@ -990,6 +1273,12 @@ def sequence_cross_entropy(
     eos_index = logits.shape[-1] - 1
     weights = torch.ones_like(per_token)
     weights = torch.where(targets == eos_index, weights * eos_weight, weights)
+    if token_mask is not None:
+        if token_mask.shape != targets.shape or token_mask.dtype is not torch.bool:
+            raise ValueError("sequence token_mask must be boolean with the target shape")
+        weights = weights * token_mask.to(dtype=weights.dtype)
+    if not bool(weights.sum().detach().gt(0).item()):
+        raise ValueError("sequence token_mask cannot exclude every categorical decision")
     return (per_token * weights).sum() / weights.sum()
 
 
@@ -999,10 +1288,16 @@ def teacher_char_accuracy(logits: torch.Tensor, targets: torch.Tensor) -> float:
 
 
 __all__ = [
+    "ADDRESSABLE_MEMORY_SCHEMA",
     "IDENTITY_REGION_EMBEDDING_MIGRATION_SCHEMA",
+    "MEMORY_CELL_RECEIPT_SCHEMA",
+    "MEMORY_SEGMENT_SCHEMA",
     "REGION_ORDER",
+    "AddressableMemory",
     "CompleteField64D",
     "CoverageManifest",
+    "MemoryCellReceipt",
+    "MemorySegmentReceipt",
     "ReaderConfig",
     "canonical_field",
     "coverage_manifest_from_compiled",

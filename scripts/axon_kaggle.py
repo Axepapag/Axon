@@ -115,6 +115,8 @@ def _format_job_catalog(rows: list[dict[str, Any]], *, limit: int = 12) -> str:
             bits.append("resume")
         if row.get("teach_multicell_copy"):
             bits.append("multi-cell teach")
+        if row.get("receipt_continuation"):
+            bits.append("receipt continuation")
         if row.get("accelerator"):
             bits.append(str(row["accelerator"]))
         lines.append(f" {index:2d}  {live:<14} {name}")
