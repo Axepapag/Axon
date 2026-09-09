@@ -1,12 +1,13 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-09T22:33:45Z
+Updated: 2026-09-09T23:06:00Z
 Current through event:
-`evt-20260909T223345779020Z-codex-next-shot-boundary`
+`evt-20260909T230600180468Z-kimi-google-demo-runbook`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
-Identity stamp: Codex / GPT-5 family (exact runtime model ID not exposed) / 2026-09-09
+Identity stamp: Kimi K2.7 Coding (Kimi Code CLI, bounded demo engineer under
+Codex) / 2026-09-09
 
 ## Current mission and honest status
 
@@ -116,21 +117,51 @@ formally adjudicated:
    identities. If it falsifies the hypothesis, inspect contextual separability
    before changing architecture. Present any training or architecture
    intervention to Jeff for ratification first.
-3. **Google Cloud meeting**: Assemble an operator demo package
-   demonstrating verified, production-ready deterministic subsystems:
-   - Heart transaction OS: live fail-closed rejection of injection proposals vs.
-     accepted typed deltas.
-   - Autobiographical memory: SQLite evidence bridge querying 59,875 records in
-     `State/dormant/experience_v1` (<0.5s latency).
-   - Spot-native trainer: pause and resume with zero state loss.
-   - Present 512D / 1024D as the funded compute milestone for Google Cloud credits.
+3. **Google Cloud meeting**: Operator demo package assembled and verified:
+   `roundtable/proposals/KIMI_GOOGLE_ORGAN_DEMO_RUNBOOK_2026-09-10.md`
+   (Heart transaction OS, 59,875-record autobiographical memory with measured
+   provenance retrieval, spot-native pause/resume lineage, honest D64 receipt
+   result). Jeff to review and rehearse before the morning of 2026-09-10.
 4. **Wider Rail Migration**: Only after the D64 mechanism is fully closed and ratified,
    implement the width-generic packed compiler (`d_model // 16` lanes) for 512D.
 
+## Google meeting demo package (2026-09-10, ready for review)
+
+Kimi produced the operator runbook
+`roundtable/proposals/KIMI_GOOGLE_ORGAN_DEMO_RUNBOOK_2026-09-10.md` on branch
+`codex/kimi-google-demo-20260909`. It is a 7-scene, ~14-minute live story,
+every command of which was executed and verified on 2026-09-09:
+
+1. 16D substrate conformance + exact Unicode roundtrip (incl. surrogate
+   fail-closed rejection).
+2. Per-region masks: attention slider changes the rail view, never the
+   canonical body (`field_id` preserved; masked state dormant in place).
+3. HeartHost sole-writer boundary: typed consolidator commit + transactional
+   receipt; core/unauthorized/malformed proposals rejected fail-closed
+   (`test_heart_control_plane.py`, 19 passed).
+4. D64 reasoning rail + two-barrier proposal workspace; malformed core output
+   rejected but accounted (`test_reasoning_circulation.py`, 5 passed); learned
+   cores explicitly not serving.
+5. Dormant memory: 59,875 hash-chained records; provenance-carrying retrieval
+   measured at 0.40–1.30 ms (hash-verified dereference to
+   `D:\00\axon_episodic_memory.db:episodes:1`); full integrity walk is ~103 s
+   and is labeled as such.
+6. Trainer observability: content-addressed pointer/sentinels at step 120,
+   `paused` renewable lifecycle, offline Kaggle job catalog (`--json jobs`).
+7. D64 receipt result presented honestly: 1.000 position/content-only and
+   copy-route alignment vs 0.475 teacher-forced token accuracy, 0.000 exact
+   terminated transport, failed EOS, non-serving.
+
+Known exclusion: `run_axon_heart.py --once` cannot run from a bare scratch
+state root (no dormant generation index; `DormantGenerationError`) — the demo
+uses the verified circulation tests instead. No training launched, no cloud
+touched, `D:\Axon`/`D:\00` read-only honored (one possible `__pycache__`
+mtime refresh under `D:\Axon\runtime` flagged in the canonical event).
+
 ## Continuity health
 
-- Canonical ledger: 200 valid unique event lines plus one preserved historical
-  blank line through `evt-20260909T223345779020Z-codex-next-shot-boundary`.
+- Canonical ledger: 201 valid unique event lines plus one preserved historical
+  blank line through `evt-20260909T230600180468Z-kimi-google-demo-runbook`.
 - `scripts/append_engineers_ledger_event.py` validated and cleanly appended the turn event.
 - Kimi CLI is globally pinned to standard K2.7 Coding; its first bounded,
   read-only Codex-directed evidence audit completed without repository writes.
