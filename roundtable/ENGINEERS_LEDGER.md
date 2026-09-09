@@ -6,8 +6,8 @@ Current through event:
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
-Identity stamp: Kimi K2.7 Coding (Kimi Code CLI, bounded demo engineer under
-Codex) / 2026-09-09
+Identity stamp: Codex / GPT-5 family (exact runtime model ID not exposed) /
+2026-09-09
 
 ## Current mission and honest status
 
@@ -125,12 +125,16 @@ formally adjudicated:
 4. **Wider Rail Migration**: Only after the D64 mechanism is fully closed and ratified,
    implement the width-generic packed compiler (`d_model // 16` lanes) for 512D.
 
-## Google meeting demo package (2026-09-10, ready for review)
+## Google meeting demo package (2026-09-10, reviewed and integrated)
 
 Kimi produced the operator runbook
-`roundtable/proposals/KIMI_GOOGLE_ORGAN_DEMO_RUNBOOK_2026-09-10.md` on branch
-`codex/kimi-google-demo-20260909`. It is a 7-scene, ~14-minute live story,
-every command of which was executed and verified on 2026-09-09:
+`roundtable/proposals/KIMI_GOOGLE_ORGAN_DEMO_RUNBOOK_2026-09-10.md` in isolated
+worktree `D:\Axon-worktrees\kimi-google-demo` on branch
+`codex/kimi-google-demo-20260909`; Kimi commit `7597a58` was reviewed and
+cherry-picked to `main` as `3a748eb`. Codex then independently reran the live
+organ surface (24 Heart/circulation tests and all 10 substrate conformance
+gates passed) and tightened the runbook's evidence boundaries. It is a 7-scene,
+~14-minute live story:
 
 1. 16D substrate conformance + exact Unicode roundtrip (incl. surrogate
    fail-closed rejection).
@@ -141,11 +145,12 @@ every command of which was executed and verified on 2026-09-09:
    (`test_heart_control_plane.py`, 19 passed).
 4. D64 reasoning rail + two-barrier proposal workspace; malformed core output
    rejected but accounted (`test_reasoning_circulation.py`, 5 passed); learned
-   cores explicitly not serving.
-5. Dormant memory: 59,875 hash-chained records; provenance-carrying retrieval
-   measured at 0.40–1.30 ms (hash-verified dereference to
-   `D:\00\axon_episodic_memory.db:episodes:1`); full integrity walk is ~103 s
-   and is labeled as such.
+   cores explicitly not serving. The workspace serializer has D64/D128 tests,
+   but the canonical field compiler and learned reader remain D64.
+5. Dormant memory: 59,875 hash-chained records; one selected episode dereference
+   measured at 0.40–1.30 ms and verified against the index's stored SHA-256,
+   with provenance to `D:\00\axon_episodic_memory.db:episodes:1`. Private memory
+   text is withheld; full integrity walk is ~103 s and labeled as such.
 6. Trainer observability: content-addressed pointer/sentinels at step 120,
    `paused` renewable lifecycle, offline Kaggle job catalog (`--json jobs`).
 7. D64 receipt result presented honestly: 1.000 position/content-only and
@@ -155,13 +160,14 @@ every command of which was executed and verified on 2026-09-09:
 Known exclusion: `run_axon_heart.py --once` cannot run from a bare scratch
 state root (no dormant generation index; `DormantGenerationError`) — the demo
 uses the verified circulation tests instead. No training launched, no cloud
-touched, `D:\Axon`/`D:\00` read-only honored (one possible `__pycache__`
-mtime refresh under `D:\Axon\runtime` flagged in the canonical event).
+touched, and no serving capability is claimed. Operator commands now target the
+real `D:\Axon` `main` checkout. The Google ask distinguishes proven D64 tissue
+from future D512/D1024 compiler/reader engineering.
 
 ## Continuity health
 
-- Canonical ledger: 201 valid unique event lines plus one preserved historical
-  blank line through `evt-20260909T230600180468Z-kimi-google-demo-runbook`.
+- Canonical ledger: 202 valid unique event lines plus one preserved historical
+  blank line through `evt-20260909T232005697707Z-codex-google-demo-integration`.
 - `scripts/append_engineers_ledger_event.py` validated and cleanly appended the turn event.
 - Kimi CLI is globally pinned to standard K2.7 Coding; its first bounded,
   read-only Codex-directed evidence audit completed without repository writes.

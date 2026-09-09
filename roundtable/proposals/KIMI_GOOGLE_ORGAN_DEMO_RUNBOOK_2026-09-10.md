@@ -2,9 +2,10 @@
 
 Identity stamp: Kimi K2.7 Coding (Kimi Code CLI, bounded demo engineer under Codex) / 2026-09-09
 Branch: `codex/kimi-google-demo-20260909` (worktree `D:\Axon-worktrees\kimi-google-demo`)
-Every command below was executed by me on 2026-09-09 on this machine unless marked
-ASSUMED. Nothing here launches training, touches cloud accounts, or modifies
-`D:\Axon`, `D:\00`, `legal/`, or any runtime/training source.
+Operator commands below assume the reviewed runbook has been integrated into
+`D:\Axon` on `main`. Commands explicitly labeled VERIFIED were executed on
+2026-09-09 on this machine. Nothing here launches training, touches cloud
+accounts, changes runtime/training source, or reads private memory text aloud.
 
 ---
 
@@ -43,11 +44,12 @@ latest cloud experiment proved and exactly where it still fails."
 
 ## 1. Preflight checklist (30 minutes before the meeting)
 
-Machine: this Windows box. Open Git Bash. All commands from
-`D:\Axon-worktrees\kimi-google-demo`.
+Machine: this Windows box. Open Git Bash. Run all stage commands from `D:\Axon`.
 
-- [ ] **T+0 (2 min)** `git status && git branch --show-current`
-      Expect: clean tree, branch `codex/kimi-google-demo-20260909`.
+- [ ] **T+0 (2 min)**
+      `git status --short --untracked-files=no && git branch --show-current`
+      Expect: no tracked changes and branch `main`. Private ignored/untracked
+      material is deliberately excluded from the screen.
 - [ ] **T+2 (2 min)** Confirm Python: `python --version` → 3.12.x. Set
       `export PYTHONUTF8=1` in every terminal (Windows console is cp1252;
       non-ASCII demo output dies without it).
@@ -72,8 +74,8 @@ Machine: this Windows box. Open Git Bash. All commands from
       → JSON rows include both receipt jobs with `"phase": "outputs_fetched"`.
 - [ ] **T+20 (3 min)** Open evidence files in a text editor for Scenes 5–7 so
       no command needs to run live if time compresses:
-      - `D:\Axon\State\training\cloud\jobs\2f5687a6...\outputs\axon_job\State\training\trainer\latest_candidate_lifecycle.json`
-      - `roundtable/reports/D64_RECEIPT_KAGGLE_ABLATION_V2_2026-09-09.md`
+      - `D:\Axon\State\training\cloud\jobs\2f5687a63bd691a5c1b3af6823fabaebbae927ad1b74f43271fb5745edc94a5a\outputs\axon_job\State\training\trainer\latest_candidate_lifecycle.json`
+      - `D:\Axon\roundtable\reports\D64_RECEIPT_KAGGLE_ABLATION_V2_2026-09-09.md`
 - [ ] **T+23 (2 min)** Terminal layout per §4; test screen share shows
       non-ASCII (`café 🙂 中文`) correctly.
 - [ ] **T+25 (5 min)** Buffer. Do NOT run anything that writes outside
@@ -179,7 +181,7 @@ this runbook.
   → `19 passed` in ~10 s.
 - **Live narration while it runs** (the test names are the demo; run with
   `-v` if Jeff wants to read them):
-  - `test_validated_consolidator_decision_commits_via_canonical_delta` — a
+  - `test_validated_consolidator_decision_commits_via_canonical_delta_path` — a
     typed `FieldDelta` proposal, both board barriers closed, one
     `HeartTransactionBoundary.commit` → `HeartCommit` receipt with `commit_id`;
     successor state roundtrips through the D64 compiler; a second commit from
@@ -207,7 +209,7 @@ this runbook.
   consolidator decision in the test is a fixture, not a serving model.
 - **Duration:** ~3 min.
 - **Fallback:** if pytest breaks, run the same three tests individually:
-  `python -m pytest tests/test_heart_control_plane.py::test_validated_consolidator_decision_commits_via_canonical_delta tests/test_heart_control_plane.py::test_core_grants_are_never_commit_capable tests/test_heart_control_plane.py::test_boundary_rejects_conflicting_sparse_edits -q --basetemp=State/tmp/pytest-demo`.
+  `python -m pytest tests/test_heart_control_plane.py::test_validated_consolidator_decision_commits_via_canonical_delta_path tests/test_heart_control_plane.py::test_core_grants_are_never_commit_capable tests/test_heart_control_plane.py::test_boundary_rejects_conflicting_sparse_edits -q --basetemp=State/tmp/pytest-demo`.
 
 ### Scene 4 — Reasoning rail + proposal workspace: where cores would argue (2 min)
 
@@ -235,8 +237,11 @@ this runbook.
 - **Verified evidence path:** `runtime/heart/board.py` (`ProposalBoard`,
   `close_first_pass`/`close_refinement`), `runtime/heart/proposal_workspace.py`
   (`D64ProposalWorkspaceRenderer`), `runtime/field/compiler_d64.py`.
-- **What it proves:** exact width-generic rendering to D64 rails; two-stage
-  barrier governance; rejection-with-accounting; clean tick lifecycle.
+- **What it proves:** exact rendering into the current D64 home rail; a
+  separately tested width-generic proposal-workspace serializer can render D64
+  and D128 workspace rows without claiming a D128 canonical field compiler;
+  two-stage barrier governance, rejection-with-accounting, and clean tick
+  lifecycle.
 - **What it does NOT prove:** no real learned core participated; no
   conversation is being generated.
 - **Duration:** ~2 min.
@@ -251,7 +256,7 @@ this runbook.
 - **Setup:** read-only access to `D:\Axon\State` evidence. All queries use
   `mode=ro&immutable=1` SQLite URIs — nothing is written.
 - **Commands:**
-  1. Count from the signed manifest:
+  1. Count from the content-addressed import manifest:
      `python -c "import json,pathlib; m=json.loads(pathlib.Path(r'D:\Axon\State\dormant\experience_v1\imports\718f33bf470b90f3f1b2375de3aeb8bf4f47f48c5440b21395f9a2d0b3933ba6\manifest.json').read_text(encoding='utf-8')); print(m['record_count']); print(m['record_kind_counts'])"`
      → `59875` + kind breakdown (28,410 messages; 20,407 episodes; 8,567
      backlog jobs; …).
@@ -266,27 +271,31 @@ this runbook.
      con = sqlite3.connect(idx.as_uri()+"?mode=ro&immutable=1", uri=True)
      con.row_factory = sqlite3.Row
      print(dict(con.execute("SELECT key,value FROM meta").fetchall()))
-     row = con.execute("SELECT container_id, kind, byte_offset, byte_length FROM containers WHERE kind='episode' LIMIT 1").fetchone()
+     row = con.execute("SELECT container_id, kind, byte_offset, byte_length, raw_sha256 FROM containers WHERE kind='episode' LIMIT 1").fetchone()
      t0 = time.perf_counter()
-     raw = Path(r"D:\Axon\State\dormant\containers.jsonl").open("rb")
-     raw.seek(row["byte_offset"]); line = raw.read(row["byte_length"])
-     h = hashlib.sha256(line).hexdigest()
+     with Path(r"D:\Axon\State\dormant\containers.jsonl").open("rb") as raw:
+         raw.seek(row["byte_offset"]); line = raw.read(row["byte_length"])
+     verified = hashlib.sha256(line).digest() == row["raw_sha256"]
      rec = json.loads(line)
      t1 = time.perf_counter()
-     print(f"seek+sha256 verify: {(t1-t0)*1000:.2f} ms")
-     print("kind:", row["kind"], "| provenance:", rec.get("provenance"), "| source:", rec.get("source"))
-     print("text head:", (rec.get("text") or "")[:100])
+     print(f"seek+stored-hash verify: {(t1-t0)*1000:.2f} ms")
+     print("verified:", verified, "| id:", row["container_id"], "| kind:", row["kind"])
+     print("source:", rec.get("source"), "| provenance:", rec.get("provenance"))
+     print("private text bytes withheld:", len((rec.get("text") or "").encode("utf-8")))
      EOF
      ```
-     → container `c-a166402d7bbb`, provenance `recovered_corpus_builder:episode_import:v1`,
-     source `D:\00\axon_episodic_memory.db:episodes:1` (a real 2026 record).
+     → `verified: True` for container `c-a166402d7bbb`, provenance
+     `recovered_corpus_builder:episode_import:v1`, source
+     `D:\00\axon_episodic_memory.db:episodes:1`; the private record text is not
+     printed.
 - **Verified evidence path:** `State/dormant/experience_v1/imports/718f33bf…/records.jsonl`
   (770 MB, hash-chained, manifest count == line count), byte-exact
   `source_snapshots/ed947737…/` of the seven original `D:\00` sources,
   derived 4.4 GB SQLite index (427,001 containers / 351,978 edges).
   Builder/importer: `curator/import_d00_memories.py`, `curator/recovered_corpus_builder.py`.
-- **What it proves:** memory is preserved exactly, every record traces to a
-  source DB row, retrieval is fast and hash-verified.
+- **What it proves:** the selected real episode record is byte-addressable,
+  matches the hash stored in the derived index, and traces to a source DB row;
+  the corpus manifest and import records preserve source/provenance identities.
 - **What it does NOT prove:** the full integrity walk takes ~103 s (SHA-256
   over 770 MB + 3.5 GB), not sub-second — sub-second is lookup only. Retrieval
   shown is key/index lookup, not semantic recall by a learned model.
@@ -300,7 +309,8 @@ this runbook.
 - **Purpose:** Show the training organ is operated like infrastructure:
   content-addressed lineage, pause-at-checkpoint as a designed state, and a
   local window into private Kaggle jobs — **without launching anything**.
-- **Commands (Git Bash; `V2=…/jobs/2f5687a63bd691a5c1b3af6823fabaebbae927ad1b74f43271fb5745edc94a5a` under `D:\Axon\State\training\cloud`):**
+- **Commands (Git Bash):** first set
+  `V2=/d/Axon/State/training/cloud/jobs/2f5687a63bd691a5c1b3af6823fabaebbae927ad1b74f43271fb5745edc94a5a`.
   1. `cat "$V2/outputs/axon_job/State/training/trainer/latest_candidate_lifecycle.json"`
      → `"status": "paused"`, `"step": 120`,
      `"reason": "execution segment ended at an exact accepted checkpoint; curriculum stage remains open for a later renewable tranche"`.
@@ -314,7 +324,7 @@ this runbook.
      → both receipt jobs listed with `"phase": "outputs_fetched"` (verified).
      Use `--json` — the interactive picker is not stage-friendly.
   4. Optional if asked about the live dashboard:
-     `PYTHONDONTWRITEBYTECODE=1 python /d/Axon/scripts/axon_training_watch.py 2f5687a6… --local --replay --qa`
+     `PYTHONDONTWRITEBYTECODE=1 python scripts/axon_training_watch.py 2f5687a63bd691a5c1b3af6823fabaebbae927ad1b74f43271fb5745edc94a5a --local --replay --qa`
      (fully offline replay of the fetched run's 126 events; Ctrl+C to exit).
 - **Verified evidence path:** `runtime/trainer/tranche.py` (tranche =
   bounded renewable execution allowance), `runtime/trainer/lifecycle.py`
@@ -363,9 +373,11 @@ this runbook.
   dominance; checkpoint inspection shows `copy_gate.weight` norm 0.094,
   bias −0.0098) and a ratified, observation-only diagnostic plan — no
   architecture change before this meeting."
-- **What it proves:** the receipt/pointer-transition architecture is sound;
-  the failure is localized, measured, and reproducible across two controlled
-  runs.
+- **What it proves:** deterministic receipt continuation removed the observed
+  multi-cell position/content-only failure on these examinations. The remaining
+  learned gate/termination failure is localized, measured, and reproducible
+  across two controlled runs. It does not establish that the whole learned
+  architecture is sound.
 - **What it does NOT prove:** no serving readiness, no end-to-end learned
   transport, no architecture-tournament conclusion. Both candidates are
   paused, renewable, non-serving; both task gates failed.
@@ -380,7 +392,7 @@ There is no single launcher; the honest sequence is per-scene. Minimal stage
 set (in order):
 
 ```bash
-cd /d/Axon-worktrees/kimi-google-demo
+cd /d/Axon
 export PYTHONUTF8=1
 python substrate/substrate.py                                   # Scene 1
 # (Scene 1 heredoc + Scene 2 heredoc as above)
@@ -413,9 +425,10 @@ python -m pytest tests/test_reasoning_circulation.py -q --basetemp=State/tmp/pyt
   and teacher-forced content-only alignment. Free-running exact terminated
   transport is 0.000 and teacher-forced token accuracy is 0.475. We show both."
 - **"Why Kaggle instead of your own GPUs?"** "Spot-native tranches: pause at an
-  exact accepted checkpoint, renew later with zero state loss. Private
-  kernels, content-addressed packets, full local lineage after fetch. It
-  bills only while a tranche runs."
+  exact accepted checkpoint and renew from governed resume state. The recorded
+  checkpoint includes optimizer and gradient state; we do not claim that every
+  external interruption is lossless. Private kernels, content-addressed packets,
+  and full local lineage after fetch make the work inspectable."
 - **"Is the memory vector-based RAG?"** "No — it's exact records with
   hash-chained provenance to the source DB row, plus a derived term index.
   Retrieval shown is exact and hash-verified; there is no semantic embedding
@@ -428,18 +441,20 @@ python -m pytest tests/test_reasoning_circulation.py -q --basetemp=State/tmp/pyt
   is exactly what the 512D/1024D milestone funds."
 - **"How do you know the substrate vectors are right?"** "The bank is frozen
   and byte-compared against a reference on every run (`v7 conformance: PASS`),
-  and the full 1.1M-codepoint Unicode roundtrip test passes in CI."
+  and the full 1.1M-codepoint Unicode roundtrip passes the local acceptance
+  test."
 
 ## 6. The ask (Google Cloud)
 
-"We are asking for Google Cloud credits/support for the **512D and 1024D
-compute milestone**: widen the exact substrate compiler to `d_model // 16`
-lanes (design already width-generic; D64 and D128 rail rendering share one
-renderer, verified in tests), and run the ratified D64 gate diagnostic plus
-renewable tranches at 512D. What we demonstrated today — exact transport,
-transactional governance, provenance memory, tranche lineage — is the same
-discipline we will carry to that scale. We are not asking you to fund a chatbot;
-we are asking you to fund measured mechanism."
+"We are asking for Google Cloud credits/support for governed D64 diagnostics
+and renewable training now, followed by the **512D and 1024D compute
+milestones** after D64 closes its current gates. The proposal-workspace
+serializer is width-generic and has D64/D128 tests; the canonical field
+compiler and learned reader are currently D64, so widening them remains future
+engineering rather than a capability claim. What we demonstrated today — exact
+substrate transport, transactional governance, provenance memory, and tranche
+lineage — is the same discipline we will carry to that scale. We are not asking
+you to fund a chatbot; we are asking you to fund measured mechanism."
 
 ## 7. What cannot honestly be shown tomorrow (and what replaces it)
 
@@ -500,6 +515,8 @@ we are asking you to fund measured mechanism."
 
 - Consciousness, understanding, or general intelligence — of anything shown.
 - A serving learned Heart or reasoning core; conversational ability.
+- A working D128/D512 canonical field compiler or learned reader; only the
+  proposal-workspace serializer has verified D64/D128 width-generic coverage.
 - Production readiness, deployment, or user-facing product status.
 - Learned end-to-end Unicode transport (exact terminated transport is 0.000).
 - Sub-second full-corpus integrity verification (lookup only).
