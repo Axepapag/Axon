@@ -1,7 +1,7 @@
 # D64 Receipt-Continuation Local Acceptance
 
-Date: 2026-09-08  
-Authority: ratified R1-R12 resolution  
+Date: 2026-09-08
+Authority: ratified R1-R12 resolution
 Identity stamp: Codex / GPT-5 family (exact runtime model ID not exposed) / 2026-09-08
 
 ## Disposition
