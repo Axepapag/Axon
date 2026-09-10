@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Axon — Google Organ Demo — 2026-09-10</title>
+<style>
+  :root{
+    --bg:#06131c;
+    --bg-raise:#0b1e2c;
+    --ink:#eef1fa;
+    --muted:#a3adc2;
+    --faint:#5f6d80;
+    --accent:#37d6ff;
+    --violet:#9b6bff;
+    --amber:#ffb547;
+    --teal:#00c2b8;
+    --border:rgba(163,173,194,.18);
+    --danger:#ff5f5f;
+    --ok:#37d6ff;
+    --mono:ui-monospace,'Cascadia Code',Consolas,'Segoe UI Mono',monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#020a10;overflow:hidden}
+  body{font-family:'Segoe UI',system-ui,-apple-system,Roboto,sans-serif;color:var(--ink)}
+  #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+  #deck{width:1920px;height:1080px;position:relative;background:var(--bg);flex:none;box-shadow:0 30px 90px rgba(0,0,0,.6)}
+  .slide{position:absolute;inset:0;padding:110px 130px 90px;display:none;flex-direction:column}
+  .slide.active{display:flex}
+  .slide>*{flex:none}
+
+  /* 16-lane substrate motif */
+  .lanes{position:absolute;left:130px;top:110px;bottom:90px;width:16px;display:flex;flex-direction:column;gap:6px}
+  .lanes i{flex:1;background:rgba(55,214,255,.10);border-radius:2px}
+  .lanes i.on{background:rgba(55,214,255,.55)}
+  .slide.body-shift{padding-left:210px}
+
+  .kicker{font-size:26px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);font-weight:600;margin-bottom:28px}
+  .kicker .dim{color:var(--faint);letter-spacing:.14em}
+  h1{font-size:118px;line-height:1.02;font-weight:700;letter-spacing:-.02em}
+  h2{font-size:72px;line-height:1.05;font-weight:650;letter-spacing:-.015em}
+  .lead{font-size:34px;line-height:1.5;color:var(--muted);max-width:1450px}
+  .grow{flex:1}
+
+  .rule{height:3px;width:120px;background:var(--accent);border-radius:2px;margin:38px 0}
+  .rule.v{background:var(--violet)} .rule.a{background:var(--amber)}
+
+  .foot{position:absolute;left:130px;right:130px;bottom:44px;display:flex;justify-content:space-between;align-items:center;font-size:22px;color:var(--faint)}
+  .foot .brand{letter-spacing:.14em;text-transform:uppercase;font-weight:600}
+  .foot .n{font-variant-numeric:tabular-nums}
+
+  /* chips */
+  .chips{display:flex;gap:18px;margin-top:48px}
+  .chip{flex:1;border:1px solid var(--border);border-radius:14px;padding:30px 28px;background:var(--bg-raise)}
+  .chip b{display:block;font-size:40px;color:var(--accent);font-weight:650;margin-bottom:10px;font-variant-numeric:tabular-nums}
+  .chip span{font-size:24px;color:var(--muted);line-height:1.35;display:block}
+  .chip .org{font-size:21px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:14px;font-weight:600}
+
+  /* scene header */
+  .scene-head{display:flex;align-items:baseline;gap:34px;margin-bottom:14px}
+  .scene-no{font-family:var(--mono);font-size:30px;color:var(--accent);font-weight:600}
+  .scene-time{margin-left:auto;font-family:var(--mono);font-size:26px;color:var(--faint)}
+
+  .cmd{font-family:var(--mono);font-size:25px;line-height:1.55;background:#030d14;border:1px solid var(--border);border-radius:12px;padding:26px 32px;color:#cfe8f2;white-space:pre-wrap;margin:26px 0}
+  .cmd .p{color:var(--faint)} .cmd .hl{color:var(--accent)}
+
+  .nums{display:flex;gap:18px;margin:30px 0 8px}
+  .num{flex:1;border-radius:12px;padding:24px 26px;background:var(--bg-raise);border:1px solid var(--border)}
+  .num b{display:block;font-size:52px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+  .num b.win{color:var(--accent)} .num b.fail{color:var(--amber)} .num b.neutral{color:var(--ink)}
+  .num span{font-size:22px;color:var(--muted);line-height:1.3;display:block;margin-top:8px}
+
+  .duo{display:flex;gap:22px;margin-top:auto}
+  .duo .box{flex:1;border-radius:12px;padding:24px 28px;font-size:24px;line-height:1.45}
+  .box.proves{background:rgba(0,194,184,.07);border:1px solid rgba(0,194,184,.35)}
+  .box.proves b{color:var(--teal);font-size:21px;letter-spacing:.16em;text-transform:uppercase;display:block;margin-bottom:10px}
+  .box.notproves{background:rgba(255,181,71,.06);border:1px solid rgba(255,181,71,.30)}
+  .box.notproves b{color:var(--amber);font-size:21px;letter-spacing:.16em;text-transform:uppercase;display:block;margin-bottom:10px}
+
+  /* agenda rows */
+  .rows{margin-top:36px}
+  .row{display:flex;align-items:center;gap:30px;padding:20px 6px;border-bottom:1px solid var(--border);font-size:28px}
+  .row .sn{font-family:var(--mono);color:var(--accent);width:110px;flex:none}
+  .row .st{flex:1;color:var(--ink)}
+  .row .sd{color:var(--faint);font-size:24px;width:560px;flex:none}
+  .row .tm{font-family:var(--mono);color:var(--muted);font-variant-numeric:tabular-nums;width:110px;text-align:right;flex:none}
+  .row.total{border-bottom:none;border-top:2px solid var(--border);color:var(--muted)}
+
+  /* table */
+  table.res{width:100%;border-collapse:collapse;font-size:22px;font-variant-numeric:tabular-nums}
+  table.res th,table.res td{padding:11px 16px;text-align:right;border-bottom:1px solid var(--border)}
+  table.res th:first-child,table.res td:first-child{text-align:left}
+  table.res th{color:var(--muted);font-weight:600;font-size:20px;letter-spacing:.02em}
+  table.res td.metric{color:var(--ink);font-weight:500}
+  table.res td.win{color:var(--accent);font-weight:650}
+  table.res td.fail{color:var(--amber);font-weight:650}
+  table.res td.dim{color:var(--faint)}
+  table.res th.base{color:var(--faint)}
+  .tbl-note{font-size:21px;color:var(--faint);margin-top:14px}
+
+  /* truth boundary */
+  .truth{font-size:44px;line-height:1.55;max-width:1560px;color:var(--ink)}
+  .truth b{color:var(--accent);font-weight:650}
+  .truth .nope{color:var(--amber);font-weight:650}
+
+  /* ask ladder */
+  .ladder{display:flex;flex-direction:column;gap:18px;margin-top:44px;max-width:1500px}
+  .rung{display:flex;align-items:center;gap:34px;border:1px solid var(--border);border-radius:14px;padding:26px 34px;background:var(--bg-raise)}
+  .rung .tag{font-family:var(--mono);font-size:28px;color:var(--accent);width:230px;flex:none;font-weight:600}
+  .rung p{font-size:26px;color:var(--muted);line-height:1.4}
+  .rung.now{border-color:rgba(55,214,255,.5)} .rung.now .tag{color:var(--accent)}
+  .rung.later{opacity:.75} .rung.later .tag{color:var(--violet)}
+
+  /* closing */
+  .q{font-size:36px;line-height:1.6;color:var(--muted);max-width:1500px;margin-top:40px}
+  .q b{color:var(--ink)}
+  .qa{margin-top:44px}
+  .qa .qrow{padding:22px 0;border-bottom:1px solid var(--border)}
+  .qa .qq{font-size:28px;color:var(--accent);font-weight:600;margin-bottom:8px}
+  .qa .aa{font-size:25px;color:var(--muted);line-height:1.45;max-width:1550px}
+
+  /* notes overlay (presenter rehearsal) */
+  #notes{position:absolute;left:0;right:0;bottom:0;max-height:46%;overflow:auto;background:rgba(2,10,16,.96);border-top:2px solid var(--accent);padding:28px 130px 40px;display:none;z-index:50}
+  #notes.show{display:block}
+  #notes h3{font-size:20px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);margin-bottom:14px}
+  #notes div{font-size:24px;line-height:1.5;color:#cfe0ec;white-space:pre-line}
+
+  /* hud */
+  #hud{position:fixed;right:22px;bottom:16px;z-index:60;font-family:var(--mono);font-size:14px;color:#7d8ea0;background:rgba(2,10,16,.8);border:1px solid rgba(125,142,160,.25);border-radius:8px;padding:8px 14px;user-select:none;transition:opacity .5s;pointer-events:none}
+  #hud b{color:#cfe0ec}
+
+  @media print{
+    #stage{position:static;display:block}
+    #deck{width:auto;height:auto;box-shadow:none}
+    .slide{position:relative;display:flex !important;width:1920px;height:1080px;page-break-after:always;overflow:hidden}
+    #hud,#notes{display:none !important}
+    .lanes{display:none}
+  }
+</style>
+</head>
+<body>
+<div id="stage"><div id="deck">
+
+<!-- 1 TITLE -->
+<section class="slide active" data-notes="Open with the one paragraph: we build AI tissue the way you'd build a body. Then go straight to the truth boundary slide — volunteering the limits is the credibility move.">
+  <div class="lanes"><i class="on"></i><i></i><i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i><i></i><i class="on"></i></div>
+  <div class="body-shift" style="margin-top:150px">
+    <div class="kicker">DexterGliksbot LLC · Google Cloud · <span class="dim">2026-09-10</span></div>
+    <h1>Axon</h1>
+    <div class="rule"></div>
+    <p class="lead" style="font-size:40px;color:var(--ink);max-width:1300px">The AI runtime that remembers <b style="color:var(--accent)">exactly</b>.</p>
+    <p class="lead" style="margin-top:26px">A live, command-by-command demonstration of the organs — and an honest look at the one that is still learning.</p>
+  </div>
+  <div class="foot"><span class="brand">AXON · ORGAN DEMO</span><span class="n">~14 min · 7 scenes · every number has an evidence path</span></div>
+</section>
+
+<!-- 2 TRUTH BOUNDARY -->
+<section class="slide" data-notes="Read this near-verbatim. Do not soften it. This slide is why everything after it is believable. If asked 'is it conscious?' later, point back here.">
+  <div class="kicker">Read first, verbatim</div>
+  <h2 style="margin-bottom:44px">What Axon is today</h2>
+  <p class="truth">Axon today is a <b>working organism scaffold</b> — an exact 16D Unicode substrate, a masked Shared Field over one canonical regional state body, a transactional Heart that is the sole canonical writer, a hash-verified autobiographical memory of 59,875 recovered records, and an observable spot-native trainer — and it is <span class="nope">NOT a conversational ensemble</span>: no learned Heart or reasoning core is serving, no general intelligence is claimed, and nothing shown today is production deployment.</p>
+  <div class="foot"><span class="brand">AXON</span><span class="n">2 / 14</span></div>
+</section>
+
+<!-- 3 STORY -->
+<section class="slide" data-notes="The story in one paragraph: build the body first — a nervous system that writes exactly, attention that never destroys memory, a heart that is the only writer and refuses bad input, memory with cryptographic provenance, and a trainer that treats GPU money as renewable tranches. The learning organ is real but young — I'll show exactly what it proved and exactly where it fails.">
+  <div class="kicker">The story</div>
+  <h2>We build AI tissue the way you'd build a body</h2>
+  <p class="lead" style="margin-top:34px">First the parts that must be <b style="color:var(--ink)">exact</b>, then the organ that learns — shown with its exact numbers, wins and failures both.</p>
+  <div class="chips">
+    <div class="chip"><span class="org">Nervous system</span><b>16D</b><span>exact Unicode substrate, fail-closed</span></div>
+    <div class="chip"><span class="org">Attention</span><b style="color:var(--teal)">field_id</b><span>masking changes the view, never the body</span></div>
+    <div class="chip"><span class="org">Heart</span><b>1 writer</b><span>transactional commit, refuses bad input</span></div>
+    <div class="chip"><span class="org">Memory</span><b>59,875</b><span>hash-verified records with provenance</span></div>
+    <div class="chip"><span class="org">Trainer</span><b style="color:var(--violet)">step 120</b><span>renewable tranches, full lineage</span></div>
+  </div>
+  <div class="foot"><span class="brand">AXON</span><span class="n">3 / 14</span></div>
+</section>
+
+<!-- 4 SCENE MAP -->
+<section class="slide" data-notes="Set the rhythm: Scenes 1–6 are deterministic organs (proven commands with deterministic fallbacks). Scene 7 is the research result, presented with the failure first. Live commands run from D:\Axon on main; nothing launches training or touches cloud.">
+  <div class="kicker">Today, in order</div>
+  <h2 style="margin-bottom:6px">Seven scenes, every one runnable</h2>
+  <div class="rows">
+    <div class="row"><span class="sn">01</span><span class="st">The body writes exactly</span><span class="sd">16D substrate + Unicode roundtrip, live</span><span class="tm">2 min</span></div>
+    <div class="row"><span class="sn">02</span><span class="st">Attention without amnesia</span><span class="sd">region masks, dormant-in-place, live</span><span class="tm">1.5 min</span></div>
+    <div class="row"><span class="sn">03</span><span class="st">The Heart is the only writer</span><span class="sd">one commit + fail-closed rejection, live</span><span class="tm">3 min</span></div>
+    <div class="row"><span class="sn">04</span><span class="st">Where cores would argue</span><span class="sd">D64 rail + two-barrier proposal board, live</span><span class="tm">2 min</span></div>
+    <div class="row"><span class="sn">05</span><span class="st">Autobiographical memory</span><span class="sd">59,875 records, timed hash-verified seek</span><span class="tm">2 min</span></div>
+    <div class="row"><span class="sn">06</span><span class="st">Trainer observability</span><span class="sd">paused lineage, offline job catalog</span><span class="tm">2 min</span></div>
+    <div class="row"><span class="sn">07</span><span class="st">The learning organ, honestly</span><span class="sd">D64 receipt result — wins and 0.000s both</span><span class="tm">2 min</span></div>
+    <div class="row total"><span class="sn"></span><span class="st">Deterministic fallback exists for every scene</span><span class="sd"></span><span class="tm">13.5 + slack</span></div>
+  </div>
+  <div class="foot"><span class="brand">AXON</span><span class="n">4 / 14</span></div>
+</section>
+
+<!-- 5 SCENE 1 -->
+<section class="slide" data-notes="Command: python substrate/substrate.py then the roundtrip heredoc. Expect 'v7 conformance: PASS' + 10 gates, 17 tokens, roundtrip exact: True, surrogate rejected: InvalidUnicodeScalarError. If pytest fallback needed: tests/test_unicode_transport.py, 22 passed ~29 s, loops all 1,112,064 valid codepoints.">
+  <div class="scene-head"><span class="scene-no">SCENE 01</span><h2>The body writes exactly</h2><span class="scene-time">2 min · live</span></div>
+  <p class="lead">The lowest layer is exact, frozen, and fail-closed. A native character is one frozen 16D cell; every other scalar is strict UTF-8 bytes in typed byte cells.</p>
+  <div class="cmd"><span class="p">$</span> python substrate/substrate.py <span class="p">→</span> <span class="hl">v7 conformance: PASS</span> · 10 gates<br><span class="p">$</span> encode(<span style="color:#ffd9a0">'café 🙂 中文'</span>) → decode == original → <span class="hl">roundtrip exact: True</span><br><span class="p">$</span> encode(<span style="color:#ffb547">unpaired surrogate U+D800</span>) → <span class="hl">rejected, not repaired</span></div>
+  <div class="nums">
+    <div class="num"><b class="win">10 / 10</b><span>geometry gates pass; bank byte-identical to reference</span></div>
+    <div class="num"><b class="neutral">351</b><span>unique 16D rows · worst byte-pair cosine 0.5</span></div>
+    <div class="num"><b class="win">1,112,064</b><span>valid codepoints roundtrip in the acceptance test</span></div>
+  </div>
+  <div class="duo">
+    <div class="box proves"><b>Proves</b>Canonical text is raw exact Unicode; malformed input is rejected by design.</div>
+    <div class="box notproves"><b>Does not prove</b>Nothing about learning — this is a deterministic compiler, not a model.</div>
+  </div>
+  <div class="foot"><span class="brand">AXON</span><span class="n">5 / 14</span></div>
+</section>
+
+<!-- 6 SCENE 2 -->
+<section class="slide" data-notes="Mask heredoc, three lines, True in each. Narrate: masked characters remain in Dormant state in the same canonical body; the slider produces a new rail view over the same field_id. No recall, no deletion, no rematerialization. Fallback: tests/test_heart_region_masks.py + test_substrate_contract.py, 18 passed ~16 s.">
+  <div class="scene-head"><span class="scene-no">SCENE 02</span><h2>Attention without amnesia</h2><span class="scene-time">1.5 min · live</span></div>
+  <p class="lead">The Shared Field is a <b style="color:var(--ink)">view</b> over one canonical body. Moving the attention slider changes the rail — never the memory.</p>
+  <div class="cmd"><span class="p">tail_percent slider →</span>  0 &nbsp;<span class="hl">''</span> &nbsp;·&nbsp; field preserved <span class="hl">True</span><br><span class="p">&nbsp;</span>50 &nbsp;<span class="hl">'fghij'</span> &nbsp; field preserved <span class="hl">True</span><br><span class="p">&nbsp;</span>100 <span class="hl">'abcdefghij'</span> &nbsp; field preserved <span class="hl">True</span><br><span class="p">canonical body after all three:</span> <span class="hl">'abcdefghij' — untouched</span></div>
+  <div class="duo">
+    <div class="box proves"><b>Proves</b>Masked state goes dormant in place; the view moves, the body and field_id never change.</div>
+    <div class="box notproves"><b>Does not prove</b>Which regions a learned core would attend — the slider here is operator-set.</div>
+  </div>
+  <div class="foot"><span class="brand">AXON</span><span class="n">6 / 14</span></div>
+</section>
+
+<!-- 7 SCENE 3 -->
+<section class="slide" data-notes="THE GOVERNANCE CENTERPIECE. Run pytest, narrate the test names as they pass: typed FieldDelta commits via HeartTransactionBoundary with a HeartCommit receipt; a second commit same tick fails closed; a core trying to commit directly raises CoreCommitError — cores propose, only the consolidator path through Heart commits; overlapping sparse edits raise OverlappingDeltaError, tick stays in flight, no partial write; six invalid authority grants rejected at construction. 19 passed ~10 s.">
+  <div class="scene-head"><span class="scene-no">SCENE 03</span><h2>The Heart is the only writer</h2><span class="scene-time">3 min · live</span></div>
+  <p class="lead">One commit, one receipt — and bad input refused with <b style="color:var(--ink)">no state change</b>. The test names are the demo.</p>
+  <div class="cmd"><span class="p">$</span> pytest tests/test_heart_control_plane.py -q → <span class="hl">19 passed</span><br><span class="p">·</span> typed proposal → one commit → HeartCommit receipt<br><span class="p">·</span> core tries to commit directly → <span style="color:#ffb547">CoreCommitError</span> — cores propose, Heart commits<br><span class="p">·</span> conflicting sparse edits → <span style="color:#ffb547">OverlappingDeltaError</span> — tick stays in flight, zero partial write</div>
+  <div class="duo">
+    <div class="box proves"><b>Proves</b>Exactly one writer; typed proposals; transactional commit; fail-closed rejection with no mutation.</div>
+    <div class="box notproves"><b>Does not prove</b>No learned judgment involved — the consolidator decision in the test is a fixture.</div>
+  </div>
+  <div class="foot"><span class="brand">AXON</span><span class="n">7 / 14</span></div>
+</section>
+
+<!-- 8 SCENE 4 -->
+<section class="slide" data-notes="~40 s (torch import dominates — start it, then talk). Narrate: user ingress 'hello λ🧠' → one heartbeat runs first-pass barrier, refinement barrier, consolidator commit; the D64 rail carries the exact workspace text; malformed core output (wrong author id) is rejected — 'author differs' — and the turn still completes with canonical state clean; board activity never changes field_id, tick_id, or canonical_hash. Say explicitly: this is the MACHINERY of a reasoning ensemble; the learned cores that would fill it are not serving.">
+  <div class="scene-head"><span class="scene-no">SCENE 04</span><h2>Where cores would argue</h2><span class="scene-time">2 min · live</span></div>
+  <p class="lead">The D64 reasoning rail and the two-barrier proposal board — the <b style="color:var(--ink)">machinery</b> of a reasoning ensemble, proven with fixture cores.</p>
+  <div class="cmd"><span class="p">$</span> pytest tests/test_reasoning_circulation.py -q → <span class="hl">5 passed</span><br><span class="p">·</span> ingress 'hello λ🧠' → two barriers → consolidator commit → rail text <span class="hl">exact</span><br><span class="p">·</span> malformed core output → rejected, <span class="hl">accounted</span>, turn completes, canonical state clean<br><span class="p">·</span> board is a noncanonical workspace — field_id / tick_id / canonical_hash <span class="hl">never move</span></div>
+  <div class="duo">
+    <div class="box proves"><b>Proves</b>Two-stage barrier governance, rejection-with-accounting, clean tick lifecycle.</div>
+    <div class="box notproves"><b>Does not prove</b>No learned core participated; no conversation is being generated. Learned cores are not serving.</div>
+  </div>
+  <div class="foot"><span class="brand">AXON</span><span class="n">8 / 14</span></div>
+</section>
+
+<!-- 9 SCENE 5 -->
+<section class="slide" data-notes="All queries are mode=ro&immutable=1 — nothing is written. Live one-liner: manifest count 59875, then the timed seek + SHA-256 verify on one episode container. Expect 'verified: True', container c-a166402d7bbb, provenance recovered_corpus_builder:episode_import:v1, source D:\00\axon_episodic_memory.db:episodes:1. Private text withheld. If asked about full integrity: ~103 s, stated as such — sub-second is lookup only. Fallback: open manifest.json and quote the measured numbers.">
+  <div class="scene-head"><span class="scene-no">SCENE 05</span><h2>Memory with a paper trail</h2><span class="scene-time">2 min · live, read-only</span></div>
+  <p class="lead">59,875 recovered records, hash-chained end to end. One selected episode, dereferenced and verified against its stored SHA-256 <b style="color:var(--ink)">live on stage</b>.</p>
+  <div class="nums">
+    <div class="num"><b class="win">59,875</b><span>records · 28,410 messages · 20,407 episodes · 8,567 backlog jobs</span></div>
+    <div class="num"><b class="win">0.40–1.30 ms</b><span>seek + stored-hash verify, measured twice on this machine</span></div>
+    <div class="num"><b class="neutral">427,001</b><span>containers indexed · 351,978 provenance edges</span></div>
+    <div class="num"><b class="neutral">~103 s</b><span>full integrity walk (770 MB + 3.5 GB) — stated as such, never faked as instant</span></div>
+  </div>
+  <div class="duo">
+    <div class="box proves"><b>Proves</b>Byte-addressable records; hash matches the derived index; provenance traces to the source DB row (D:\00\axon_episodic_memory.db:episodes:1).</div>
+    <div class="box notproves"><b>Does not prove</b>This is exact, hash-verified lookup — not semantic recall by a learned model. Private text stays private.</div>
+  </div>
+  <div class="foot"><span class="brand">AXON</span><span class="n">9 / 14</span></div>
+</section>
+
+<!-- 10 SCENE 6 -->
+<section class="slide" data-notes="Two cats + offline catalog. lifecycle JSON: status paused, step 120, reason 'execution segment ended at an exact accepted checkpoint; curriculum stage remains open for a later renewable tranche'. Pointer: current_step 120 with content-hash bundle ids; latest_checkpoint.json has optimizer_included and gradient_state_included — resumable, not just weights. axon_kaggle.py --json jobs: both receipt jobs, phase outputs_fetched, fully offline. If asked about stale SUBMITTED rows: 'local truth — five old jobs were never fetched.' NEVER run status/monitor/doctor subcommands on stage — they hit the network.">
+  <div class="scene-head"><span class="scene-no">SCENE 06</span><h2>Training like infrastructure</h2><span class="scene-time">2 min · offline</span></div>
+  <p class="lead">Every checkpoint filename is its content hash. Pause is a <b style="color:var(--ink)">first-class durable state</b> — and resume state includes the optimizer and gradients.</p>
+  <div class="cmd"><span class="p">$</span> cat …/latest_candidate_lifecycle.json → <span class="hl">"status": "paused"</span>, step 120, renewable-tranche reason<br><span class="p">$</span> cat …/accepted_steps/pointer.json → current_step 120 · content-hash bundle ids · optimizer + gradient state <span class="hl">included</span><br><span class="p">$</span> python scripts/axon_kaggle.py --state-root State --json jobs → both receipt jobs: <span class="hl">outputs_fetched</span></div>
+  <div class="duo">
+    <div class="box proves"><b>Proves</b>Content-addressed lineage; renewable tranches; job history inspectable fully offline.</div>
+    <div class="box notproves"><b>Does not prove</b>No live Kaggle status is queried — the catalog shows locally known phases ("local truth" if asked). Nothing is launched.</div>
+  </div>
+  <div class="foot"><span class="brand">AXON</span><span class="n">10 / 14</span></div>
+</section>
+
+<!-- 11 SCENE 7 TABLE -->
+<section class="slide" data-notes="THE CREDIBILITY SCENE — volunteer the bad numbers before anyone asks. Two controlled cloud ablations, same architecture (D64, 1 head, 4 layers, FFN256, 331,319 params), same 120-step tranche, different objective weights. Walk the table column by column: the receipt mechanism fixed what it was designed to fix; the learned gate is now the bottleneck.">
+  <div class="scene-head"><span class="scene-no">SCENE 07</span><h2>The learning organ, honestly</h2><span class="scene-time">2 min · evidence</span></div>
+  <table class="res">
+    <tr><th style="text-align:left">Metric · heldout / regression</th><th class="base">Unicode-walk v3</th><th class="base">Receipt v1 · 4b228ccd…</th><th class="base">Receipt v2 · 2f5687a6…</th></tr>
+    <tr><td class="metric">Source-position accuracy</td><td class="dim">0.645 / 0.657</td><td class="win">1.000 / 1.000</td><td class="win">1.000 / 1.000</td></tr>
+    <tr><td class="metric">Content-only (teacher-forced)</td><td class="dim">0.645 / 0.657</td><td class="win">1.000 / 1.000</td><td class="win">1.000 / 1.000</td></tr>
+    <tr><td class="metric">Copy-route gate</td><td class="dim">1.000</td><td class="fail">0.000</td><td class="win">1.000</td></tr>
+    <tr><td class="metric">EOS-route gate</td><td class="dim">0.000</td><td class="win">1.000</td><td class="fail">0.000</td></tr>
+    <tr><td class="metric">Emitted EOS token</td><td class="dim">0.000</td><td class="dim">0.125 / 0.208</td><td class="dim">0.125 / 0.333</td></tr>
+    <tr><td class="metric">Teacher-forced token accuracy</td><td class="dim">0.364</td><td class="dim">0.475</td><td class="dim">0.475</td></tr>
+    <tr><td class="metric">Exact terminated payload transport</td><td class="dim">0.000</td><td class="dim">0.333</td><td class="fail">0.000</td></tr>
+    <tr><td class="metric">Heldout final mean loss</td><td class="dim">0.5760</td><td class="dim">0.7322</td><td class="dim">0.4461</td></tr>
+  </table>
+  <p class="tbl-note">Same architecture across v1/v2: D64 · 1 head · 4 layers · FFN256 · 331,319 parameters · 120-step tranche. Candidates remain paused, renewable, non-serving.</p>
+  <div class="foot"><span class="brand">AXON</span><span class="n">11 / 14</span></div>
+</section>
+
+<!-- 12 SCENE 7 READ -->
+<section class="slide" data-notes="The honest sentence, verbatim: 'The receipt mechanism fixed what it was designed to fix — exact anchor position and exact supervised content at 1.000 across heldout and regression. The learned gate is now the bottleneck: v2 always picks COPY, never EOS, so exact terminated payload transport is 0.000 and teacher-forced token accuracy is 0.475. We have a hypothesis — scalar-bias dominance; checkpoint inspection shows copy_gate.weight norm 0.094, bias −0.0098 — and a ratified, observation-only diagnostic plan. No architecture change before this meeting.'">
+  <div class="kicker">How to read the table</div>
+  <h2 style="margin-bottom:40px">What worked, what didn't, what's next</h2>
+  <p class="truth" style="font-size:38px">The receipt mechanism <b>fixed what it was designed to fix</b> — exact anchor position and exact supervised content at <b>1.000</b> across heldout and regression. The learned gate is now the bottleneck: v2 always picks COPY, never EOS, so exact terminated payload transport is <span class="nope">0.000</span>.</p>
+  <div class="nums" style="margin-top:44px">
+    <div class="num"><b class="win">1.000</b><span>position + content-only + copy-route — recovered from 0.000 in v1</span></div>
+    <div class="num"><b class="fail">0.000</b><span>exact terminated transport in v2 — free-running output still fails</span></div>
+    <div class="num"><b class="neutral">hypothesis</b><span>scalar-bias dominance · copy_gate weight norm 0.094, bias −0.0098</span></div>
+    <div class="num"><b style="color:var(--teal)">next</b><span>ratified, observation-only gate diagnostic — no architecture change</span></div>
+  </div>
+  <div class="foot"><span class="brand">AXON</span><span class="n">12 / 14</span></div>
+</section>
+
+<!-- 13 THE ASK -->
+<section class="slide" data-notes="Close with the ask, verbatim ending: 'We are not asking you to fund a chatbot; we are asking you to fund measured mechanism.' Distinguish proven D64 tissue from future 512D/1024D compiler/reader engineering — the serializer is width-generic with D64/D128 tests; the canonical compiler and learned reader remain D64.">
+  <div class="kicker">The ask</div>
+  <h2 style="margin-bottom:8px">Fund measured mechanism</h2>
+  <div class="ladder">
+    <div class="rung now"><span class="tag">now · D64</span><p>Governed diagnostics and renewable training tranches — close the joint gate/termination failure with the same discipline shown today.</p></div>
+    <div class="rung later"><span class="tag">then · 512D</span><p>Widen the canonical field compiler and learned reader — engineering work, not a capability claim; the proposal-workspace serializer already has D64/D128 tests.</p></div>
+    <div class="rung later"><span class="tag">then · 1024D</span><p>Deepen the same content-addressed lineage: every credit-hour becomes permanent, auditable, resumable state on your platform.</p></div>
+  </div>
+  <p class="lead" style="margin-top:40px;font-size:30px;color:var(--ink)">"We are not asking you to fund a chatbot; we are asking you to fund measured mechanism."</p>
+  <div class="foot"><span class="brand">AXON · DEXTERGLIKSBOT LLC</span><span class="n">jeff@gliksbot.com · gliksbot.com</span></div>
+</section>
+
+<!-- 14 Q&A -->
+<section class="slide" data-notes="The four questions most likely to come. Full answers in runbook §5. Keep every answer at the same honesty level as the demos — that consistency is the product.">
+  <div class="kicker">Likely questions · candid answers</div>
+  <h2 style="margin-bottom:10px">Ask us the hard one</h2>
+  <div class="qa">
+    <div class="qrow"><div class="qq">"Is it solved? Those 1.000s look perfect."</div><div class="aa">No. 1.000 is route, position, and teacher-forced content alignment. Free-running exact terminated transport is 0.000 and token accuracy is 0.475. We show both — that's the discipline.</div></div>
+    <div class="qrow"><div class="qq">"Can it talk to me right now?"</div><div class="aa">No learned conversation is serving. The turn you saw used fixture cores to prove the circulation machinery. That gap is exactly what the 512D/1024D milestone funds.</div></div>
+    <div class="qrow"><div class="qq">"Why not just use a big LLM as the writer?"</div><div class="aa">We need a single accountable writer with transactional semantics and fail-closed rejection. An LLM inside would be a proposal source — never the committer. That separation is the design.</div></div>
+    <div class="qrow"><div class="qq">"Is the memory vector RAG?"</div><div class="aa">No — exact records with hash-chained provenance to the source DB row. Retrieval shown is exact and hash-verified; no semantic embedding recall is serving yet.</div></div>
+  </div>
+  <div class="foot"><span class="brand">AXON</span><span class="n">14 / 14 · runbook §5 has the rest</span></div>
+</section>
+
+</div></div>
+
+<div id="notes"><h3>Presenter notes</h3><div id="notes-body"></div></div>
+<div id="hud"><b>←</b> <b>→</b> navigate · <b>N</b> notes · <b>F</b> fullscreen · slide <b id="hud-n">1</b>/14</div>
+
+<script>
+(function(){
+  var deck=document.getElementById('deck');
+  var slides=[].slice.call(document.querySelectorAll('.slide'));
+  var cur=0;
+  try{
+    var q=new URLSearchParams(location.search).get('slide');
+    if(q!==null){ var qi=parseInt(q,10)-1; if(qi>=0&&qi<slides.length)cur=qi; }
+    else{ var s=parseInt(localStorage.getItem('axon-deck-slide')||'0',10); if(s>=0&&s<slides.length)cur=s; }
+  }catch(e){}
+  function notesFor(i){
+    var d=slides[i].getAttribute('data-notes');
+    if(d)return d;
+    var n=slides[i].querySelector('[data-notes]');
+    return n?n.getAttribute('data-notes'):'(no notes for this slide)';
+  }
+  function fit(){
+    var s=Math.min(window.innerWidth/1920,window.innerHeight/1080);
+    document.getElementById('deck').style.transform='scale('+s+')';
+  }
+  function show(i){
+    cur=Math.max(0,Math.min(slides.length-1,i));
+    slides.forEach(function(sl,k){sl.classList.toggle('active',k===cur);});
+    document.getElementById('hud-n').textContent=cur+1;
+    document.getElementById('notes-body').textContent=notesFor(cur);
+    try{localStorage.setItem('axon-deck-slide',String(cur));}catch(e){}
+    wakeHud();
+  }
+  var hudTimer=null;
+  function wakeHud(){
+    var h=document.getElementById('hud');
+    if(!h)return;
+    h.style.opacity='1';
+    if(hudTimer)clearTimeout(hudTimer);
+    hudTimer=setTimeout(function(){h.style.opacity='0';},3000);
+  }
+  window.addEventListener('keydown',function(e){
+    if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){show(cur+1);e.preventDefault();}
+    else if(e.key==='ArrowLeft'||e.key==='PageUp'){show(cur-1);e.preventDefault();}
+    else if(e.key==='Home'){show(0);e.preventDefault();}
+    else if(e.key==='End'){show(slides.length-1);e.preventDefault();}
+    else if(e.key==='n'||e.key==='N'){document.getElementById('notes').classList.toggle('show');}
+    else if(e.key==='f'||e.key==='F'){var el=document.documentElement; if(!document.fullscreenElement){(el.requestFullscreen||el.webkitRequestFullscreen).call(el);}else{document.exitFullscreen();}}
+  });
+  window.addEventListener('resize',fit);
+  document.getElementById('deck').addEventListener('click',function(e){
+    if(e.target.closest('#notes'))return;
+    show(cur+ (e.clientX > window.innerWidth/2 ? 1 : -1));
+  });
+  fit(); show(cur);
+})();
+</script>
+</body>
+</html>

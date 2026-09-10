@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-09T23:06:00Z
+Updated: 2026-09-09T23:25:00-05:00
 Current through event:
-`evt-20260909T230600180468Z-kimi-google-demo-runbook`
+`evt-20260909T232500000000Z-hermes-google-demo-deck`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
@@ -125,7 +125,7 @@ formally adjudicated:
 4. **Wider Rail Migration**: Only after the D64 mechanism is fully closed and ratified,
    implement the width-generic packed compiler (`d_model // 16` lanes) for 512D.
 
-## Google meeting demo package (2026-09-10, reviewed and integrated)
+## Google meeting demo package (2026-09-10, deck + presenter briefing added)
 
 Kimi produced the operator runbook
 `roundtable/proposals/KIMI_GOOGLE_ORGAN_DEMO_RUNBOOK_2026-09-10.md` in isolated
@@ -164,10 +164,25 @@ touched, and no serving capability is claimed. Operator commands now target the
 real `D:\Axon` `main` checkout. The Google ask distinguishes proven D64 tissue
 from future D512/D1024 compiler/reader engineering.
 
+Hermes (2026-09-09, `evt-20260909T232500000000Z-hermes-google-demo-deck`) built
+the presentation layer the runbook lacked: a 14-slide 1920×1080 HTML deck
+`roundtable/proposals/GOOGLE_DEMO_DECK_2026-09-10.html` (truth boundary as
+slide 2, per-scene PROVES / DOES-NOT-PROVE boxes, Scene 7 adjudication table
+with failures in amber before wins in cyan, presenter notes per slide on the
+`N` key, fullscreen `F`, `?slide=N` deep links, print-to-PDF, gliksbot.com
+palette) and a presenter briefing
+`roundtable/proposals/PRESENTER_NOTES_GOOGLE_DEMO_2026-09-10.md` (rehearsal
+cues, verbatim honest sentence and ask, timing safety valve, preflight
+additions). Before building on top of them, Hermes re-verified the live scenes
+on this machine with the Python 3.12 interpreter: substrate v7 conformance
+PASS, heart control plane 19 passed, reasoning circulation 5 passed (all exit
+0). Advisory: bare `python` on this box is a 3.11 venv without pytest — demo
+commands need the Python 3.12 full install on PATH.
+
 ## Continuity health
 
-- Canonical ledger: 202 valid unique event lines plus one preserved historical
-  blank line through `evt-20260909T232005697707Z-codex-google-demo-integration`.
+- Canonical ledger: 203 valid unique event lines plus one preserved historical
+  blank line through `evt-20260909T232500000000Z-hermes-google-demo-deck`.
 - `scripts/append_engineers_ledger_event.py` validated and cleanly appended the turn event.
 - Kimi CLI is globally pinned to standard K2.7 Coding; its first bounded,
   read-only Codex-directed evidence audit completed without repository writes.
