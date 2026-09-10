@@ -41,6 +41,8 @@ from runtime.dormant import DormantEvidenceIndex  # noqa: E402
 from runtime.dormant.relevance import DormantRelevanceAuditor, DormantRelevancePolicy  # noqa: E402
 from runtime.field import (  # noqa: E402
     D64FieldCompiler,
+    DeleteText,
+    FieldDelta,
     FieldSpan,
     LogicalRegion,
     RegionState,
@@ -264,7 +266,7 @@ class DemoRuntime:
             policy = policies.get(region)
             attended = compiled.region_text(region)
             canonical = state.text
-            slider = None if region.value == "identity" else (
+            slider = None if region.value in ("identity", "cortex") else (
                 policy.limit if policy is not None and policy.kind == "tail_percent" else 100
             )
             out.append({
@@ -530,9 +532,6 @@ class DemoRuntime:
         selected: list = []
         per_region_stats: list[dict] = []
         current_cortex_pre = field.region(LogicalRegion.CORTEX)
-        pre_attended_ids: set[str] = set()
-        for span in current_cortex_pre.spans:
-            pre_attended_ids.update(span.container_refs or ())
         auditor = DormantRelevanceAuditor(
             DormantRelevancePolicy(items_per_materialization=3, target_chars=budget, min_score=0.42)
         )
@@ -602,7 +601,6 @@ class DemoRuntime:
             fresh = [
                 item for item in decision.selected
                 if item.container.container_id not in seen_containers
-                and item.container.container_id not in pre_attended_ids
             ]
             kept = fresh[:2]
             for item in kept:
@@ -618,8 +616,7 @@ class DemoRuntime:
             })
             selected.extend(kept)
 
-        # 3. Char-budget trim at span boundaries (drop whole spans from the
-        #    oldest end until the region fits the budget).
+        # 3. Char-budget trim at span boundaries (whole spans only).
         budget = self.cortex_budget_chars
         fresh_spans: list[tuple[FieldSpan, int]] = []
         for item in selected:
@@ -650,39 +647,52 @@ class DemoRuntime:
                 ),
                 len(text),
             ))
-        kept_spans: list[tuple[FieldSpan, int]] = []
+        final_spans_list: list[FieldSpan] = []
         used = 0
         for span, text_len in fresh_spans:
             if used + text_len > budget:
                 break
-            kept_spans.append((span, text_len))
+            final_spans_list.append(span)
             used += text_len
-        # Existing spans stay in place (newest-first: fresh spans PREPEND;
-        # older entries fall toward the tail and evict first on overflow).
-        existing_keep = []
-        tail_used = used
-        for span in current_cortex_pre.spans:
-            t = span.text
-            if tail_used + len(t) <= budget:
-                existing_keep.append(span)
-                tail_used += len(t)
-        final_spans = tuple([s for s, _ in kept_spans] + existing_keep)
+        # Jeff's design: every tick WIPES the cortex and replaces it with the
+        # latest hits. Duplicates (same container set as before) leave the
+        # region untouched; zero matches wipes it EMPTY. The region is the
+        # engine's focus surface, not an accumulating log - evicted records
+        # remain in the dormant archive.
+        final_spans = tuple(final_spans_list)
+        previous_ids = sorted(
+            ref for span in current_cortex_pre.spans for ref in (span.container_refs or ())
+        )
+        new_ids = sorted(
+            ref for span in final_spans for ref in (span.container_refs or ())
+        )
+        wiped = bool(current_cortex_pre.spans) and not final_spans
+        same_surface = (
+            bool(current_cortex_pre.spans)
+            and bool(final_spans)
+            and previous_ids == new_ids
+            and current_cortex_pre.text == "".join(s.text for s in final_spans)
+        )
 
-        if final_spans == current_cortex_pre.spans:
+        if same_surface:
             self._last_seen_field_id = field.field_id  # null tick settles the change marker
             self.cortex_ticks_fired += 1
             self.last_cortex_tick = {
                 "ticked": False,
                 "trigger": trigger,
-                "reason": "nothing cleared the relevance bar or nothing new",
+                "reason": "duplicate surface — identical hits, region left untouched",
                 "per_region": per_region_stats,
             }
             return {
                 "ticked": False,
-                "reason": "nothing new to surface or no change",
+                "reason": "duplicate surface — identical hits, region left untouched",
                 "trigger": trigger,
                 "per_region": per_region_stats,
             }
+        if wiped:
+            verdict = "zero matches — cortex wiped empty"
+        else:
+            verdict = "cortex replaced with latest hits"
 
         replacement = RegionState(
             name=LogicalRegion.CORTEX,
@@ -690,17 +700,36 @@ class DemoRuntime:
             visibility=RegionVisibility.ATTENDED,
         )
         compiled = self.compiler.compile(field)
-        delta = replacement_delta(
-            field,
-            compiled,
-            region=LogicalRegion.CORTEX,
-            text=replacement.text,
-            author_core_id="cortex-engine",
-            pass_id="cortex_tick",
-            evidence=tuple(sorted({ref for s in final_spans for ref in s.container_refs})),
-            provenance=f"cortex-engine-tick:{trigger}",
-            container_refs=tuple(sorted({ref for s in final_spans for ref in s.container_refs})),
-        )
+        if wiped:
+            # A full wipe is a DeleteText over the whole prior region text
+            # (ReplaceText cannot be an empty no-op by delta law).
+            prior_text = current_cortex_pre.text
+            delta = FieldDelta(
+                base_field_id=field.field_id,
+                base_tick_id=field.tick_id,
+                author_core_id="cortex-engine",
+                pass_id="cortex_tick",
+                operations=(
+                    DeleteText(
+                        region=LogicalRegion.CORTEX,
+                        start=0,
+                        end=len(prior_text),
+                        provenance=f"cortex-engine-tick:{trigger}:wipe",
+                    ),
+                ),
+            )
+        else:
+            delta = replacement_delta(
+                field,
+                compiled,
+                region=LogicalRegion.CORTEX,
+                text=replacement.text,
+                author_core_id="cortex-engine",
+                pass_id="cortex_tick",
+                evidence=tuple(sorted({ref for s in final_spans for ref in s.container_refs})),
+                provenance=f"cortex-engine-tick:{trigger}",
+                container_refs=tuple(sorted({ref for s in final_spans for ref in s.container_refs})),
+            )
         commit = self.host.coordinator.commit_heart_delta(
             field,
             delta,
@@ -725,6 +754,8 @@ class DemoRuntime:
             "chars": len(replacement.text),
             "spans": len(final_spans),
             "budget": budget,
+            "verdict": verdict,
+            "wiped": wiped,
         }
         return {
             "ticked": True,
@@ -732,6 +763,8 @@ class DemoRuntime:
             "chars": len(replacement.text),
             "spans": len(final_spans),
             "budget": budget,
+            "verdict": verdict,
+            "wiped": wiped,
             "per_region": per_region_stats,
             "field_id": commit.successor.field_id,
             "commit_id": commit.commit_id,
@@ -954,7 +987,7 @@ button.sec{background:transparent;border-color:var(--border);color:var(--muted)}
     <h2 style="margin-top:14px">Cortex engine · bounded working surface</h2>
     <div class="region">
       <div class="rname"><span>cortex ticks</span><span class="spans" id="cortex-last">—</span></div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Ticks on every field change and on cadence. Each tick searches semantic edges in the dormant state for every OTHER region, scores them through the relevance auditor (strict bar, no fallback — silence beats noise), prepends survivors to the TOP of the cortex pushing older entries deeper, dedups against what is attended, and trims at span boundaries to the char budget. Evicted records stay in the dormant archive.</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Ticks on every field change and on cadence. Each tick WIPES the cortex and replaces it with the latest hits: it searches semantic edges in the dormant state for every OTHER region (through their attention masks), scores through the relevance auditor (strict bar, no fallback), and trims whole spans to the char budget. Zero matches wipes the region empty; identical hits leave it untouched (duplicate, no churn). Evicted records stay in the dormant archive. The cortex has NO attention slider — it is the engine's surface, always fully attended.</div>
       <div class="slider-row"><span style="font-family:var(--mono);font-size:11px;color:var(--faint);width:86px">char budget</span><input type="range" id="cx-budget" min="400" max="6000" step="200" value="1600"><span class="pct" id="cx-budget-v">1600</span></div>
       <div class="slider-row"><span style="font-family:var(--mono);font-size:11px;color:var(--faint);width:86px">cadence s</span><input type="range" id="cx-cadence" min="2" max="60" step="1" value="5"><span class="pct" id="cx-cadence-v">5</span></div>
       <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
@@ -1085,7 +1118,9 @@ function drawBeat(p){
 function drawCortexInfo(){
   const lt=STATE.last_cortex_tick;
   if(lt){
-    $('#cortex-last').textContent=lt.ticked?('tick '+lt.trigger+' · '+lt.chars+' chars'):(lt.reason||'null tick').slice(0,28);
+    $('#cortex-last').textContent=lt.ticked
+      ?('tick '+lt.trigger+' · '+lt.chars+' chars'+(lt.wiped?' · WIPED':''))
+      :(lt.reason||'null tick').slice(0,34);
   }
 }
 function apply(p){
@@ -1118,7 +1153,7 @@ $('#cx-cadence').oninput=()=>{$('#cx-cadence-v').textContent=$('#cx-cadence').va
 $('#cx-cadence').onchange=async()=>{await api('/api/cortex-config',{budget_chars:+$('#cx-budget').value,auto:$('#cx-auto').checked,cadence_s:+$('#cx-cadence').value});flash('cortex cadence → '+$('#cx-cadence').value+'s')};
 $('#cx-auto').onchange=async()=>{await api('/api/cortex-config',{budget_chars:+$('#cx-budget').value,auto:$('#cx-auto').checked,cadence_s:+$('#cx-cadence').value});flash('cortex auto-tick '+(($('#cx-auto').checked)?'on':'off'))};
 $('#cx-tick').onclick=async()=>{flash('cortex ticking…');const r=await api('/api/cortex-tick',{trigger:'manual'});if(r.error){flash('TICK ERROR '+r.error);return}
-  const s=await api('/api/state');s.last_cortex_tick=r.ticked?{ticked:true,trigger:'manual',chars:r.chars}:r;apply(s);flash(r.ticked?('cortex tick committed — '+r.chars+' chars, '+r.spans+' spans'):('null tick — '+r.reason))};
+  const s=await api('/api/state');s.last_cortex_tick=r.ticked?{ticked:true,trigger:'manual',chars:r.chars,wiped:r.wiped}:r;apply(s);flash(r.ticked?(r.verdict+' — '+r.chars+' chars, '+r.spans+' spans'):('null tick — '+r.reason))};
 $('#roundtrip').onclick=async()=>{const r=await api('/api/roundtrip');if(r.error){flash('ROUNDTRIP FAILED '+r.error);return}
   $('#rt').textContent=`roundtrip exact · ${r.valid_lanes}/${r.lanes} lanes`;flash('canonical body roundtrips exactly — '+r.rows+' rows'+(r.masked_active?' (view masked to '+r.view_rows+')':''))};
 (async()=>{STATE=await api('/api/state');$('#rootchip').textContent='state '+(STATE&&STATE.field_id?'attached':'down');if(STATE&&!STATE.error){$('#cx-budget').value=STATE.cortex_budget;$('#cx-budget-v').textContent=STATE.cortex_budget+'/'+STATE.cortex_budget;apply(STATE);startPoll()}})();

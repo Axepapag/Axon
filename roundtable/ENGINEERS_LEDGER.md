@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-10T05:15:00-05:00
+Updated: 2026-09-10T06:15:00-05:00
 Current through event:
-`evt-20260910T051500000000Z-hermes-attention-mask-cortex-fix`
+`evt-20260910T061500000000Z-hermes-cortex-wipe-replace`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
@@ -295,6 +295,25 @@ regions from observers). Follow-up candidate for the runtime itself: the
 production `DormantRelevanceAuditor._active_terms` reads canonical text —
 mask-aware production scoring should adopt the same derived-view pattern.
 
+### Cortex = wipe-and-replace focus surface (2026-09-10,
+`evt-20260910T061500000000Z-hermes-cortex-wipe-replace`)
+
+Jeff finalized the cortex design: it is a **focus surface**, not a log. Every
+tick now WIPES the entire cortex region and replaces it with exactly the
+latest audited hits (whole-span trim to the char budget). Identical hit sets
+leave the region untouched ("duplicate surface" null tick); zero audited
+matches across the whole tick WIPES THE REGION EMPTY — implemented as a
+`DeleteText` over the prior region text through the Heart boundary under
+DORMANT_VALVE authority (`ReplaceText` is barred from empty no-ops by delta
+law — caught live as `DeltaValidationError` and the correct operation used).
+The cortex region has **no attention slider** anymore (like identity): it is
+the engine's surface, always fully attended; only the engine's two sliders
+(char budget, cadence) remain. Verified live: replace (1071 chars on-topic),
+duplicate (untouched), all-regions-masked zero-match wipe (1071 → 0 chars,
+roundtrip exact). Advisory: a wipe requires the ENTIRE tick (all regions,
+through their masks) to yield zero selections — gibberish ingress alone
+doesn't wipe while other regions still attend real text.
+
 Sweep note (Hermes, 2026-09-10): Gemini's `site-and-readme-overhaul` turn
 (`evt-20260909T221500000000Z`) landed in the tree uncommitted — README.md
 overhaul + its ledger event — committed in this sweep with Gemini attribution;
@@ -309,8 +328,8 @@ agents protocol.
 
 ## Continuity health
 
-- Canonical ledger: 210 valid unique event lines plus one preserved historical
-  blank line through `evt-20260910T051500000000Z-hermes-attention-mask-cortex-fix`.
+- Canonical ledger: 211 valid unique event lines plus one preserved historical
+  blank line through `evt-20260910T061500000000Z-hermes-cortex-wipe-replace`.
 - `scripts/append_engineers_ledger_event.py` validated and cleanly appended the turn event.
 - Kimi CLI is globally pinned to standard K2.7 Coding; its first bounded,
   read-only Codex-directed evidence audit completed without repository writes.
