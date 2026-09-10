@@ -7,53 +7,57 @@ Live runtime: `scripts/demo_organ_server.py` → http://127.0.0.1:9201
 
 ---
 
-## LIVE ORGAN DEMO (added 2026-09-09 evening — the runtime in action)
+## LIVE ORGAN DEMO (real-state mode, 2026-09-10 — Jeff's runtime-in-action)
 
-A browser UI driving the production organs on an isolated demo state root
-(`State/tmp/organ_demo`, own lease, own small demo-authored dormant corpus —
-no private memory displayed, real `State/` untouched). Verified end-to-end
-2026-09-09: valve ingress → heartbeat (3 commits) → dormant recall surfacing
-6 records into CORTEX with provenance → fixture-core scripted answer committed
-through the real two-barrier circulation ("what color is the sky?" → "The sky
-is blue.") → D64 rail 118–133 rows, coverage complete → canonical roundtrip
-exact (466+ valid lanes) → mask slider 40% showing view≠body with the body
-untouched.
+The server now attaches to the **REAL state root by default** — real dormant
+corpus (59,875 records), real canonical branch, real durable ingress spool.
+No cores are registered: `response_draft` stays canonically empty (UI shows
+"Reasoning Cores Coming Soon"), `user_input` accumulates every ingress, and
+all ticks close as null ticks. Nothing is scripted anywhere. Verified live
+2026-09-10 on the real state: "who is Jeff?" ingress committed through the
+valve, cortex surfaced a real recovered record with provenance, field grew
+1584 → 2468 rail rows (zero ceilings), roundtrip exact over 9868 valid lanes,
+and moving the cortex slider to 30% **beat the heart and froze a new tick
+view** (`97c81486…`) with the canonical body untouched.
 
-### Boot (30 seconds, before preflight)
+### Boot (before preflight)
 
 ```bash
 cd /d/Axon
-PYTHONUTF8=1 python scripts/demo_organ_server.py --port 9201
-# open http://127.0.0.1:9201  (rebuild state: add --rebuild)
+PYTHONUTF8=1 python scripts/demo_organ_server.py            # REAL state
+PYTHONUTF8=1 python scripts/demo_organ_server.py --demo     # isolated demo root
+# open http://127.0.0.1:9201
 ```
 
-### The 3-minute live story (between deck scenes 2 and 3, or as its own beat)
+Attaching to the real state takes the real single-writer lease (nothing else
+may hold it) and writes only through governed valves — ingress items land in
+`user_input` and are deposited to Heart autobiography exactly as the permanent
+host would. The demo-authored isolated root remains available with `--demo`
+for zero-risk rehearsal.
 
-1. **Type "what color is the sky?" → valve → heart.** Watch: beat appears with
-   commits count, "The sky is blue." lands in RESPONSE_DRAFT, dormant recall
-   card shows the surfaced facts WITH provenance (organ-demo containers).
-   Say: "The question went through a valve, the Heart ticked, dormant memory
-   surfaced, and the answer was committed transactionally — no learned model
-   anywhere in that loop."
-2. **Click any character cell in the D64 rail.** Its real 16D vector draws as
-   a bar chart. Say: "One character = one frozen 16D cell; four cells pack
-   into one 64-wide rail row. This is the 16→64 packing, live."
-3. **Press "roundtrip check."** Chip turns green: canonical body roundtrips
-   exactly. Say: "64 back to 16 — exact, verified by hash against the frozen
-   substrate bank."
-4. **Slide conversation_history to ~40%.** The rail view shrinks; the amber
-   warning shows "view differs from canonical body — body untouched." Slide
-   back to 100%. Say: "Attention moves; memory never gets destroyed. Masked
-   characters go dormant in place."
+### The 3-minute live story
 
-### Honest framing (say this once, on screen anyway)
+1. **Type "who is Jeff?" → valve → heart.** The question commits to
+   `user_input`; primitive dormant recall surfaces real records into CORTEX
+   with provenance; the rail grows. Say: "the Heart ticked, the cortex valve
+   surfaced lived memory — no learned model anywhere in that loop, and the
+   field grew with no ceiling."
+2. **Click any rail cell** — its real 16D vector draws. "One character = one
+   frozen 16D cell; four cells pack into one 64-wide rail row."
+3. **Press "roundtrip check"** — the canonical body roundtrips exactly, every
+   region, however large the field has grown.
+4. **Slide any region's slider** — the heart beats and freezes a NEW tick
+   view; masked characters go dormant in place. "Attention moves; memory
+   never gets destroyed. Collapse a region to read others — cores still
+   attend everything; collapse only hides it from observers."
 
-- The header chip says it: "fixture cores · not learned · not serving". The
-  answers are scripted fixture cores committing through the REAL Heart
-  boundary — the demo shows mechanism, not learned intelligence.
-- Unscripted questions get "[fixture core] no scripted answer is registered
-  for this input" — that honesty is a feature; let Google see it.
-- Demo corpus is demo-authored facts; provenance strings say organ-demo.
+### Honest framing
+
+- Header chip: "no cores registered · nothing scripted · null ticks".
+- `response_draft` is canonically empty — the UI ghost says "Reasoning Cores
+  Coming Soon" and never fabricates.
+- Retrieval is real lexical/graph retrieval over the recovered corpus — what
+  surfaces is what the index ranks, with provenance, not a canned answer.
 
 ### Fallback ladder for the live demo
 

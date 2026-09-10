@@ -1,26 +1,31 @@
-"""Axon live organ demo server — drives the production runtime for presentations.
+"""Axon live organ demo server — the REAL runtime, on the REAL state.
 
-Everything on screen comes from real organ APIs on an isolated demo state root:
-  - Heart valve ingress (user valve -> durable spool -> final gate -> canonical)
-  - Heartbeat ticks with dormant recall (dormant valve -> CORTEX surfacing)
-  - Two-barrier reasoning circulation with fixture cores (scripted Q&A answers
-    committed through the consolidator path -- explicitly NOT learned cores)
-  - Heart-owned durable region mask sliders (view changes, body never moves)
-  - D64 field compiler: 16D cells packed 4-per-64-lane row, exact roundtrip
-
-The demo state root lives under State/tmp/organ_demo (gitignored) with its own
-small demo-authored dormant corpus, so no private memory is ever displayed and
-the real State/ root is never touched (separate single-writer lease).
+Presents the production organs in a browser:
+  - Real state root (default D:/Axon/State) with its real dormant corpus
+    (59,875 recovered records, 4.2 GB derived index) and real canonical branch.
+  - Heart valve ingress (user valve -> durable spool -> final gate -> canonical
+    user_input commit -> autobiography deposit).
+  - A heartbeat on every field change AND on every attention-mask move
+    (mask dirtiness freezes a new tick view; the canonical body never moves).
+  - Primitive dormant recall (the cortex valve): user input queries the real
+    dormant index; relevant records surface into CORTEX with provenance.
+  - NO reasoning cores are registered: response_draft stays canonically empty
+    (the UI shows a "Reasoning Cores Coming Soon" ghost), user_input
+    accumulates, and every tick closes as a null tick. Nothing is scripted.
+  - The D64 rail is rendered in full — no row caps — grouped by region, with
+    per-region visual collapse (presentation only; cores attend everything).
 
 Usage (from D:/Axon, Python 3.12 full install):
-    PYTHONUTF8=1 python scripts/demo_organ_server.py            # port 9201
-    PYTHONUTF8=1 python scripts/demo_organ_server.py --rebuild  # wipe demo root
+    PYTHONUTF8=1 python scripts/demo_organ_server.py
+    PYTHONUTF8=1 python scripts/demo_organ_server.py --state-root D:/Axon/State
+    PYTHONUTF8=1 python scripts/demo_organ_server.py --demo   # isolated demo root
 Open http://127.0.0.1:9201
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import queue
 import shutil
@@ -36,296 +41,22 @@ from runtime.dormant import DormantEvidenceIndex  # noqa: E402
 from runtime.field import D64FieldCompiler, LogicalRegion, SharedFieldSnapshot  # noqa: E402
 from runtime.heart import (  # noqa: E402
     BeatConfig,
-    CategoricalTextFrame,
-    CoreDescriptor,
-    CoreRegistry,
     HeartHost,
     HeartHostConfig,
-    ReasoningDecision,
-    ReasoningEmission,
-    ReasoningOperationEmission,
-    ReasoningOperationKind,
-    ReasoningPassRequest,
-    ReasoningPassResult,
 )
-from runtime.soul import SoulLayer, SoulTemperature, SoulTransition  # noqa: E402
 
+DEFAULT_REAL_STATE_ROOT = REPO_ROOT / "State"
 DEMO_STATE_ROOT = REPO_ROOT / "State" / "tmp" / "organ_demo"
 PORT = 9201
 
-# Regions the UI exposes sliders for (identity region is unmaskable by law).
-SLIDER_REGIONS = [
-    LogicalRegion.CONVERSATION_HISTORY,
-    LogicalRegion.CORTEX,
-    LogicalRegion.RESPONSE_DRAFT,
-    LogicalRegion.USER_INPUT,
-]
+LANES_PER_ROW = 4  # D64_LANES_PER_ROW: four 16D character cells per 64-wide row
 
-# ---------------------------------------------------------------------------
-# Demo dormant corpus (demo-authored facts; provenance strings are honest:
-# these records were written FOR this demo, by scripts/demo_organ_server.py).
-# ---------------------------------------------------------------------------
-
-_CORPUS = [
-    {
-        "container_id": "c-demo-sky-color",
-        "kind": "fact",
-        "text": "The color of the sky is blue",
-        "normalized_text": "the color of the sky is blue",
-        "letters": "The color of the sky is blue",
-        "edges": [
-            {
-                "edge_type": "has_color",
-                "target": "blue",
-                "confidence": 0.99,
-                "provenance": "organ-demo:edge:sky-blue",
-                "status": "dormant",
-            }
-        ],
-        "source": "organ-demo:facts:1",
-        "provenance": "organ-demo:container:sky-color",
-        "confidence": 0.99,
-        "status": "dormant",
-        "metadata": {"topic": "sky"},
-    },
-    {
-        "container_id": "c-demo-sky-scatter",
-        "kind": "fact",
-        "text": "The sky appears blue because air scatters shorter wavelengths of light more than longer ones",
-        "normalized_text": "the sky appears blue because air scatters shorter wavelengths of light more than longer ones",
-        "letters": "The sky appears blue because air scatters shorter wavelengths of light more than longer ones",
-        "edges": [],
-        "source": "organ-demo:facts:2",
-        "provenance": "organ-demo:container:sky-scatter",
-        "confidence": 0.9,
-        "status": "dormant",
-        "metadata": {"topic": "sky"},
-    },
-    {
-        "container_id": "c-demo-axon-definition",
-        "kind": "concept",
-        "text": "Axon is a stateful AI runtime that remembers exactly",
-        "normalized_text": "axon is a stateful ai runtime that remembers exactly",
-        "letters": "Axon is a stateful AI runtime that remembers exactly",
-        "edges": [
-            {
-                "edge_type": "has_property",
-                "target": "stateful",
-                "confidence": 0.95,
-                "provenance": "organ-demo:edge:axon-stateful",
-                "status": "dormant",
-            }
-        ],
-        "source": "organ-demo:concepts:1",
-        "provenance": "organ-demo:container:axon-definition",
-        "confidence": 0.95,
-        "status": "dormant",
-        "metadata": {},
-    },
-    {
-        "container_id": "c-demo-heart-writer",
-        "kind": "concept",
-        "text": "The Heart is the sole canonical writer of the shared field",
-        "normalized_text": "the heart is the sole canonical writer of the shared field",
-        "letters": "The Heart is the sole canonical writer of the shared field",
-        "edges": [],
-        "source": "organ-demo:concepts:2",
-        "provenance": "organ-demo:container:heart-writer",
-        "confidence": 0.9,
-        "status": "dormant",
-        "metadata": {},
-    },
-    {
-        "container_id": "c-demo-cell16",
-        "kind": "concept",
-        "text": "Axon packs one character into one frozen 16 dimensional transport cell",
-        "normalized_text": "axon packs one character into one frozen 16 dimensional transport cell",
-        "letters": "Axon packs one character into one frozen 16 dimensional transport cell",
-        "edges": [],
-        "source": "organ-demo:concepts:3",
-        "provenance": "organ-demo:container:cell16",
-        "confidence": 0.9,
-        "status": "dormant",
-        "metadata": {},
-    },
-    {
-        "container_id": "c-demo-lane64",
-        "kind": "concept",
-        "text": "Axon packs four 16 dimensional character cells into one 64 lane rail row",
-        "normalized_text": "axon packs four 16 dimensional character cells into one 64 lane rail row",
-        "letters": "Axon packs four 16 dimensional character cells into one 64 lane rail row",
-        "edges": [
-            {
-                "edge_type": "packs_into",
-                "target": "rail",
-                "confidence": 0.9,
-                "provenance": "organ-demo:edge:lane64-rail",
-                "status": "dormant",
-            }
-        ],
-        "source": "organ-demo:concepts:4",
-        "provenance": "organ-demo:container:lane64",
-        "confidence": 0.9,
-        "status": "dormant",
-        "metadata": {},
-    },
-    {
-        "container_id": "c-demo-checkpoint",
-        "kind": "fact",
-        "text": "The candidate paused at step 120 at an exact accepted checkpoint and is renewable",
-        "normalized_text": "the candidate paused at step 120 at an exact accepted checkpoint and is renewable",
-        "letters": "The candidate paused at step 120 at an exact accepted checkpoint and is renewable",
-        "edges": [],
-        "source": "organ-demo:facts:3",
-        "provenance": "organ-demo:container:checkpoint",
-        "confidence": 0.9,
-        "status": "dormant",
-        "metadata": {},
-    },
-    {
-        "container_id": "c-demo-sky-episode",
-        "kind": "episode",
-        "text": "Asked what color the sky is, the answer given was blue",
-        "normalized_text": "asked what color the sky is the answer given was blue",
-        "letters": "Asked what color the sky is, the answer given was blue",
-        "edges": [],
-        "source": "organ-demo:episodes:1",
-        "provenance": "organ-demo:container:sky-episode",
-        "confidence": 0.85,
-        "status": "dormant",
-        "metadata": {},
-    },
-]
-
-_SEMANTIC_EDGES = [
-    {
-        "source_container_id": "c-demo-sky-color",
-        "source_text": "The color of the sky is blue",
-        "edge_type": "has_color",
-        "target": "blue",
-        "provenance": "organ-demo:edge:sky-blue:standalone",
-        "confidence": 0.99,
-        "status": "dormant",
-    },
-    {
-        "source_container_id": "c-demo-lane64",
-        "source_text": "Axon packs four 16 dimensional character cells into one 64 lane rail row",
-        "edge_type": "packs_into",
-        "target": "rail",
-        "provenance": "organ-demo:edge:lane64-rail:standalone",
-        "confidence": 0.9,
-        "status": "dormant",
-    },
-]
-
-_QA = [
-    (("sky", "color"), "The sky is blue."),
-    (("sky",), "The sky is blue."),
-    (("axon",), "Axon is a stateful AI runtime that remembers exactly."),
-    (("who", "writes"), "The Heart is the sole canonical writer."),
-    (("heart",), "The Heart is the sole canonical writer of the shared field."),
-    (("checkpoint",), "The candidate paused at step 120 — an exact accepted checkpoint, renewable."),
-    (("step", "120"), "The candidate paused at step 120 — an exact accepted checkpoint, renewable."),
-    (("64",), "Four 16D character cells pack into one 64-lane rail row."),
-    (("16",), "One character packs into one frozen 16D transport cell."),
-]
-
-
-def scripted_answer(user_text: str) -> str | None:
-    text = user_text.lower()
-    for needles, answer in _QA:
-        if all(needle in text for needle in needles):
-            return answer
-    return None
+# Every region gets an attention slider except identity (unmaskable by law).
+SLIDER_REGIONS = [region for region in LogicalRegion if region.value != "identity"]
 
 
 # ---------------------------------------------------------------------------
-# Fixture reasoning cores (the circulation-test pattern: deterministic ports
-# through the REAL two-barrier governance; explicitly not learned models).
-# ---------------------------------------------------------------------------
-
-class DemoFixtureCore:
-    """Scripted consolidator: answers predetermined questions via real DELTA ops."""
-
-    def __init__(self, core_id: str) -> None:
-        self.core_id = core_id
-
-    @staticmethod
-    def _result(request: ReasoningPassRequest, emission: ReasoningEmission) -> ReasoningPassResult:
-        hot = SoulLayer(
-            SoulTemperature.HOT,
-            f"{request.descriptor.core_id}:{request.phase}:{request.soul.generation + 1}".encode(),
-            tensor_layout="fixture-hot-v1",
-        )
-        return ReasoningPassResult(
-            emission=emission,
-            soul_transition=SoulTransition(
-                core_id=request.descriptor.core_id,
-                architecture_id=request.descriptor.architecture_id,
-                parameter_generation=request.descriptor.parameter_generation,
-                before_soul_id=request.soul.soul_id,
-                before_generation=request.soul.generation,
-                tick_uid=request.image.identity.tick_uid,
-                request_id=request.request_id,
-                phase=request.phase,
-                updates=(hot,),
-            ),
-        )
-
-    def _emission(self, request: ReasoningPassRequest, decision: ReasoningDecision,
-                  operations=(), detail: str | None = None) -> ReasoningEmission:
-        return ReasoningEmission(
-            base_field_id=request.image.identity.base_field_id,
-            base_tick_id=request.image.identity.base_tick_id,
-            author_core_id=request.descriptor.core_id,
-            pass_id=request.phase,
-            rail_d_model=request.descriptor.d_model,
-            decision=decision,
-            operations=tuple(operations),
-            detail=None if not detail else CategoricalTextFrame.from_text(
-                detail, d_model=request.descriptor.d_model
-            ),
-        )
-
-    def emit(self, request: ReasoningPassRequest) -> ReasoningPassResult:
-        if request.phase == "consolidated":
-            user_text = request.rail.exact_surface.region_text(
-                LogicalRegion.USER_INPUT.value
-            ).strip()
-            answer = scripted_answer(user_text)
-            if answer is None:
-                # The consolidator must commit a delta; unscripted input gets an
-                # honest fixture placeholder, never a fabricated answer.
-                answer = "[fixture core] no scripted answer is registered for this input"
-            current = request.rail.exact_surface.region_text(
-                LogicalRegion.RESPONSE_DRAFT.value
-            )
-            return self._result(
-                request,
-                self._emission(
-                    request,
-                    ReasoningDecision.DELTA,
-                    operations=(
-                        ReasoningOperationEmission(
-                            kind=ReasoningOperationKind.REPLACE,
-                            region=LogicalRegion.RESPONSE_DRAFT,
-                            start=0,
-                            end=len(current),
-                            payload=CategoricalTextFrame.from_text(
-                                answer, d_model=request.descriptor.d_model
-                            ),
-                        ),
-                    ),
-                ),
-            )
-        return self._result(
-            request,
-            self._emission(request, ReasoningDecision.NO_OP, detail="witness core observing"),
-        )
-
-
-# ---------------------------------------------------------------------------
-# Demo state root construction
+# Demo corpus (used ONLY with --demo; the real state uses its own corpus)
 # ---------------------------------------------------------------------------
 
 def _jsonl_line(value: dict) -> bytes:
@@ -342,17 +73,70 @@ def build_demo_root(rebuild: bool) -> Path:
         return state_root
 
     dormant.mkdir(parents=True, exist_ok=True)
+    records = [
+        {
+            "container_id": "c-demo-sky-color",
+            "kind": "fact",
+            "text": "The color of the sky is blue",
+            "normalized_text": "the color of the sky is blue",
+            "letters": "The color of the sky is blue",
+            "edges": [
+                {
+                    "edge_type": "has_color",
+                    "target": "blue",
+                    "confidence": 0.99,
+                    "provenance": "organ-demo:edge:sky-blue",
+                    "status": "dormant",
+                }
+            ],
+            "source": "organ-demo:facts:1",
+            "provenance": "organ-demo:container:sky-color",
+            "confidence": 0.99,
+            "status": "dormant",
+            "metadata": {"topic": "sky"},
+        },
+        {
+            "container_id": "c-demo-axon-definition",
+            "kind": "concept",
+            "text": "Axon is a stateful AI runtime that remembers exactly",
+            "normalized_text": "axon is a stateful ai runtime that remembers exactly",
+            "letters": "Axon is a stateful AI runtime that remembers exactly",
+            "edges": [],
+            "source": "organ-demo:concepts:1",
+            "provenance": "organ-demo:container:axon-definition",
+            "confidence": 0.95,
+            "status": "dormant",
+            "metadata": {},
+        },
+        {
+            "container_id": "c-demo-jeff",
+            "kind": "concept",
+            "text": "Jeff Gliksman is the founder of DexterGliksbot and the convener of Axon",
+            "normalized_text": "jeff gliksman is the founder of dextergliksbot and the convener of axon",
+            "letters": "Jeff Gliksman is the founder of DexterGliksbot and the convener of Axon",
+            "edges": [],
+            "source": "organ-demo:concepts:2",
+            "provenance": "organ-demo:container:jeff",
+            "confidence": 0.95,
+            "status": "dormant",
+            "metadata": {},
+        },
+    ]
     with (dormant / "containers.jsonl").open("wb") as handle:
-        for record in _CORPUS:
+        for record in records:
             handle.write(_jsonl_line(record))
     with (dormant / "semantic_edges.jsonl").open("wb") as handle:
-        for edge in _SEMANTIC_EDGES:
-            handle.write(_jsonl_line(edge))
+        handle.write(_jsonl_line({
+            "source_container_id": "c-demo-sky-color",
+            "source_text": "The color of the sky is blue",
+            "edge_type": "has_color",
+            "target": "blue",
+            "provenance": "organ-demo:edge:sky-blue:standalone",
+            "confidence": 0.99,
+            "status": "dormant",
+        }))
     for name in ("kg_cache_50k.jsonl", "layout_groups.jsonl", "symbol_registry.jsonl"):
         (dormant / name).write_bytes(b"")
-
-    import hashlib
-
     manifest = {
         "kind": "axon_recovered_corpus_manifest",
         "version": 1,
@@ -364,58 +148,51 @@ def build_demo_root(rebuild: bool) -> Path:
                 "included": True,
             }
         ],
-        "output_counts": {
-            "containers": len(_CORPUS),
-            "semantic_edges": len(_SEMANTIC_EDGES),
-        },
+        "output_counts": {"containers": len(records), "semantic_edges": 1},
     }
     (dormant / "corpus_manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, sort_keys=True), encoding="utf-8"
     )
-
     index = DormantEvidenceIndex.build(state_root)
     index.close()
     return state_root
 
 
 # ---------------------------------------------------------------------------
-# Server core
+# Server core — all organ ops on one worker thread (sqlite is thread-affine)
 # ---------------------------------------------------------------------------
 
 class DemoRuntime:
-    def __init__(self, rebuild: bool) -> None:
-        self.state_root = build_demo_root(rebuild)
-        # All organ operations run on ONE dedicated worker thread: sqlite
-        # objects (dormant index, heart state) are thread-affine, and the demo
-        # must never touch them from HTTP handler threads.
-        self._queue: "queue.Queue[tuple[str, dict, object]]" = queue.Queue()
+    def __init__(self, state_root: Path, is_demo: bool) -> None:
+        self.state_root = state_root
+        self.is_demo = is_demo
+        self.last_view_id: str | None = None
+        self.last_tick_sequence: int | None = None
+        self.beat_log: list[dict] = []
+        self._queue: "queue.Queue[tuple]" = queue.Queue()
         self._ready = threading.Event()
         self._error: Exception | None = None
         self._worker = threading.Thread(target=self._worker_main, name="organ-demo-runtime", daemon=True)
         self._worker.start()
-        if not self._ready.wait(timeout=60):
+        if not self._ready.wait(timeout=600):
             raise RuntimeError("organ demo runtime did not start")
         if self._error is not None:
             raise RuntimeError(f"organ demo runtime failed to start: {self._error!r}")
 
     def _worker_main(self) -> None:
         try:
-            registry = CoreRegistry(
-                (
-                    CoreDescriptor(core_id="demo-consolidator", d_model=64),
-                    CoreDescriptor(core_id="demo-witness", d_model=64),
-                )
-            )
             self.host = HeartHost(
                 state_root=self.state_root,
                 beat_config=BeatConfig(),
                 host_config=HeartHostConfig(idle_interval_seconds=3600.0),
-                core_registry=registry,
-                reasoning_ports=(DemoFixtureCore("demo-consolidator"), DemoFixtureCore("demo-witness")),
+                # No core registry, no reasoning ports: zero cores. Null ticks
+                # auto-close; user_input accumulates; response_draft stays empty.
             )
             self.host.start()
             self.compiler = D64FieldCompiler()
-            self.beat_log: list[dict] = []
+            # Warm the dormant bridge now (verifies the corpus binding once) so
+            # the first on-stage recall is fast.
+            self.host.coordinator._ensure_bridge()
         except Exception as exc:  # noqa: BLE001
             self._error = exc
         finally:
@@ -424,35 +201,24 @@ class DemoRuntime:
             item = self._queue.get()
             if item is None:
                 break
-            name, kwargs, result_box = item
+            name, kwargs, box = item
             try:
-                if self._error is not None:
-                    raise self._error
-                result_box["value"] = getattr(self, "_op_" + name)(**kwargs)
+                box["value"] = getattr(self, "_op_" + name)(**kwargs)
             except Exception as exc:  # noqa: BLE001
-                result_box["error"] = exc
+                box["error"] = exc
             finally:
-                result_box["done"].set()
+                box["done"].set()
 
     def _call(self, name: str, **kwargs):
-        if not self._ready.wait(timeout=60):
-            raise RuntimeError("organ demo runtime did not start")
-        if self._error is not None and name != "shutdown":
-            raise RuntimeError(f"organ demo runtime failed to start: {self._error!r}")
         box: dict = {"done": threading.Event()}
         self._queue.put((name, kwargs, box))
-        if not box["done"].wait(timeout=300):
+        if not box["done"].wait(timeout=900):
             raise TimeoutError(f"organ op {name} timed out")
         if "error" in box:
             raise box["error"]
         return box["value"]
 
-    def close(self) -> None:
-        self._queue.put(None)
-        self._worker.join(timeout=10)
-        self.host.stop()
-
-    # -- helpers ------------------------------------------------------------
+    # -- helpers (worker thread only) ----------------------------------------
 
     def _mask_policies(self) -> dict:
         return self.host.region_mask_state().policies
@@ -461,20 +227,18 @@ class DemoRuntime:
         return self.compiler.compile(field, region_masks=self._mask_policies())
 
     def _region_payload(self, field: SharedFieldSnapshot, compiled) -> list[dict]:
+        policies = self._mask_policies()
         out = []
         for region in LogicalRegion:
             state = field.region(region)
             if state is None:
                 continue
-            policy = self._mask_policies().get(region)
+            policy = policies.get(region)
             attended = compiled.region_text(region)
             canonical = state.text
-            if region.value == "identity":
-                slider = None
-            elif policy is not None and policy.kind == "tail_percent":
-                slider = policy.limit
-            else:
-                slider = 100
+            slider = None if region.value == "identity" else (
+                policy.limit if policy is not None and policy.kind == "tail_percent" else 100
+            )
             out.append({
                 "region": region.value,
                 "canonical": canonical,
@@ -485,16 +249,22 @@ class DemoRuntime:
             })
         return out
 
-    def _rail_payload(self, field: SharedFieldSnapshot, compiled) -> dict:
-        rows = []
-        max_rows = min(compiled.row_count, 40)
-        for row in range(max_rows):
+    def _grouped_rail(self, compiled) -> dict:
+        """Full rail — no row caps — grouped by region of each row's first lane."""
+        groups: dict[str, list] = {}
+        order: list[str] = []
+        valid_lanes = 0
+        for row in range(compiled.row_count):
             lanes = []
-            for lane in range(4):
+            row_region = None
+            for lane in range(LANES_PER_ROW):
                 addr = compiled.address(row, lane)
                 if addr is None:
                     lanes.append(None)
                     continue
+                valid_lanes += 1
+                if row_region is None:
+                    row_region = addr.region.value
                 cell = compiled.lane_cell16(row, lane)
                 lanes.append({
                     "char": addr.character,
@@ -505,13 +275,19 @@ class DemoRuntime:
                     "unit_count": int(addr.transport_unit_count),
                     "vec": [round(float(v), 4) for v in cell],
                 })
-            rows.append(lanes)
+            if row_region is None:
+                row_region = "padding"
+            if row_region not in groups:
+                groups[row_region] = []
+                order.append(row_region)
+            groups[row_region].append({"row": row, "lanes": lanes})
         return {
             "rail_id": compiled.rail_id,
             "row_count": compiled.row_count,
-            "shown_rows": max_rows,
+            "valid_lanes": valid_lanes,
             "coverage_complete": compiled.coverage.complete,
-            "rows": rows,
+            "order": order,
+            "groups": groups,
         }
 
     def _cortex_hits(self, field: SharedFieldSnapshot) -> list[dict]:
@@ -520,11 +296,10 @@ class DemoRuntime:
         if state is None:
             return hits
         for span in state.spans:
-            provenance = span.provenance
             try:
-                prov = json.loads(provenance)
+                prov = json.loads(span.provenance)
             except (TypeError, ValueError):
-                prov = {"provenance": provenance}
+                prov = {"provenance": span.provenance}
             hits.append({
                 "span_id": span.span_id,
                 "text": span.text,
@@ -535,7 +310,36 @@ class DemoRuntime:
             })
         return hits
 
-    # -- API operations (worker thread only) ---------------------------------
+    def _beat_payload(self, beat, ingress: str | None) -> dict:
+        field = beat.field
+        compiled = self._compile_view(field)
+        if beat.tick_image is not None:
+            self.last_view_id = beat.tick_image.view_id
+            self.last_tick_sequence = beat.tick_image.identity.tick_sequence
+        payload = {
+            "admitted": True,
+            "ingress": ingress,
+            "heartbeat_sequence": beat.heartbeat_sequence,
+            "state": beat.state.value,
+            "deferred_event_id": beat.deferred_event_id,
+            "field_id": field.field_id,
+            "tick_id": field.tick_id,
+            "view_id": self.last_view_id,
+            "commits": [{"commit_id": c.commit_id} for c in beat.commits],
+            "regions": self._region_payload(field, compiled),
+            "rail": self._grouped_rail(compiled),
+            "cortex_hits": self._cortex_hits(field),
+        }
+        self.beat_log.append({
+            "n": beat.heartbeat_sequence,
+            "state": payload["state"],
+            "ingress": ingress,
+            "commits": len(beat.commits),
+            "hits": len(payload["cortex_hits"]),
+        })
+        return payload
+
+    # -- API operations (worker thread) --------------------------------------
 
     def _op_state(self) -> dict:
         field = self.host.coordinator.current_field
@@ -543,11 +347,11 @@ class DemoRuntime:
         return {
             "field_id": field.field_id,
             "tick_id": field.tick_id,
-            "heartbeats": len(self.beat_log),
+            "view_id": self.last_view_id,
+            "beats": len(self.beat_log),
             "regions": self._region_payload(field, compiled),
-            "rail": self._rail_payload(field, compiled),
+            "rail": self._grouped_rail(compiled),
             "cortex_hits": self._cortex_hits(field),
-            "health": self.host.health(),
         }
 
     def _op_ingress(self, text: str) -> dict:
@@ -555,6 +359,12 @@ class DemoRuntime:
         if not decision.admitted:
             return {"admitted": False, "reason": decision.reason}
         beat = self.host.heartbeat()
+        # The per-beat budget may defer a long item; keep beating like the
+        # permanent host would until it is processed (bounded loop).
+        attempts = 0
+        while beat.deferred_event_id is not None and attempts < 8:
+            beat = self.host.heartbeat()
+            attempts += 1
         return self._beat_payload(beat, ingress=text)
 
     def _op_beat(self) -> dict:
@@ -564,21 +374,16 @@ class DemoRuntime:
     def _op_mask(self, region: str, percent: int) -> dict:
         logical = LogicalRegion(region)
         self.host.set_region_unmasked_percent(logical, percent)
-        field = self.host.coordinator.current_field
-        compiled = self._compile_view(field)
-        return {
-            "region": region,
-            "percent": percent,
-            "field_id": field.field_id,
-            "regions": self._region_payload(field, compiled),
-            "rail": self._rail_payload(field, compiled),
-        }
+        # Mask dirtiness means the next heartbeat freezes a NEW tick view:
+        # the heart beats because attention changed (canonical body never does).
+        beat = self.host.heartbeat()
+        return self._beat_payload(beat, ingress=f"mask {region} -> {percent}%")
 
     def _op_roundtrip(self) -> dict:
         field = self.host.coordinator.current_field
-        # Roundtrip is a claim about the CANONICAL BODY, so verify against a
-        # full-body compile (no region masks). The attention view is a lens;
-        # masked characters remain dormant in place and still roundtrip.
+        # Roundtrip is a claim about the CANONICAL BODY: verify against a
+        # full-body compile (no masks). The attention view is a lens; masked
+        # characters remain dormant in place and still roundtrip.
         canonical = self.compiler.compile(field)
         canonical.assert_fresh(field)
         canonical.verify_roundtrip(field)
@@ -591,64 +396,23 @@ class DemoRuntime:
             regions.append({
                 "region": region.value,
                 "chars": len(state.text),
-                "decoded": canonical.region_text(region),
                 "exact": canonical.region_text(region) == state.text,
             })
         return {
             "roundtrip_exact": True,
             "field_id": field.field_id,
             "rows": canonical.row_count,
-            "lanes": canonical.row_count * 64,
+            "lanes": canonical.row_count * LANES_PER_ROW,
             "valid_lanes": int(canonical.lane_valid.sum()),
             "view_rows": view.row_count,
             "masked_active": canonical.row_count != view.row_count,
             "regions": regions,
         }
 
-    def _beat_payload(self, beat, ingress: str | None) -> dict:
-        field = beat.field
-        compiled = self._compile_view(field)
-        reasoning = None
-        if beat.reasoning_result is not None:
-            result = beat.reasoning_result
-            reasoning = {
-                "consolidator_core_id": result.consolidator_core_id,
-                "first_pass": [
-                    {"core_id": rec.core_id, "state": rec.state.value}
-                    for rec in result.first_records
-                ],
-                "refined_pass": [
-                    {"core_id": rec.core_id, "state": rec.state.value}
-                    for rec in result.refined_records
-                ],
-                "response": field.region(LogicalRegion.RESPONSE_DRAFT).text,
-            }
-        payload = {
-            "admitted": True,
-            "ingress": ingress,
-            "heartbeat_sequence": beat.heartbeat_sequence,
-            "state": beat.state.value,
-            "field_id": field.field_id,
-            "tick_id": field.tick_id,
-            "commits": [
-                {"commit_id": commit.commit_id} for commit in beat.commits
-            ],
-            "tick_view": (None if beat.tick_image is None
-                          else beat.tick_image.view_id),
-            "reasoning": reasoning,
-            "regions": self._region_payload(field, compiled),
-            "rail": self._rail_payload(field, compiled),
-            "cortex_hits": self._cortex_hits(field),
-        }
-        self.beat_log.append({
-            "heartbeat_sequence": payload["heartbeat_sequence"],
-            "state": payload["state"],
-            "ingress": ingress,
-            "commits": payload["commits"],
-            "reasoning": reasoning is not None,
-            "cortex_hits": [hit["container_refs"] for hit in payload["cortex_hits"]],
-        })
-        return payload
+    def close(self) -> None:
+        self._queue.put(None)
+        self._worker.join(timeout=30)
+        self.host.stop()
 
 
 RUNTIME: DemoRuntime | None = None
@@ -696,7 +460,7 @@ class DemoHandler(BaseHTTPRequestHandler):
             return
         try:
             if self.path == "/api/ingress":
-                self._json(200, RUNTIME._call("ingress", text=str(req.get("text", ""))[:512]))
+                self._json(200, RUNTIME._call("ingress", text=str(req.get("text", ""))))
             elif self.path == "/api/beat":
                 self._json(200, RUNTIME._call("beat"))
             elif self.path == "/api/mask":
@@ -708,12 +472,12 @@ class DemoHandler(BaseHTTPRequestHandler):
 
 
 # ---------------------------------------------------------------------------
-# UI (single page, dark, gliksbot palette)
+# UI
 # ---------------------------------------------------------------------------
 
 PAGE_HTML = r"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8">
-<title>Axon Organ Demo — Live Runtime</title>
+<title>Axon Organ Demo — Live Runtime (real state)</title>
 <style>
 :root{
   --bg:#06131c; --bg2:#0b1e2c; --ink:#eef1fa; --muted:#a3adc2; --faint:#5f6d80;
@@ -722,44 +486,53 @@ PAGE_HTML = r"""<!DOCTYPE html>
 }
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font:14px/1.45 'Segoe UI',system-ui,sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden}
-header{display:flex;align-items:center;gap:18px;padding:10px 18px;border-bottom:1px solid var(--border);background:var(--bg2)}
+header{display:flex;align-items:center;gap:14px;padding:10px 18px;border-bottom:1px solid var(--border);background:var(--bg2);flex-wrap:wrap}
 header .logo{font-weight:700;letter-spacing:.18em;color:var(--accent)}
-header .fid{font-family:var(--mono);font-size:12px;color:var(--muted)}
 header .chip{font-family:var(--mono);font-size:12px;border:1px solid var(--border);border-radius:8px;padding:3px 10px;color:var(--muted)}
 header .chip.ok{color:var(--teal);border-color:rgba(0,194,184,.4)}
 header .chip.beats{color:var(--accent)}
-main{flex:1;display:grid;grid-template-columns:340px 1fr 380px;min-height:0}
+header .chip.real{color:var(--amber);border-color:rgba(255,181,71,.4)}
+header .chip.right{margin-left:auto}
+main{flex:1;display:grid;grid-template-columns:330px 1fr 360px;min-height:0}
 .col{overflow:auto;padding:14px;border-right:1px solid var(--border)}
 .col:last-child{border-right:none}
 h2{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);margin:6px 0 10px}
 .region{border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:var(--bg2)}
 .region .rname{display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:12px;color:var(--accent);margin-bottom:6px}
 .region .rname .spans{color:var(--faint)}
-.region pre{font-family:var(--mono);font-size:12px;white-space:pre-wrap;word-break:break-word;color:var(--ink);min-height:16px}
+.region pre{font-family:var(--mono);font-size:12px;white-space:pre-wrap;word-break:break-word;color:var(--ink);min-height:14px}
 .region pre .masked{color:var(--faint)}
+.region .ghost{color:var(--faint);font-style:italic;font-family:'Segoe UI',sans-serif;font-size:12px}
 .region .slider-row{display:flex;align-items:center;gap:8px;margin-top:8px}
 .region .slider-row input[type=range]{flex:1;accent-color:var(--accent)}
 .region .slider-row .pct{font-family:var(--mono);font-size:12px;color:var(--muted);width:42px;text-align:right}
 .region .warn{color:var(--amber);font-size:11px;margin-top:4px;font-family:var(--mono)}
-.railbar{display:flex;align-items:center;gap:10px;margin-bottom:5px}
+/* rail */
+.railgroup{margin-bottom:14px}
+.railgroup summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;font-family:var(--mono);font-size:12px;color:var(--accent);user-select:none}
+.railgroup summary .cnt{color:var(--faint)}
+.railgroup summary .hide-note{margin-left:auto;color:var(--faint);font-size:10.5px}
+.railgroup[open] summary{border-bottom-left-radius:0;border-bottom-right-radius:0}
+.railgroup .rows{border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;padding:8px 10px}
+.railbar{display:flex;align-items:center;gap:10px;margin-bottom:4px}
 .railbar .rlabel{font-family:var(--mono);font-size:10px;color:var(--faint);width:52px;text-align:right;flex:none}
-.railbar .chars{font-family:var(--mono);font-size:13px;color:var(--accent);width:74px;flex:none;overflow:hidden;white-space:nowrap}
-.lanes{display:flex;gap:3px;flex:1}
+.railbar .chars{font-family:var(--mono);font-size:13px;color:var(--accent);width:72px;flex:none;overflow:hidden;white-space:nowrap}
+.lanes{display:flex;gap:3px;flex:1;flex-wrap:wrap}
 .lane{display:flex;flex-direction:column;gap:2px;align-items:center}
 .lane .glyph{font-family:var(--mono);font-size:12px;color:var(--ink);height:16px}
 .lane canvas{border:1px solid rgba(55,214,255,.25);border-radius:2px;cursor:pointer}
 .lane.byte canvas{border-color:rgba(155,107,255,.5)}
 .lane.pad canvas{border-style:dashed;opacity:.35;cursor:default}
 .railmeta{font-family:var(--mono);font-size:11px;color:var(--faint);margin:8px 0}
-#inspector{border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-top:10px;background:var(--bg2);font-family:var(--mono);font-size:12px}
+#inspector{border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-top:10px;background:var(--bg2);font-family:var(--mono);font-size:12px;position:sticky;top:0;z-index:5}
 #inspector .bars{display:flex;gap:2px;align-items:flex-end;height:44px;margin-top:8px}
-#inspector .bars i{flex:1;background:var(--accent);opacity:.8;border-radius:1px}
-.legend{display:flex;gap:14px;font-size:11px;color:var(--muted);margin:6px 0}
+#inspector .bars i{flex:1;border-radius:1px}
+.legend{display:flex;gap:14px;font-size:11px;color:var(--muted);margin:6px 0;flex-wrap:wrap}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
 .log{font-family:var(--mono);font-size:11.5px}
 .beat{border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:8px;background:var(--bg2)}
 .beat .bh{color:var(--accent);display:flex;justify-content:space-between}
-.beat .bl{color:var(--muted);margin-top:4px;word-break:break-all}
+.beat .bl{color:var(--muted);margin-top:4px;word-break:break-word}
 .hit{border-left:2px solid var(--teal);padding:6px 8px;margin:6px 0;background:rgba(0,194,184,.05);border-radius:0 6px 6px 0}
 .hit .src{color:var(--faint);font-size:10.5px;word-break:break-all}
 .hit .txt{color:var(--ink)}
@@ -768,45 +541,46 @@ footer input[type=text]{flex:1;background:#030d14;border:1px solid var(--border)
 button{background:rgba(55,214,255,.12);border:1px solid rgba(55,214,255,.45);color:var(--accent);border-radius:8px;padding:9px 14px;font:600 13px 'Segoe UI',system-ui;cursor:pointer}
 button:hover{background:rgba(55,214,255,.22)}
 button.sec{background:transparent;border-color:var(--border);color:var(--muted)}
-#status{font-family:var(--mono);font-size:11px;color:var(--faint);margin-left:8px;min-width:180px}
+#status{font-family:var(--mono);font-size:11px;color:var(--faint);margin-left:8px;min-width:220px}
 .try{font-size:11px;color:var(--faint);margin-top:8px;font-family:var(--mono)}
 .truth{font-size:11px;color:var(--amber);border:1px solid rgba(255,181,71,.3);border-radius:8px;padding:6px 10px;margin-bottom:10px;background:rgba(255,181,71,.05)}
 </style></head><body>
 <header>
   <span class="logo">AXON · LIVE ORGANS</span>
+  <span class="chip real" id="rootchip">state —</span>
   <span class="chip beats" id="beats">beats 0</span>
   <span class="chip" id="tick">tick —</span>
+  <span class="chip" id="view">view —</span>
   <span class="chip" id="fid">field —</span>
   <span class="chip ok" id="rt">roundtrip —</span>
-  <span class="chip" style="margin-left:auto">fixture cores · not learned · not serving</span>
+  <span class="chip right">no cores registered · nothing scripted · null ticks</span>
 </header>
 <main>
   <div class="col">
-    <h2>Shared Field · regions + attention sliders</h2>
-    <div class="truth">Sliders move the VIEW only — masked characters go dormant in place; the canonical body and field_id never change.</div>
+    <h2>Shared Field · attention sliders (durable)</h2>
+    <div class="truth">Moving a slider beats the heart and freezes a NEW tick view. Masked characters go dormant in place — the canonical body and field_id never change. Cores attend everything; collapse below only hides it from observers.</div>
     <div id="regions"></div>
-    <div class="try">try: slide conversation_history to 50 and watch the rail view shrink while the body stays.</div>
+    <div class="try">try: “who is Jeff?” → watch cortex surface real records. Then slide any region and watch the rail regroup.</div>
   </div>
   <div class="col">
-    <h2>D64 Rail · 4 × 16D cells per 64-lane row</h2>
-    <div class="legend"><span><i style="background:rgba(55,214,255,.45)"></i>native 16D char cell</span><span><i style="background:rgba(155,107,255,.45)"></i>UTF-8 byte cell</span><span><i style="background:rgba(55,214,255,.08)"></i>padding lane</span></div>
+    <h2>D64 Rail · grouped by region · 4 × 16D cells per row · no caps</h2>
+    <div class="legend"><span><i style="background:rgba(55,214,255,.45)"></i>native 16D char cell</span><span><i style="background:rgba(155,107,255,.45)"></i>UTF-8 byte cell</span><span><i style="background:rgba(55,214,255,.06);border:1px dashed rgba(55,214,255,.4)"></i>padding lane</span><span style="color:var(--faint)">collapse a region below — cores still attend it</span></div>
     <div id="rail"></div>
     <div class="railmeta" id="railmeta"></div>
-    <div id="inspector">click any lane to inspect its 16D cell</div>
+    <div id="inspector">click any lane cell to inspect its real 16D vector</div>
   </div>
   <div class="col">
-    <h2>Heart · beats, commits, reasoning, dormant recall</h2>
+    <h2>Heart · beats, commits, dormant recall</h2>
     <div id="log"><div class="beat"><div class="bl">no beats yet — send ingress or press beat</div></div></div>
   </div>
 </main>
 <footer>
-  <input type="text" id="say" placeholder="type ingress — e.g. what color is the sky?" autocomplete="off">
+  <input type="text" id="say" placeholder="type ingress — it commits to user_input through the valve, then the heart beats" autocomplete="off">
   <button id="send">valve → heart</button>
   <button class="sec" id="beat">beat</button>
   <button class="sec" id="roundtrip">roundtrip check</button>
   <span id="status"></span>
 </footer>
-<div class="try" style="padding:0 18px 8px">try: “what color is the sky?” · “what is axon?” · “who writes the field?” · “what happened at step 120?”</div>
 <script>
 const $=s=>document.querySelector(s);
 let STATE=null;
@@ -815,50 +589,67 @@ function esc(t){return (t||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>'
 function drawRegions(regions){
   $('#regions').innerHTML=regions.map(r=>{
     const showSlider=r.slider!==null;
-    const body=r.masked_canonical
-      ?`<pre><span class="masked">[${r.attended}]</span></pre>`
-      :`<pre>${esc(r.attended)||'<span style="color:var(--faint)">—</span>'}</pre>`;
-    return `<div class="region"><div class="rname"><span>${r.region}</span><span class="spans">${r.span_count} spans</span></div>${body}
+    let body;
+    if(r.region==='response_draft' && !r.attended){
+      body=`<pre class="ghost">Reasoning Cores Coming Soon</pre><pre style="color:var(--faint)">(canonical: empty)</pre>`;
+    } else if(r.masked_canonical){
+      body=`<pre><span class="masked">[${r.attended}]</span></pre>`;
+    } else {
+      body=`<pre>${esc(r.attended)||'<span style="color:var(--faint)">—</span>'}</pre>`;
+    }
+    return `<div class="region"><div class="rname"><span>${r.region}</span><span class="spans">${r.span_count} spans · ${r.canonical.length} chars</span></div>${body}
       ${showSlider?`<div class="slider-row"><input type="range" min="0" max="100" value="${r.slider}" data-region="${r.region}"><span class="pct">${r.slider}%</span></div>`:''}
       ${r.masked_canonical?'<div class="warn">view differs from canonical body — body untouched</div>':''}</div>`;
   }).join('');
   document.querySelectorAll('input[type=range]').forEach(el=>{
     el.oninput=()=>{el.parentElement.querySelector('.pct').textContent=el.value+'%'};
-    el.onchange=async()=>{const p=await api('/api/mask',{region:el.dataset.region,percent:+el.value});apply(p);flash('mask '+el.dataset.region+' → '+el.value+'%')};
+    el.onchange=async()=>{
+      flash('mask '+el.dataset.region+' → '+el.value+'% · heart beating…');
+      const p=await api('/api/mask',{region:el.dataset.region,percent:+el.value});
+      apply(p); flash('new tick view frozen — '+short(p.view_id));
+    };
   });
 }
+function short(id){return id?id.slice(0,10)+'…':'—'}
 function drawRail(rail){
   const railEl=$('#rail');railEl.innerHTML='';
-  for(let r=0;r<rail.rows.length;r++){
-    const bar=document.createElement('div');bar.className='railbar';
-    const chars=(rail.rows[r]||[]).map(l=>l?l.char:'·').join('');
-    bar.innerHTML=`<span class="rlabel">row ${r}</span><span class="chars" title="${esc(chars)}">${esc(chars)}</span>`;
-    const lanesEl=document.createElement('div');lanesEl.className='lanes';
-    (rail.rows[r]||[]).forEach((lane,li)=>{
-      const laneEl=document.createElement('div');laneEl.className='lane';
-      if(!lane){laneEl.classList.add('pad');
-        laneEl.innerHTML=`<span class="glyph">&nbsp;</span>`;
-        const c=document.createElement('canvas');c.width=16;c.height=16;c.title='padding lane (no character)';c.style.width='32px';c.style.height='32px';
-        const g=c.getContext('2d');g.fillStyle='rgba(55,214,255,.05)';g.fillRect(0,0,16,16);
-        laneEl.appendChild(c);lanesEl.appendChild(laneEl);return;}
-      if(lane.kind!=='native_16d_cell')laneEl.classList.add('byte');
-      const glyph=document.createElement('span');glyph.className='glyph';
-      glyph.textContent=lane.char==='\n'?'⏎':lane.char;glyph.title=JSON.stringify(lane.char);
-      const c=document.createElement('canvas');c.width=16;c.height=16;c.style.width='32px';c.style.height='32px';
-      const g=c.getContext('2d');
-      const mx=Math.max(...lane.vec.map(Math.abs),1e-6);
-      for(let y=0;y<4;y++)for(let x=0;x<4;x++){
-        const v=lane.vec[y*4+x]||0;const a=Math.abs(v)/mx;
-        g.fillStyle=v>=0?`rgba(55,214,255,${(a*.85+.05).toFixed(2)})`:`rgba(255,181,71,${(a*.85+.05).toFixed(2)})`;
-        g.fillRect(x*4,y*4,4,4);
-      }
-      c.title=`${JSON.stringify(lane.char)} · ${lane.region} · token ${lane.token} · ${lane.kind}`;
-      c.onclick=()=>inspect(lane,r,li);
-      laneEl.appendChild(glyph);laneEl.appendChild(c);lanesEl.appendChild(laneEl);
-    });
-    bar.appendChild(lanesEl);railEl.appendChild(bar);
+  for(const rg of rail.order){
+    const rows=rail.groups[rg]||[];
+    const det=document.createElement('details');det.className='railgroup';det.open=true;
+    const sum=document.createElement('summary');
+    sum.innerHTML=`<span>${esc(rg)}</span><span class="cnt">${rows.length} rows · ${rows.length*4} lanes</span><span class="hide-note">click to collapse (cores still attend)</span>`;
+    const wrap=document.createElement('div');wrap.className='rows';
+    for(const r of rows){
+      const bar=document.createElement('div');bar.className='railbar';
+      const chars=(r.lanes||[]).map(l=>l?l.char:'·').join('');
+      bar.innerHTML=`<span class="rlabel">row ${r.row}</span><span class="chars" title="${esc(chars)}">${esc(chars)}</span>`;
+      const lanesEl=document.createElement('div');lanesEl.className='lanes';
+      (r.lanes||[]).forEach((lane,li)=>{
+        const laneEl=document.createElement('div');laneEl.className='lane';
+        if(!lane){laneEl.classList.add('pad');
+          const c=document.createElement('canvas');c.width=16;c.height=16;c.style.width='28px';c.style.height='28px';c.title='padding lane (no character)';
+          const g=c.getContext('2d');g.fillStyle='rgba(55,214,255,.05)';g.fillRect(0,0,16,16);
+          laneEl.appendChild(c);lanesEl.appendChild(laneEl);return;}
+        if(lane.kind!=='native_16d_cell')laneEl.classList.add('byte');
+        const glyph=document.createElement('span');glyph.className='glyph';
+        glyph.textContent=lane.char==='\n'?'⏎':lane.char;glyph.title=JSON.stringify(lane.char);
+        const c=document.createElement('canvas');c.width=16;c.height=16;c.style.width='28px';c.style.height='28px';
+        const g=c.getContext('2d');
+        const mx=Math.max(...lane.vec.map(Math.abs),1e-6);
+        for(let y=0;y<4;y++)for(let x=0;x<4;x++){
+          const v=lane.vec[y*4+x]||0;const a=Math.abs(v)/mx;
+          g.fillStyle=v>=0?`rgba(55,214,255,${(a*.85+.05).toFixed(2)})`:`rgba(255,181,71,${(a*.85+.05).toFixed(2)})`;
+          g.fillRect(x*4,y*4,4,4);
+        }
+        c.title=`${JSON.stringify(lane.char)} · ${lane.region} · token ${lane.token} · ${lane.kind}`;
+        c.onclick=()=>inspect(lane,r.row,li);
+        laneEl.appendChild(glyph);laneEl.appendChild(c);lanesEl.appendChild(laneEl);
+      });
+      bar.appendChild(lanesEl);wrap.appendChild(bar);
+    }
+    det.appendChild(sum);det.appendChild(wrap);railEl.appendChild(det);
   }
-  $('#railmeta').textContent=`rail ${rail.rail_id.slice(0,18)}… · ${rail.row_count} rows · 4 × 16D cells per row · coverage complete: ${rail.coverage_complete}`;
+  $('#railmeta').textContent=`rail ${rail.rail_id.slice(0,18)}… · ${rail.row_count} rows · ${rail.valid_lanes} valid lanes · coverage complete: ${rail.coverage_complete}`;
 }
 function inspect(lane,row,laneIdx){
   const vals=lane.vec.map(Math.abs), mx=Math.max(...vals,1e-6);
@@ -867,51 +658,68 @@ function inspect(lane,row,laneIdx){
     <div class="bars">${lane.vec.map(v=>`<i style="height:${Math.max(4,Math.abs(v)/mx*100)}%;background:${v>=0?'var(--accent)':'var(--amber)'}"></i>`).join('')}</div>
     <span style="color:var(--faint)">[${lane.vec.map(v=>v.toFixed(2)).join(', ')}]</span>`;
 }
-function drawLog(){
-  $('#beats').textContent='beats '+STATE.heartbeats;
+function drawChips(){
+  $('#beats').textContent='beats '+STATE.beats;
   $('#tick').textContent='tick '+STATE.tick_id;
+  $('#view').textContent='view '+short(STATE.view_id);
   $('#fid').textContent='field '+STATE.field_id.slice(0,14)+'…';
 }
-function apply(p){ if(p.error){flash('ERROR '+p.error);return}
-  STATE=p; drawRegions(p.regions); drawRail(p.rail); drawLog();
-  if(p.cortex_hits&&p.cortex_hits.length) drawHits(p.cortex_hits);
-  if(p.reasoning) drawBeat(p);
-}
 function drawHits(hits){
+  if(!hits||!hits.length)return;
   const el=$('#log');const div=document.createElement('div');
-  div.innerHTML=`<div class="beat"><div class="bh">dormant recall surfaced</div>${hits.map(h=>`<div class="hit"><div class="txt">${esc(h.text)}</div><div class="src">${esc(h.kind)} · ${esc(h.source)} · containers ${esc((h.container_refs||[]).join(','))}</div></div>`).join('')}</div>`;
+  div.innerHTML=`<div class="beat"><div class="bh">dormant recall surfaced</div>${hits.map(h=>`<div class="hit"><div class="txt">${esc(h.text)}</div><div class="src">${esc(h.kind)} · ${esc(h.source)}</div></div>`).join('')}</div>`;
   el.prepend(div);
 }
 function drawBeat(p){
   const el=$('#log');const div=document.createElement('div');
-  const parts=[];
-  parts.push(`ingress: ${esc(p.ingress)}`);
-  parts.push(`state ${p.state} · commits ${p.commits.length}${p.tick_view?' · view '+p.tick_view.slice(0,10)+'…':''}`);
-  if(p.reasoning) parts.push(`${p.reasoning.consolidator_core_id} → “${esc(p.reasoning.response)}”`);
+  const parts=[p.ingress?`ingress: ${esc(p.ingress)}`:'operator beat'];
+  parts.push(`state ${p.state} · commits ${p.commits.length}`);
+  if(p.deferred_event_id) parts.push('<span style="color:var(--amber)">item deferred by beat budget — beating again…</span>');
   div.className='beat';
   div.innerHTML=`<div class="bh"><span>beat ${p.heartbeat_sequence}</span><span>tick ${p.tick_id}</span></div><div class="bl">${parts.join('<br>')}</div>`;
   el.prepend(div);
 }
-function flash(t){$('#status').textContent=t;setTimeout(()=>{if($('#status').textContent===t)$('#status').textContent=''},4000)}
-$('#send').onclick=async()=>{const t=$('#say').value.trim();if(!t)return;$('#say').value='';flash('valve admitting…');apply(await api('/api/ingress',{text:t}));flash('committed')};
+function apply(p){
+  if(!p){return}
+  if(p.error){flash('ERROR '+p.error);return}
+  if(p.admitted===false){flash('VALVE REJECTED: '+p.reason);return}
+  STATE=p; drawRegions(p.regions); drawRail(p.rail); drawChips(); drawHits(p.cortex_hits); drawBeat(p);
+}
+function flash(t){$('#status').textContent=t;setTimeout(()=>{if($('#status').textContent===t)$('#status').textContent=''},5000)}
+$('#send').onclick=async()=>{const t=$('#say').value.trim();if(!t)return;$('#say').value='';flash('valve admitting… heart beating…');apply(await api('/api/ingress',{text:t}));flash('committed')};
 $('#say').onkeydown=e=>{if(e.key==='Enter')$('#send').onclick()};
 $('#beat').onclick=async()=>{flash('heartbeat…');apply(await api('/api/beat'));flash('beat done')};
 $('#roundtrip').onclick=async()=>{const r=await api('/api/roundtrip');if(r.error){flash('ROUNDTRIP FAILED '+r.error);return}
-  $('#rt').textContent=`roundtrip exact · ${r.valid_lanes}/${r.lanes} lanes`;flash('roundtrip exact: True — '+r.rows+' rows, all regions decode exactly')};
-(async()=>{apply(await api('/api/state'))})();
+  $('#rt').textContent=`roundtrip exact · ${r.valid_lanes}/${r.lanes} lanes`;flash('canonical body roundtrips exactly — '+r.rows+' rows'+(r.masked_active?' (view masked to '+r.view_rows+')':''))};
+(async()=>{STATE=await api('/api/state');$('#rootchip').textContent='state '+(STATE&&STATE.field_id?'attached':'down');if(STATE&&!STATE.error){drawRegions(STATE.regions);drawRail(STATE.rail);drawChips();drawHits(STATE.cortex_hits)}})();
 </script></body></html>"""
 
 
 def main() -> int:
     global RUNTIME
-    parser = argparse.ArgumentParser(description="Axon live organ demo server")
-    parser.add_argument("--rebuild", action="store_true", help="wipe and rebuild the demo state root")
+    parser = argparse.ArgumentParser(description="Axon live organ demo server (real state)")
+    parser.add_argument("--state-root", type=Path, default=DEFAULT_REAL_STATE_ROOT,
+                        help="state root to attach to (default: the real D:/Axon/State)")
+    parser.add_argument("--demo", action="store_true",
+                        help="use the isolated demo root (State/tmp/organ_demo) with a demo-authored corpus instead")
+    parser.add_argument("--rebuild-demo", action="store_true",
+                        help="with --demo: wipe and rebuild the demo state root")
     parser.add_argument("--port", type=int, default=PORT)
     args = parser.parse_args()
 
-    RUNTIME = DemoRuntime(rebuild=args.rebuild)
+    if args.demo:
+        state_root = build_demo_root(rebuild=args.rebuild_demo)
+        is_demo = True
+    else:
+        state_root = args.state_root.resolve()
+        is_demo = False
+        if args.rebuild_demo:
+            raise SystemExit("--rebuild-demo requires --demo; refusing to touch a real state root")
+
+    RUNTIME = DemoRuntime(state_root, is_demo)
     server = ThreadingHTTPServer(("127.0.0.1", args.port), DemoHandler)
-    print(f"organ demo state root: {RUNTIME.state_root}")
+    mode = "DEMO root (isolated)" if is_demo else "REAL state root"
+    print(f"organ demo [{mode}]: {RUNTIME.state_root}")
     print(f"organ demo live: http://127.0.0.1:{args.port}")
     try:
         server.serve_forever()

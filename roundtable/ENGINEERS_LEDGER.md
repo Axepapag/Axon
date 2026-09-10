@@ -1,13 +1,14 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-10T01:05:00-05:00
+Updated: 2026-09-10T02:25:00-05:00
 Current through event:
-`evt-20260910T010500000000Z-hermes-live-organ-demo-server`
+`evt-20260910T021500000000Z-hermes-organ-demo-real-state`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
-Identity stamp: Codex / GPT-5 family (exact runtime model ID not exposed) /
-2026-09-09
+Identity stamp: Hermes / glm-5.3:cloud / 2026-09-10 (rolling summary reconciled
+after concurrent Gemini turn; Gemini's uncommitted README/ledger turn landed
+with attribution in the same sweep)
 
 ## Current mission and honest status
 
@@ -179,39 +180,50 @@ PASS, heart control plane 19 passed, reasoning circulation 5 passed (all exit
 0). Advisory: bare `python` on this box is a 3.11 venv without pytest — demo
 commands need the Python 3.12 full install on PATH.
 
-## Live organ demo server (2026-09-09/10, Jeff's runtime-in-action demo)
+## Live organ demo server (2026-09-10, REAL state, Jeff's runtime-in-action)
 
-Jeff directed a runtime-in-action demonstration: attention-mask sliders per
-region, the 16D→D64 packing roundtrip, heart beats and rail ticks, the cortex
-valve surfacing dormant hits into the shared field, and predetermined Q&A in
-place of intelligent cores. Hermes built
-`scripts/demo_organ_server.py` (`evt-20260910T010500000000Z-hermes-live-organ-demo-server`):
-a browser UI over the PRODUCTION organ APIs on an isolated demo state root
-`State/tmp/organ_demo` (own single-writer lease; 8-record demo-authored dormant
-corpus with `organ-demo` provenance; real `State/` never touched; learned-core
-honesty preserved — header chip and honest fixture placeholder for unscripted
-input). Recon confirmed the cortex-valve intuition against the code:
-`BeatCoordinator._run_recall` already performs primitive dormant recall —
-query extraction from user ingress, retrieval from the real dormant index,
-relevance audit, CORTEX surfacing via `DormantEvidenceBridge`, committed under
-DORMANT_VALVE authority — so surfacing required no runtime changes. Verified
-live end-to-end: valve ingress "what color is the sky?" → heartbeat with 3
-commits → 6 records surfaced into CORTEX with full provenance → fixture-core
-consolidator committed "The sky is blue." through the real two-barrier
-circulation → D64 rail 118–133 rows, coverage complete → canonical roundtrip
-exact (466 valid lanes) → `conversation_history` slider at 40% showed the view
-diverging from the canonical body with `field_id` stable. Consolidator
-rotation verified across ticks (`demo-consolidator` then `demo-witness`).
-Regression: `tests/test_dormant_evidence_bridge.py` 8 passed, exit 0 (no
-runtime source files were modified). Presenter briefing updated with the
-3-minute live story, honest framing, and fallback ladder. Boot:
-`PYTHONUTF8=1 python scripts/demo_organ_server.py --port 9201` →
-http://127.0.0.1:9201.
+Jeff directed the runtime-in-action demonstration and then re-directed it:
+attach to the real state, remove all scripted answers (zero cores,
+`response_draft` canonically empty with a "Reasoning Cores Coming Soon" ghost,
+`user_input`/`cortex`/`conversation_history` populate with real ingress), no
+row caps or ceilings other than attention masks, the heart must beat on every
+attention-mask move, the rail organized by collapsible per-region sections
+(cores still attend everything), and "who is Jeff?" should surface real
+records about Jeff from the dormant state into CORTEX. Hermes rewrote
+`scripts/demo_organ_server.py`
+(`evt-20260910T021500000000Z-hermes-organ-demo-real-state`): real state root
+by default (real 59,875-record corpus, real canonical branch, real durable
+spool, real single-writer lease; `--demo` keeps the isolated rehearsal root),
+zero cores, heartbeats on every field change AND mask move, full-field rail
+grouped by region with presentation-only collapse. Verified live on the REAL
+state: "who is Jeff?" admitted through the valve into `user_input`; the first
+beat also drained a pending Aug-29 item from the real durable spool (durable
+replay proven on stage material); primitive dormant recall surfaced a real
+recovered record into CORTEX with provenance; the field grew 1584 → 2468 rail
+rows with no cap; canonical roundtrip exact across all regions (9868 valid
+lanes); moving the cortex slider to 30% beat the heart and froze a new tick
+view (`97c81486…`) with the canonical body untouched. UI verified by
+screenshot: grouped collapsible rail, real region content, honest chips.
+Boot: `PYTHONUTF8=1 python scripts/demo_organ_server.py` →
+http://127.0.0.1:9201. Advisory: the server holds the REAL Heart lease while
+running; use `--demo` for zero-risk rehearsal.
+
+Sweep note (Hermes, 2026-09-10): Gemini's `site-and-readme-overhaul` turn
+(`evt-20260909T221500000000Z`) landed in the tree uncommitted — README.md
+overhaul + its ledger event — committed in this sweep with Gemini attribution;
+its gliksbot.com site changes live in `D:/cloudflare-tunnel` (outside this
+repo). Two untracked files remain intentionally uncommitted:
+`scripts/diagnose_d64_routes.py` + `tests/test_d64_route_diagnostic.py`
+(mtime ~2026-09-09 22:19, after both Gemini's and Hermes' events; read-only
+receipt-decoder diagnostic of the accepted v2 checkpoint matching the ledger's
+authorized next shot; 3/3 tests pass exit 0, no ledger event exists for them)
+— left for their author to commit with their own event, per the concurrent-
+agents protocol.
 
 ## Continuity health
 
-- Canonical ledger: 204 valid unique event lines plus one preserved historical
-  blank line through `evt-20260910T010500000000Z-hermes-live-organ-demo-server`.
+- Canonical ledger: 206 valid unique event lines plus one preserved historical
+  blank line through `evt-20260910T021500000000Z-hermes-organ-demo-real-state`.
 - `scripts/append_engineers_ledger_event.py` validated and cleanly appended the turn event.
 - Kimi CLI is globally pinned to standard K2.7 Coding; its first bounded,
   read-only Codex-directed evidence audit completed without repository writes.
