@@ -44,7 +44,9 @@ from runtime.field import (  # noqa: E402
     DeleteText,
     FieldDelta,
     FieldSpan,
+    InsertText,
     LogicalRegion,
+    RegionMaskPolicy,
     RegionState,
     RegionVisibility,
     SharedFieldSnapshot,
@@ -55,6 +57,7 @@ from runtime.heart import (  # noqa: E402
     BeatConfig,
     HeartHost,
     HeartHostConfig,
+    TickIdentity,
 )
 from runtime.heart.authority import AuthorityGrant  # noqa: E402
 
@@ -266,9 +269,26 @@ class DemoRuntime:
             policy = policies.get(region)
             attended = compiled.region_text(region)
             canonical = state.text
-            slider = None if region.value in ("identity", "cortex") else (
-                policy.limit if policy is not None and policy.kind == "tail_percent" else 100
-            )
+            if region.value in ("identity", "cortex", "user_input"):
+                slider = None
+            elif policy is not None and policy.kind == "tail_percent":
+                slider = policy.limit
+            elif region.value == "conversation_history":
+                # The history slider is expressed in percent but masks by
+                # turns; the UI shows the resolved turn label. Turn spans
+                # are durable-marked by their source (the delta applier
+                # rebuilds spans as delta_insert, so span.kind is lost).
+                turns = [s for s in state.spans if s.source == "heart-turn-rotation"]
+                if policy is None or policy.kind == "all":
+                    slider = 100
+                elif policy.kind == "none":
+                    slider = 0
+                elif policy.kind == "last_n_spans":
+                    slider = round(100 * policy.limit / len(turns)) if turns else 100
+                else:
+                    slider = 100
+            else:
+                slider = 100
             out.append({
                 "region": region.value,
                 "canonical": canonical,
@@ -276,6 +296,17 @@ class DemoRuntime:
                 "slider": slider,
                 "masked_canonical": canonical != attended,
                 "span_count": len(state.spans),
+                "turn_count": (
+                    len([s for s in state.spans if s.kind == "conversation_turn"])
+                    if region.value == "conversation_history" else None
+                ),
+                "mask_label": (
+                    ({"all": "all turns", "none": "0 turns"}.get(
+                        policy.kind,
+                        (f"newest {policy.limit} turns" if policy.kind == "last_n_spans" else None),
+                    ) if policy is not None else None)
+                    if region.value == "conversation_history" else None
+                ),
             })
         return out
 
@@ -409,9 +440,96 @@ class DemoRuntime:
         }
 
     def _op_ingress(self, text: str) -> dict:
+        # ---- Turn rotation (Jeff's design) --------------------------------
+        # user_input holds ONLY the latest input. Before admitting new
+        # ingress, the PREVIOUS user_input content rotates into
+        # conversation_history as one discrete turn span ("Jeff: ..."),
+        # through the Heart boundary under consolidator authority with a
+        # real in-flight tick - the same path production turn finalization
+        # uses. user = 1 turn; when Axon later responds, that response will
+        # be its own turn.
+        rotated = None
+        field = self.host.coordinator.current_field
+        prior = field.region(LogicalRegion.USER_INPUT).text.strip()
+        if prior:
+            history = field.region(LogicalRegion.CONVERSATION_HISTORY)
+            turn_text = f'Jeff: "{prior}"\n'
+            turn_span = FieldSpan(
+                span_id=f"turn:{canonical_sha256({'text': prior})[:16]}",
+                text=turn_text,
+                kind="conversation_turn",
+                source="organ-demo-turn-rotation",
+                provenance=f"turn-rotation:jeff:{field.tick_id}",
+            )
+            rotated = RegionState(
+                name=LogicalRegion.CONVERSATION_HISTORY,
+                spans=tuple(history.spans) + (turn_span,),
+                visibility=history.visibility,
+                write_policy=history.write_policy,
+            )
+            user_state = field.region(LogicalRegion.USER_INPUT)
+            delta = FieldDelta(
+                base_field_id=field.field_id,
+                base_tick_id=field.tick_id,
+                author_core_id="heart-turn-rotation",
+                pass_id="turn_rotation",
+                operations=(
+                    DeleteText(
+                        region=LogicalRegion.USER_INPUT,
+                        start=0,
+                        end=len(user_state.text),
+                        provenance="heart-turn-rotation:clear",
+                    ),
+                ),
+            )
+            identity = self.host.identity_store.next_tick()
+            tick_identity = TickIdentity(
+                tick_sequence=identity.tick_sequence,
+                heartbeat_id=identity.heartbeat_sequence,
+                base_field_id=field.field_id,
+                base_tick_id=field.tick_id,
+            )
+            self.host.coordinator.freeze_tick(field, tick_identity)
+            commit = self.host.coordinator.commit_consolidator_delta(
+                delta, tick=tick_identity,
+                metadata={"engine": "turn-rotation"},
+            )
+            field = commit.successor
+            # Append the turn into history through a second consolidator
+            # commit on a fresh tick (history is sealed to consolidator).
+            history2 = field.region(LogicalRegion.CONVERSATION_HISTORY)
+            delta2 = FieldDelta(
+                base_field_id=field.field_id,
+                base_tick_id=field.tick_id,
+                author_core_id="heart-turn-rotation",
+                pass_id="turn_rotation",
+                operations=(
+                    InsertText(
+                        region=LogicalRegion.CONVERSATION_HISTORY,
+                        offset=len(history2.text),
+                        text=turn_text,
+                        provenance="heart-turn-rotation:append",
+                    ),
+                ),
+            )
+            identity2 = self.host.identity_store.next_tick()
+            tick2 = TickIdentity(
+                tick_sequence=identity2.tick_sequence,
+                heartbeat_id=identity2.heartbeat_sequence,
+                base_field_id=field.field_id,
+                base_tick_id=field.tick_id,
+            )
+            self.host.coordinator.freeze_tick(field, tick2)
+            commit2 = self.host.coordinator.commit_consolidator_delta(
+                delta2, tick=tick2,
+                metadata={"engine": "turn-rotation"},
+            )
+            field = commit2.successor
+
+        # ---- Normal valve ingress -----------------------------------------
         decision = self.host.submit_user(text, provenance="organ-demo-ui")
         if not decision.admitted:
-            return {"admitted": False, "reason": decision.reason}
+            return {"admitted": False, "reason": decision.reason, "rotated": rotated is not None}
         beat = self.host.heartbeat()
         # The per-beat budget may defer a long item; keep beating like the
         # permanent host would until it is processed (bounded loop).
@@ -420,6 +538,7 @@ class DemoRuntime:
             beat = self.host.heartbeat()
             attempts += 1
         payload = self._beat_payload(beat, ingress=text)
+        payload["rotated_turn"] = rotated is not None
         # The cortex ticks IMMEDIATELY on fresh ingress (its own cadence
         # continues in the background); surface the result in the same
         # response so the UI shows the cortex react to what you just said.
@@ -435,11 +554,50 @@ class DemoRuntime:
 
     def _op_mask(self, region: str, percent: int) -> dict:
         logical = LogicalRegion(region)
-        self.host.set_region_unmasked_percent(logical, percent)
+        if logical in (LogicalRegion.IDENTITY, LogicalRegion.CORTEX, LogicalRegion.USER_INPUT):
+            return {
+                "region": region,
+                "percent": percent,
+                "rejected": True,
+                "reason": (
+                    "user_input holds only the latest input and is never masked; "
+                    "cortex is the engine surface; identity is unmaskable by law"
+                ),
+            }
+        if logical is LogicalRegion.CONVERSATION_HISTORY:
+            # Jeff's design: the history slider masks BY TURNS, not percent.
+            # Turn spans are the ones the turn rotation committed (durable
+            # marker: source == 'heart-turn-rotation'; the delta applier
+            # rebuilds spans as delta_insert, so span.kind can't be used).
+            field = self.host.coordinator.current_field
+            turns = [
+                span for span in field.region(LogicalRegion.CONVERSATION_HISTORY).spans
+                if span.source == "heart-turn-rotation"
+            ]
+            total = len(turns)
+            if percent >= 100:
+                n_turns = total if total else 10_000  # "all"
+                policy = RegionMaskPolicy("all", 0) if total else RegionMaskPolicy("none", 0)
+            elif percent <= 0:
+                n_turns = 0
+                policy = RegionMaskPolicy("none", 0)
+            else:
+                n_turns = max(1, round(total * percent / 100)) if total else 1
+                policy = RegionMaskPolicy("last_n_spans", n_turns)
+            self.host.set_region_mask_policy(logical, policy)
+            label = (
+                f"all {total} turns" if percent >= 100
+                else ("0 turns" if percent <= 0 else f"newest {n_turns} of {total} turns")
+            )
+        else:
+            self.host.set_region_unmasked_percent(logical, percent)
+            label = f"{percent}%"
         # Mask dirtiness means the next heartbeat freezes a NEW tick view:
         # the heart beats because attention changed (canonical body never does).
         beat = self.host.heartbeat()
-        return self._beat_payload(beat, ingress=f"mask {region} -> {percent}%")
+        payload = self._beat_payload(beat, ingress=f"mask {region} -> {label}")
+        payload["mask_label"] = label
+        return payload
 
     # -- cortex engine (worker thread) ---------------------------------------
 
@@ -1033,16 +1191,31 @@ function drawRegions(regions){
     } else {
       body=`<pre>${esc(r.attended)||'<span style="color:var(--faint)">—</span>'}</pre>`;
     }
-    return `<div class="region"><div class="rname"><span>${r.region}</span><span class="spans">${r.span_count} spans · ${r.canonical.length} chars</span></div>${body}
-      ${showSlider?`<div class="slider-row"><input type="range" min="0" max="100" value="${r.slider}" data-region="${r.region}"><span class="pct">${r.slider}%</span></div>`:''}
-      ${r.masked_canonical?'<div class="warn">view differs from canonical body — body untouched</div>':''}</div>`;
+    const head = r.region==='conversation_history'
+      ? `<span>${r.region}</span><span class="spans">${r.mask_label||('all turns')} · ${r.turn_count??0} turns</span>`
+      : r.region==='user_input'
+      ? `<span>${r.region}</span><span class="spans">latest input only</span>`
+      : `<span>${r.region}</span><span class="spans">${r.span_count} spans · ${r.canonical.length} chars</span>`;
+    return `<div class="region"><div class="rname">${head}</div>${body}
+      ${showSlider?`<div class="slider-row"><input type="range" min="0" max="100" value="${r.slider}" data-region="${r.region}"><span class="pct" id="sl-${r.region}">${r.region==='conversation_history'?(r.mask_label||'all turns'):r.slider+'%'}</span></div>`:''}
+      ${r.region==='user_input'?'<div class="try" style="margin-top:6px">holds ONLY the latest input — older inputs rotate into conversation_history as turns</div>':''}
+      ${r.masked_canonical?'<div class="warn">masked from attention — body untouched</div>':''}</div>`;
   }).join('');
   document.querySelectorAll('input[type=range]').forEach(el=>{
-    el.oninput=()=>{el.parentElement.querySelector('.pct').textContent=el.value+'%'};
+    const region=el.dataset.region;
+    el.oninput=()=>{
+      if(region==='conversation_history'){
+        // Turn preview while dragging is resolved server-side; show raw %.
+        el.parentElement.querySelector('.pct').textContent=el.value+'%';
+      } else {
+        el.parentElement.querySelector('.pct').textContent=el.value+'%';
+      }
+    };
     el.onchange=async()=>{
-      flash('mask '+el.dataset.region+' → '+el.value+'% · heart beating…');
-      const p=await api('/api/mask',{region:el.dataset.region,percent:+el.value});
-      apply(p); flash('new tick view frozen — '+short(p.view_id));
+      flash('mask '+region+' → '+el.value+'% · heart beating…');
+      const p=await api('/api/mask',{region,percent:+el.value});
+      if(p.rejected){flash('MASK REJECTED: '+p.reason);return}
+      apply(p); flash('new tick view frozen — '+short(p.view_id)+(p.mask_label?' · '+p.mask_label:''));
     };
   });
 }

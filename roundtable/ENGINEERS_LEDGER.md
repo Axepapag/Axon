@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-10T06:15:00-05:00
+Updated: 2026-09-10T07:30:00-05:00
 Current through event:
-`evt-20260910T061500000000Z-hermes-cortex-wipe-replace`
+`evt-20260910T073000000000Z-hermes-turn-architecture`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
@@ -314,6 +314,31 @@ roundtrip exact). Advisory: a wipe requires the ENTIRE tick (all regions,
 through their masks) to yield zero selections — gibberish ingress alone
 doesn't wipe while other regions still attend real text.
 
+### Conversational turn architecture (2026-09-10,
+`evt-20260910T073000000000Z-hermes-turn-architecture`)
+
+Jeff specified the turn model: `user_input` holds ONLY the latest user input
+(no slider, never masked); on each new ingress the previous input rotates into
+`conversation_history` as a discrete turn (`Jeff: "…"`); the history slider
+masks BY TURNS, not percent; and when Axon eventually responds, each response
+counts as its own turn (user = 1 turn, Axon = 1 turn — not user+LLM = 1).
+Implemented in the demo server: rotation rides the real consolidator
+authority path with in-flight ticks (`next_tick` → `freeze_tick` →
+`commit_consolidator_delta`), clearing `user_input` and appending the turn
+span into history — the same authority pattern production turn finalization
+uses (`runtime/heart/turns.py` reserves those two regions for the
+consolidator). The history slider maps percent → `last_n_spans` over turn
+spans (100 = all, 0 = none). Verified live with Jeff's exact example: three
+ingresses produced `Jeff: "Hello"`, `Jeff: "who is Axon"`, `Jeff: "I only see
+Jeff in conversation history because Axon has no reasoning cores to respond
+with yet"` as discrete turn spans (durable HEAD snapshot verified); slider
+34% → "newest 2 of 7 turns" attending exactly the newest turn; 0% → none;
+100% → all, attended == canonical; user_input slider rejected with the design
+reason; roundtrip exact throughout. Discovery worth keeping: the delta
+applier rebuilds spans as `delta_insert`, so `span.kind` does not survive —
+turn spans are durably marked by `span.source == "heart-turn-rotation"`, the
+marker production turn-aware masking can use later.
+
 Sweep note (Hermes, 2026-09-10): Gemini's `site-and-readme-overhaul` turn
 (`evt-20260909T221500000000Z`) landed in the tree uncommitted — README.md
 overhaul + its ledger event — committed in this sweep with Gemini attribution;
@@ -328,8 +353,8 @@ agents protocol.
 
 ## Continuity health
 
-- Canonical ledger: 211 valid unique event lines plus one preserved historical
-  blank line through `evt-20260910T061500000000Z-hermes-cortex-wipe-replace`.
+- Canonical ledger: 212 valid unique event lines plus one preserved historical
+  blank line through `evt-20260910T073000000000Z-hermes-turn-architecture`.
 - `scripts/append_engineers_ledger_event.py` validated and cleanly appended the turn event.
 - Kimi CLI is globally pinned to standard K2.7 Coding; its first bounded,
   read-only Codex-directed evidence audit completed without repository writes.
