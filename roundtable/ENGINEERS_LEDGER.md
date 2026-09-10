@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-10T03:30:00-05:00
+Updated: 2026-09-10T04:00:00-05:00
 Current through event:
-`evt-20260910T033000000000Z-hermes-cortex-engine-bounded`
+`evt-20260910T040000000000Z-hermes-axon-subdomain-live`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
@@ -231,6 +231,27 @@ the real record about Jeff's user site packages landed at the cortex TOP
 commit. UI gained the cortex engine panel (budget/cadence sliders, auto-tick,
 tick-now, last-tick verdict).
 
+### axon.gliksbot.com serves the live demo (2026-09-10,
+`evt-20260910T040000000000Z-hermes-axon-subdomain-live`)
+
+The organ demo is now on the public internet. Topology: the Cloudflare
+dashboard points `axon.gliksbot.com` directly at `localhost:8765` (bypassing
+host.py), where the Dream Team FastAPI server ran. Dream Team was verified
+quiet (July-era; last bus event 2026-09-07; no live users) and stopped
+cleanly; the organ demo now binds 8765 (`--port 8765`), and
+`D:/cloudflare-tunnel/sites/axon/.route` documents the topology plus the
+dashboard flip-back (to host.py:8080) for later. Verified live: GET / serves
+the demo UI; POST /api/ingress from the public internet was admitted through
+the real valve (heartbeat 26, tick 33, view committed), "hello from the live
+site" landed in the canonical `user_input`, and the cortex engine auto-ticked.
+Headless-Chrome screenshot of the live URL confirms the full UI including the
+public ingress and a real surfaced dormant record (MITRE ATLAS/Axon).
+**Flags**: the site now exposes the real canonical field and valve ingress
+publicly (no private memory text is displayed, but this is a production
+surface, not a sandbox — review before wide sharing); the server holds the
+REAL Heart lease while up; Dream Team rollback is one command after stopping
+the demo.
+
 Sweep note (Hermes, 2026-09-10): Gemini's `site-and-readme-overhaul` turn
 (`evt-20260909T221500000000Z`) landed in the tree uncommitted — README.md
 overhaul + its ledger event — committed in this sweep with Gemini attribution;
@@ -245,8 +266,8 @@ agents protocol.
 
 ## Continuity health
 
-- Canonical ledger: 207 valid unique event lines plus one preserved historical
-  blank line through `evt-20260910T033000000000Z-hermes-cortex-engine-bounded`.
+- Canonical ledger: 208 valid unique event lines plus one preserved historical
+  blank line through `evt-20260910T040000000000Z-hermes-axon-subdomain-live`.
 - `scripts/append_engineers_ledger_event.py` validated and cleanly appended the turn event.
 - Kimi CLI is globally pinned to standard K2.7 Coding; its first bounded,
   read-only Codex-directed evidence audit completed without repository writes.
