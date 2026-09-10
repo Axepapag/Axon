@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-10T04:30:00-05:00
+Updated: 2026-09-10T05:15:00-05:00
 Current through event:
-`evt-20260910T043000000000Z-hermes-cortex-live-poll-and-corpus-truth`
+`evt-20260910T051500000000Z-hermes-attention-mask-cortex-fix`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
@@ -274,6 +274,27 @@ retrieves the project. If general-world knowledge is wanted in the cortex,
 the path is ingesting a general facts corpus through the curator pipeline
 (candidate post-meeting mission).
 
+### Sliders now gate REAL attention (2026-09-10,
+`evt-20260910T051500000000Z-hermes-attention-mask-cortex-fix`)
+
+Jeff caught the deep bug behind the noise: the cortex engine read regions'
+CANONICAL text, so the sliders changed the display and rail view but NOT what
+the cortex attended — a 10% slider still fed the full body to cortex queries
+("view differs from canonical body" was cosmetic). The engine now uses the
+production attended-text path (`region_state.with_policy(policy).attended_text`,
+the same pattern as the coordinator's rail compilation) for both its queries
+(newest ATTENDED sentence) and the relevance auditor (a derived attended-field
+view scopes the auditor's overlap/novelty model to attended content; cortex
+keeps its real spans for dedup). Verified live: user_input at 20% → attended
+57 of 285 chars and the cortex's user_input query was exactly the 66-char
+attended tail (264 canonical chars excluded); mask 0% → the cortex goes fully
+blind to the region (attended 0); mask 100% → attended == canonical restored.
+The doctrine is now enforced end to end: **sliders gate real attention; rail
+collapse is observer-only** (cores attend everything; collapse only hides
+regions from observers). Follow-up candidate for the runtime itself: the
+production `DormantRelevanceAuditor._active_terms` reads canonical text —
+mask-aware production scoring should adopt the same derived-view pattern.
+
 Sweep note (Hermes, 2026-09-10): Gemini's `site-and-readme-overhaul` turn
 (`evt-20260909T221500000000Z`) landed in the tree uncommitted — README.md
 overhaul + its ledger event — committed in this sweep with Gemini attribution;
@@ -288,8 +309,8 @@ agents protocol.
 
 ## Continuity health
 
-- Canonical ledger: 209 valid unique event lines plus one preserved historical
-  blank line through `evt-20260910T043000000000Z-hermes-cortex-live-poll-and-corpus-truth`.
+- Canonical ledger: 210 valid unique event lines plus one preserved historical
+  blank line through `evt-20260910T051500000000Z-hermes-attention-mask-cortex-fix`.
 - `scripts/append_engineers_ledger_event.py` validated and cleanly appended the turn event.
 - Kimi CLI is globally pinned to standard K2.7 Coding; its first bounded,
   read-only Codex-directed evidence audit completed without repository writes.

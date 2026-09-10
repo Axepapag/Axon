@@ -494,18 +494,29 @@ class DemoRuntime:
         index = bridge.index
         budget = self.cortex_budget_chars
 
-        # 1. Gather queries from every other region's ATTENDED text. The query
-        #    is the region's NEWEST sentence (the freshest semantic unit), not
-        #    the raw tail — filler words dilute the auditor's retrieval
-        #    support and sink genuinely relevant records below the bar.
+        # 1. Gather queries from every other region's ATTENDED text — the
+        #    attention mask is real: masked characters are dormant and MUST
+        #    NOT drive cortex queries (this was the noise bug: the engine
+        #    read canonical text, so sliders changed the display but not
+        #    what the cortex attended). Uses the production pattern
+        #    (region_state.with_policy(policy).attended_text) — the same
+        #    path the coordinator's _attended_text uses for rail compile.
+        #    The query is the region's newest attended sentence.
+        policies = self._mask_policies()
         queries: list[tuple[str, str]] = []
         for region in self._cortex_regions():
-            text = field.region(region).text.strip()
-            if not text:
+            state = field.region(region)
+            policy = policies.get(region)
+            attended = (
+                state.with_policy(policy).attended_text
+                if policy is not None
+                else state.attended_text
+            ).strip()
+            if not attended:
                 continue
             import re as _sentence_re
-            sentences = [s.strip() for s in _sentence_re.split(r"[.!?\n]+", text) if s.strip()]
-            query = sentences[-1] if sentences else text
+            sentences = [s.strip() for s in _sentence_re.split(r"[.!?\n]+", attended) if s.strip()]
+            query = sentences[-1] if sentences else attended
             if len(query) > 240:
                 query = query[-240:]
             queries.append((region.value, query))
@@ -524,6 +535,37 @@ class DemoRuntime:
             pre_attended_ids.update(span.container_refs or ())
         auditor = DormantRelevanceAuditor(
             DormantRelevancePolicy(items_per_materialization=3, target_chars=budget, min_score=0.42)
+        )
+        # The auditor's novelty/overlap model must see what is ATTENDED, not
+        # the canonical body: build a derived view where every non-cortex
+        # region carries exactly its attended text. Cortex keeps its real
+        # spans (the dedup refs and already-active scoring live there).
+        attended_regions = []
+        for region_state in field.regions:
+            if region_state.name is LogicalRegion.CORTEX:
+                attended_regions.append(region_state)
+                continue
+            policy = policies.get(region_state.name)
+            attended = (
+                region_state.with_policy(policy).attended_text
+                if policy is not None
+                else region_state.attended_text
+            )
+            attended_regions.append(
+                RegionState(
+                    name=region_state.name,
+                    spans=(FieldSpan(
+                        span_id=f"attended-view:{region_state.name.value}",
+                        text=attended,
+                    ),) if attended else (),
+                    visibility=region_state.visibility,
+                    write_policy=region_state.write_policy,
+                )
+            )
+        attended_field = SharedFieldSnapshot(
+            tick_id=field.tick_id,
+            regions=tuple(attended_regions),
+            source_manifest_ids=field.source_manifest_ids,
         )
         for region_name, query in queries:
             try:
@@ -556,7 +598,7 @@ class DemoRuntime:
                     evidence = tuple(subject_hits) + tuple(evidence)
                 except Exception:  # noqa: BLE001
                     pass
-            decision = auditor.select(query, evidence, field)
+            decision = auditor.select(query, evidence, attended_field)
             fresh = [
                 item for item in decision.selected
                 if item.container.container_id not in seen_containers
