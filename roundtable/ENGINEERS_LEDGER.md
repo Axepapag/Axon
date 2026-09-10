@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-10T02:25:00-05:00
+Updated: 2026-09-10T03:30:00-05:00
 Current through event:
-`evt-20260910T021500000000Z-hermes-organ-demo-real-state`
+`evt-20260910T033000000000Z-hermes-cortex-engine-bounded`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
@@ -208,6 +208,29 @@ Boot: `PYTHONUTF8=1 python scripts/demo_organ_server.py` →
 http://127.0.0.1:9201. Advisory: the server holds the REAL Heart lease while
 running; use `--demo` for zero-risk rehearsal.
 
+### Cortex engine (2026-09-10, `evt-20260910T033000000000Z-hermes-cortex-engine-bounded`)
+
+Jeff re-directed the cortex again — correctly: it is **bounded working
+memory**, not a log. The engine now: queries the NEWEST SENTENCE of every
+non-cortex region, retrieves semantic edges from the real dormant index,
+scores through the production `DormantRelevanceAuditor` with a strict bar
+(0.42) and NO lexical fallback (the auditor's fallback path was the root cause
+of random noise surfacing — silence beats noise), prepends survivors to the
+TOP pushing older entries deeper, dedups against attended spans (repeat ticks
+are null ticks), and trims to an operator char budget (default 1600, slider
+400–6000) at span boundaries. Ticks fire on any field change AND on cadence
+(default 5 s, slider). Per-beat primitive recall is disabled so the cortex has
+exactly one writer path — the engine, still committing through the Heart
+boundary under DORMANT_VALVE authority. Root causes found and fixed for Jeff's
+two reports: (a) nothing-about-Jeff was query dilution — raw 600-char tails
+crushed retrieval support; newest-sentence queries surface the real Jeff
+records (index probe: `c-7dd3521f7686`, lexical 18, score 116); (b) noise was
+the auditor fallback + min_score 0.0 default. Verified live: "who is Jeff?" →
+the real record about Jeff's user site packages landed at the cortex TOP
+(1344/1600 chars), second tick null (dedup), roundtrip exact after the engine
+commit. UI gained the cortex engine panel (budget/cadence sliders, auto-tick,
+tick-now, last-tick verdict).
+
 Sweep note (Hermes, 2026-09-10): Gemini's `site-and-readme-overhaul` turn
 (`evt-20260909T221500000000Z`) landed in the tree uncommitted — README.md
 overhaul + its ledger event — committed in this sweep with Gemini attribution;
@@ -222,8 +245,8 @@ agents protocol.
 
 ## Continuity health
 
-- Canonical ledger: 206 valid unique event lines plus one preserved historical
-  blank line through `evt-20260910T021500000000Z-hermes-organ-demo-real-state`.
+- Canonical ledger: 207 valid unique event lines plus one preserved historical
+  blank line through `evt-20260910T033000000000Z-hermes-cortex-engine-bounded`.
 - `scripts/append_engineers_ledger_event.py` validated and cleanly appended the turn event.
 - Kimi CLI is globally pinned to standard K2.7 Coding; its first bounded,
   read-only Codex-directed evidence audit completed without repository writes.

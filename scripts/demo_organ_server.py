@@ -38,12 +38,23 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 from runtime.dormant import DormantEvidenceIndex  # noqa: E402
-from runtime.field import D64FieldCompiler, LogicalRegion, SharedFieldSnapshot  # noqa: E402
+from runtime.dormant.relevance import DormantRelevanceAuditor, DormantRelevancePolicy  # noqa: E402
+from runtime.field import (  # noqa: E402
+    D64FieldCompiler,
+    FieldSpan,
+    LogicalRegion,
+    RegionState,
+    RegionVisibility,
+    SharedFieldSnapshot,
+    canonical_sha256,
+    replacement_delta,
+)
 from runtime.heart import (  # noqa: E402
     BeatConfig,
     HeartHost,
     HeartHostConfig,
 )
+from runtime.heart.authority import AuthorityGrant  # noqa: E402
 
 DEFAULT_REAL_STATE_ROOT = REPO_ROOT / "State"
 DEMO_STATE_ROOT = REPO_ROOT / "State" / "tmp" / "organ_demo"
@@ -169,6 +180,15 @@ class DemoRuntime:
         self.last_view_id: str | None = None
         self.last_tick_sequence: int | None = None
         self.beat_log: list[dict] = []
+        # Cortex engine config (operator-controlled via /api/cortex-config):
+        # the cortex is a bounded working surface fed by semantic edges from
+        # every OTHER region, newest-first, deduped, char-budgeted.
+        self.cortex_budget_chars = 1600
+        self.cortex_auto = True
+        self.cortex_cadence_s = 5.0
+        self.last_cortex_tick: dict | None = None
+        self._last_seen_field_id: str | None = None
+        self._stop_ticker = threading.Event()
         self._queue: "queue.Queue[tuple]" = queue.Queue()
         self._ready = threading.Event()
         self._error: Exception | None = None
@@ -178,12 +198,19 @@ class DemoRuntime:
             raise RuntimeError("organ demo runtime did not start")
         if self._error is not None:
             raise RuntimeError(f"organ demo runtime failed to start: {self._error!r}")
+        self._ticker = threading.Thread(target=self._auto_ticker, name="cortex-auto-tick", daemon=True)
+        self._ticker.start()
 
     def _worker_main(self) -> None:
         try:
             self.host = HeartHost(
                 state_root=self.state_root,
-                beat_config=BeatConfig(),
+                # The cortex belongs to the cortex engine in this demo: the
+                # per-beat primitive recall is disabled (0 items) so the
+                # cortex only changes through cortex ticks — which still
+                # commit through the Heart boundary under DORMANT_VALVE
+                # authority. Null ticks auto-close; nothing scripted.
+                beat_config=BeatConfig(recall_items_per_materialization=0),
                 host_config=HeartHostConfig(idle_interval_seconds=3600.0),
                 # No core registry, no reasoning ports: zero cores. Null ticks
                 # auto-close; user_input accumulates; response_draft stays empty.
@@ -326,6 +353,8 @@ class DemoRuntime:
             "tick_id": field.tick_id,
             "view_id": self.last_view_id,
             "commits": [{"commit_id": c.commit_id} for c in beat.commits],
+            "cortex_budget": self.cortex_budget_chars,
+            "cortex_chars": len(field.region(LogicalRegion.CORTEX).text),
             "regions": self._region_payload(field, compiled),
             "rail": self._grouped_rail(compiled),
             "cortex_hits": self._cortex_hits(field),
@@ -349,6 +378,9 @@ class DemoRuntime:
             "tick_id": field.tick_id,
             "view_id": self.last_view_id,
             "beats": len(self.beat_log),
+            "cortex_budget": self.cortex_budget_chars,
+            "cortex_chars": len(field.region(LogicalRegion.CORTEX).text),
+            "last_cortex_tick": self.last_cortex_tick,
             "regions": self._region_payload(field, compiled),
             "rail": self._grouped_rail(compiled),
             "cortex_hits": self._cortex_hits(field),
@@ -378,6 +410,266 @@ class DemoRuntime:
         # the heart beats because attention changed (canonical body never does).
         beat = self.host.heartbeat()
         return self._beat_payload(beat, ingress=f"mask {region} -> {percent}%")
+
+    # -- cortex engine (worker thread) ---------------------------------------
+
+    def _auto_ticker(self) -> None:
+        """Fire a cortex tick on any field change OR at the configured cadence."""
+        import time
+
+        last_fire = time.monotonic()
+        while not self._stop_ticker.wait(0.5):
+            if not self.cortex_auto:
+                continue
+            try:
+                changed = self._call("cortex_field_changed")
+            except Exception:  # noqa: BLE001
+                changed = False
+            due = (time.monotonic() - last_fire) >= max(self.cortex_cadence_s, 1.0)
+            if changed or due:
+                try:
+                    result = self._call("cortex_tick", trigger="auto" if changed else "cadence")
+                    if result.get("ticked"):
+                        self.last_cortex_tick = result
+                except Exception:  # noqa: BLE001
+                    pass
+                last_fire = time.monotonic()
+
+    def _op_cortex_field_changed(self) -> bool:
+        """Compare-only check (worker thread): has the field changed since the
+        last cortex tick consumed it? The tick itself updates the marker —
+        whether or not it commits — so a noise-gated null tick settles."""
+        field = self.host.coordinator.current_field
+        return field.field_id != self._last_seen_field_id
+
+    def _cortex_regions(self) -> tuple[LogicalRegion, ...]:
+        """Every region EXCEPT cortex and identity feeds the cortex."""
+        return tuple(
+            region for region in LogicalRegion
+            if region not in (LogicalRegion.CORTEX, LogicalRegion.IDENTITY)
+        )
+
+    def _op_cortex_tick(self, trigger: str = "manual") -> dict:
+        """One cortex tick: gather semantic edges from all other regions.
+
+        For each non-cortex region, build a query from its attended text and
+        retrieve from the real dormant index (edges included). Keep the newest
+        records first, skip anything already present in the attended cortex
+        (dedup by container id), trim to the char budget at span boundaries,
+        and commit through the Heart boundary under DORMANT_VALVE authority.
+        Evicted spans leave the CANONICAL cortex region but their records stay
+        in the dormant state — the cortex is a working cache, not the archive.
+        """
+        field = self.host.coordinator.current_field
+        bridge = self.host.coordinator._ensure_bridge()
+        index = bridge.index
+        budget = self.cortex_budget_chars
+
+        # 1. Gather queries from every other region's ATTENDED text. The query
+        #    is the region's NEWEST sentence (the freshest semantic unit), not
+        #    the raw tail — filler words dilute the auditor's retrieval
+        #    support and sink genuinely relevant records below the bar.
+        queries: list[tuple[str, str]] = []
+        for region in self._cortex_regions():
+            text = field.region(region).text.strip()
+            if not text:
+                continue
+            import re as _sentence_re
+            sentences = [s.strip() for s in _sentence_re.split(r"[.!?\n]+", text) if s.strip()]
+            query = sentences[-1] if sentences else text
+            if len(query) > 240:
+                query = query[-240:]
+            queries.append((region.value, query))
+
+        # 2. Retrieve candidates per region query, then score them through the
+        #    production relevance auditor with a STRICT threshold and NO
+        #    fallback: silence beats noise. Only genuinely relevant records
+        #    surface; if nothing clears the bar, the cortex simply does not
+        #    change this tick.
+        seen_containers: set[str] = set()
+        selected: list = []
+        per_region_stats: list[dict] = []
+        current_cortex_pre = field.region(LogicalRegion.CORTEX)
+        pre_attended_ids: set[str] = set()
+        for span in current_cortex_pre.spans:
+            pre_attended_ids.update(span.container_refs or ())
+        auditor = DormantRelevanceAuditor(
+            DormantRelevancePolicy(items_per_materialization=3, target_chars=budget, min_score=0.42)
+        )
+        for region_name, query in queries:
+            try:
+                evidence = index.retrieve(query, limit=10, include_graph=True)
+            except Exception:  # noqa: BLE001
+                per_region_stats.append({"region": region_name, "error": "retrieve failed"})
+                continue
+            if not evidence:
+                per_region_stats.append({"region": region_name, "hits": 0, "kept": 0})
+                continue
+            # A name-like query ("who is Jeff?") should pull the subject's own
+            # records: retry with the strongest proper noun as the query.
+            import re as _re
+            tokens = _re.findall(r"[A-Za-z][A-Za-z']+", query)
+            proper = [w for w in tokens if w[0].isupper() and w.lower() not in {
+                "who", "what", "when", "where", "why", "how", "the", "a", "an",
+                "is", "are", "was", "were", "tell", "show", "about",
+            }]
+            known_subjects = {"jeff", "jeffrey", "gliksman", "gliksbot", "dextergliksbot", "kimmy", "codex"}
+            subject = None
+            for w in proper:
+                if w.lower() in known_subjects:
+                    subject = w
+                    break
+            if subject is None and proper:
+                subject = proper[-1]  # "who is Jeff?" -> "Jeff"
+            if subject:
+                try:
+                    subject_hits = index.retrieve(subject, limit=6, include_graph=True)
+                    evidence = tuple(subject_hits) + tuple(evidence)
+                except Exception:  # noqa: BLE001
+                    pass
+            decision = auditor.select(query, evidence, field)
+            fresh = [
+                item for item in decision.selected
+                if item.container.container_id not in seen_containers
+                and item.container.container_id not in pre_attended_ids
+            ]
+            kept = fresh[:2]
+            for item in kept:
+                seen_containers.add(item.container.container_id)
+            per_region_stats.append({
+                "region": region_name,
+                "query_chars": len(query),
+                "hits": len(evidence),
+                "audited": len(decision.selected),
+                "below_threshold": len(decision.below_threshold),
+                "fallback_used": decision.fallback_used,
+                "kept": len(kept),
+            })
+            selected.extend(kept)
+
+        # 3. Char-budget trim at span boundaries (drop whole spans from the
+        #    oldest end until the region fits the budget).
+        budget = self.cortex_budget_chars
+        fresh_spans: list[tuple[FieldSpan, int]] = []
+        for item in selected:
+            text = item.container.text
+            if not text:
+                continue
+            prov_payload = {
+                "engine": "organ-demo-cortex-tick",
+                "trigger": trigger,
+                "index_id": index.index_id,
+                "byte_offset": item.container.byte_offset,
+                "byte_length": item.container.byte_length,
+                "raw_sha256": item.container.raw_sha256,
+                "text_sha256": item.container.text_sha256,
+                "source": item.container.source,
+                "record_provenance": item.container.provenance,
+            }
+            fresh_spans.append((
+                FieldSpan(
+                    span_id=f"cortex:{item.container.container_id}:{item.container.raw_sha256[:12]}",
+                    text=text,
+                    kind=f"cortex_{item.container.kind or 'evidence'}",
+                    source=item.container.source,
+                    provenance=json.dumps(prov_payload, sort_keys=True),
+                    confidence=item.container.confidence,
+                    container_refs=(item.container.container_id,),
+                    edge_refs=tuple(edge.edge_id for edge in item.edges[:4]),
+                ),
+                len(text),
+            ))
+        kept_spans: list[tuple[FieldSpan, int]] = []
+        used = 0
+        for span, text_len in fresh_spans:
+            if used + text_len > budget:
+                break
+            kept_spans.append((span, text_len))
+            used += text_len
+        # Existing spans stay in place (newest-first: fresh spans PREPEND;
+        # older entries fall toward the tail and evict first on overflow).
+        existing_keep = []
+        tail_used = used
+        for span in current_cortex_pre.spans:
+            t = span.text
+            if tail_used + len(t) <= budget:
+                existing_keep.append(span)
+                tail_used += len(t)
+        final_spans = tuple([s for s, _ in kept_spans] + existing_keep)
+
+        if final_spans == current_cortex_pre.spans:
+            self._last_seen_field_id = field.field_id  # null tick settles the change marker
+            self.last_cortex_tick = {
+                "ticked": False,
+                "trigger": trigger,
+                "reason": "nothing cleared the relevance bar or nothing new",
+                "per_region": per_region_stats,
+            }
+            return {
+                "ticked": False,
+                "reason": "nothing new to surface or no change",
+                "trigger": trigger,
+                "per_region": per_region_stats,
+            }
+
+        replacement = RegionState(
+            name=LogicalRegion.CORTEX,
+            spans=final_spans,
+            visibility=RegionVisibility.ATTENDED,
+        )
+        compiled = self.compiler.compile(field)
+        delta = replacement_delta(
+            field,
+            compiled,
+            region=LogicalRegion.CORTEX,
+            text=replacement.text,
+            author_core_id="cortex-engine",
+            pass_id="cortex_tick",
+            evidence=tuple(sorted({ref for s in final_spans for ref in s.container_refs})),
+            provenance=f"cortex-engine-tick:{trigger}",
+            container_refs=tuple(sorted({ref for s in final_spans for ref in s.container_refs})),
+        )
+        commit = self.host.coordinator.commit_heart_delta(
+            field,
+            delta,
+            AuthorityGrant.dormant_valve(),
+            valve_provenance={
+                "valve_id": "dormant_recall",
+                "valve_version": 1,
+                "source_id": "dormant_valve",
+                "item_id": canonical_sha256({"engine": "cortex-engine", "trigger": trigger, "base": field.field_id}),
+                "provenance": f"cortex-engine:{trigger}",
+                "authority_class": "dormant_valve",
+                "governed_regions": [LogicalRegion.CORTEX.value],
+                "engine": "cortex-engine",
+                "per_region": per_region_stats,
+            },
+        )
+        self._last_seen_field_id = commit.successor.field_id
+        self.last_cortex_tick = {
+            "ticked": True,
+            "trigger": trigger,
+            "chars": len(replacement.text),
+            "spans": len(final_spans),
+            "budget": budget,
+        }
+        return {
+            "ticked": True,
+            "trigger": trigger,
+            "chars": len(replacement.text),
+            "spans": len(final_spans),
+            "budget": budget,
+            "per_region": per_region_stats,
+            "field_id": commit.successor.field_id,
+            "commit_id": commit.commit_id,
+        }
+
+    def _op_cortex_config(self, budget_chars: int, auto: bool, cadence_s: float) -> dict:
+        self.cortex_budget_chars = max(200, min(int(budget_chars), 20000))
+        self.cortex_auto = bool(auto)
+        self.cortex_cadence_s = max(0.0, float(cadence_s))
+        return {"budget_chars": self.cortex_budget_chars, "auto": self.cortex_auto,
+                "cadence_s": self.cortex_cadence_s}
 
     def _op_roundtrip(self) -> dict:
         field = self.host.coordinator.current_field
@@ -447,6 +739,18 @@ class DemoHandler(BaseHTTPRequestHandler):
                 self._json(200, RUNTIME._call("roundtrip"))
             except Exception as exc:  # noqa: BLE001
                 self._json(500, {"error": repr(exc)})
+        elif self.path == "/api/cortex":
+            try:
+                self._json(200, {
+                    "config": {
+                        "budget_chars": RUNTIME.cortex_budget_chars,
+                        "auto": RUNTIME.cortex_auto,
+                        "cadence_s": RUNTIME.cortex_cadence_s,
+                    },
+                    "last_tick": RUNTIME.last_cortex_tick,
+                })
+            except Exception as exc:  # noqa: BLE001
+                self._json(500, {"error": repr(exc)})
         else:
             self._json(404, {"error": "not found"})
 
@@ -465,6 +769,15 @@ class DemoHandler(BaseHTTPRequestHandler):
                 self._json(200, RUNTIME._call("beat"))
             elif self.path == "/api/mask":
                 self._json(200, RUNTIME._call("mask", region=str(req.get("region")), percent=int(req.get("percent"))))
+            elif self.path == "/api/cortex-tick":
+                self._json(200, RUNTIME._call("cortex_tick", trigger=str(req.get("trigger", "manual"))))
+            elif self.path == "/api/cortex-config":
+                self._json(200, RUNTIME._call(
+                    "cortex_config",
+                    budget_chars=int(req.get("budget_chars", RUNTIME.cortex_budget_chars)),
+                    auto=bool(req.get("auto", RUNTIME.cortex_auto)),
+                    cadence_s=float(req.get("cadence_s", RUNTIME.cortex_cadence_s)),
+                ))
             else:
                 self._json(404, {"error": "not found"})
         except Exception as exc:  # noqa: BLE001
@@ -560,7 +873,19 @@ button.sec{background:transparent;border-color:var(--border);color:var(--muted)}
     <h2>Shared Field · attention sliders (durable)</h2>
     <div class="truth">Moving a slider beats the heart and freezes a NEW tick view. Masked characters go dormant in place — the canonical body and field_id never change. Cores attend everything; collapse below only hides it from observers.</div>
     <div id="regions"></div>
-    <div class="try">try: “who is Jeff?” → watch cortex surface real records. Then slide any region and watch the rail regroup.</div>
+    <h2 style="margin-top:14px">Cortex engine · bounded working surface</h2>
+    <div class="region">
+      <div class="rname"><span>cortex ticks</span><span class="spans" id="cortex-last">—</span></div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Ticks on every field change and on cadence. Each tick searches semantic edges in the dormant state for every OTHER region, scores them through the relevance auditor (strict bar, no fallback — silence beats noise), prepends survivors to the TOP of the cortex pushing older entries deeper, dedups against what is attended, and trims at span boundaries to the char budget. Evicted records stay in the dormant archive.</div>
+      <div class="slider-row"><span style="font-family:var(--mono);font-size:11px;color:var(--faint);width:86px">char budget</span><input type="range" id="cx-budget" min="400" max="6000" step="200" value="1600"><span class="pct" id="cx-budget-v">1600</span></div>
+      <div class="slider-row"><span style="font-family:var(--mono);font-size:11px;color:var(--faint);width:86px">cadence s</span><input type="range" id="cx-cadence" min="2" max="60" step="1" value="5"><span class="pct" id="cx-cadence-v">5</span></div>
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+        <label style="font-size:11px;color:var(--muted);font-family:var(--mono)"><input type="checkbox" id="cx-auto" checked> auto-tick</label>
+        <button class="sec" id="cx-tick" style="padding:5px 10px;font-size:11px">tick now</button>
+        <span id="cx-status" style="font-family:var(--mono);font-size:10.5px;color:var(--faint)"></span>
+      </div>
+    </div>
+    <div class="try">try: “who is Jeff?” → the cortex surfaces records about Jeff at its next tick, pushes them to the top, and older entries fall deeper.</div>
   </div>
   <div class="col">
     <h2>D64 Rail · grouped by region · 4 × 16D cells per row · no caps</h2>
@@ -679,19 +1004,32 @@ function drawBeat(p){
   div.innerHTML=`<div class="bh"><span>beat ${p.heartbeat_sequence}</span><span>tick ${p.tick_id}</span></div><div class="bl">${parts.join('<br>')}</div>`;
   el.prepend(div);
 }
+function drawCortexInfo(){
+  const lt=STATE.last_cortex_tick;
+  if(lt){
+    $('#cortex-last').textContent=lt.ticked?('tick '+lt.trigger+' · '+lt.chars+' chars'):(lt.reason||'null tick').slice(0,28);
+  }
+}
 function apply(p){
   if(!p){return}
   if(p.error){flash('ERROR '+p.error);return}
   if(p.admitted===false){flash('VALVE REJECTED: '+p.reason);return}
-  STATE=p; drawRegions(p.regions); drawRail(p.rail); drawChips(); drawHits(p.cortex_hits); drawBeat(p);
+  STATE=p; drawRegions(p.regions); drawRail(p.rail); drawChips(); drawHits(p.cortex_hits); drawBeat(p); drawCortexInfo();
 }
 function flash(t){$('#status').textContent=t;setTimeout(()=>{if($('#status').textContent===t)$('#status').textContent=''},5000)}
 $('#send').onclick=async()=>{const t=$('#say').value.trim();if(!t)return;$('#say').value='';flash('valve admitting… heart beating…');apply(await api('/api/ingress',{text:t}));flash('committed')};
 $('#say').onkeydown=e=>{if(e.key==='Enter')$('#send').onclick()};
 $('#beat').onclick=async()=>{flash('heartbeat…');apply(await api('/api/beat'));flash('beat done')};
+$('#cx-budget').oninput=()=>{$('#cx-budget-v').textContent=$('#cx-budget').value};
+$('#cx-budget').onchange=async()=>{await api('/api/cortex-config',{budget_chars:+$('#cx-budget').value,auto:$('#cx-auto').checked,cadence_s:+$('#cx-cadence').value});flash('cortex char budget → '+$('#cx-budget').value)};
+$('#cx-cadence').oninput=()=>{$('#cx-cadence-v').textContent=$('#cx-cadence').value};
+$('#cx-cadence').onchange=async()=>{await api('/api/cortex-config',{budget_chars:+$('#cx-budget').value,auto:$('#cx-auto').checked,cadence_s:+$('#cx-cadence').value});flash('cortex cadence → '+$('#cx-cadence').value+'s')};
+$('#cx-auto').onchange=async()=>{await api('/api/cortex-config',{budget_chars:+$('#cx-budget').value,auto:$('#cx-auto').checked,cadence_s:+$('#cx-cadence').value});flash('cortex auto-tick '+(($('#cx-auto').checked)?'on':'off'))};
+$('#cx-tick').onclick=async()=>{flash('cortex ticking…');const r=await api('/api/cortex-tick',{trigger:'manual'});if(r.error){flash('TICK ERROR '+r.error);return}
+  const s=await api('/api/state');s.last_cortex_tick=r.ticked?{ticked:true,trigger:'manual',chars:r.chars}:r;apply(s);flash(r.ticked?('cortex tick committed — '+r.chars+' chars, '+r.spans+' spans'):('null tick — '+r.reason))};
 $('#roundtrip').onclick=async()=>{const r=await api('/api/roundtrip');if(r.error){flash('ROUNDTRIP FAILED '+r.error);return}
   $('#rt').textContent=`roundtrip exact · ${r.valid_lanes}/${r.lanes} lanes`;flash('canonical body roundtrips exactly — '+r.rows+' rows'+(r.masked_active?' (view masked to '+r.view_rows+')':''))};
-(async()=>{STATE=await api('/api/state');$('#rootchip').textContent='state '+(STATE&&STATE.field_id?'attached':'down');if(STATE&&!STATE.error){drawRegions(STATE.regions);drawRail(STATE.rail);drawChips();drawHits(STATE.cortex_hits)}})();
+(async()=>{STATE=await api('/api/state');$('#rootchip').textContent='state '+(STATE&&STATE.field_id?'attached':'down');if(STATE&&!STATE.error){$('#cx-budget').value=STATE.cortex_budget;$('#cx-budget-v').textContent=STATE.cortex_budget+'/'+STATE.cortex_budget;apply(STATE)}})();
 </script></body></html>"""
 
 

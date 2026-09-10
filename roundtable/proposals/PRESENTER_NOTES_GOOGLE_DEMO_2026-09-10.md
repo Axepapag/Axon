@@ -38,10 +38,18 @@ for zero-risk rehearsal.
 ### The 3-minute live story
 
 1. **Type "who is Jeff?" → valve → heart.** The question commits to
-   `user_input`; primitive dormant recall surfaces real records into CORTEX
-   with provenance; the rail grows. Say: "the Heart ticked, the cortex valve
-   surfaced lived memory — no learned model anywhere in that loop, and the
-   field grew with no ceiling."
+   `user_input`; within ~a second the **cortex engine auto-ticks**: it queries
+   semantic edges in the dormant state for every OTHER region (never the
+   cortex itself), scores candidates through the production relevance auditor
+   with a strict bar and NO fallback (silence beats noise — nothing random
+   surfaces), prepends survivors to the TOP of the cortex pushing older
+   entries deeper, dedups against what is already attended (a repeat tick is
+   a null tick), and trims to the cortex char budget at span boundaries
+   (evicted records stay in the dormant archive — the cortex is a working
+   cache, not the log). Verified live: the real record "Verified Azure Speech
+   SDK installation status… in Jeff's user site packages directory" surfaced
+   to the cortex top after "who is Jeff?". Say: "the cortex is bounded
+   working memory with its own cadence — the archive never shrinks."
 2. **Click any rail cell** — its real 16D vector draws. "One character = one
    frozen 16D cell; four cells pack into one 64-wide rail row."
 3. **Press "roundtrip check"** — the canonical body roundtrips exactly, every
@@ -50,6 +58,10 @@ for zero-risk rehearsal.
    view; masked characters go dormant in place. "Attention moves; memory
    never gets destroyed. Collapse a region to read others — cores still
    attend everything; collapse only hides it from observers."
+5. **Cortex panel** (left column, below regions): char budget slider
+   (default 1600), cadence slider, auto-tick toggle, "tick now" button with
+   the last tick's verdict. Note the cortex does NOT grow unbounded like
+   tool_results or history — it is deliberately bounded working memory.
 
 ### Honest framing
 
