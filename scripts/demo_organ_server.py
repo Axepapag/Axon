@@ -223,6 +223,16 @@ class DemoRuntime:
             )
             self.host.start()
             self.compiler = D64FieldCompiler()
+            # Heal legacy mask state: user_input holds the ENTIRE latest
+            # input (possibly many paragraphs) and is never masked; the
+            # cortex is the engine's surface, always fully attended. Old
+            # probe-era tail_percent policies on these regions must not
+            # survive (a 20% policy on a short input shows one character).
+            from runtime.field import RegionMaskPolicy as _RMP
+            for region in (LogicalRegion.USER_INPUT, LogicalRegion.CORTEX):
+                policy = self.host.region_mask_state().policy_for(region)
+                if policy is None or policy.kind != "all":
+                    self.host.set_region_mask_policy(region, _RMP("all", 0))
             # Warm the dormant bridge now (verifies the corpus binding once) so
             # the first on-stage recall is fast.
             self.host.coordinator._ensure_bridge()
@@ -1169,7 +1179,7 @@ button.sec{background:transparent;border-color:var(--border);color:var(--muted)}
   </div>
 </main>
 <footer>
-  <input type="text" id="say" placeholder="type ingress — it commits to user_input through the valve, then the heart beats" autocomplete="off">
+  <textarea id="say" rows="2" placeholder="type ingress — the ENTIRE input (multi-paragraph welcome) commits to user_input through the valve; Enter to send, Shift+Enter for newline" style="flex:1;background:#030d14;border:1px solid var(--border);border-radius:8px;color:var(--ink);padding:9px 12px;font:14px 'Segoe UI',system-ui;resize:vertical;font-family:inherit"></textarea>
   <button id="send">valve → heart</button>
   <button class="sec" id="beat">beat</button>
   <button class="sec" id="roundtrip">roundtrip check</button>
@@ -1318,7 +1328,7 @@ function startPoll(){
 }
 function flash(t){$('#status').textContent=t;setTimeout(()=>{if($('#status').textContent===t)$('#status').textContent=''},5000)}
 $('#send').onclick=async()=>{const t=$('#say').value.trim();if(!t)return;$('#say').value='';flash('valve admitting… heart beating…');apply(await api('/api/ingress',{text:t}));flash('committed')};
-$('#say').onkeydown=e=>{if(e.key==='Enter')$('#send').onclick()};
+$('#say').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('#send').onclick()}};
 $('#beat').onclick=async()=>{flash('heartbeat…');apply(await api('/api/beat'));flash('beat done')};
 $('#cx-budget').oninput=()=>{$('#cx-budget-v').textContent=$('#cx-budget').value};
 $('#cx-budget').onchange=async()=>{await api('/api/cortex-config',{budget_chars:+$('#cx-budget').value,auto:$('#cx-auto').checked,cadence_s:+$('#cx-cadence').value});flash('cortex char budget → '+$('#cx-budget').value)};

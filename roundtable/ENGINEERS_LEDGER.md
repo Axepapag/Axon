@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-10T07:30:00-05:00
+Updated: 2026-09-10T08:30:00-05:00
 Current through event:
-`evt-20260910T073000000000Z-hermes-turn-architecture`
+`evt-20260910T083000000000Z-hermes-user-input-full-paragraphs`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
@@ -339,6 +339,22 @@ applier rebuilds spans as `delta_insert`, so `span.kind` does not survive —
 turn spans are durably marked by `span.source == "heart-turn-rotation"`, the
 marker production turn-aware masking can use later.
 
+### user_input holds the entire input (2026-09-10,
+`evt-20260910T083000000000Z-hermes-user-input-full-paragraphs`)
+
+Jeff reported user_input showing only the last character of his input. Root
+cause: NOT the rotation — legacy durable mask state. Probe-era tail_percent
+policies on user_input (~20%) survived in the Heart's durable region-mask
+state, and 20% of a short input is about one character. Fix: the server now
+heals mask state at boot (user_input and cortex forced to full attention —
+both are never-masked by design), and the ingress box became a multi-line
+textarea (Enter submits, Shift+Enter newline). Verified live with a 330-char
+4-paragraph input: the entire text (newlines intact) committed to
+user_input byte-for-byte; a second ingress rotated the whole message into
+conversation_history as ONE turn with newlines intact; user_input then held
+only the latest; roundtrip exact. Boot-time healing makes the invariant
+self-enforcing: stale durable policies can never recreate this bug.
+
 Sweep note (Hermes, 2026-09-10): Gemini's `site-and-readme-overhaul` turn
 (`evt-20260909T221500000000Z`) landed in the tree uncommitted — README.md
 overhaul + its ledger event — committed in this sweep with Gemini attribution;
@@ -353,8 +369,8 @@ agents protocol.
 
 ## Continuity health
 
-- Canonical ledger: 212 valid unique event lines plus one preserved historical
-  blank line through `evt-20260910T073000000000Z-hermes-turn-architecture`.
+- Canonical ledger: 213 valid unique event lines plus one preserved historical
+  blank line through `evt-20260910T083000000000Z-hermes-user-input-full-paragraphs`.
 - `scripts/append_engineers_ledger_event.py` validated and cleanly appended the turn event.
 - Kimi CLI is globally pinned to standard K2.7 Coding; its first bounded,
   read-only Codex-directed evidence audit completed without repository writes.
