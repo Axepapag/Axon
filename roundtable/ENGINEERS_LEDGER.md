@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-09T23:25:00-05:00
+Updated: 2026-09-10T01:05:00-05:00
 Current through event:
-`evt-20260909T232500000000Z-hermes-google-demo-deck`
+`evt-20260910T010500000000Z-hermes-live-organ-demo-server`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
@@ -179,10 +179,39 @@ PASS, heart control plane 19 passed, reasoning circulation 5 passed (all exit
 0). Advisory: bare `python` on this box is a 3.11 venv without pytest — demo
 commands need the Python 3.12 full install on PATH.
 
+## Live organ demo server (2026-09-09/10, Jeff's runtime-in-action demo)
+
+Jeff directed a runtime-in-action demonstration: attention-mask sliders per
+region, the 16D→D64 packing roundtrip, heart beats and rail ticks, the cortex
+valve surfacing dormant hits into the shared field, and predetermined Q&A in
+place of intelligent cores. Hermes built
+`scripts/demo_organ_server.py` (`evt-20260910T010500000000Z-hermes-live-organ-demo-server`):
+a browser UI over the PRODUCTION organ APIs on an isolated demo state root
+`State/tmp/organ_demo` (own single-writer lease; 8-record demo-authored dormant
+corpus with `organ-demo` provenance; real `State/` never touched; learned-core
+honesty preserved — header chip and honest fixture placeholder for unscripted
+input). Recon confirmed the cortex-valve intuition against the code:
+`BeatCoordinator._run_recall` already performs primitive dormant recall —
+query extraction from user ingress, retrieval from the real dormant index,
+relevance audit, CORTEX surfacing via `DormantEvidenceBridge`, committed under
+DORMANT_VALVE authority — so surfacing required no runtime changes. Verified
+live end-to-end: valve ingress "what color is the sky?" → heartbeat with 3
+commits → 6 records surfaced into CORTEX with full provenance → fixture-core
+consolidator committed "The sky is blue." through the real two-barrier
+circulation → D64 rail 118–133 rows, coverage complete → canonical roundtrip
+exact (466 valid lanes) → `conversation_history` slider at 40% showed the view
+diverging from the canonical body with `field_id` stable. Consolidator
+rotation verified across ticks (`demo-consolidator` then `demo-witness`).
+Regression: `tests/test_dormant_evidence_bridge.py` 8 passed, exit 0 (no
+runtime source files were modified). Presenter briefing updated with the
+3-minute live story, honest framing, and fallback ladder. Boot:
+`PYTHONUTF8=1 python scripts/demo_organ_server.py --port 9201` →
+http://127.0.0.1:9201.
+
 ## Continuity health
 
-- Canonical ledger: 203 valid unique event lines plus one preserved historical
-  blank line through `evt-20260909T232500000000Z-hermes-google-demo-deck`.
+- Canonical ledger: 204 valid unique event lines plus one preserved historical
+  blank line through `evt-20260910T010500000000Z-hermes-live-organ-demo-server`.
 - `scripts/append_engineers_ledger_event.py` validated and cleanly appended the turn event.
 - Kimi CLI is globally pinned to standard K2.7 Coding; its first bounded,
   read-only Codex-directed evidence audit completed without repository writes.

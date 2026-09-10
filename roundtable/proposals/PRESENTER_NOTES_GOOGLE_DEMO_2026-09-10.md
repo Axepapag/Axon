@@ -3,8 +3,64 @@
 Identity stamp: Hermes / glm-5.3:cloud / 2026-09-09
 Companion to: `roundtable/proposals/KIMI_GOOGLE_ORGAN_DEMO_RUNBOOK_2026-09-10.md` (commands, fallbacks, evidence paths)
 Deck: `roundtable/proposals/GOOGLE_DEMO_DECK_2026-09-10.html` (14 slides, 1920×1080)
+Live runtime: `scripts/demo_organ_server.py` → http://127.0.0.1:9201
 
 ---
+
+## LIVE ORGAN DEMO (added 2026-09-09 evening — the runtime in action)
+
+A browser UI driving the production organs on an isolated demo state root
+(`State/tmp/organ_demo`, own lease, own small demo-authored dormant corpus —
+no private memory displayed, real `State/` untouched). Verified end-to-end
+2026-09-09: valve ingress → heartbeat (3 commits) → dormant recall surfacing
+6 records into CORTEX with provenance → fixture-core scripted answer committed
+through the real two-barrier circulation ("what color is the sky?" → "The sky
+is blue.") → D64 rail 118–133 rows, coverage complete → canonical roundtrip
+exact (466+ valid lanes) → mask slider 40% showing view≠body with the body
+untouched.
+
+### Boot (30 seconds, before preflight)
+
+```bash
+cd /d/Axon
+PYTHONUTF8=1 python scripts/demo_organ_server.py --port 9201
+# open http://127.0.0.1:9201  (rebuild state: add --rebuild)
+```
+
+### The 3-minute live story (between deck scenes 2 and 3, or as its own beat)
+
+1. **Type "what color is the sky?" → valve → heart.** Watch: beat appears with
+   commits count, "The sky is blue." lands in RESPONSE_DRAFT, dormant recall
+   card shows the surfaced facts WITH provenance (organ-demo containers).
+   Say: "The question went through a valve, the Heart ticked, dormant memory
+   surfaced, and the answer was committed transactionally — no learned model
+   anywhere in that loop."
+2. **Click any character cell in the D64 rail.** Its real 16D vector draws as
+   a bar chart. Say: "One character = one frozen 16D cell; four cells pack
+   into one 64-wide rail row. This is the 16→64 packing, live."
+3. **Press "roundtrip check."** Chip turns green: canonical body roundtrips
+   exactly. Say: "64 back to 16 — exact, verified by hash against the frozen
+   substrate bank."
+4. **Slide conversation_history to ~40%.** The rail view shrinks; the amber
+   warning shows "view differs from canonical body — body untouched." Slide
+   back to 100%. Say: "Attention moves; memory never gets destroyed. Masked
+   characters go dormant in place."
+
+### Honest framing (say this once, on screen anyway)
+
+- The header chip says it: "fixture cores · not learned · not serving". The
+  answers are scripted fixture cores committing through the REAL Heart
+  boundary — the demo shows mechanism, not learned intelligence.
+- Unscripted questions get "[fixture core] no scripted answer is registered
+  for this input" — that honesty is a feature; let Google see it.
+- Demo corpus is demo-authored facts; provenance strings say organ-demo.
+
+### Fallback ladder for the live demo
+
+Server won't boot → run the Kimi runbook Scene 2 mask heredoc + Scene 1
+roundtrip (both deterministic, verified). Live UI errors → refresh the page
+(state persists on disk). Nothing works → deck slides 5–6 carry the same
+content with verified outputs quoted.
 
 ## How to drive the deck
 
