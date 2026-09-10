@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-10T04:00:00-05:00
+Updated: 2026-09-10T04:30:00-05:00
 Current through event:
-`evt-20260910T040000000000Z-hermes-axon-subdomain-live`
+`evt-20260910T043000000000Z-hermes-cortex-live-poll-and-corpus-truth`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
@@ -252,6 +252,28 @@ surface, not a sandbox — review before wide sharing); the server holds the
 REAL Heart lease while up; Dream Team rollback is one command after stopping
 the demo.
 
+### Cortex visibility + corpus truth (2026-09-10,
+`evt-20260910T043000000000Z-hermes-cortex-live-poll-and-corpus-truth`)
+
+Jeff reported the cortex seemed not to tick unless a slider moved, and that
+surfaces looked like nonsense; he asked whether the dormant state holds
+semantic edges/triples. Findings: (a) the cortex WAS ticking server-side —
+the UI just never looked; the page now live-polls `/api/summary` every 2.5 s
+and refreshes the whole view (rail included) on any change, and ingress runs
+a cortex tick in the same response so the cortex reacts to each sentence
+immediately (verified: "tell me about the voice bridge project" surfaced the
+real "Axon Voice v3.1 is a production ready Windows desktop app…" record to
+the cortex TOP in the ingress response). A `cortex_ticks_fired` counter makes
+cadence ticks honestly visible. (b) The dormant state DOES contain
+edges/triples — 351,978 edges (139.7 MB) with provenance to
+`D:/00/axon_semantic_memory.db:extracted_facts`, typed entities ([person]
+Jeffrey, [entity] Axon Voice Bridge) — but it is Jeff's personal/project
+knowledge corpus, NOT a general ontology: zero animal-taxonomy edges, no
+"Axe Puppy" record. "dog" honestly retrieves nothing; "voice bridge"
+retrieves the project. If general-world knowledge is wanted in the cortex,
+the path is ingesting a general facts corpus through the curator pipeline
+(candidate post-meeting mission).
+
 Sweep note (Hermes, 2026-09-10): Gemini's `site-and-readme-overhaul` turn
 (`evt-20260909T221500000000Z`) landed in the tree uncommitted — README.md
 overhaul + its ledger event — committed in this sweep with Gemini attribution;
@@ -266,8 +288,8 @@ agents protocol.
 
 ## Continuity health
 
-- Canonical ledger: 208 valid unique event lines plus one preserved historical
-  blank line through `evt-20260910T040000000000Z-hermes-axon-subdomain-live`.
+- Canonical ledger: 209 valid unique event lines plus one preserved historical
+  blank line through `evt-20260910T043000000000Z-hermes-cortex-live-poll-and-corpus-truth`.
 - `scripts/append_engineers_ledger_event.py` validated and cleanly appended the turn event.
 - Kimi CLI is globally pinned to standard K2.7 Coding; its first bounded,
   read-only Codex-directed evidence audit completed without repository writes.

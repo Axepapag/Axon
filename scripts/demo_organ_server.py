@@ -187,6 +187,7 @@ class DemoRuntime:
         self.cortex_auto = True
         self.cortex_cadence_s = 5.0
         self.last_cortex_tick: dict | None = None
+        self.cortex_ticks_fired = 0
         self._last_seen_field_id: str | None = None
         self._stop_ticker = threading.Event()
         self._queue: "queue.Queue[tuple]" = queue.Queue()
@@ -381,9 +382,28 @@ class DemoRuntime:
             "cortex_budget": self.cortex_budget_chars,
             "cortex_chars": len(field.region(LogicalRegion.CORTEX).text),
             "last_cortex_tick": self.last_cortex_tick,
+            "cortex_ticks_fired": self.cortex_ticks_fired,
             "regions": self._region_payload(field, compiled),
             "rail": self._grouped_rail(compiled),
             "cortex_hits": self._cortex_hits(field),
+        }
+
+    def _op_summary(self) -> dict:
+        """Lightweight poll target: lets the UI notice changes without
+        re-downloading the whole rail."""
+        field = self.host.coordinator.current_field
+        return {
+            "field_id": field.field_id,
+            "tick_id": field.tick_id,
+            "view_id": self.last_view_id,
+            "beats": len(self.beat_log),
+            "cortex_budget": self.cortex_budget_chars,
+            "cortex_chars": len(field.region(LogicalRegion.CORTEX).text),
+            "cortex_ticks_fired": self.cortex_ticks_fired,
+            "last_cortex_tick": self.last_cortex_tick,
+            "cortex_top": field.region(LogicalRegion.CORTEX).text[:200],
+            "rail_rows": self.compiler.compile(field).row_count,
+            "server_time": __import__("datetime").datetime.now().strftime("%H:%M:%S"),
         }
 
     def _op_ingress(self, text: str) -> dict:
@@ -397,7 +417,15 @@ class DemoRuntime:
         while beat.deferred_event_id is not None and attempts < 8:
             beat = self.host.heartbeat()
             attempts += 1
-        return self._beat_payload(beat, ingress=text)
+        payload = self._beat_payload(beat, ingress=text)
+        # The cortex ticks IMMEDIATELY on fresh ingress (its own cadence
+        # continues in the background); surface the result in the same
+        # response so the UI shows the cortex react to what you just said.
+        try:
+            payload["cortex_tick"] = self._op_cortex_tick(trigger="ingress")
+        except Exception:  # noqa: BLE001
+            payload["cortex_tick"] = {"ticked": False, "reason": "tick error"}
+        return payload
 
     def _op_beat(self) -> dict:
         beat = self.host.heartbeat()
@@ -429,6 +457,7 @@ class DemoRuntime:
             if changed or due:
                 try:
                     result = self._call("cortex_tick", trigger="auto" if changed else "cadence")
+                    self.cortex_ticks_fired += 1
                     if result.get("ticked"):
                         self.last_cortex_tick = result
                 except Exception:  # noqa: BLE001
@@ -599,6 +628,7 @@ class DemoRuntime:
 
         if final_spans == current_cortex_pre.spans:
             self._last_seen_field_id = field.field_id  # null tick settles the change marker
+            self.cortex_ticks_fired += 1
             self.last_cortex_tick = {
                 "ticked": False,
                 "trigger": trigger,
@@ -646,6 +676,7 @@ class DemoRuntime:
             },
         )
         self._last_seen_field_id = commit.successor.field_id
+        self.cortex_ticks_fired += 1
         self.last_cortex_tick = {
             "ticked": True,
             "trigger": trigger,
@@ -749,6 +780,11 @@ class DemoHandler(BaseHTTPRequestHandler):
                     },
                     "last_tick": RUNTIME.last_cortex_tick,
                 })
+            except Exception as exc:  # noqa: BLE001
+                self._json(500, {"error": repr(exc)})
+        elif self.path == "/api/summary":
+            try:
+                self._json(200, RUNTIME._call("summary"))
             except Exception as exc:  # noqa: BLE001
                 self._json(500, {"error": repr(exc)})
         else:
@@ -1014,7 +1050,21 @@ function apply(p){
   if(!p){return}
   if(p.error){flash('ERROR '+p.error);return}
   if(p.admitted===false){flash('VALVE REJECTED: '+p.reason);return}
-  STATE=p; drawRegions(p.regions); drawRail(p.rail); drawChips(); drawHits(p.cortex_hits); drawBeat(p); drawCortexInfo();
+  STATE=p; drawRegions(p.regions); drawRail(p.rail); drawChips(); drawHits(p.cortex_hits); if(p.heartbeat_sequence!==undefined)drawBeat(p); drawCortexInfo();
+}
+// Live poll: notice server-side cortex ticks / heartbeats and refresh the
+// whole view when something changed. Cheap summary call every 2.5 s.
+let POLL=null;
+function startPoll(){
+  if(POLL)return;
+  POLL=setInterval(async()=>{
+    try{
+      const s=await api('/api/summary');
+      if(!STATE||s.tick_id!==STATE.tick_id||s.cortex_ticks_fired!==(STATE.cortex_ticks_fired||0)||s.cortex_chars!==(STATE.cortex_chars||0)){
+        apply(await api('/api/state'));
+      }
+    }catch(e){/* server restarting */}
+  },2500);
 }
 function flash(t){$('#status').textContent=t;setTimeout(()=>{if($('#status').textContent===t)$('#status').textContent=''},5000)}
 $('#send').onclick=async()=>{const t=$('#say').value.trim();if(!t)return;$('#say').value='';flash('valve admitting… heart beating…');apply(await api('/api/ingress',{text:t}));flash('committed')};
@@ -1029,7 +1079,7 @@ $('#cx-tick').onclick=async()=>{flash('cortex ticking…');const r=await api('/a
   const s=await api('/api/state');s.last_cortex_tick=r.ticked?{ticked:true,trigger:'manual',chars:r.chars}:r;apply(s);flash(r.ticked?('cortex tick committed — '+r.chars+' chars, '+r.spans+' spans'):('null tick — '+r.reason))};
 $('#roundtrip').onclick=async()=>{const r=await api('/api/roundtrip');if(r.error){flash('ROUNDTRIP FAILED '+r.error);return}
   $('#rt').textContent=`roundtrip exact · ${r.valid_lanes}/${r.lanes} lanes`;flash('canonical body roundtrips exactly — '+r.rows+' rows'+(r.masked_active?' (view masked to '+r.view_rows+')':''))};
-(async()=>{STATE=await api('/api/state');$('#rootchip').textContent='state '+(STATE&&STATE.field_id?'attached':'down');if(STATE&&!STATE.error){$('#cx-budget').value=STATE.cortex_budget;$('#cx-budget-v').textContent=STATE.cortex_budget+'/'+STATE.cortex_budget;apply(STATE)}})();
+(async()=>{STATE=await api('/api/state');$('#rootchip').textContent='state '+(STATE&&STATE.field_id?'attached':'down');if(STATE&&!STATE.error){$('#cx-budget').value=STATE.cortex_budget;$('#cx-budget-v').textContent=STATE.cortex_budget+'/'+STATE.cortex_budget;apply(STATE);startPoll()}})();
 </script></body></html>"""
 
 
