@@ -1,14 +1,16 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-13T02:30:28.825206+00:00
+Updated: 2026-09-13T03:09:14.668860+00:00
 Current through event:
-`evt-20260913T023028825206Z-codex-kaggle-secret-auth-boundary`
+`evt-20260913T030914668860Z-codex-extension-profile-recovery`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 Identity stamp: Codex / GPT-6 / 2026-09-12
 
 ## Current mission and honest status
+
+Kaggle secret setup has reached the exact API-key creation boundary. Codex now uses the personal `D:/extension` Browser Hub policy, opened Chrome profile `gliksbot.com`, and visibly verified Kaggle username `axongliksbot`, matching the CLI and prepared packet. The API Tokens page is open at `Generate New Token`; no token, secret, dataset, kernel, or GPU job has been created. The next action requires the computer-use policy confirmation for persistent API-key creation.
 
 The Kaggle secret-and-launch mission is paused at the only manual boundary. Codex opened Kaggle Settings in a fresh browser session and reached Google sign-in, but that browser is not authenticated. No credential was read or transmitted and no cloud job launched. Jeff must complete sign-in in the preserved browser tab; Codex can then inspect/create and attach `AXON_KAGGLE_SYNC`, prove a tiny authenticated checkpoint sync plus interruption/replay, and launch the 16-candidate tournament only after that gate passes.
 
