@@ -9,8 +9,15 @@ import torch
 from runtime.axon_runtime.d64_adapter import CanonicalD64RuntimeAdapter
 from runtime.field import (
     CANONICAL_REGION_ORDER,
+    CORTEX_SCHEMA_VERSION,
     D64_LANES_PER_ROW,
+    IDENTITY_REGION_ORDER,
+    IDENTITY_SCHEMA_VERSION,
+    LEGACY_SCHEMA_VERSION,
+    PRE_IDENTITY_REGION_ORDER,
+    SCHEMA_VERSION,
     AttendedInterval,
+    BranchIntegrityError,
     D64FieldCompiler,
     FieldSpan,
     LogicalRegion,
@@ -20,6 +27,7 @@ from runtime.field import (
     StaleCompiledFieldError,
     apply_compiled_delta,
     replacement_delta,
+    snapshot_from_canonical_dict,
 )
 from substrate import char_to_slot
 from training.canonical_d64 import canonicalize_r0_record
@@ -80,6 +88,82 @@ def test_unicode_attended_character_uses_exact_utf8_transport() -> None:
     assert compiled.coverage.compiled_active_characters == len(text)
     assert compiled.coverage.compiled_transport_units == len("hello") + 4
     assert compiled.coverage.utf8_byte_transport_units == 4
+
+
+def test_compiler_handles_every_supported_schema_version() -> None:
+    cases = (
+        (LEGACY_SCHEMA_VERSION, tuple(region.value for region in PRE_IDENTITY_REGION_ORDER)),
+        (CORTEX_SCHEMA_VERSION, tuple(region.value for region in PRE_IDENTITY_REGION_ORDER)),
+        (IDENTITY_SCHEMA_VERSION, tuple(region.value for region in IDENTITY_REGION_ORDER)),
+        (SCHEMA_VERSION, tuple(region.value for region in CANONICAL_REGION_ORDER)),
+    )
+    for schema_version, expected_regions in cases:
+        snapshot = SharedFieldSnapshot(
+            tick_id=3,
+            regions=(
+                RegionState.from_text(LogicalRegion.USER_INPUT, "hello"),
+                RegionState.from_text(LogicalRegion.CORTEX, "exact memory"),
+            ),
+            schema_version=schema_version,
+        )
+        compiled = D64FieldCompiler().compile(snapshot)
+        assert compiled.coverage.expected_regions == expected_regions
+        assert compiled.coverage.visited_regions == expected_regions
+        assert compiled.coverage.complete is True
+        compiled.verify_roundtrip(snapshot)
+        assert compiled.region_text(LogicalRegion.USER_INPUT) == "hello"
+        assert compiled.region_text(LogicalRegion.CORTEX) == "exact memory"
+
+
+def test_compiler_fails_closed_on_unsupported_schema_version() -> None:
+    with pytest.raises(ValueError, match="unsupported shared-field schema"):
+        SharedFieldSnapshot(tick_id=0, schema_version="shared-field-v99")
+    v3 = SharedFieldSnapshot(
+        tick_id=1,
+        regions=(RegionState.from_text(LogicalRegion.USER_INPUT, "hello"),),
+        schema_version=IDENTITY_SCHEMA_VERSION,
+    )
+    tampered = {**v3.to_dict(), "schema": "shared-field-v99", "canonical_hash": v3.canonical_hash}
+    with pytest.raises(BranchIntegrityError, match="unsupported canonical snapshot schema"):
+        snapshot_from_canonical_dict(tampered)
+
+
+def test_masked_compile_keeps_caller_verification_contract_for_training_regions() -> None:
+    snapshot = SharedFieldSnapshot.from_texts(
+        {
+            "user_input": "question",
+            "trainer_instructions": "assignment: ABC?",
+        },
+        tick_id=2,
+    )
+    compiler = D64FieldCompiler()
+    compiled = compiler.compile(snapshot)
+    compiled.verify_roundtrip(snapshot)
+    assert compiled.region_text(LogicalRegion.TRAINER_INSTRUCTIONS) == "assignment: ABC?"
+
+    # A masked compile is the caller's derived view: it succeeds without the
+    # compiler's canonical roundtrip proof, and the caller verifies its own
+    # attendance window.  Non-cohort readers default training regions to no
+    # attendance.
+    masked = compiler.compile(
+        snapshot,
+        region_masks={
+            LogicalRegion.TRAINER_INSTRUCTIONS: RegionMaskPolicy("none"),
+            LogicalRegion.TRAINING_RESPONSES: RegionMaskPolicy("none"),
+        },
+    )
+    assert masked.source_field_id == snapshot.field_id
+    assert masked.region_text(LogicalRegion.TRAINER_INSTRUCTIONS) == ""
+    assert masked.region_text(LogicalRegion.USER_INPUT) == "question"
+    assert snapshot.region(LogicalRegion.TRAINER_INSTRUCTIONS).text == "assignment: ABC?"
+    cohort = compiler.compile(
+        snapshot,
+        region_masks={
+            LogicalRegion.TRAINER_INSTRUCTIONS: RegionMaskPolicy("all"),
+            LogicalRegion.TRAINING_RESPONSES: RegionMaskPolicy("none"),
+        },
+    )
+    assert cohort.region_text(LogicalRegion.TRAINER_INSTRUCTIONS) == "assignment: ABC?"
 
 
 def test_lane_addresses_preserve_span_source_and_exact_positions() -> None:

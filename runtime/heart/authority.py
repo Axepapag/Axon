@@ -7,6 +7,8 @@ Doctrine (docs/SOURCE_OF_TRUTH.md, "Authority Classes"):
 - the dormant valve may submit heart-governed materialization of governed
   ``cortex``; it never independently writes truth;
 - core proposals may target only the scopes their authority class permits;
+- the trainer organ may submit heart-governed mutations targeting only the
+  two training regions and training-lifecycle records;
 - the consolidator's proposal may address every ordinary canonical region;
 - canonical identity amendments require the separate identity-steward class;
 - only the heart's transaction layer converts any proposal into canonical
@@ -28,6 +30,7 @@ from typing import Iterable, Mapping
 from runtime.field import (
     CANONICAL_REGION_ORDER,
     CORE_WRITABLE_REGIONS,
+    TRAINING_REGIONS,
     FieldDelta,
     LogicalRegion,
 )
@@ -43,6 +46,7 @@ class AuthorityClass(str, Enum):
     CORE = "core"
     CONSOLIDATOR = "consolidator"
     IDENTITY_STEWARD = "identity_steward"
+    TRAINER = "trainer"
 
 
 class IngressChannel(str, Enum):
@@ -73,6 +77,26 @@ CONSOLIDATOR_GOVERNED_REGIONS: frozenset[LogicalRegion] = frozenset(
 
 IDENTITY_STEWARD_GOVERNED_REGIONS: frozenset[LogicalRegion] = frozenset(
     {LogicalRegion.IDENTITY}
+)
+
+# The trainer class governs exactly the two training regions; it never widens
+# the delta layer's bootstrap CORE_WRITABLE_REGIONS seal (defense in depth:
+# the canonical typed-delta machinery still binds every committed byte).
+TRAINER_GOVERNED_REGIONS: frozenset[LogicalRegion] = TRAINING_REGIONS
+
+# Heart-owned training-lifecycle record kinds (assignment store, A4 scope)
+# that the trainer class also governs.  These are store records, not field
+# regions; ``AuthorityGrant.governs_lifecycle_record`` is the checkable gate.
+TRAINER_LIFECYCLE_RECORD_TYPES: frozenset[str] = frozenset(
+    {
+        "assignment",
+        "attempt",
+        "critique",
+        "pause",
+        "resume",
+        "completion",
+        "escalation",
+    }
 )
 
 DEFAULT_CORE_GOVERNED_REGIONS: frozenset[LogicalRegion] = CORE_WRITABLE_REGIONS
@@ -149,6 +173,13 @@ class AuthorityGrant:
                 raise InvalidAuthorityGrantError(
                     "core grants may not carry an ingress channel"
                 )
+            if permitted is not None and permitted & TRAINING_REGIONS:
+                # The two training regions are governed exactly by the trainer
+                # class; a core grant over them would be a self-commit path
+                # for training responses.  Cores propose; Heart commits.
+                raise InvalidAuthorityGrantError(
+                    "training regions are governed only by the trainer class"
+                )
             if permitted is None:
                 object.__setattr__(
                     self, "permitted_regions", DEFAULT_CORE_GOVERNED_REGIONS
@@ -189,6 +220,14 @@ class AuthorityGrant:
 
         return cls(authority_class=AuthorityClass.IDENTITY_STEWARD)
 
+    @classmethod
+    def trainer(cls) -> "AuthorityGrant":
+        """The trainer class: exactly the two training regions plus training
+        lifecycle records.  Trainer cores still only propose through core
+        grants; this class is held by the heart-side Trainer organ."""
+
+        return cls(authority_class=AuthorityClass.TRAINER)
+
     @property
     def governed_regions(self) -> frozenset[LogicalRegion]:
         authority_class = self.authority_class
@@ -200,6 +239,8 @@ class AuthorityGrant:
         if authority_class is AuthorityClass.CORE:
             # __post_init__ guarantees permitted regions for core grants.
             return self.permitted_regions  # type: ignore[return-value]
+        if authority_class is AuthorityClass.TRAINER:
+            return TRAINER_GOVERNED_REGIONS
         if authority_class is AuthorityClass.IDENTITY_STEWARD:
             return IDENTITY_STEWARD_GOVERNED_REGIONS
         return CONSOLIDATOR_GOVERNED_REGIONS
@@ -224,6 +265,27 @@ class AuthorityGrant:
         for operation in delta.operations:
             self.assert_governs(operation.region)
 
+    def governs_lifecycle_record(self, record_type: str) -> bool:
+        """Whether this grant governs one heart-owned training-lifecycle record kind.
+
+        Only trainer-class grants govern training-lifecycle records, and only
+        the ratified record kinds in ``TRAINER_LIFECYCLE_RECORD_TYPES``.
+        """
+
+        if not isinstance(record_type, str):
+            raise TypeError("governs_lifecycle_record requires a record type string")
+        return (
+            self.authority_class is AuthorityClass.TRAINER
+            and record_type in TRAINER_LIFECYCLE_RECORD_TYPES
+        )
+
+    def assert_governs_lifecycle_record(self, record_type: str) -> None:
+        if not self.governs_lifecycle_record(record_type):
+            raise AuthorityViolationError(
+                f"{self.authority_class.value} authority does not govern "
+                f"training-lifecycle record {record_type!r}"
+            )
+
 
 __all__ = [
     "CONSOLIDATOR_GOVERNED_REGIONS",
@@ -231,6 +293,8 @@ __all__ = [
     "DORMANT_VALVE_GOVERNED_REGIONS",
     "IDENTITY_STEWARD_GOVERNED_REGIONS",
     "INGRESS_OWNED_REGIONS",
+    "TRAINER_GOVERNED_REGIONS",
+    "TRAINER_LIFECYCLE_RECORD_TYPES",
     "AuthorityClass",
     "AuthorityGrant",
     "IngressChannel",

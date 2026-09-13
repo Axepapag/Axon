@@ -7,6 +7,7 @@ import pytest
 
 from runtime.field import (
     CORTEX_SCHEMA_VERSION,
+    IDENTITY_SCHEMA_VERSION,
     LEGACY_SCHEMA_VERSION,
     LOGICAL_REGION_IDS,
     SCHEMA_VERSION,
@@ -82,7 +83,7 @@ def test_legacy_v1_snapshot_preserves_historical_cortex_name_and_hash(tmp_path: 
     assert reloaded.region(LogicalRegion.CORTEX).text == "legacy exact memory"
 
 
-def test_branch_migrates_v1_head_to_v3_identity_without_rewriting_history(tmp_path: Path) -> None:
+def test_branch_migrates_v1_head_to_v4_training_schema_without_rewriting_history(tmp_path: Path) -> None:
     legacy = SharedFieldSnapshot(
         tick_id=7,
         regions=(RegionState.from_text(LogicalRegion.CORTEX, "exact remembered text"),),
@@ -106,6 +107,8 @@ def test_branch_migrates_v1_head_to_v3_identity_without_rewriting_history(tmp_pa
     assert migrated.source_manifest_ids == legacy.source_manifest_ids
     assert migrated.region(LogicalRegion.CORTEX).text == legacy.region(LogicalRegion.CORTEX).text
     assert migrated.region(LogicalRegion.IDENTITY).text == ""
+    assert migrated.region(LogicalRegion.TRAINER_INSTRUCTIONS).text == ""
+    assert migrated.region(LogicalRegion.TRAINING_RESPONSES).text == ""
     assert legacy_path.read_bytes() == legacy_bytes
     assert branch.load_head_record().generation == 1
 
@@ -114,6 +117,10 @@ def test_branch_migrates_v1_head_to_v3_identity_without_rewriting_history(tmp_pa
     )
     assert serialized["schema"] == SCHEMA_VERSION
     assert serialized["regions"][2]["name"] == "cortex"
+    assert [region["name"] for region in serialized["regions"]][-2:] == [
+        "trainer_instructions",
+        "training_responses",
+    ]
 
     events = [json.loads(line) for line in branch.journal_path.read_text(encoding="utf-8").splitlines()]
     assert [event["event"] for event in events] == ["initialize", "schema_migration"]
@@ -121,11 +128,79 @@ def test_branch_migrates_v1_head_to_v3_identity_without_rewriting_history(tmp_pa
     assert migration["from_schema"] == LEGACY_SCHEMA_VERSION
     assert migration["to_schema"] == SCHEMA_VERSION
     assert migration["region_rename"] == {"structured_knowledge": "cortex"}
-    assert migration["regions_added"] == ["identity"]
+    assert migration["regions_added"] == [
+        "identity",
+        "trainer_instructions",
+        "training_responses",
+    ]
 
     compiled = D64FieldCompiler().compile(migrated)
     compiled.verify_roundtrip(migrated)
     assert compiled.region_text(LogicalRegion.CORTEX) == "exact remembered text"
+
+
+def test_branch_migrates_v3_head_to_v4_and_migration_is_idempotent(tmp_path: Path) -> None:
+    v3 = SharedFieldSnapshot(
+        tick_id=3,
+        regions=(RegionState.from_text(LogicalRegion.IDENTITY, "canonical identity"),),
+        schema_version=IDENTITY_SCHEMA_VERSION,
+    )
+    branch = CanonicalStateBranch(
+        tmp_path / "v3-migrate",
+        branch_id="v3-migrate",
+        authority_root=tmp_path,
+    )
+    branch.initialize(v3)
+    v3_bytes = (branch.snapshots_dir / f"{v3.field_id}.json").read_bytes()
+
+    migrated = branch.migrate_to_current_schema()
+    assert migrated.schema_version == SCHEMA_VERSION
+    assert migrated.parent_field_id == v3.field_id
+    assert migrated.region(LogicalRegion.IDENTITY).text == "canonical identity"
+    assert migrated.region(LogicalRegion.TRAINER_INSTRUCTIONS).text == ""
+    assert migrated.region(LogicalRegion.TRAINING_RESPONSES).text == ""
+    assert (branch.snapshots_dir / f"{v3.field_id}.json").read_bytes() == v3_bytes
+
+    events = [json.loads(line) for line in branch.journal_path.read_text(encoding="utf-8").splitlines()]
+    migration = events[-1]
+    assert migration["from_schema"] == IDENTITY_SCHEMA_VERSION
+    assert migration["to_schema"] == SCHEMA_VERSION
+    assert migration["region_rename"] == {}
+    assert migration["regions_added"] == ["trainer_instructions", "training_responses"]
+
+    # Re-migrating an already-current head is a no-op: same snapshot, same
+    # generation, and no additional journal event.
+    head_before = branch.load_head_record()
+    again = branch.migrate_to_current_schema()
+    assert again.field_id == migrated.field_id
+    assert branch.load_head_record() == head_before
+    events_after = [json.loads(line) for line in branch.journal_path.read_text(encoding="utf-8").splitlines()]
+    assert [event["event"] for event in events_after] == ["initialize", "schema_migration"]
+
+
+def test_v4_snapshot_roundtrips_through_branch_storage_unchanged(tmp_path: Path) -> None:
+    snapshot = SharedFieldSnapshot.from_texts(
+        {
+            "user_input": "hello",
+            "trainer_instructions": "assignment: ABC?",
+            "training_responses": "attempt receipt",
+        },
+        tick_id=5,
+    )
+    branch = CanonicalStateBranch(
+        tmp_path / "v4-roundtrip",
+        branch_id="v4-roundtrip",
+        authority_root=tmp_path,
+    )
+    branch.initialize(snapshot)
+    reloaded = branch.load_head()
+    assert reloaded.schema_version == SCHEMA_VERSION
+    assert reloaded.field_id == snapshot.field_id
+    assert reloaded.region(LogicalRegion.TRAINER_INSTRUCTIONS).text == "assignment: ABC?"
+    assert reloaded.region(LogicalRegion.TRAINING_RESPONSES).text == "attempt receipt"
+
+    compiled = D64FieldCompiler().compile(reloaded)
+    compiled.verify_roundtrip(reloaded)
 
 
 def test_v2_snapshot_hash_and_original_region_ids_survive_identity_schema_upgrade(
@@ -161,10 +236,10 @@ def test_v2_snapshot_hash_and_original_region_ids_survive_identity_schema_upgrad
     assert migrated.region(LogicalRegion.CORTEX).text == "structured fact"
     assert migrated.region(LogicalRegion.IDENTITY).text == ""
     assert (branch.snapshots_dir / f"{previous_id}.json").read_bytes() == previous_bytes
-    assert tuple(LOGICAL_REGION_IDS[region] for region in LogicalRegion if region is not LogicalRegion.IDENTITY) == tuple(
-        range(10)
-    )
+    assert tuple(LOGICAL_REGION_IDS[region] for region in LogicalRegion) == tuple(range(13))
     assert LOGICAL_REGION_IDS[LogicalRegion.IDENTITY] == 10
+    assert LOGICAL_REGION_IDS[LogicalRegion.TRAINER_INSTRUCTIONS] == 11
+    assert LOGICAL_REGION_IDS[LogicalRegion.TRAINING_RESPONSES] == 12
 
 
 def test_branch_rejects_stale_commit(tmp_path: Path) -> None:

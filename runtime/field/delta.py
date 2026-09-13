@@ -10,7 +10,6 @@ from .schema import (
     LogicalRegion,
     RegionState,
     SharedFieldSnapshot,
-    WritePolicy,
     canonical_sha256,
 )
 
@@ -449,19 +448,19 @@ ReplaceOperation = ReplaceText
 
 
 __all__ = [
-    "DeltaValidationError",
-    "StaleDeltaError",
-    "SealedRegionWriteError",
-    "OverlappingDeltaError",
-    "InsertText",
-    "DeleteText",
-    "ReplaceText",
-    "InsertOperation",
     "DeleteOperation",
-    "ReplaceOperation",
-    "FieldOperation",
+    "DeleteText",
+    "DeltaValidationError",
     "FieldDelta",
-    "validate_delta",
+    "FieldOperation",
+    "InsertOperation",
+    "InsertText",
+    "OverlappingDeltaError",
+    "ReplaceOperation",
+    "ReplaceText",
+    "SealedRegionWriteError",
+    "StaleDeltaError",
     "apply_delta",
     "replay_deltas",
+    "validate_delta",
 ]

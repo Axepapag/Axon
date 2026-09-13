@@ -22,6 +22,7 @@ from .delta import (
 )
 from .schema import (
     CORTEX_SCHEMA_VERSION,
+    IDENTITY_SCHEMA_VERSION,
     LEGACY_CORTEX_REGION_NAME,
     LEGACY_SCHEMA_VERSION,
     SCHEMA_VERSION,
@@ -32,6 +33,7 @@ from .schema import (
     RegionState,
     SharedFieldSnapshot,
     canonical_json_bytes,
+    canonical_region_order,
     canonical_sha256,
 )
 
@@ -275,6 +277,7 @@ class CanonicalStateBranch:
         if current.schema_version not in {
             LEGACY_SCHEMA_VERSION,
             CORTEX_SCHEMA_VERSION,
+            IDENTITY_SCHEMA_VERSION,
         }:
             raise CanonicalStateBranchError(
                 f"cannot migrate unsupported shared-field schema {current.schema_version!r}"
@@ -310,7 +313,10 @@ class CanonicalStateBranch:
                     if current.schema_version == LEGACY_SCHEMA_VERSION
                     else {}
                 ),
-                "regions_added": [LogicalRegion.IDENTITY.value],
+                "regions_added": [
+                    region.value for region in canonical_region_order(SCHEMA_VERSION)
+                    if region not in canonical_region_order(current.schema_version)
+                ],
             }
         )
         return successor
@@ -371,6 +377,7 @@ def _snapshot_from_dict(value: Mapping[str, Any]) -> SharedFieldSnapshot:
     if schema_version not in {
         LEGACY_SCHEMA_VERSION,
         CORTEX_SCHEMA_VERSION,
+        IDENTITY_SCHEMA_VERSION,
         SCHEMA_VERSION,
     }:
         raise BranchIntegrityError("unsupported canonical snapshot schema")

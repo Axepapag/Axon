@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
 import torch
 from torch import nn
 
+from runtime.field import canonical_sha256
 from runtime.trainer import (
     OrganKind,
     ParameterModuleDescriptor,
@@ -15,6 +17,7 @@ from runtime.trainer import (
     TrainerControlPlane,
     TrainerStoreError,
 )
+from runtime.trainer.step_bundle import AcceptedStepPointer, AcceptedTrainingStepBundle
 from runtime.trainer.store import CHECKPOINT_RETENTION
 from tests._trainer_preflight import unit_preflight_receipt
 
@@ -140,3 +143,65 @@ def test_prune_rejects_non_positive_keep(tmp_path: Path) -> None:
         control.store.prune_candidate_checkpoints(
             descriptor.module_id, plan.candidate_generation_id, keep=0
         )
+
+
+def _retention_bundle(store, record):
+    """A structural accepted record for testing selection, not training evidence."""
+    bundle = AcceptedTrainingStepBundle(
+        intent_id="1" * 64, module_id=record.module_id,
+        candidate_generation_id=record.candidate_generation_id,
+        core_id=record.module_id, step=record.step,
+        optimization_receipt_id="2" * 64, checkpoint_id=record.checkpoint_id,
+        candidate_soul_manifest_id="3" * 64,
+        before_soul_id="4" * 64, after_soul_id="5" * 64,
+        soul_receipt_ids=("6" * 64, "7" * 64, "8" * 64), previous_bundle_id=None,
+    )
+    root = store.candidates_dir / record.module_id / record.candidate_generation_id / "accepted_steps"
+    store._write_immutable(root / "bundles" / f"{bundle.bundle_id}.json", bundle.to_canonical_dict())
+    pointer = AcceptedStepPointer(
+        module_id=record.module_id, candidate_generation_id=record.candidate_generation_id,
+        current_bundle_id=bundle.bundle_id, current_step=bundle.step,
+        rolling_bundle_ids=(bundle.bundle_id,),
+    )
+    store._atomic_json(root / "pointer.json", pointer.to_canonical_dict())
+    return root, bundle
+
+
+def test_unaccepted_checkpoints_cannot_evict_accepted_soul_recovery(tmp_path: Path) -> None:
+    control, _live, _descriptor, inventory, grant, plan = _setup(tmp_path)
+    with control:
+        session = control.begin_candidate(
+            inventory, grant, plan, preflight_receipt=unit_preflight_receipt(inventory, plan)
+        )
+        session.step(lambda candidate: candidate(torch.ones(1, 4)).square().mean())
+        accepted = session.checkpoint(include_optimizer=True)
+        root, bundle = _retention_bundle(control.store, accepted)
+        for _ in range(4):
+            session.step(lambda candidate: candidate(torch.ones(1, 4)).square().mean())
+            newest = session.checkpoint(include_optimizer=True)
+        control.store.load_verified_candidate_checkpoint(accepted)
+        # A protected milestone survives even after the rolling pointer advances.
+        value = {
+            "schema": "axon-training-checkpoint-landmark-v1",
+            "module_id": accepted.module_id,
+            "candidate_generation_id": accepted.candidate_generation_id,
+            "bundle_id": bundle.bundle_id, "checkpoint_id": accepted.checkpoint_id,
+            "soul_id": bundle.after_soul_id, "label": "assignment-gate",
+            "evidence_ids": ["verified-assignment-fixture"],
+        }
+        landmark_id = canonical_sha256(value)
+        landmark_path = root / "landmarks" / f"{landmark_id}.json"
+        control.store._write_immutable(landmark_path, {**value, "landmark_id": landmark_id})
+        _retention_bundle(control.store, newest)
+        planned = control.store.prunable_candidate_checkpoints(accepted.module_id, accepted.candidate_generation_id)
+        assert accepted.checkpoint_id not in {record.checkpoint_id for record in planned}
+        control.store.prune_candidate_checkpoints(accepted.module_id, accepted.candidate_generation_id)
+        control.store.load_verified_candidate_checkpoint(accepted)
+        # Corrupt retention evidence fails before any payload can be removed.
+        corrupted = json.loads(landmark_path.read_text(encoding="utf-8"))
+        corrupted["bundle_id"] = "0" * 64
+        landmark_path.write_text(json.dumps(corrupted), encoding="utf-8")
+        before = set((root.parent / "checkpoints").glob("*.pt"))
+        with pytest.raises(TrainerStoreError, match="landmark identity"):
+            control.store.prune_candidate_checkpoints(accepted.module_id, accepted.candidate_generation_id)
+        assert set((root.parent / "checkpoints").glob("*.pt")) == before

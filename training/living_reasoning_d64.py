@@ -23,12 +23,14 @@ import torch.nn.functional as F
 from torch import nn
 
 from runtime.field import (
-    CANONICAL_REGION_ORDER,
+    IDENTITY_SCHEMA_VERSION,
+    SCHEMA_VERSION,
     CompiledD64Field,
     D64FieldCompiler,
     LogicalRegion,
     SharedFieldSnapshot,
     canonical_json_bytes,
+    canonical_region_order,
     canonical_sha256,
 )
 from runtime.heart import (
@@ -89,9 +91,11 @@ class LivingReasoningCoreConfig:
     lift_seed: int = 7
     generate_gate_bias: float = 1.5
     receipt_continuation: bool = False
+    field_schema_version: str = SCHEMA_VERSION
     architecture_id: str = field(init=False)
 
     def __post_init__(self) -> None:
+        canonical_region_order(self.field_schema_version)
         for name in (
             "d_model",
             "n_heads",
@@ -158,6 +162,17 @@ class LivingReasoningCoreConfig:
             "soul_codec_version": self.soul_codec_version,
             "lift_seed": self.lift_seed,
         }
+        # The canonical shared-field schemas (identity-era v3 and training-era
+        # v4) are one architecture lineage: region rows are receipted, exact
+        # zero extensions (see migrate_identity_region_embedding_state), so
+        # neither adds identity keys and the frozen pre-v4 architecture IDs
+        # reproduce exactly.  Only a non-canonical schema choice is explicit
+        # identity.
+        if self.field_schema_version not in {IDENTITY_SCHEMA_VERSION, SCHEMA_VERSION}:
+            value["field_schema_version"] = self.field_schema_version
+            value["canonical_region_order"] = [
+                region.value for region in canonical_region_order(self.field_schema_version)
+            ]
         if self.receipt_continuation:
             value.update(
                 {
@@ -185,6 +200,7 @@ class LivingReasoningCoreConfig:
             dropout=self.dropout,
             lift_seed=self.lift_seed,
             generate_gate_bias=self.generate_gate_bias,
+            field_schema_version=self.field_schema_version,
         )
 
 
@@ -760,7 +776,7 @@ class LivingReasoningCoreD64(CompleteField64D):
         self.soul_gate_logits = nn.Parameter(torch.zeros(len(SOUL_TEMPERATURE_ORDER)))
         self.decision_head = nn.Linear(cfg.d_model, len(ReasoningDecision))
         self.operation_head = nn.Linear(cfg.d_model, len(ReasoningOperationKind))
-        self.region_head = nn.Linear(cfg.d_model, len(CANONICAL_REGION_ORDER))
+        self.region_head = nn.Linear(cfg.d_model, len(self.region_order))
         self.start_query = nn.Linear(cfg.d_model, cfg.d_model, bias=False)
         self.end_query = nn.Linear(cfg.d_model, cfg.d_model, bias=False)
         self.boundary_seed = nn.Parameter(torch.randn(cfg.d_model) * 0.02)
@@ -984,7 +1000,7 @@ class LivingReasoningCoreD64(CompleteField64D):
             device=self.device,
         )
         region_to_id = {
-            region.value: index for index, region in enumerate(CANONICAL_REGION_ORDER)
+            region.value: index for index, region in enumerate(self.region_order)
         }
         required = {
             "target_start",
@@ -1268,7 +1284,7 @@ class LivingReasoningCoreD64(CompleteField64D):
         region: LogicalRegion,
     ) -> tuple[tuple[int, ...], torch.Tensor, torch.Tensor]:
         memory = output.canonical_memory
-        region_id = CANONICAL_REGION_ORDER.index(region)
+        region_id = self.region_order.index(region)
         mask = (memory.region_ids[0] == region_id) & memory.region_positions[0].ge(0)
         positions = tuple(sorted(set(int(item) for item in memory.region_positions[0, mask].tolist())))
         candidates = tuple(
@@ -1883,10 +1899,10 @@ class LivingReasoningCoreD64(CompleteField64D):
 
         allowed = request.descriptor.authority_grant().governed_regions
         region_logits = output.region_logits.clone()
-        for index, region in enumerate(CANONICAL_REGION_ORDER):
+        for index, region in enumerate(self.region_order):
             if region not in allowed:
                 region_logits[:, index] = torch.finfo(region_logits.dtype).min
-        region = CANONICAL_REGION_ORDER[int(region_logits.argmax(dim=-1).item())]
+        region = self.region_order[int(region_logits.argmax(dim=-1).item())]
         operation = tuple(ReasoningOperationKind)[int(output.operation_logits.argmax(dim=-1).item())]
         candidates, start_logits, end_logits = self.boundary_logits(output, region)
         start = candidates[int(start_logits.argmax(dim=-1).item())]

@@ -21,7 +21,9 @@ from torch.utils.checkpoint import checkpoint
 
 from runtime.field import (
     CANONICAL_REGION_ORDER,
+    IDENTITY_REGION_ORDER,
     PRE_IDENTITY_REGION_ORDER,
+    SCHEMA_VERSION,
     CanonicalCharAddress,
     CompiledD64Field,
     D64CharacterPage,
@@ -29,6 +31,7 @@ from runtime.field import (
     LogicalRegion,
     SharedFieldSnapshot,
     apply_compiled_delta,
+    canonical_region_order,
     canonical_sha256,
     replacement_delta,
 )
@@ -54,8 +57,10 @@ class ReaderConfig:
     dropout: float = 0.05
     lift_seed: int = 7
     generate_gate_bias: float = 1.5
+    field_schema_version: str = SCHEMA_VERSION
 
     def __post_init__(self) -> None:
+        canonical_region_order(self.field_schema_version)
         if self.d_model != 64:
             raise ValueError("R0 is intentionally locked to one 64D core")
         if self.d_model % self.n_heads:
@@ -348,7 +353,7 @@ def coverage_manifest_from_compiled(
 
     pages = list(compiled.iter_character_pages(page_size))
     active = compiled.active_texts()
-    expected_regions = tuple(region.value for region in CANONICAL_REGION_ORDER)
+    expected_regions = compiled.coverage.expected_regions
     visited_regions = tuple(dict.fromkeys(page.region.value for page in pages))
     observed = 0
     zero_gaps = True
@@ -419,10 +424,12 @@ def migrate_identity_region_embedding_state(
     model: "CompleteField64D",
     state_dict: Mapping[str, torch.Tensor],
 ) -> tuple[dict[str, torch.Tensor], dict[str, Any] | None]:
-    """Append one exact zero Identity row to a pre-v3 model state.
+    """Append exact zero rows for regions added after a checkpoint's schema.
 
-    Old region ids and weights remain byte-for-byte unchanged.  Any other
-    anatomy mismatch fails closed through the subsequent strict state load.
+    Historical rows remain byte-for-byte unchanged; only supported historical
+    row counts (pre-identity ten, identity-schema eleven) may be zero-extended
+    to the destination model's canonical region count.  Any other anatomy
+    mismatch fails closed through the subsequent strict state load.
     """
 
     key = "region_embedding.weight"
@@ -432,16 +439,26 @@ def migrate_identity_region_embedding_state(
     target = model.state_dict()[key]
     if tuple(source.shape) == tuple(target.shape):
         return dict(state_dict), None
-    expected_old = (len(PRE_IDENTITY_REGION_ORDER), model.cfg.d_model)
-    expected_new = (len(CANONICAL_REGION_ORDER), model.cfg.d_model)
-    if tuple(source.shape) != expected_old or tuple(target.shape) != expected_new:
+    if (
+        source.ndim != 2
+        or tuple(source.shape[1:]) != (model.cfg.d_model,)
+        or tuple(target.shape[1:]) != (model.cfg.d_model,)
+    ):
+        raise ValueError("region embedding anatomy does not match the destination model")
+    historical_rows = (len(PRE_IDENTITY_REGION_ORDER), len(IDENTITY_REGION_ORDER))
+    if (
+        source.shape[0] not in historical_rows
+        or target.shape[0] != len(model.region_order)
+        or target.shape[0] <= source.shape[0]
+    ):
         raise ValueError(
-            "region embedding mismatch is not the supported ten-to-eleven Identity migration"
+            "region embedding mismatch is not a supported historical-to-canonical migration"
         )
+    rows_added = target.shape[0] - source.shape[0]
     migrated_weight = torch.cat(
         (
             source,
-            torch.zeros((1, model.cfg.d_model), dtype=source.dtype, device=source.device),
+            torch.zeros((rows_added, model.cfg.d_model), dtype=source.dtype, device=source.device),
         ),
         dim=0,
     )
@@ -450,10 +467,11 @@ def migrate_identity_region_embedding_state(
     receipt = {
         "schema": IDENTITY_REGION_EMBEDDING_MIGRATION_SCHEMA,
         "parameter": key,
-        "old_shape": list(expected_old),
-        "new_shape": list(expected_new),
-        "old_rows_preserved_exactly": bool(torch.equal(migrated_weight[:-1], source)),
-        "identity_row_initialization": "exact_zero",
+        "old_shape": list(tuple(source.shape)),
+        "new_shape": list(tuple(target.shape)),
+        "old_rows_preserved_exactly": bool(torch.equal(migrated_weight[:-rows_added], source)),
+        "rows_added": rows_added,
+        "added_rows_initialization": "exact_zero",
         "source_sha256": hashlib.sha256(
             source.detach().to(device="cpu").contiguous().numpy().tobytes()
         ).hexdigest(),
@@ -494,6 +512,7 @@ class CompleteField64D(nn.Module):
         if cfg is None:
             cfg = ReaderConfig()
         self.cfg = cfg
+        self.region_order = canonical_region_order(cfg.field_schema_version)
         bank = get_letter_bank()
         self.characters = tuple(bank.chars[:-1])
         self.char_to_index = {char: index for index, char in enumerate(self.characters)}
@@ -503,7 +522,7 @@ class CompleteField64D(nn.Module):
         self.register_buffer("bank16", torch.from_numpy(bank.vecs_unit[:-1].copy()).float())
         self.register_buffer("char_lift", frozen_orthogonal_lift(cfg.d_model, cfg.lift_seed))
 
-        self.region_embedding = nn.Embedding(len(REGION_ORDER), cfg.d_model)
+        self.region_embedding = nn.Embedding(len(self.region_order), cfg.d_model)
         self.global_position = nn.Linear(2, cfg.d_model, bias=False)
         self.empty_region_marker = nn.Parameter(torch.zeros(cfg.d_model))
         self.initial_state = nn.Parameter(torch.randn(cfg.state_tokens, cfg.d_model) * 0.02)

@@ -8,6 +8,8 @@ import pytest
 
 from runtime.field import (
     CANONICAL_REGION_ORDER,
+    PRE_IDENTITY_REGION_ORDER,
+    TRAINING_REGIONS,
     AttendedInterval,
     D64FieldCompiler,
     FieldSpan,
@@ -28,6 +30,7 @@ from runtime.heart import (
     HostBeatState,
     MaskStateCorruptionError,
 )
+from runtime.heart.masks import IDENTITY_HEART_REGION_MASK_SCHEMA
 
 
 def _host(
@@ -66,7 +69,17 @@ def test_durable_controller_owns_every_region_independently(tmp_path: Path) -> N
     path = tmp_path / "region_masks.json"
     controller = HeartRegionMaskController(path)
     assert tuple(controller.state.policies) == CANONICAL_REGION_ORDER
-    assert all(controller.state.policy_for(region) == RegionMaskPolicy("all") for region in CANONICAL_REGION_ORDER)
+    assert all(
+        controller.state.policy_for(region) == RegionMaskPolicy("all")
+        for region in CANONICAL_REGION_ORDER
+        if region not in TRAINING_REGIONS
+    )
+    # Training regions default to no attendance for non-cohort readers; the
+    # Trainer authority opts a training core into them explicitly.
+    assert all(
+        controller.state.policy_for(region) == RegionMaskPolicy("none")
+        for region in TRAINING_REGIONS
+    )
 
     first_id = controller.state.state_id
     updated = controller.set_unmasked_percent(LogicalRegion.CONVERSATION_HISTORY, 25)
@@ -75,10 +88,15 @@ def test_durable_controller_owns_every_region_independently(tmp_path: Path) -> N
     assert updated.policy_for(LogicalRegion.CONVERSATION_HISTORY) == RegionMaskPolicy("tail_percent", 25)
     assert updated.policy_for(LogicalRegion.DIARY) == RegionMaskPolicy("all")
 
+    cohort = controller.set_policy(LogicalRegion.TRAINER_INSTRUCTIONS, RegionMaskPolicy("all"))
+    assert cohort.policy_for(LogicalRegion.TRAINER_INSTRUCTIONS) == RegionMaskPolicy("all")
+    assert cohort.policy_for(LogicalRegion.TRAINING_RESPONSES) == RegionMaskPolicy("none")
+
     reopened = HeartRegionMaskController(path)
-    assert reopened.state.state_id == updated.state_id
-    assert reopened.state.revision == 1
+    assert reopened.state.state_id == cohort.state_id
+    assert reopened.state.revision == 2
     assert reopened.state.policy_for(LogicalRegion.CONVERSATION_HISTORY).limit == 25
+    assert reopened.state.policy_for(LogicalRegion.TRAINER_INSTRUCTIONS) == RegionMaskPolicy("all")
 
 
 def test_identity_is_always_attended_and_cannot_be_masked(tmp_path: Path) -> None:
@@ -93,8 +111,9 @@ def test_legacy_mask_state_migrates_by_adding_always_attended_identity(tmp_path:
     controller = HeartRegionMaskController(path)
     value = json.loads(path.read_text(encoding="utf-8"))
     value["schema"] = LEGACY_HEART_REGION_MASK_SCHEMA
+    keep = {region.value for region in PRE_IDENTITY_REGION_ORDER}
     value["policies"] = [
-        item for item in value["policies"] if item["region"] != LogicalRegion.IDENTITY.value
+        item for item in value["policies"] if item["region"] in keep
     ]
     value_without_id = {key: item for key, item in value.items() if key != "state_id"}
     from runtime.field import canonical_sha256
@@ -105,7 +124,42 @@ def test_legacy_mask_state_migrates_by_adding_always_attended_identity(tmp_path:
     migrated = HeartRegionMaskController(path).state
     assert migrated.revision == controller.state.revision + 1
     assert migrated.policy_for(LogicalRegion.IDENTITY) == RegionMaskPolicy("all")
+    assert all(
+        migrated.policy_for(region) == RegionMaskPolicy("none") for region in TRAINING_REGIONS
+    )
     assert tuple(migrated.policies) == CANONICAL_REGION_ORDER
+
+
+def test_identity_mask_schema_state_migrates_by_adding_unattended_training_regions(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "region_masks.json"
+    controller = HeartRegionMaskController(path)
+    value = json.loads(path.read_text(encoding="utf-8"))
+    value["schema"] = IDENTITY_HEART_REGION_MASK_SCHEMA
+    value["policies"] = [
+        item
+        for item in value["policies"]
+        if item["region"] not in {region.value for region in TRAINING_REGIONS}
+    ]
+    value_without_id = {key: item for key, item in value.items() if key != "state_id"}
+    from runtime.field import canonical_sha256
+
+    value["state_id"] = canonical_sha256(value_without_id)
+    path.write_text(json.dumps(value), encoding="utf-8")
+
+    migrated = HeartRegionMaskController(path).state
+    assert migrated.revision == controller.state.revision + 1
+    assert migrated.policy_for(LogicalRegion.IDENTITY) == RegionMaskPolicy("all")
+    assert all(
+        migrated.policy_for(region) == RegionMaskPolicy("none") for region in TRAINING_REGIONS
+    )
+    assert tuple(migrated.policies) == CANONICAL_REGION_ORDER
+    # The migrated state persists under the current mask schema and reloads
+    # without a second migration.
+    reopened = HeartRegionMaskController(path)
+    assert reopened.state.state_id == migrated.state_id
+    assert reopened.state.revision == migrated.revision
 
 
 def test_durable_controller_fails_closed_on_tampering(tmp_path: Path) -> None:

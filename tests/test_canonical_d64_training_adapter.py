@@ -1,9 +1,16 @@
 from __future__ import annotations
 
+import pytest
 import torch
 
-from runtime.field import FieldDelta, SharedFieldSnapshot
+from runtime.field import (
+    IDENTITY_REGION_ORDER,
+    PRE_IDENTITY_REGION_ORDER,
+    FieldDelta,
+    SharedFieldSnapshot,
+)
 from training.complete_field_64d import (
+    REGION_ORDER,
     CompleteField64D,
     ReaderConfig,
     migrate_identity_region_embedding_state,
@@ -101,10 +108,13 @@ def test_pre_identity_checkpoint_state_migrates_without_discarding_old_rows() ->
     source.region_embedding.weight.sum().backward()
     optimizer.step()
 
+    # Simulate a pre-identity (ten-region) checkpoint: drop the identity and
+    # both training-region rows without touching any historical row.
+    dropped_rows = len(REGION_ORDER) - len(PRE_IDENTITY_REGION_ORDER)
     legacy_model_state = dict(source.state_dict())
     legacy_model_state["region_embedding.weight"] = legacy_model_state[
         "region_embedding.weight"
-    ][:-1].clone()
+    ][:-dropped_rows].clone()
     legacy_optimizer_state = optimizer.state_dict()
     parameter_names = [name for name, _ in source.named_parameters()]
     region_index = parameter_names.index("region_embedding.weight")
@@ -118,7 +128,9 @@ def test_pre_identity_checkpoint_state_migrates_without_discarding_old_rows() ->
         if isinstance(value, torch.Tensor) and tuple(value.shape) == tuple(
             source.region_embedding.weight.shape
         ):
-            legacy_optimizer_state["state"][region_parameter_id][name] = value[:-1].clone()
+            legacy_optimizer_state["state"][region_parameter_id][name] = value[
+                :-dropped_rows
+            ].clone()
 
     destination = CompleteField64D(ReaderConfig(ffn_dim=128, dropout=0.0))
     destination_optimizer = torch.optim.AdamW(destination.parameters(), lr=1e-3)
@@ -127,12 +139,16 @@ def test_pre_identity_checkpoint_state_migrates_without_discarding_old_rows() ->
         legacy_model_state,
     )
     assert receipt is not None
+    assert receipt["rows_added"] == dropped_rows
     assert receipt["old_rows_preserved_exactly"]
     assert torch.equal(
-        migrated_model["region_embedding.weight"][:-1],
+        migrated_model["region_embedding.weight"][:-dropped_rows],
         legacy_model_state["region_embedding.weight"],
     )
-    assert torch.count_nonzero(migrated_model["region_embedding.weight"][-1]) == 0
+    assert (
+        torch.count_nonzero(migrated_model["region_embedding.weight"][-dropped_rows:])
+        == 0
+    )
     migrated_optimizer, optimizer_receipt = migrate_identity_region_optimizer_state(
         destination,
         legacy_optimizer_state,
@@ -143,3 +159,46 @@ def test_pre_identity_checkpoint_state_migrates_without_discarding_old_rows() ->
     destination_optimizer.zero_grad(set_to_none=True)
     destination.region_embedding.weight.sum().backward()
     destination_optimizer.step()
+
+
+def test_identity_schema_checkpoint_state_migrates_to_training_schema() -> None:
+    source = CompleteField64D(ReaderConfig(ffn_dim=128, dropout=0.0))
+    optimizer = torch.optim.AdamW(source.parameters(), lr=1e-3)
+    source.region_embedding.weight.sum().backward()
+    optimizer.step()
+
+    # Simulate an identity-schema (eleven-region) checkpoint: drop only the
+    # two training-region rows appended by the v4 schema.
+    dropped_rows = len(REGION_ORDER) - len(IDENTITY_REGION_ORDER)
+    legacy_model_state = dict(source.state_dict())
+    legacy_model_state["region_embedding.weight"] = legacy_model_state[
+        "region_embedding.weight"
+    ][:-dropped_rows].clone()
+
+    destination = CompleteField64D(ReaderConfig(ffn_dim=128, dropout=0.0))
+    migrated_model, receipt = migrate_identity_region_embedding_state(
+        destination,
+        legacy_model_state,
+    )
+    assert receipt is not None
+    assert receipt["rows_added"] == dropped_rows
+    assert receipt["old_rows_preserved_exactly"]
+    assert torch.equal(
+        migrated_model["region_embedding.weight"][:-dropped_rows],
+        legacy_model_state["region_embedding.weight"],
+    )
+    assert torch.count_nonzero(migrated_model["region_embedding.weight"][-dropped_rows:]) == 0
+    destination.load_state_dict(migrated_model, strict=True)
+
+
+def test_region_embedding_migration_fails_closed_on_unsupported_anatomy() -> None:
+    source = CompleteField64D(ReaderConfig(ffn_dim=128, dropout=0.0))
+    # Twelve rows is not a real historical schema (ten or eleven); migration
+    # must fail closed rather than guess.
+    unsupported_state = dict(source.state_dict())
+    unsupported_state["region_embedding.weight"] = unsupported_state[
+        "region_embedding.weight"
+    ][:-1].clone()
+    destination = CompleteField64D(ReaderConfig(ffn_dim=128, dropout=0.0))
+    with pytest.raises(ValueError, match="not a supported historical-to-canonical migration"):
+        migrate_identity_region_embedding_state(destination, unsupported_state)

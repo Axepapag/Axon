@@ -1,18 +1,194 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-10T08:30:00-05:00
+Updated: 2026-09-13T00:23:26.130234+00:00
 Current through event:
-`evt-20260910T083000000000Z-hermes-user-input-full-paragraphs`
+`evt-20260913T002326130234Z-codex-layers-versus-ticks`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
-Identity stamp: Hermes / glm-5.3:cloud / 2026-09-10 (rolling summary reconciled
-after concurrent Gemini turn; Gemini's uncommitted README/ledger turn landed
-with attribution in the same sweep)
+Identity stamp: Codex / GPT-6 / 2026-09-12
 
 ## Current mission and honest status
 
-The active research target remains **exact motor writing on physical D64**.
+Architecture decision after Jeff's layers-versus-ticks question: treat recurrent
+compute as the primary parameter-efficiency axis. A unique layer adds a distinct
+stored transformation; a tick reuses the same learned transition on updated
+field/Soul state. The working hypothesis is therefore a two-physical-layer core
+trained across randomized recurrent depths, with adequate scratch/Soul state and
+adaptive halting. Its minimum viable size is the smallest configuration whose
+held-out results improve causally across added ticks and extrapolate beyond its
+training depth without cycling, drift, repetition, or overthinking. Exact D16
+characters packed into D64 remove tokenizer ambiguity but do not supply semantic
+knowledge or erase the learned D64 state bottleneck. Keep outer canonical Heart
+publication for meaningful proposals and distinguish it from cheaper latent
+microticks. No model configuration or runtime state changed from this decision.
+
+Codex continued the real runtime-training remediation and completed a verified
+corrective checkpoint. Review:
+`roundtable/reviews/CODEX_RUNTIME_TRAINING_REMEDIATION_CHECKPOINT_2026-09-12.md`.
+Four demonstrated failures are now corrected: supervisory recomputation binds
+the exact incoming Soul; rail proposals decode free-running without teacher
+target-prefix leakage; every Heart response advances the stable assignment to a
+new canonical view that can attend its own latest-eight attempts; and rejected
+learning state survives restart through an atomic, hash-verified rolling-three
+model/optimizer workspace. An injected `CanonicalStateBranch` persists the same
+successor as durable HEAD. Assignment identity is stable across view/curriculum
+revisions, and trainer public exports are repaired.
+
+Verification: the 253-test broad focused run produced 252 passes and one obsolete
+pre-Soul assertion; that assertion was corrected and passed independently. The
+81-test affected runtime group then passed after WIP integration, followed by
+four passing final Soul/lineage/successor probes. Attempt-workspace retention and
+corruption tests, `git diff --check`, and changed-module Ruff checks pass. No
+Kaggle job, runtime service, migration, or promotion was started.
+
+The D64 capacity decision is recorded at
+`roundtable/proposals/CODEX_D64_CORE_MUSCLE_RUNTIME_TRAINING_DECISION_2026-09-12.md`.
+Exact four-by-D16 character packing removes tokenizer ambiguity and preserves
+canonical addresses, while learned attention, residual updates, and Soul still
+communicate through D64 continuous state. Candidate A already contains a
+131,072-wide FFN and 33,982,137 parameters. The clean first depth experiment is
+a four-layer/65,536-FFN core with 34,016,057 parameters; larger measured 51M and
+68M candidates remain gated tournament entrants, not canonical replacements.
+
+Kaggle remains blocked. The session still trains the 114,145-parameter
+`CompleteField64D` conformance motor rather than `LivingReasoningCoreD64`;
+completed-attempt durability still lacks one cross-store prepare/finalize/recover
+transaction across journal, Soul, workspace, field, and landmark; admissible
+optimizer-step and completed-homework decisions remain conflated; and no live
+Kaggle interruption/replay smoke has passed. Next: bind the living-core adapter,
+add crash transactions and assignment-completion supervision, pass local causal
+and delayed-Soul gates, then run no-learning and tiny-learning Kaggle smokes.
+
+Earlier continuity material follows. It is historical; the checkpoint above is
+current.
+
+Final Codex inspection found no Kimi source changes after the constructive review;
+its verified progress and blockers remain current. Hermes takeover handoff:
+`roundtable/HANDOFF_HERMES_REAL_RUNTIME_TRAINING_2026-09-11.md`.
+Hermes must preserve Kimi's real foundations and connect exact accepted-bundle
+loading, Soul-conditioned forward computation, unified worker/Gate evidence,
+atomic parameter/optimizer/Soul/attempt publication, canonical Heart response
+commit, successor-view scheduling, and whole-process restart continuity.
+
+The next authorized engineering result is one real local accepted assignment
+across process restart. No HTTP exposure, public demo start, Kaggle launch, live
+state migration, or serving promotion belongs in that mission.
+
+Codex completed a targeted review of Kimi's post-handoff runtime-training
+foundations. Review:
+`roundtable/reviews/CODEX_KIMI_RUNTIME_TRAINING_FOUNDATIONS_REVIEW_2026-09-11.md`.
+This is materially real progress rather than simulation: authenticated/replay-
+protected envelopes, one-body attention views, durable assignments, granted core
+bindings, real PyTorch categorical loss/backward/optimizer execution, real
+SoulStore transitions, and independent supervisory recomputation exist. Ninety-
+five selected tests passed. Kimi had not yet appended a completion event, so the
+tree was treated as active work and her files were left untouched.
+
+Blocking integration gaps: the inhaled Soul is checked but never passed as the
+model's initial recurrent state; the worker seeds a fresh model instead of loading
+the exact bound parameter/optimizer checkpoint; learned parameters and optimizer
+state remain process-memory only; Soul commits before attempt recording and is
+not atomically published with weights; worker and Gate bundle types are not
+connected; Gate acceptance does not commit the typed response through Heart; and
+instruction reconstruction is not yet `ABC? -> D` assignment semantics. No
+Kaggle launch or integrated-training claim is permitted yet.
+
+The next gate is the local end-to-end chain documented in the review, including
+process restart and exact training/reasoning/training continuity.
+
+Jeff explicitly directed destruction rather than archival of Gemini's fake
+executable training behavior and requested a takeover handoff. Completed:
+`roundtable/HANDOFF_REAL_RUNTIME_TRAINING_RECOVERY_2026-09-11.md`.
+The named Antigravity conversation database was read-only inspected and confirms
+that Gemini created a source-labelled simulation while describing it as real
+forward/Soul/Heart/trainer behavior. The five simulator/endpoint/test sources,
+their generated bytecode, and all four tracked integration diffs were removed.
+The tracked demo and Heart files now match committed state; no relevant Python
+references remain. Historical review and canonical ledger evidence remain for
+accountability, as Jeff requested.
+
+Post-removal verification: 39 selected Heart, circulation, remote-rail,
+checkpoint-retention, and training-bundle tests passed; py_compile and
+`git diff --check` passed. No service or Kaggle job was launched.
+
+Jeff's central design is physically achievable with qualifications recorded in
+the handoff: Kaggle is an ephemeral outbound worker; Kaggle CLI login does not
+authenticate calls to the local Heart; the remote worker must retain the
+differentiable graph for forward/loss/backward/optimizer; Heart retains durable
+assignment state and sole acceptance/commit authority. No Kaggle action should
+precede the local durability, real-core, Soul/checkpoint, typed-emission,
+restart-recovery, causal-learning, and authenticated-transport gates.
+
+Remaining blockers are partial schema-v4 migration, absence of a durable local
+assignment controller, and absence of a real authenticated worker protocol.
+
+The prior point-in-time review below is retained as historical evidence; its
+executable subjects have now been deleted.
+
+Targeted review of the recent user-attributed Gemini remote-training work is
+complete. Blocking review:
+`roundtable/reviews/CODEX_GEMINI_REMOTE_TRAINING_REVIEW_2026-09-11.md`.
+The HTTP/assignment shapes are useful scaffolding, but the Kaggle worker is a
+fixed-output simulation with an in-memory fake Soul; authentication is optional;
+the demo callback calls nonexistent `HeartHost.boundary` and does not install the
+transaction successor; state is restart-volatile; raw worker text and a
+self-reported success Boolean bypass typed emissions and trainer evaluation; and
+the cohort creates a new masked snapshot identity. Focused tests pass 27/27
+because they encode those scaffold rules, including token-free access and a test
+only successor list. Ruff reports 53 findings. No process listened on TCP 8765
+at review time; no service or Kaggle job was started. Do not launch or restart
+this path until the blocking contracts are repaired.
+
+Kimi's intervening read-only repository sweep is preserved in canonical event
+`evt-20260911T052500000000Z-kimi-full-repo-inspection`; it changed no project
+implementation files.
+
+The earlier mission below remains unfinished and subordinate to these blockers.
+
+Jeff started a fresh task and authorized architecture corrections toward real
+runtime training: separate Cortex and reasoning-rail organs; dedicated Trainer
+instructions and response-history regions; only offline-training cores attend
+those regions; real emitted attempts return through Heart commits; persistent
+private Soul; gated work assignments with nurturing failure supervision; sparse
+checkpoints at intervals and landmarks; coherent training/reasoning transitions;
+then Kaggle training. The larger mission is unfinished.
+
+Current report: `roundtable/reports/FRESH_RUNTIME_TRAINING_AUDIT_2026-09-10.md`.
+
+Verified this turn: 32 initial runtime/Soul tests passed; 8 final checkpoint/bundle
+tests passed; Ruff and diff checks clean; doctrine mirrors byte-identical.
+Checkpoint retention now protects published accepted parameter/optimizer/Soul
+bundles despite newer unaccepted checkpoints. Evidence-linked landmarks retain
+older accepted bundles and verify checkpoint, Soul, and published ancestry.
+Maintenance dry-run and pruning share retention selection. No production pruning.
+
+Source findings: eleven existing regions exclude the two training regions;
+OFFLINE_TRAINING cores are excluded without a training circulation/mode API;
+current neural training uses curriculum-provided proposal boards; exhale captures
+reader state before the selected action; parameter activation does not jointly
+publish all core/Soul/runtime state. Kaggle exports a copy, not a live Heart link.
+
+Isolated causal Soul probe: HOT generations 0/1/2/3, ablation state L2
+0.7557021975517273, no later-loss autograd path to first exhale. Forward influence
+is verified; useful delayed memory and the best learning method remain unproven.
+Evidence: `State/training/audits/fresh_runtime_20260911/causal_soul.json`.
+
+**Pending clarification:** canonical Heart local with Kaggle workers (recommended),
+temporary whole-runtime transfer, or explicitly isolated first proof. No answer
+yet. No cloud job, endpoint, canonical migration, activation, commit, or push.
+Kaggle login healthy; quota at inspection: 26.22 GPU hours. No cloud GPU spent.
+
+Next: resolve deployment topology, implement and test the report's cohort/region,
+assignment/actual-proposal, Soul and exact mode-transition contracts; pass local
+runtime smoke and then small Kaggle integration smoke through first evaluation.
+Preserve existing untracked `legal/`, `scripts/diagnose_d64_routes.py`, and
+`tests/test_d64_route_diagnostic.py`. Prior D64 failures below remain relevant;
+they were not rerun by this inspection.
+
+## Previous mission evidence (preserved)
+
+The preceding research target was **exact motor writing on physical D64**.
 Jeff ratified R1-R12 and the Layer 13 clarification: deterministic continuation
 inside a selected Unicode scalar is categorical transport, while route choice,
 the exact source anchor, generate output, and EOS remain learned decisions.
@@ -107,7 +283,7 @@ formally adjudicated:
 5. **Windows tooling:** default Pytest temp/cache cleanup has local access and
    long-path defects.
 
-## Next recommended shot
+## Prior recommendations (subordinate to the fresh runtime mission)
 
 1. Add a bounded D64 diagnostic that records per-position route logits and
    compares the untouched v2 checkpoint with a zero-bias clamp. Do not promote
@@ -369,8 +545,8 @@ agents protocol.
 
 ## Continuity health
 
-- Canonical ledger: 213 valid unique event lines plus one preserved historical
-  blank line through `evt-20260910T083000000000Z-hermes-user-input-full-paragraphs`.
+- Canonical ledger: 214 valid unique event lines plus preserved historical
+  whitespace through `evt-20260911T033046641618Z-codex-fresh-runtime-training-audit`.
 - `scripts/append_engineers_ledger_event.py` validated and cleanly appended the turn event.
 - Kimi CLI is globally pinned to standard K2.7 Coding; its first bounded,
   read-only Codex-directed evidence audit completed without repository writes.

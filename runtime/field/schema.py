@@ -16,9 +16,10 @@ from typing import Any, Iterator, Mapping
 
 LEGACY_SCHEMA_VERSION = "shared-field-v1"
 CORTEX_SCHEMA_VERSION = "shared-field-v2"
-SCHEMA_VERSION = "shared-field-v3"
+IDENTITY_SCHEMA_VERSION = "shared-field-v3"
+SCHEMA_VERSION = "shared-field-v4"
 SUPPORTED_SCHEMA_VERSIONS: frozenset[str] = frozenset(
-    {LEGACY_SCHEMA_VERSION, CORTEX_SCHEMA_VERSION, SCHEMA_VERSION}
+    {LEGACY_SCHEMA_VERSION, CORTEX_SCHEMA_VERSION, IDENTITY_SCHEMA_VERSION, SCHEMA_VERSION}
 )
 LEGACY_CORTEX_REGION_NAME = "structured_knowledge"
 
@@ -37,6 +38,8 @@ class LogicalRegion(str, Enum):
     RESPONSE_DRAFT = "response_draft"
     DIARY = "diary"
     IDENTITY = "identity"
+    TRAINER_INSTRUCTIONS = "trainer_instructions"
+    TRAINING_RESPONSES = "training_responses"
 
 
 PRE_IDENTITY_REGION_ORDER: tuple[LogicalRegion, ...] = (
@@ -52,9 +55,19 @@ PRE_IDENTITY_REGION_ORDER: tuple[LogicalRegion, ...] = (
     LogicalRegion.DIARY,
 )
 
-CANONICAL_REGION_ORDER: tuple[LogicalRegion, ...] = (
+IDENTITY_REGION_ORDER: tuple[LogicalRegion, ...] = (
     *PRE_IDENTITY_REGION_ORDER,
     LogicalRegion.IDENTITY,
+)
+
+TRAINING_REGIONS: frozenset[LogicalRegion] = frozenset({
+    LogicalRegion.TRAINER_INSTRUCTIONS, LogicalRegion.TRAINING_RESPONSES,
+})
+
+CANONICAL_REGION_ORDER: tuple[LogicalRegion, ...] = (
+    *IDENTITY_REGION_ORDER,
+    LogicalRegion.TRAINER_INSTRUCTIONS,
+    LogicalRegion.TRAINING_RESPONSES,
 )
 
 LOGICAL_REGION_IDS: Mapping[LogicalRegion, int] = MappingProxyType(
@@ -199,12 +212,14 @@ def _serialized_region_name(region: LogicalRegion, schema_version: str) -> str:
 def canonical_region_order(schema_version: str = SCHEMA_VERSION) -> tuple[LogicalRegion, ...]:
     """Return the immutable region order belonging to one field schema.
 
-    V1 and v2 hashes were defined over the original ten regions.  V3 appends
-    ``identity`` without reinterpreting any earlier numeric region identity.
+    V1/v2 retain ten regions, v3 retains eleven, and v4 appends two training
+    regions without reinterpreting any historical hash or numeric identity.
     """
 
     if schema_version in {LEGACY_SCHEMA_VERSION, CORTEX_SCHEMA_VERSION}:
         return PRE_IDENTITY_REGION_ORDER
+    if schema_version == IDENTITY_SCHEMA_VERSION:
+        return IDENTITY_REGION_ORDER
     if schema_version == SCHEMA_VERSION:
         return CANONICAL_REGION_ORDER
     raise ValueError(f"unsupported shared-field schema {schema_version!r}")
@@ -623,12 +638,15 @@ __all__ = [
     "CANONICAL_REGION_ORDER",
     "CORE_WRITABLE_REGIONS",
     "CORTEX_SCHEMA_VERSION",
+    "IDENTITY_REGION_ORDER",
+    "IDENTITY_SCHEMA_VERSION",
     "LEGACY_CORTEX_REGION_NAME",
     "LEGACY_SCHEMA_VERSION",
     "LOGICAL_REGION_IDS",
     "PRE_IDENTITY_REGION_ORDER",
     "SCHEMA_VERSION",
     "SUPPORTED_SCHEMA_VERSIONS",
+    "TRAINING_REGIONS",
     "AttendedInterval",
     "FieldSpan",
     "LogicalRegion",

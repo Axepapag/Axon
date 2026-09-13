@@ -2,8 +2,9 @@
 
 Day Zero active surface only. Historical 384-slot views, schedule cursors,
 and unrelated experimental schemas live under ``archive/day_zero_legacy_2026-08-20``
-and are not imported here. The active canonical schema is shared-field-v3; its
-additive Identity/Cortex migration retains byte/hash compatibility with v1/v2 history.
+and are not imported here. The active canonical schema is shared-field-v4; its
+additive Identity/Training migrations retain byte/hash compatibility with v1/v2/v3
+history.
 """
 
 from .compiler_d64 import (
@@ -46,12 +47,15 @@ from .schema import (
     CANONICAL_REGION_ORDER,
     CORE_WRITABLE_REGIONS,
     CORTEX_SCHEMA_VERSION,
+    IDENTITY_REGION_ORDER,
+    IDENTITY_SCHEMA_VERSION,
     LEGACY_CORTEX_REGION_NAME,
     LEGACY_SCHEMA_VERSION,
     LOGICAL_REGION_IDS,
     PRE_IDENTITY_REGION_ORDER,
     SCHEMA_VERSION,
     SUPPORTED_SCHEMA_VERSIONS,
+    TRAINING_REGIONS,
     AttendedInterval,
     FieldSpan,
     LogicalRegion,
@@ -93,6 +97,14 @@ from .state_branch import (
     snapshot_from_canonical_dict,
 )
 
+from .training_view import (
+    TRAINING_VIEW_SCHEMA,
+    TrainingAttentionView,
+    TrainingAttentionViewCompiler,
+    TrainingHistoryWindow,
+    TrainingViewError,
+)
+
 __all__ = [
     "BRANCH_EVENT_SCHEMA",
     "BRANCH_HEAD_SCHEMA",
@@ -108,6 +120,8 @@ __all__ = [
     "D64_STRUCTURAL_FEATURE_GENERATION",
     "D64_STRUCTURAL_FEATURE_SCHEMA",
     "D64_WIDTH",
+    "IDENTITY_REGION_ORDER",
+    "IDENTITY_SCHEMA_VERSION",
     "LEGACY_CORTEX_REGION_NAME",
     "LEGACY_SCHEMA_VERSION",
     "LOGICAL_REGION_IDS",
@@ -115,6 +129,7 @@ __all__ = [
     "SCHEMA_VERSION",
     "SUBSTRATE_WIDTH",
     "SUPPORTED_SCHEMA_VERSIONS",
+    "TRAINING_REGIONS",
     "AttendedInterval",
     "BranchAuthorityError",
     "BranchHead",
@@ -156,6 +171,11 @@ __all__ = [
     "StaleCompiledFieldError",
     "StaleD64SemanticSurfaceError",
     "StaleDeltaError",
+    "TRAINING_VIEW_SCHEMA",
+    "TrainingAttentionView",
+    "TrainingAttentionViewCompiler",
+    "TrainingHistoryWindow",
+    "TrainingViewError",
     "UnsupportedActiveCharacterError",
     "WritePolicy",
     "apply_compiled_delta",

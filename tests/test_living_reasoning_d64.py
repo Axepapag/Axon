@@ -35,6 +35,9 @@ from training.living_reasoning_preflight import build_living_reasoning_preflight
 from training.reasoning_tournament import (
     D64TournamentResult,
     assert_same_gate_surface,
+    d64_architecture_campaign,
+    d64_architecture_screening_tournament,
+    d64_architecture_search_space,
     d64_head_geometry_tournament,
 )
 
@@ -433,3 +436,37 @@ def test_head_geometry_tournament_changes_only_heads_under_same_gate_surface() -
         for candidate in tournament.candidates
     )
     assert_same_gate_surface(tournament, results)
+
+
+def test_architecture_campaign_declares_balanced_legal_d64_search() -> None:
+    search = d64_architecture_search_space()
+    assert len(search) == 48
+    assert {item.config.n_layers for item in search} == {2, 5, 10}
+    assert {item.config.n_heads for item in search} == {1, 2, 4, 8}
+    assert {item.config.ffn_dim for item in search} == {
+        4_096,
+        16_384,
+        65_536,
+        131_072,
+    }
+    assert all(item.config.d_model == 64 for item in search)
+    assert all(64 % item.config.n_heads == 0 for item in search)
+    assert all(item.config.receipt_continuation for item in search)
+
+    screening = d64_architecture_screening_tournament()
+    assert len(screening.candidates) == 16
+    assert {item.config.n_layers for item in screening.candidates} == {2, 5, 10}
+    assert {item.config.n_heads for item in screening.candidates} == {1, 2, 4, 8}
+    assert {item.config.ffn_dim for item in screening.candidates} == {
+        4_096,
+        16_384,
+        65_536,
+        131_072,
+    }
+
+    campaign = d64_architecture_campaign()
+    assert campaign.screening_tournament.tournament_id == screening.tournament_id
+    assert [stage.optimizer_step_budget for stage in campaign.stages] == [32, 256, 1024]
+    assert [stage.promotion_count for stage in campaign.stages] == [8, 3, 1]
+    assert [stage.entrant_count for stage in campaign.stages] == [16, 8, 3]
+    assert [len(stage.seeds) for stage in campaign.stages] == [1, 3, 3]

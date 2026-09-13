@@ -309,23 +309,24 @@ class TrainerStateStore:
         self._atomic_json(candidate_root / "latest_checkpoint.json", record.to_canonical_dict())
         return record
 
-    def prune_candidate_checkpoints(
+    def prunable_candidate_checkpoints(
         self,
         module_id: str,
         candidate_generation_id: str,
         *,
         keep: int = CHECKPOINT_RETENTION,
     ) -> tuple[CandidateCheckpointRecord, ...]:
-        """Delete checkpoint artifacts older than the newest ``keep`` per candidate.
+        """Plan retention without mutating state; protect accepted Soul bundles.
 
-        Immutable checkpoint records and ``latest_checkpoint.json`` are never
-        touched; only ``.pt`` payload artifacts are removed. The artifact
-        referenced by ``latest_checkpoint.json`` is always retained, even if
-        it would fall outside the newest ``keep`` window.
+        New optimizer checkpoints are not necessarily accepted parameter+Soul
+        boundaries. They must never evict the rolling accepted recovery set or
+        an explicitly recorded assignment/mode-transition landmark.
         """
         if isinstance(keep, bool) or not isinstance(keep, int) or keep < 1:
             raise ValueError("keep must be a positive integer")
         candidate_root = self.candidates_dir / module_id / candidate_generation_id
+        if candidate_root.resolve().parent.parent != self.candidates_dir.resolve():
+            raise TrainerStoreError("candidate retention path escapes candidate namespace")
         records_dir = candidate_root / "checkpoint_records"
         if not records_dir.is_dir():
             return ()
@@ -343,10 +344,56 @@ class TrainerStateStore:
                 json.loads(latest_path.read_text(encoding="utf-8"))
             )
             retained_ids.add(latest.checkpoint_id)
+        # Local import avoids the coordinator/store dependency cycle.
+        from .step_bundle import AcceptedStepPointer, AcceptedTrainingStepBundle
+
+        accepted_root = candidate_root / "accepted_steps"
+        pointer_path = accepted_root / "pointer.json"
+        protected_bundles: set[str] = set()
+        if pointer_path.exists():
+            pointer = AcceptedStepPointer.from_mapping(json.loads(pointer_path.read_text(encoding="utf-8")))
+            if pointer.module_id != module_id or pointer.candidate_generation_id != candidate_generation_id:
+                raise TrainerStoreError("accepted retention pointer belongs to another candidate")
+            protected_bundles.update(pointer.rolling_bundle_ids)
+        for path in sorted((accepted_root / "landmarks").glob("*.json")):
+            landmark = json.loads(path.read_text(encoding="utf-8"))
+            landmark_id = landmark.pop("landmark_id", None)
+            if (
+                landmark.get("schema") != "axon-training-checkpoint-landmark-v1"
+                or hashlib.sha256(canonical_json_bytes(landmark)).hexdigest() != landmark_id
+                or path.stem != landmark_id
+                or landmark.get("module_id") != module_id
+                or landmark.get("candidate_generation_id") != candidate_generation_id
+            ):
+                raise TrainerStoreError("checkpoint landmark identity mismatch")
+            protected_bundles.add(landmark["bundle_id"])
+        for bundle_id in protected_bundles:
+            if not isinstance(bundle_id, str) or len(bundle_id) != 64 or any(c not in "0123456789abcdef" for c in bundle_id):
+                raise TrainerStoreError("invalid retained bundle identity")
+            path = accepted_root / "bundles" / f"{bundle_id}.json"
+            if not path.is_file():
+                raise TrainerStoreError("retained accepted bundle is missing")
+            bundle = AcceptedTrainingStepBundle.from_mapping(json.loads(path.read_text(encoding="utf-8")))
+            if (
+                bundle.bundle_id != bundle_id
+                or bundle.module_id != module_id
+                or bundle.candidate_generation_id != candidate_generation_id
+            ):
+                raise TrainerStoreError("retained bundle belongs to another candidate")
+            retained_ids.add(bundle.checkpoint_id)
+        return tuple(record for record in records if record.checkpoint_id not in retained_ids)
+
+    def prune_candidate_checkpoints(
+        self,
+        module_id: str,
+        candidate_generation_id: str,
+        *,
+        keep: int = CHECKPOINT_RETENTION,
+    ) -> tuple[CandidateCheckpointRecord, ...]:
+        """Prune only payloads outside rolling recovery and landmark retention."""
+        records = self.prunable_candidate_checkpoints(module_id, candidate_generation_id, keep=keep)
         pruned: list[CandidateCheckpointRecord] = []
         for record in records:
-            if record.checkpoint_id in retained_ids:
-                continue
             artifact_path = (self.root / record.artifact_relpath).resolve(strict=False)
             try:
                 artifact_path.relative_to(self.root)

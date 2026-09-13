@@ -73,14 +73,9 @@ def main() -> int:
             orphans = _staging_orphans(generation_dir)
             orphan_bytes = sum(path.stat().st_size for path in orphans)
             if args.dry_run:
-                retained = {record.checkpoint_id for record in records[-args.keep:]}
-                latest_path = generation_dir / "latest_checkpoint.json"
-                if latest_path.is_file():
-                    latest = CandidateCheckpointRecord.from_mapping(
-                        json.loads(latest_path.read_text(encoding="utf-8"))
-                    )
-                    retained.add(latest.checkpoint_id)
-                prunable = [r for r in records if r.checkpoint_id not in retained]
+                prunable = store.prunable_candidate_checkpoints(
+                    module_dir.name, generation_dir.name, keep=args.keep
+                )
                 summary.append(
                     {
                         "module_id": module_dir.name,

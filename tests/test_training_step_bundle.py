@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pytest
 import torch
 
 from runtime.soul import SoulStore
@@ -163,6 +164,14 @@ def test_parameter_checkpoint_and_private_soul_publish_as_one_accepted_step(
     branch = item["soul_workspace"].branch(item["candidate_generation"], item["module_id"])
     assert branch.load_head().soul_id == bundle.after_soul_id
     assert len(bundle.soul_receipt_ids) == 3
+    landmark_id = coordinator.mark_landmark(
+        bundle, label="verified-assignment-boundary", evidence_ids=("test-assignment-gate",)
+    )
+    assert coordinator.mark_landmark(
+        bundle, label="verified-assignment-boundary", evidence_ids=("test-assignment-gate",)
+    ) == landmark_id
+    with pytest.raises(TrainerStoreError, match="requires evidence"):
+        coordinator.mark_landmark(bundle, label="unverified", evidence_ids=())
 
 
 def test_pending_step_recovers_after_only_first_soul_phase_committed(tmp_path: Path) -> None:

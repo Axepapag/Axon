@@ -42,6 +42,7 @@ from .schema import (
     RegionMaskPolicy,
     SharedFieldSnapshot,
     canonical_json_bytes,
+    canonical_region_order,
     canonical_sha256,
     resolve_mask_policy,
 )
@@ -291,11 +292,11 @@ class CompiledD64Field:
         return decode_unicode_tokens(self.region_transport_token_ids(region))
 
     def active_texts(self) -> dict[str, str]:
-        return {region.value: self.region_text(region) for region in CANONICAL_REGION_ORDER}
+        return {region: self.region_text(region) for region in self.coverage.expected_regions}
 
     def verify_roundtrip(self, snapshot: SharedFieldSnapshot) -> None:
         self.assert_fresh(snapshot)
-        for region in CANONICAL_REGION_ORDER:
+        for region in canonical_region_order(snapshot.schema_version):
             expected = snapshot.region(region).attended_text
             observed = self.region_text(region)
             if observed != expected:
@@ -311,7 +312,7 @@ class CompiledD64Field:
             raise ValueError("page_size must be a positive integer")
         logical_page_index = 0
         global_cursor = 0
-        for region in CANONICAL_REGION_ORDER:
+        for region in map(LogicalRegion, self.coverage.expected_regions):
             addresses = self.region_addresses(region)
             if not addresses:
                 yield D64CharacterPage(
@@ -386,7 +387,8 @@ class D64FieldCompiler:
         expanded_characters = 0
         global_position = 0
 
-        for region in CANONICAL_REGION_ORDER:
+        region_order = canonical_region_order(snapshot.schema_version)
+        for region in region_order:
             state = snapshot.region(region)
             visited_regions.append(region.value)
             region_row_start = len(rows)
@@ -518,7 +520,7 @@ class D64FieldCompiler:
             schema=D64_COMPILER_SCHEMA,
             source_field_id=snapshot.field_id,
             source_tick_id=snapshot.tick_id,
-            expected_regions=tuple(region.value for region in CANONICAL_REGION_ORDER),
+            expected_regions=tuple(region.value for region in region_order),
             visited_regions=tuple(visited_regions),
             expected_active_characters=expected_active,
             compiled_active_characters=compiled_count,
@@ -534,7 +536,7 @@ class D64FieldCompiler:
             address_sha256=address_sha,
             roundtrip_sha256=roundtrip_sha,
             complete=(
-                tuple(visited_regions) == tuple(region.value for region in CANONICAL_REGION_ORDER)
+                tuple(visited_regions) == tuple(region.value for region in region_order)
                 and compiled_count == expected_active
                 and int(valid_array.sum()) == transport_count
                 and len(addresses) == rows_array.shape[0] * D64_LANES_PER_ROW

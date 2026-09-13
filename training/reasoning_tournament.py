@@ -25,6 +25,7 @@ from .sequential_first_form import SequentialFirstFormCase, evaluate_sequential_
 
 D64_TOURNAMENT_SCHEMA = "axon-d64-reasoning-tournament-v1"
 D64_TOURNAMENT_RESULT_SCHEMA = "axon-d64-reasoning-tournament-result-v1"
+D64_TOURNAMENT_CAMPAIGN_SCHEMA = "axon-d64-reasoning-tournament-campaign-v1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,6 +140,93 @@ class D64TournamentResult:
         return value
 
 
+@dataclass(frozen=True, slots=True)
+class D64TournamentStage:
+    """One governed elimination stage; a resource budget is never mastery."""
+
+    name: str
+    candidate_labels: tuple[str, ...]
+    entrant_count: int
+    seeds: tuple[int, ...]
+    optimizer_step_budget: int
+    promotion_count: int
+    purpose: str
+
+    def __post_init__(self) -> None:
+        if not self.name or not self.purpose:
+            raise ValueError("tournament stage name and purpose must be non-empty")
+        if len(set(self.candidate_labels)) != len(self.candidate_labels):
+            raise ValueError("tournament stage candidate labels must be unique")
+        if self.entrant_count < 1:
+            raise ValueError("tournament stage entrant_count must be positive")
+        if self.candidate_labels and len(self.candidate_labels) != self.entrant_count:
+            raise ValueError("explicit candidate labels must cover every stage entrant")
+        if not self.seeds or len(set(self.seeds)) != len(self.seeds):
+            raise ValueError("tournament stage seeds must be non-empty and unique")
+        if self.optimizer_step_budget < 0:
+            raise ValueError("optimizer_step_budget cannot be negative")
+        if not 1 <= self.promotion_count <= self.entrant_count:
+            raise ValueError("promotion_count must fit within the stage candidates")
+
+    def to_canonical_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "candidate_labels": list(self.candidate_labels),
+            "entrant_count": self.entrant_count,
+            "seeds": list(self.seeds),
+            "optimizer_step_budget": self.optimizer_step_budget,
+            "promotion_count": self.promotion_count,
+            "purpose": self.purpose,
+            "completion_law": (
+                "consuming the optimizer budget does not complete a homework assignment; "
+                "only the declared heldout and runtime gates may promote a candidate"
+            ),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class D64TournamentCampaign:
+    """Immutable staged search contract for the D64 Living core family."""
+
+    search_space: tuple[D64TournamentCandidate, ...]
+    screening_tournament: D64Tournament
+    stages: tuple[D64TournamentStage, ...]
+    campaign_id: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        search = tuple(self.search_space)
+        if not search or len({item.candidate_id for item in search}) != len(search):
+            raise ValueError("campaign search space must be non-empty and unique")
+        search_labels = {item.label for item in search}
+        screening_labels = {
+            item.label for item in self.screening_tournament.candidates
+        }
+        if not screening_labels <= search_labels:
+            raise ValueError("screening candidates must belong to the declared search space")
+        if not self.stages:
+            raise ValueError("campaign requires at least one stage")
+        if set(self.stages[0].candidate_labels) != screening_labels:
+            raise ValueError("the first learning stage must cover the screening tournament")
+        object.__setattr__(self, "search_space", search)
+        object.__setattr__(self, "campaign_id", canonical_sha256(self.to_canonical_dict(False)))
+
+    def to_canonical_dict(self, include_id: bool = True) -> dict[str, Any]:
+        value = {
+            "schema": D64_TOURNAMENT_CAMPAIGN_SCHEMA,
+            "search_space": [item.to_canonical_dict() for item in self.search_space],
+            "screening_tournament": self.screening_tournament.to_canonical_dict(),
+            "stages": [item.to_canonical_dict() for item in self.stages],
+            "selection_law": (
+                "rank only evidence-complete candidates; promote by heldout typed and "
+                "payload exactness, Soul dependence, field/proposal counterfactuals, "
+                "retained regression, compute, and memory; no parameter count wins by fiat"
+            ),
+        }
+        if include_id:
+            value["campaign_id"] = self.campaign_id
+        return value
+
+
 def d64_head_geometry_tournament() -> D64Tournament:
     common = {
         "n_layers": 2,
@@ -186,6 +274,130 @@ def recommended_followup_d64_candidates() -> tuple[D64TournamentCandidate, ...]:
             "candidate-e-2x32-balanced",
             candidate_a_config(n_heads=2, n_layers=4, ffn_dim=16_384),
             "Balanced depth, head diversity, and procedural capacity.",
+        ),
+        D64TournamentCandidate(
+            "candidate-f-1x64-four-layer-param-matched",
+            candidate_a_config(n_heads=1, n_layers=4, ffn_dim=65_536),
+            "Double sequential reasoning depth while holding total trainable parameters close to Candidate A.",
+        ),
+        D64TournamentCandidate(
+            "candidate-g-1x64-four-layer-full-ffn",
+            candidate_a_config(n_heads=1, n_layers=4, ffn_dim=131_072),
+            "Test whether Candidate A's full private FFN muscle remains useful across twice the depth.",
+        ),
+        D64TournamentCandidate(
+            "candidate-h-1x64-six-layer-param-rich",
+            candidate_a_config(n_heads=1, n_layers=6, ffn_dim=65_536),
+            "Test deeper recursive transformation with more capacity than Candidate A but less memory than the full-width four-layer core.",
+        ),
+    )
+
+
+def d64_architecture_search_space() -> tuple[D64TournamentCandidate, ...]:
+    """The declared 3 x 4 x 4 Living-core geometry space (48 legal shapes)."""
+
+    candidates = []
+    for layers in (2, 5, 10):
+        for heads in (1, 2, 4, 8):
+            for ffn_dim in (4_096, 16_384, 65_536, 131_072):
+                label = f"d64-l{layers}-h{heads}-f{ffn_dim}"
+                candidates.append(
+                    D64TournamentCandidate(
+                        label,
+                        candidate_a_config(
+                            n_layers=layers,
+                            n_heads=heads,
+                            ffn_dim=ffn_dim,
+                            dropout=0.0,
+                            receipt_continuation=True,
+                        ),
+                        (
+                            f"Measure {layers} unique layers, {heads} attention heads, and "
+                            f"a {ffn_dim}-wide FFN on the same receipt-aware D64 runtime surface."
+                        ),
+                    )
+                )
+    return tuple(candidates)
+
+
+_SCREENING_GEOMETRIES = (
+    (2, 1, 4_096),
+    (2, 2, 16_384),
+    (2, 4, 65_536),
+    (2, 8, 131_072),
+    (5, 1, 16_384),
+    (5, 2, 4_096),
+    (5, 4, 131_072),
+    (5, 8, 65_536),
+    (10, 1, 65_536),
+    (10, 2, 131_072),
+    (10, 4, 4_096),
+    (10, 8, 16_384),
+    # Anchors make the most important boundary comparisons explicit.
+    (2, 1, 131_072),
+    (5, 1, 65_536),
+    (10, 1, 4_096),
+    (2, 8, 4_096),
+)
+
+
+def d64_architecture_screening_tournament() -> D64Tournament:
+    """Balanced 16-shape screen covering every declared factor level."""
+
+    lookup = {
+        (item.config.n_layers, item.config.n_heads, item.config.ffn_dim): item
+        for item in d64_architecture_search_space()
+    }
+    return D64Tournament(
+        candidates=tuple(lookup[geometry] for geometry in _SCREENING_GEOMETRIES)
+    )
+
+
+def d64_architecture_campaign() -> D64TournamentCampaign:
+    """Staged elimination plan; later-stage labels are filled from evidence."""
+
+    screening = d64_architecture_screening_tournament()
+    labels = tuple(item.label for item in screening.candidates)
+    return D64TournamentCampaign(
+        search_space=d64_architecture_search_space(),
+        screening_tournament=screening,
+        stages=(
+            D64TournamentStage(
+                name="balanced-causal-screen",
+                candidate_labels=labels,
+                entrant_count=16,
+                seeds=(20260912,),
+                optimizer_step_budget=32,
+                promotion_count=8,
+                purpose=(
+                    "Eliminate shapes that cannot learn the real typed motor causally or fit "
+                    "the accelerator envelope; this opening cannot declare competence."
+                ),
+            ),
+            D64TournamentStage(
+                name="multi-seed-learning",
+                candidate_labels=(),
+                entrant_count=8,
+                seeds=(20260912, 20260913, 20260914),
+                optimizer_step_budget=256,
+                promotion_count=3,
+                purpose=(
+                    "The eight evidence-ranked survivors enter; measure stability rather "
+                    "than one lucky initialization."
+                ),
+            ),
+            D64TournamentStage(
+                name="runtime-assignment-final",
+                candidate_labels=(),
+                entrant_count=3,
+                seeds=(20260912, 20260913, 20260914),
+                optimizer_step_budget=1024,
+                promotion_count=1,
+                purpose=(
+                    "The three multi-seed survivors enter; require complete homework, Soul, "
+                    "field, replay, regression, and interruption gates."
+                ),
+            ),
         ),
     )
 
@@ -640,14 +852,20 @@ def d64_tournament_metrics(
 
 
 __all__ = [
+    "D64_TOURNAMENT_CAMPAIGN_SCHEMA",
     "D64_TOURNAMENT_RESULT_SCHEMA",
     "D64_TOURNAMENT_SCHEMA",
     "TOURNAMENT_METRIC_COMPUTATION_SCHEMA",
     "D64Tournament",
+    "D64TournamentCampaign",
     "D64TournamentCandidate",
     "D64TournamentMetricComputation",
     "D64TournamentResult",
+    "D64TournamentStage",
     "assert_same_gate_surface",
+    "d64_architecture_campaign",
+    "d64_architecture_screening_tournament",
+    "d64_architecture_search_space",
     "d64_head_geometry_tournament",
     "d64_tournament_metric_computation",
     "d64_tournament_metrics",

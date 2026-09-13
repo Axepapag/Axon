@@ -14,6 +14,7 @@ from runtime.field import (
     SharedFieldSnapshot,
 )
 from runtime.heart import (
+    TRAINER_LIFECYCLE_RECORD_TYPES,
     AuthorityClass,
     AuthorityGrant,
     AuthorityViolationError,
@@ -159,6 +160,15 @@ def test_authority_matrix_governs_exact_regions_per_class() -> None:
     for region in LogicalRegion:
         assert identity_steward.governs(region) is (region is LogicalRegion.IDENTITY)
 
+    trainer = AuthorityGrant.trainer()
+    for region in LogicalRegion:
+        assert trainer.governs(region) is (
+            region in (LogicalRegion.TRAINER_INSTRUCTIONS, LogicalRegion.TRAINING_RESPONSES)
+        )
+    for record_type in TRAINER_LIFECYCLE_RECORD_TYPES:
+        assert trainer.governs_lifecycle_record(record_type)
+    assert not trainer.governs_lifecycle_record("identity")
+
 
 def test_invalid_grants_fail_closed() -> None:
     with pytest.raises(InvalidAuthorityGrantError):
@@ -173,6 +183,15 @@ def test_invalid_grants_fail_closed() -> None:
         AuthorityGrant.core({"not-a-region"})
     with pytest.raises(InvalidAuthorityGrantError):
         AuthorityGrant("not-a-class")
+    with pytest.raises(InvalidAuthorityGrantError):
+        AuthorityGrant(AuthorityClass.TRAINER, channel=IngressChannel.USER)
+    with pytest.raises(InvalidAuthorityGrantError):
+        AuthorityGrant(
+            AuthorityClass.TRAINER,
+            permitted_regions=frozenset({LogicalRegion.TRAINING_RESPONSES}),
+        )
+    with pytest.raises(InvalidAuthorityGrantError):
+        AuthorityGrant.core({LogicalRegion.TRAINER_INSTRUCTIONS})
 
 
 def test_core_authority_rejects_ungoverned_delta() -> None:

@@ -1,6 +1,6 @@
 # Axon Source Of Truth
 
-Last updated: 2026-09-08 (D64 pointer-transition ratification)
+Last updated: 2026-09-10 (accepted checkpoint recovery and training landmarks)
 
 ## Core Doctrine
 
@@ -864,6 +864,17 @@ pending bundle or preserves conflicting/orphan evidence without advancing the
 accepted pointer. A renewed Complete-Field preflight may resume the checkpoint
 only when its stable grant/plan/inventory/module/generation/tensor scope is
 exactly identical; refreshed evidence never widens mutation authority.
+
+Jeff's 2026-09-10 training-continuity instruction requires a small rolling
+checkpoint set plus evidence-linked landmarks. Retention now protects the
+published rolling parameter/optimizer/Soul bundles independently of newer
+optimizer-only checkpoints. `CandidateStepBundleCoordinator.mark_landmark()`
+can retain an existing accepted bundle at an assignment or mode-transition
+boundary after verifying its checkpoint, private Soul snapshot, and accepted
+ancestry. A landmark is retention metadata, not a competency or activation
+gate. Immutable records remain intact; dry-run and execution use the same
+retention selection. Automatic assignment scheduling and atomic runtime
+mode switching are not implemented by this retention change.
 
 The first load-bearing neural reasoning candidate is
 `training/living_reasoning_d64.py`. Candidate A is exactly `d_model=64`, one

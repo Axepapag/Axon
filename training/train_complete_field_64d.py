@@ -54,7 +54,13 @@ def migrate_identity_region_optimizer_state(
     model: CompleteField64D,
     optimizer_state: Mapping[str, Any],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Zero-extend Adam/SGD state for the explicitly added Identity row."""
+    """Zero-extend Adam/SGD state for rows added after a checkpoint's schema.
+
+    Only tensors shaped for a supported historical region count (pre-identity
+    ten, identity-schema eleven) are extended to the destination model's
+    canonical row count; every other tensor is left untouched and fails
+    closed through the subsequent strict optimizer load if incompatible.
+    """
 
     migrated = copy.deepcopy(dict(optimizer_state))
     parameter_names = [name for name, _ in model.named_parameters()]
@@ -73,21 +79,29 @@ def migrate_identity_region_optimizer_state(
     entry = states.get(parameter_id, {})
     if not isinstance(entry, dict):
         raise ValueError("region embedding optimizer state must be a mapping")
-    old_shape = (len(REGION_ORDER) - 1, model.cfg.d_model)
-    new_shape = (len(REGION_ORDER), model.cfg.d_model)
+    target = model.state_dict()["region_embedding.weight"]
+    if target.ndim != 2 or tuple(target.shape[1:]) != (model.cfg.d_model,):
+        raise ValueError("destination region embedding anatomy is invalid")
+    new_shape = tuple(target.shape)
     extended: list[str] = []
     for name, value in tuple(entry.items()):
-        if not isinstance(value, torch.Tensor) or tuple(value.shape) != old_shape:
+        if (
+            not isinstance(value, torch.Tensor)
+            or value.ndim != 2
+            or tuple(value.shape[1:]) != (model.cfg.d_model,)
+            or value.shape[0] >= new_shape[0]
+        ):
             continue
+        rows_added = new_shape[0] - value.shape[0]
         entry[name] = torch.cat(
             (
                 value,
-                torch.zeros((1, model.cfg.d_model), dtype=value.dtype, device=value.device),
+                torch.zeros((rows_added, model.cfg.d_model), dtype=value.dtype, device=value.device),
             ),
             dim=0,
         )
         if tuple(entry[name].shape) != new_shape:
-            raise ValueError("optimizer Identity-row migration produced the wrong shape")
+            raise ValueError("optimizer region-row migration produced the wrong shape")
         extended.append(name)
     return migrated, {
         "parameter": "region_embedding.weight",

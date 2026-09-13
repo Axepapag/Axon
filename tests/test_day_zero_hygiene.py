@@ -32,6 +32,7 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "compiler_d64.py",
         "semantic_d64.py",
         "state_branch.py",
+        "training_view.py",
     }
 
     runtime_files = {path.name for path in (ROOT / "runtime" / "axon_runtime").glob("*.py")}
@@ -75,6 +76,8 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "translation_core.py",
         "turns.py",
         "d64_codec.py",
+        "remote_rail.py",
+        "rail_auth.py",
         "autobiography.py",
         "lease.py",
         "valve.py",
@@ -107,6 +110,10 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "soul_candidates.py",
         "step_bundle.py",
         "tranche.py",
+        "assignments.py",
+        "local_worker.py",
+        "supervisory_gates.py",
+        "training_session.py",
     }
 
     soul_files = {path.name for path in (ROOT / "runtime" / "soul").glob("*.py")}

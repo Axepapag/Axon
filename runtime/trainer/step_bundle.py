@@ -670,6 +670,64 @@ class CandidateStepBundleCoordinator:
         # pointer publication closes either single-file crash window.
         _atomic_json(sentinel_path, sentinel)
 
+    def mark_landmark(
+        self,
+        bundle: AcceptedTrainingStepBundle,
+        *,
+        label: str,
+        evidence_ids: tuple[str, ...],
+    ) -> str:
+        """Preserve an exact accepted parameter/optimizer/Soul milestone.
+
+        This is retention evidence, never a competency or promotion decision.
+        Callers hold the existing Trainer writer lease, as for accept_step.
+        """
+        label = _required(label, "label")
+        evidence = tuple(sorted({_required(item, "evidence_id") for item in evidence_ids}))
+        if not evidence:
+            raise TrainerStoreError("checkpoint landmark requires evidence identities")
+        durable = self.load_bundle(bundle.module_id, bundle.candidate_generation_id, bundle.bundle_id)
+        if durable != bundle:
+            raise TrainerStoreError("landmark bundle differs from durable accepted bundle")
+        pointer = self.latest_pointer(bundle.module_id, bundle.candidate_generation_id)
+        if pointer is None:
+            raise TrainerStoreError("landmark requires a published accepted boundary")
+        ancestor_id = pointer.current_bundle_id
+        visited = set()
+        while ancestor_id != bundle.bundle_id:
+            if ancestor_id is None or ancestor_id in visited:
+                raise TrainerStoreError("landmark is not in the accepted checkpoint lineage")
+            visited.add(ancestor_id)
+            ancestor = self.load_bundle(bundle.module_id, bundle.candidate_generation_id, ancestor_id)
+            ancestor_id = ancestor.previous_bundle_id
+        checkpoint = self.checkpoint_for_bundle(bundle)
+        self.trainer_store.load_verified_candidate_checkpoint(checkpoint)
+        manifest = self._soul_manifest(self._intent_for_landmark(bundle))
+        branch = self.souls.branch(manifest.candidate_id, bundle.core_id)
+        branch.load_snapshot(bundle.after_soul_id)
+        value = {
+            "schema": "axon-training-checkpoint-landmark-v1",
+            "module_id": bundle.module_id,
+            "candidate_generation_id": bundle.candidate_generation_id,
+            "bundle_id": bundle.bundle_id,
+            "checkpoint_id": bundle.checkpoint_id,
+            "soul_id": bundle.after_soul_id,
+            "label": label,
+            "evidence_ids": list(evidence),
+        }
+        landmark_id = canonical_sha256(value)
+        _immutable_json(
+            self._root(bundle.module_id, bundle.candidate_generation_id) / "landmarks" / f"{landmark_id}.json",
+            {**value, "landmark_id": landmark_id},
+        )
+        return landmark_id
+
+    def _intent_for_landmark(self, bundle: AcceptedTrainingStepBundle) -> CandidateTrainingStepIntent:
+        intents, _bundles, _pointer, _sentinel = self._paths(bundle.module_id, bundle.candidate_generation_id)
+        return CandidateTrainingStepIntent.from_mapping(
+            json.loads((intents / f"{bundle.intent_id}.json").read_text(encoding="utf-8"))
+        )
+
     def accept_step(
         self,
         *,
