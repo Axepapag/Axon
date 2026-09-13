@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-13T00:23:26.130234+00:00
+Updated: 2026-09-13T02:16:18.446473+00:00
 Current through event:
-`evt-20260913T002326130234Z-codex-layers-versus-ticks`
+`evt-20260913T021618446473Z-codex-d64-architecture-screen`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
@@ -10,55 +10,58 @@ Identity stamp: Codex / GPT-6 / 2026-09-12
 
 ## Current mission and honest status
 
-Architecture decision after Jeff's layers-versus-ticks question: treat recurrent
-compute as the primary parameter-efficiency axis. A unique layer adds a distinct
-stored transformation; a tick reuses the same learned transition on updated
-field/Soul state. The working hypothesis is therefore a two-physical-layer core
-trained across randomized recurrent depths, with adequate scratch/Soul state and
-adaptive halting. Its minimum viable size is the smallest configuration whose
-held-out results improve causally across added ticks and extrapolate beyond its
-training depth without cycling, drift, repetition, or overthinking. Exact D16
-characters packed into D64 remove tokenizer ambiguity but do not supply semantic
-knowledge or erase the learned D64 state bottleneck. Keep outer canonical Heart
-publication for meaningful proposals and distinguish it from cheaper latent
-microticks. No model configuration or runtime state changed from this decision.
+The real D64 Living-core architecture tournament is now implemented and
+packetized. The canonical campaign declares 48 legal shapes over 2/5/10
+physical layers, 1/2/4/8 attention heads, and 4,096/16,384/65,536/131,072 FFN
+widths. Ten standard heads is invalid because 64 is not divisible by ten. A
+balanced 16-shape opening screen covers every factor level and boundary anchor;
+later stages retain at most eight, three, and one candidates across increasing
+budgets and three seeds. The campaign identity is
+`c4ebb873afb8a33c6c3f4e4e7cd3d7c23951f33a35ce6ef7470609fb4dcdbeab`.
 
-Codex continued the real runtime-training remediation and completed a verified
-corrective checkpoint. Review:
-`roundtable/reviews/CODEX_RUNTIME_TRAINING_REMEDIATION_CHECKPOINT_2026-09-12.md`.
-Four demonstrated failures are now corrected: supervisory recomputation binds
-the exact incoming Soul; rail proposals decode free-running without teacher
-target-prefix leakage; every Heart response advances the stable assignment to a
-new canonical view that can attend its own latest-eight attempts; and rejected
-learning state survives restart through an atomic, hash-verified rolling-three
-model/optimizer workspace. An injected `CanonicalStateBranch` persists the same
-successor as durable HEAD. Assignment identity is stable across view/curriculum
-revisions, and trainer public exports are repaired.
+This tournament uses the real `LivingReasoningCoreD64`,
+`living_episode_objective`, typed decision/operation/region/pointer heads,
+causal free-running transport, complete-field receipts, and recurrent Soul
+unroll. Candidate sizes in the opening range from 1,222,329 to 169,384,121
+parameters and average 35,130,229. The smallest boundary and a 169.38M boundary
+both passed the same canonical-State preflight. The 29-test Living/tournament/
+launcher surface and two optimizer/homework session tests pass; relevant Ruff,
+py_compile, and whitespace checks pass.
 
-Verification: the 253-test broad focused run produced 252 passes and one obsolete
-pre-Soul assertion; that assertion was corrected and passed independently. The
-81-test affected runtime group then passed after WIP integration, followed by
-four passing final Soul/lineage/successor probes. Attempt-workspace retention and
-corruption tests, `git diff --check`, and changed-module Ruff checks pass. No
-Kaggle job, runtime service, migration, or promotion was started.
+The governed runtime-training foundation and tournament were committed at
+`0a51bc8`; explicit optimizer/homework separation was committed at `b91bf74`.
+An accepted optimizer update now carries an independent `HomeworkVerdict`.
+Wrong, unterminated, absent-target, or gate-rejected responses leave the
+assignment active. Only an accepted update whose exact terminated free-running
+response matches the assignment target invokes `AssignmentStore.complete`.
+Optimizer steps and resource tranches no longer imply homework completion.
 
-The D64 capacity decision is recorded at
-`roundtable/proposals/CODEX_D64_CORE_MUSCLE_RUNTIME_TRAINING_DECISION_2026-09-12.md`.
-Exact four-by-D16 character packing removes tokenizer ambiguity and preserves
-canonical addresses, while learned attention, residual updates, and Soul still
-communicate through D64 continuous state. Candidate A already contains a
-131,072-wide FFN and 33,982,137 parameters. The clean first depth experiment is
-a four-layer/65,536-FFN core with 34,016,057 parameters; larger measured 51M and
-68M candidates remain gated tournament entrants, not canonical replacements.
+The private stage-one packet is prepared as
+`35c5c22b2e4e14c1db36b61306ec507bc79efbe72997cdcc43561a3dfab7a741`,
+bound to Git `b91bf74955caccd0ee7a1e714e89c06067027e38`. It contains 439 files
+(6,322,653 unpacked bytes), has not been uploaded, and consumed no GPU time.
+Kaggle CLI authentication for `axongliksbot` is healthy and reports 30/30 GPU
+hours.
 
-Kaggle remains blocked. The session still trains the 114,145-parameter
-`CompleteField64D` conformance motor rather than `LivingReasoningCoreD64`;
-completed-attempt durability still lacks one cross-store prepare/finalize/recover
-transaction across journal, Soul, workspace, field, and landmark; admissible
-optimizer-step and completed-homework decisions remain conflated; and no live
-Kaggle interruption/replay smoke has passed. Next: bind the living-core adapter,
-add crash transactions and assignment-completion supervision, pass local causal
-and delayed-Soul gates, then run no-learning and tiny-learning Kaggle smokes.
+Kaggle launch is blocked by one concrete manual dependency: the last real
+mid-run sync receipt records `SyncCredentialsMissing`. Project policy reserves
+the Kaggle API token setup to Jeff. Jeff must create and attach the Kaggle User
+Secret `AXON_KAGGLE_SYNC` to the `axongliksbot` job without sharing the token
+with engineers. Then run a tiny authenticated checkpoint-sync interruption and
+exact replay smoke. Only after that passes should the prepared 16-candidate
+packet launch. Its four-case evaluation is an opening diagnostic and cannot
+select or promote a winner.
+
+Two local architecture blockers remain while the campaign waits: the newer
+runtime `TrainingSession` still drives the 114,145-parameter
+`CompleteField64D` conformance motor rather than `LivingReasoningCoreD64`, and
+attempt/Soul/workspace/field/landmark publication still lacks one cross-store
+prepare/finalize/recover transaction with crash injection at every boundary.
+The existing governed tournament path itself does use the Living core and can
+accumulate real isolated candidate Souls once the recovery smoke passes.
+
+Detailed decision artifact:
+`roundtable/proposals/CODEX_D64_ARCHITECTURE_TOURNAMENT_2026-09-12.md`.
 
 Earlier continuity material follows. It is historical; the checkpoint above is
 current.

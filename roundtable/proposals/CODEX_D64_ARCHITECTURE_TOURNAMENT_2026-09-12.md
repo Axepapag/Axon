@@ -4,7 +4,7 @@
 
 **Date:** 2026-09-12
 
-**Status:** Implemented locally; Kaggle launch gated by authenticated mid-run recovery
+**Status:** Implemented and packetized; Kaggle launch gated by authenticated mid-run recovery
 
 ## Decision
 
@@ -65,3 +65,8 @@ recoverable. The stage-one recipe enables private mid-run sync, but launch must
 wait until the Kaggle User Secret is attached and an authenticated
 checkpoint-sync/interruption/replay smoke succeeds. This is a real missing
 operational dependency, not a model limitation.
+
+The launchable source is committed at `b91bf74955caccd0ee7a1e714e89c06067027e38`.
+Its immutable prepared job is
+`35c5c22b2e4e14c1db36b61306ec507bc79efbe72997cdcc43561a3dfab7a741`.
+Preparation uploaded nothing and consumed no GPU time.
