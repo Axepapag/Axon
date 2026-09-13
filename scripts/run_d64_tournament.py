@@ -165,6 +165,46 @@ def _failure_class(stderr: str) -> str | None:
     return None
 
 
+def _load_candidate_report(
+    completed: subprocess.CompletedProcess[str],
+    *,
+    state_root: Path,
+    progress_dir: Path | None,
+    candidate_label: str,
+) -> dict[str, Any]:
+    """Load a child's report from stdout or its durable progress receipt."""
+
+    if completed.stdout.strip():
+        report = json.loads(completed.stdout)
+        if not isinstance(report, dict):
+            raise ValueError("candidate stdout report must be a JSON object")
+        return report
+    if progress_dir is None:
+        raise ValueError("candidate returned no stdout report and has no progress receipt")
+
+    current_path = progress_dir / "candidates" / candidate_label / "current.json"
+    current = json.loads(current_path.read_text(encoding="utf-8"))
+    details = current.get("details")
+    if not isinstance(details, dict) or not isinstance(details.get("report_path"), str):
+        raise ValueError("candidate progress receipt does not name a report")
+
+    report_path = Path(details["report_path"]).resolve()
+    state_root = state_root.resolve()
+    if not report_path.is_relative_to(state_root):
+        raise ValueError("candidate report path escapes the governed State root")
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    if not isinstance(report, dict):
+        raise ValueError("candidate report artifact must be a JSON object")
+    report_id = report.get("report_id")
+    unsigned = dict(report)
+    unsigned.pop("report_id", None)
+    if not isinstance(report_id, str) or canonical_sha256(unsigned) != report_id:
+        raise ValueError("candidate report artifact failed its content-address check")
+    if details.get("report_id") != report_id:
+        raise ValueError("candidate progress receipt names a different report id")
+    return {**report, "report_path": str(report_path)}
+
+
 def main() -> int:
     args = _arguments()
     for name in ("evaluation_case_limit", "checkpoint_interval"):
@@ -294,16 +334,30 @@ def main() -> int:
         report = None
         failure_class = None
         if completed.returncode == 0:
-            report = json.loads(completed.stdout)
-            architecture_id = report.get("architecture", {}).get("architecture_id")
-            if (
-                report.get("candidate_label") != candidate.label
-                or architecture_id != candidate.config.architecture_id
-                or report.get("ffcs_manifest_ids") != ffcs_manifest_ids
-                or not report.get("campaign_curriculum_id")
-                or report.get("seed") != args.seed
-            ):
+            try:
+                report = _load_candidate_report(
+                    completed,
+                    state_root=args.state_root,
+                    progress_dir=args.progress_dir,
+                    candidate_label=candidate.label,
+                )
+                architecture = report.get("architecture")
+                architecture_id = (
+                    architecture.get("architecture_id")
+                    if isinstance(architecture, dict)
+                    else None
+                )
+                report_valid = (
+                    report.get("candidate_label") == candidate.label
+                    and architecture_id == candidate.config.architecture_id
+                    and report.get("ffcs_manifest_ids") == ffcs_manifest_ids
+                    and bool(report.get("campaign_curriculum_id"))
+                    and report.get("seed") == args.seed
+                )
+            except (OSError, ValueError, TypeError):
                 report = None
+                report_valid = False
+            if not report_valid:
                 failed = True
                 failure_class = "ReportContractError"
         else:
