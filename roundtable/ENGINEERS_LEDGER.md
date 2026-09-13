@@ -135,10 +135,9 @@ remote Living core inside the canonical runtime training loop.
 - **BLOCKING:** authenticated checkpoint interruption/replay has not passed.
 - **BLOCKING:** the runtime `TrainingSession` still lacks the real Living-core
   adapter and complete cross-store recovery transaction.
-- **ADVISORY:** D:/extension source is restored after a deduplication
-  experiment, but its Browser Hub feed may require Jeff to click **Turn Feed
-  ON**. Duplicate WebSocket/HTTP command delivery can double-toggle Kaggle MUI
-  menus.
+- **ADVISORY:** D:/extension source is restored and the Browser Hub recovered
+  to two WebSocket clients at the final machine sweep. Duplicate WebSocket/HTTP
+  command delivery can still double-toggle Kaggle MUI menus.
 - **ADVISORY:** the fetched smoke learned its narrow surface but produced no
   exact free-running payload. Architecture and objective selection remain open.
 - Pre-existing day-zero hygiene failure: `attempt_workspace.py` is absent from
@@ -180,4 +179,6 @@ python scripts/axon_kaggle.py prepare configs/kaggle/d64_architecture_screen_sta
 - Latest documentation commit: `8c994c8` (D64 Kaggle handoff).
 - Kaggle account: `axongliksbot`; first private smoke is complete and fetched.
 - No production Heart or serving service was started or stopped.
+- D:/extension Browser Hub is healthy with two WebSocket clients; no source
+  modification remains.
 - Approximate observed T4 consumption for the completed smoke: 0.56 GPU hours.
