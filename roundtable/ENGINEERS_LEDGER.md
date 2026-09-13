@@ -1,586 +1,183 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-13T03:09:14.668860+00:00
+Updated: 2026-09-13T08:01:00+00:00
 Current through event:
-`evt-20260913T030914668860Z-codex-extension-profile-recovery`
+`evt-20260913T074500Z-kimi-sync-smoke-first-run`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
+
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
-Identity stamp: Codex / GPT-6 / 2026-09-12
+
+Identity stamp: Codex / GPT-6 / 2026-09-13
 
 ## Current mission and honest status
 
-Kaggle secret setup has reached the exact API-key creation boundary. Codex now uses the personal `D:/extension` Browser Hub policy, opened Chrome profile `gliksbot.com`, and visibly verified Kaggle username `axongliksbot`, matching the CLI and prepared packet. The API Tokens page is open at `Generate New Token`; no token, secret, dataset, kernel, or GPU job has been created. The next action requires the computer-use policy confirmation for persistent API-key creation.
-
-The Kaggle secret-and-launch mission is paused at the only manual boundary. Codex opened Kaggle Settings in a fresh browser session and reached Google sign-in, but that browser is not authenticated. No credential was read or transmitted and no cloud job launched. Jeff must complete sign-in in the preserved browser tab; Codex can then inspect/create and attach `AXON_KAGGLE_SYNC`, prove a tiny authenticated checkpoint sync plus interruption/replay, and launch the 16-candidate tournament only after that gate passes.
-
-
-The real D64 Living-core architecture tournament is now implemented and
-packetized. The canonical campaign declares 48 legal shapes over 2/5/10
-physical layers, 1/2/4/8 attention heads, and 4,096/16,384/65,536/131,072 FFN
-widths. Ten standard heads is invalid because 64 is not divisible by ten. A
-balanced 16-shape opening screen covers every factor level and boundary anchor;
-later stages retain at most eight, three, and one candidates across increasing
-budgets and three seeds. The campaign identity is
-`c4ebb873afb8a33c6c3f4e4e7cd3d7c23951f33a35ce6ef7470609fb4dcdbeab`.
-
-This tournament uses the real `LivingReasoningCoreD64`,
-`living_episode_objective`, typed decision/operation/region/pointer heads,
-causal free-running transport, complete-field receipts, and recurrent Soul
-unroll. Candidate sizes in the opening range from 1,222,329 to 169,384,121
-parameters and average 35,130,229. The smallest boundary and a 169.38M boundary
-both passed the same canonical-State preflight. The 29-test Living/tournament/
-launcher surface and two optimizer/homework session tests pass; relevant Ruff,
-py_compile, and whitespace checks pass.
-
-The governed runtime-training foundation and tournament were committed at
-`0a51bc8`; explicit optimizer/homework separation was committed at `b91bf74`.
-An accepted optimizer update now carries an independent `HomeworkVerdict`.
-Wrong, unterminated, absent-target, or gate-rejected responses leave the
-assignment active. Only an accepted update whose exact terminated free-running
-response matches the assignment target invokes `AssignmentStore.complete`.
-Optimizer steps and resource tranches no longer imply homework completion.
-
-The private stage-one packet is prepared as
-`35c5c22b2e4e14c1db36b61306ec507bc79efbe72997cdcc43561a3dfab7a741`,
-bound to Git `b91bf74955caccd0ee7a1e714e89c06067027e38`. It contains 439 files
-(6,322,653 unpacked bytes), has not been uploaded, and consumed no GPU time.
-Kaggle CLI authentication for `axongliksbot` is healthy and reports 30/30 GPU
-hours.
-
-Kaggle launch is blocked by one concrete manual dependency: the last real
-mid-run sync receipt records `SyncCredentialsMissing`. Project policy reserves
-the Kaggle API token setup to Jeff. Jeff must create and attach the Kaggle User
-Secret `AXON_KAGGLE_SYNC` to the `axongliksbot` job without sharing the token
-with engineers. Then run a tiny authenticated checkpoint-sync interruption and
-exact replay smoke. Only after that passes should the prepared 16-candidate
-packet launch. Its four-case evaluation is an opening diagnostic and cannot
-select or promote a winner.
-
-Two local architecture blockers remain while the campaign waits: the newer
-runtime `TrainingSession` still drives the 114,145-parameter
-`CompleteField64D` conformance motor rather than `LivingReasoningCoreD64`, and
-attempt/Soul/workspace/field/landmark publication still lacks one cross-store
-prepare/finalize/recover transaction with crash injection at every boundary.
-The existing governed tournament path itself does use the Living core and can
-accumulate real isolated candidate Souls once the recovery smoke passes.
-
-Detailed decision artifact:
-`roundtable/proposals/CODEX_D64_ARCHITECTURE_TOURNAMENT_2026-09-12.md`.
-
-Earlier continuity material follows. It is historical; the checkpoint above is
-current.
-
-Final Codex inspection found no Kimi source changes after the constructive review;
-its verified progress and blockers remain current. Hermes takeover handoff:
-`roundtable/HANDOFF_HERMES_REAL_RUNTIME_TRAINING_2026-09-11.md`.
-Hermes must preserve Kimi's real foundations and connect exact accepted-bundle
-loading, Soul-conditioned forward computation, unified worker/Gate evidence,
-atomic parameter/optimizer/Soul/attempt publication, canonical Heart response
-commit, successor-view scheduling, and whole-process restart continuity.
-
-The next authorized engineering result is one real local accepted assignment
-across process restart. No HTTP exposure, public demo start, Kaggle launch, live
-state migration, or serving promotion belongs in that mission.
-
-Codex completed a targeted review of Kimi's post-handoff runtime-training
-foundations. Review:
-`roundtable/reviews/CODEX_KIMI_RUNTIME_TRAINING_FOUNDATIONS_REVIEW_2026-09-11.md`.
-This is materially real progress rather than simulation: authenticated/replay-
-protected envelopes, one-body attention views, durable assignments, granted core
-bindings, real PyTorch categorical loss/backward/optimizer execution, real
-SoulStore transitions, and independent supervisory recomputation exist. Ninety-
-five selected tests passed. Kimi had not yet appended a completion event, so the
-tree was treated as active work and her files were left untouched.
-
-Blocking integration gaps: the inhaled Soul is checked but never passed as the
-model's initial recurrent state; the worker seeds a fresh model instead of loading
-the exact bound parameter/optimizer checkpoint; learned parameters and optimizer
-state remain process-memory only; Soul commits before attempt recording and is
-not atomically published with weights; worker and Gate bundle types are not
-connected; Gate acceptance does not commit the typed response through Heart; and
-instruction reconstruction is not yet `ABC? -> D` assignment semantics. No
-Kaggle launch or integrated-training claim is permitted yet.
-
-The next gate is the local end-to-end chain documented in the review, including
-process restart and exact training/reasoning/training continuity.
-
-Jeff explicitly directed destruction rather than archival of Gemini's fake
-executable training behavior and requested a takeover handoff. Completed:
-`roundtable/HANDOFF_REAL_RUNTIME_TRAINING_RECOVERY_2026-09-11.md`.
-The named Antigravity conversation database was read-only inspected and confirms
-that Gemini created a source-labelled simulation while describing it as real
-forward/Soul/Heart/trainer behavior. The five simulator/endpoint/test sources,
-their generated bytecode, and all four tracked integration diffs were removed.
-The tracked demo and Heart files now match committed state; no relevant Python
-references remain. Historical review and canonical ledger evidence remain for
-accountability, as Jeff requested.
-
-Post-removal verification: 39 selected Heart, circulation, remote-rail,
-checkpoint-retention, and training-bundle tests passed; py_compile and
-`git diff --check` passed. No service or Kaggle job was launched.
-
-Jeff's central design is physically achievable with qualifications recorded in
-the handoff: Kaggle is an ephemeral outbound worker; Kaggle CLI login does not
-authenticate calls to the local Heart; the remote worker must retain the
-differentiable graph for forward/loss/backward/optimizer; Heart retains durable
-assignment state and sole acceptance/commit authority. No Kaggle action should
-precede the local durability, real-core, Soul/checkpoint, typed-emission,
-restart-recovery, causal-learning, and authenticated-transport gates.
-
-Remaining blockers are partial schema-v4 migration, absence of a durable local
-assignment controller, and absence of a real authenticated worker protocol.
-
-The prior point-in-time review below is retained as historical evidence; its
-executable subjects have now been deleted.
-
-Targeted review of the recent user-attributed Gemini remote-training work is
-complete. Blocking review:
-`roundtable/reviews/CODEX_GEMINI_REMOTE_TRAINING_REVIEW_2026-09-11.md`.
-The HTTP/assignment shapes are useful scaffolding, but the Kaggle worker is a
-fixed-output simulation with an in-memory fake Soul; authentication is optional;
-the demo callback calls nonexistent `HeartHost.boundary` and does not install the
-transaction successor; state is restart-volatile; raw worker text and a
-self-reported success Boolean bypass typed emissions and trainer evaluation; and
-the cohort creates a new masked snapshot identity. Focused tests pass 27/27
-because they encode those scaffold rules, including token-free access and a test
-only successor list. Ruff reports 53 findings. No process listened on TCP 8765
-at review time; no service or Kaggle job was started. Do not launch or restart
-this path until the blocking contracts are repaired.
-
-Kimi's intervening read-only repository sweep is preserved in canonical event
-`evt-20260911T052500000000Z-kimi-full-repo-inspection`; it changed no project
-implementation files.
-
-The earlier mission below remains unfinished and subordinate to these blockers.
-
-Jeff started a fresh task and authorized architecture corrections toward real
-runtime training: separate Cortex and reasoning-rail organs; dedicated Trainer
-instructions and response-history regions; only offline-training cores attend
-those regions; real emitted attempts return through Heart commits; persistent
-private Soul; gated work assignments with nurturing failure supervision; sparse
-checkpoints at intervals and landmarks; coherent training/reasoning transitions;
-then Kaggle training. The larger mission is unfinished.
-
-Current report: `roundtable/reports/FRESH_RUNTIME_TRAINING_AUDIT_2026-09-10.md`.
-
-Verified this turn: 32 initial runtime/Soul tests passed; 8 final checkpoint/bundle
-tests passed; Ruff and diff checks clean; doctrine mirrors byte-identical.
-Checkpoint retention now protects published accepted parameter/optimizer/Soul
-bundles despite newer unaccepted checkpoints. Evidence-linked landmarks retain
-older accepted bundles and verify checkpoint, Soul, and published ancestry.
-Maintenance dry-run and pruning share retention selection. No production pruning.
-
-Source findings: eleven existing regions exclude the two training regions;
-OFFLINE_TRAINING cores are excluded without a training circulation/mode API;
-current neural training uses curriculum-provided proposal boards; exhale captures
-reader state before the selected action; parameter activation does not jointly
-publish all core/Soul/runtime state. Kaggle exports a copy, not a live Heart link.
-
-Isolated causal Soul probe: HOT generations 0/1/2/3, ablation state L2
-0.7557021975517273, no later-loss autograd path to first exhale. Forward influence
-is verified; useful delayed memory and the best learning method remain unproven.
-Evidence: `State/training/audits/fresh_runtime_20260911/causal_soul.json`.
-
-**Pending clarification:** canonical Heart local with Kaggle workers (recommended),
-temporary whole-runtime transfer, or explicitly isolated first proof. No answer
-yet. No cloud job, endpoint, canonical migration, activation, commit, or push.
-Kaggle login healthy; quota at inspection: 26.22 GPU hours. No cloud GPU spent.
-
-Next: resolve deployment topology, implement and test the report's cohort/region,
-assignment/actual-proposal, Soul and exact mode-transition contracts; pass local
-runtime smoke and then small Kaggle integration smoke through first evaluation.
-Preserve existing untracked `legal/`, `scripts/diagnose_d64_routes.py`, and
-`tests/test_d64_route_diagnostic.py`. Prior D64 failures below remain relevant;
-they were not rerun by this inspection.
-
-## Previous mission evidence (preserved)
-
-The preceding research target was **exact motor writing on physical D64**.
-Jeff ratified R1-R12 and the Layer 13 clarification: deterministic continuation
-inside a selected Unicode scalar is categorical transport, while route choice,
-the exact source anchor, generate output, and EOS remain learned decisions.
-
-Two cloud ablation runs on Kaggle have now been executed, fetched, verified, and
-formally adjudicated:
-
-| Metric | Prior Unicode-walk v3 | Receipt D64 v1 (`4b228ccd...`) | Receipt D64 v2 (`2f5687a6...`) |
-|---|---:|---:|---:|
-| Objective Profile | Standard | `continuation_v1` | `route_eos_balanced_v2` |
-| Heldout source position | 0.645 | **1.000** | **1.000** |
-| Regression source position | 0.657 | **1.000** | **1.000** |
-| Heldout teacher-forced content only | 0.645 | **1.000** | **1.000** |
-| Regression content-only probe | 0.657 | **1.000** | **1.000** |
-| Heldout/regression copy route | 1.000 / 1.000 | 0.000 / 0.000 | **1.000 / 1.000** |
-| Heldout/regression EOS route | 0.000 / 0.000 | **1.000 / 1.000** | 0.000 / 0.000 |
-| Heldout emitted EOS token | 0.000 | 0.125 | 0.125 |
-| Regression emitted EOS token | 0.000 | 0.208 | **0.333** |
-| Heldout teacher-forced token accuracy | 0.364 | 0.475 | 0.475 |
-| Heldout exact terminated payload transport | 0.000 | **0.333** | 0.000 |
-| Heldout typed-emission exact rate | 0.000 | **0.333** | **0.333** |
-| Heldout final mean loss | 0.5760 | 0.7322 | **0.4461** |
-
-### What the Two Ablations Establish
-
-1. Receipt continuation retained 1.000 source-position and teacher-forced
-   content-only accuracy on complete heldout and changed-source regression
-   examinations. This is strong mechanism evidence, not exact emitted transport.
-2. The v2 D64 mixer reached 1.000 copy-route alignment across both probes.
-3. The current failure is joint copy/EOS/transport behavior:
-   In v1 (copy weight 0.25, EOS 1.0), the gate logit biased positive (always GENERATE;
-   EOS=1.000, Copy=0.000). In v2 (copy weight 4.0, EOS 2.0), the gate logit biased
-   negative (always COPY; Copy=1.000, EOS=0.000). Parameter inspection of checkpoint
-   `a91fcd16` confirmed `copy_gate.bias = -0.00978` with `copy_gate.weight` norm at only
-   `0.09427`. This is consistent with bias-dominated routing, but no direct
-   counterfactual yet proves that mechanism. v2's exact terminated transport is
-   0.000 and its 0.333 typed-emission rate comes from exact supervised phases,
-   including empty/abstain-like cases.
-
-## Current D64 receipt evidence
-
-- Decision: `roundtable/decisions/RESOLUTION_D64_POINTER_TRANSITION_2026-09-08.md`
-- Local acceptance: `roundtable/reports/D64_RECEIPT_LOCAL_ACCEPTANCE_2026-09-08.md`
-- Cloud adjudication v1: `roundtable/reports/D64_RECEIPT_KAGGLE_ABLATION_2026-09-09.md`
-- Cloud adjudication v2: `roundtable/reports/D64_RECEIPT_KAGGLE_ABLATION_V2_2026-09-09.md`
-- Cloud job v1: `4b228ccd6dcf2bfdddb09eed59d293c162b18486bd20f42ab70d52721c37f669`
-- Cloud job v2: `2f5687a63bd691a5c1b3af6823fabaebbae927ad1b74f43271fb5745edc94a5a`
-- Candidate v2: `r64v3-a80504169350a5ce`
-- Architecture: `living-d64-receipt-823973aed39c1fe14276d2c3`
-- Final checkpoint v2: `a91fcd16b5870661a82940c8ea11f27fd90502cf6ec2b5caf78d9faedf07e487`
-- Inspected step-120 checkpoint file: `22af77fa0bcedb396f1b1aea189863a2e4299ee33a19ab198cfa6d4abfa7088d.pt`
-- Report ID v2: `685024aeda64fe8fc71db334471403fff42f56187bd0d84066886448a5a46b09`
-- Report SHA256 v2: `28184f7950dbfddf3efeda8cd28aa5edd4846bcdbac874902b6f1e97180b4607`
-- Fetched archive SHA256 v2: `c48c6740877f46c05761ce14a25965956ad7926acceeb1a3d665c2531b718b7c`
-- Heldout final loss: 0.576025 (walk v3), 0.732245 (v1), 0.446148 (v2);
-  v2 also fell 81.28% from its own 2.382640 step-zero loss
-- Complete heldout/regression evaluation: true / true
-- Candidate lifecycle: paused at an exact accepted checkpoint, renewable
-- Serving promotion claimed: false
-
-## Binding continuity
-
-- Canonical state is exact 16D substrate. Active region masks determine the
-  Shared Field; masked vectors remain in Dormant state and are not deleted.
-- No character-count truncation or hidden tissue ceiling is allowed. Resource
-  tranches are renewable pauses, not lifetime or curriculum limits.
-- Heart remains the sole canonical writer. Reasoning cores make proposals;
-  consolidator proposals become real only through governed Heart validation and
-  commit.
-- Physical D64 remains permanently useful if it earns a role. Do not widen the
-  rail merely to evade a local curriculum or mechanism defect.
-- Do not promote from falling loss, teacher-forced exactness, aggregate metrics,
-  or a checkpoint's safe acceptance into Trainer storage.
-- Preserve all rejected candidates and immutable evidence. Never overwrite or
-  resume across incompatible architecture/objective/curriculum identities.
-- Preserve `D:\00`, teammate state, and the private untracked `legal/` tree.
-- No learned Heart or reasoning core is serving.
-
-## Active flags
-
-1. **Joint gate/transport failure:** v2 recovered copy alignment but EOS-route
-   accuracy and exact terminated payload transport are 0.000. Scalar-bias
-   dominance is a plausible hypothesis, not yet a proved cause.
-2. **Serving blocker:** durable HeartHost ownership and reload of decoder
-   execution state is not integrated.
-3. **Metric hazard:** the weak `exact_serving_gate_passed` name was renamed in code
-   to `nonzero_exact_output_observed` (progress signal only), with `exact_serving_gate_passed`
-   requiring strict 1.0 exact rates across all complete metric surfaces.
-4. **Cloud resilience:** optional mid-run off-kernel sync lacked
-   provider-managed credentials. The final bundle completed and is verified,
-   but future long runs need a secure secret path.
-5. **Windows tooling:** default Pytest temp/cache cleanup has local access and
-   long-path defects.
-
-## Prior recommendations (subordinate to the fresh runtime mission)
-
-1. Add a bounded D64 diagnostic that records per-position route logits and
-   compares the untouched v2 checkpoint with a zero-bias clamp. Do not promote
-   or rewrite the candidate. This observation-only diagnostic needs no new
-   ratification.
-2. If the counterfactual confirms bias dominance, compare a longer fresh
-   tranche and non-zero gate initialization under new content-addressed
-   identities. If it falsifies the hypothesis, inspect contextual separability
-   before changing architecture. Present any training or architecture
-   intervention to Jeff for ratification first.
-3. **Google Cloud meeting**: Operator demo package assembled and verified:
-   `roundtable/proposals/KIMI_GOOGLE_ORGAN_DEMO_RUNBOOK_2026-09-10.md`
-   (Heart transaction OS, 59,875-record autobiographical memory with measured
-   provenance retrieval, spot-native pause/resume lineage, honest D64 receipt
-   result). Jeff to review and rehearse before the morning of 2026-09-10.
-4. **Wider Rail Migration**: Only after the D64 mechanism is fully closed and ratified,
-   implement the width-generic packed compiler (`d_model // 16` lanes) for 512D.
-
-## Google meeting demo package (2026-09-10, deck + presenter briefing added)
-
-Kimi produced the operator runbook
-`roundtable/proposals/KIMI_GOOGLE_ORGAN_DEMO_RUNBOOK_2026-09-10.md` in isolated
-worktree `D:\Axon-worktrees\kimi-google-demo` on branch
-`codex/kimi-google-demo-20260909`; Kimi commit `7597a58` was reviewed and
-cherry-picked to `main` as `3a748eb`. Codex then independently reran the live
-organ surface (24 Heart/circulation tests and all 10 substrate conformance
-gates passed) and tightened the runbook's evidence boundaries. It is a 7-scene,
-~14-minute live story:
-
-1. 16D substrate conformance + exact Unicode roundtrip (incl. surrogate
-   fail-closed rejection).
-2. Per-region masks: attention slider changes the rail view, never the
-   canonical body (`field_id` preserved; masked state dormant in place).
-3. HeartHost sole-writer boundary: typed consolidator commit + transactional
-   receipt; core/unauthorized/malformed proposals rejected fail-closed
-   (`test_heart_control_plane.py`, 19 passed).
-4. D64 reasoning rail + two-barrier proposal workspace; malformed core output
-   rejected but accounted (`test_reasoning_circulation.py`, 5 passed); learned
-   cores explicitly not serving. The workspace serializer has D64/D128 tests,
-   but the canonical field compiler and learned reader remain D64.
-5. Dormant memory: 59,875 hash-chained records; one selected episode dereference
-   measured at 0.40–1.30 ms and verified against the index's stored SHA-256,
-   with provenance to `D:\00\axon_episodic_memory.db:episodes:1`. Private memory
-   text is withheld; full integrity walk is ~103 s and labeled as such.
-6. Trainer observability: content-addressed pointer/sentinels at step 120,
-   `paused` renewable lifecycle, offline Kaggle job catalog (`--json jobs`).
-7. D64 receipt result presented honestly: 1.000 position/content-only and
-   copy-route alignment vs 0.475 teacher-forced token accuracy, 0.000 exact
-   terminated transport, failed EOS, non-serving.
-
-Known exclusion: `run_axon_heart.py --once` cannot run from a bare scratch
-state root (no dormant generation index; `DormantGenerationError`) — the demo
-uses the verified circulation tests instead. No training launched, no cloud
-touched, and no serving capability is claimed. Operator commands now target the
-real `D:\Axon` `main` checkout. The Google ask distinguishes proven D64 tissue
-from future D512/D1024 compiler/reader engineering.
-
-Hermes (2026-09-09, `evt-20260909T232500000000Z-hermes-google-demo-deck`) built
-the presentation layer the runbook lacked: a 14-slide 1920×1080 HTML deck
-`roundtable/proposals/GOOGLE_DEMO_DECK_2026-09-10.html` (truth boundary as
-slide 2, per-scene PROVES / DOES-NOT-PROVE boxes, Scene 7 adjudication table
-with failures in amber before wins in cyan, presenter notes per slide on the
-`N` key, fullscreen `F`, `?slide=N` deep links, print-to-PDF, gliksbot.com
-palette) and a presenter briefing
-`roundtable/proposals/PRESENTER_NOTES_GOOGLE_DEMO_2026-09-10.md` (rehearsal
-cues, verbatim honest sentence and ask, timing safety valve, preflight
-additions). Before building on top of them, Hermes re-verified the live scenes
-on this machine with the Python 3.12 interpreter: substrate v7 conformance
-PASS, heart control plane 19 passed, reasoning circulation 5 passed (all exit
-0). Advisory: bare `python` on this box is a 3.11 venv without pytest — demo
-commands need the Python 3.12 full install on PATH.
-
-## Live organ demo server (2026-09-10, REAL state, Jeff's runtime-in-action)
-
-Jeff directed the runtime-in-action demonstration and then re-directed it:
-attach to the real state, remove all scripted answers (zero cores,
-`response_draft` canonically empty with a "Reasoning Cores Coming Soon" ghost,
-`user_input`/`cortex`/`conversation_history` populate with real ingress), no
-row caps or ceilings other than attention masks, the heart must beat on every
-attention-mask move, the rail organized by collapsible per-region sections
-(cores still attend everything), and "who is Jeff?" should surface real
-records about Jeff from the dormant state into CORTEX. Hermes rewrote
-`scripts/demo_organ_server.py`
-(`evt-20260910T021500000000Z-hermes-organ-demo-real-state`): real state root
-by default (real 59,875-record corpus, real canonical branch, real durable
-spool, real single-writer lease; `--demo` keeps the isolated rehearsal root),
-zero cores, heartbeats on every field change AND mask move, full-field rail
-grouped by region with presentation-only collapse. Verified live on the REAL
-state: "who is Jeff?" admitted through the valve into `user_input`; the first
-beat also drained a pending Aug-29 item from the real durable spool (durable
-replay proven on stage material); primitive dormant recall surfaced a real
-recovered record into CORTEX with provenance; the field grew 1584 → 2468 rail
-rows with no cap; canonical roundtrip exact across all regions (9868 valid
-lanes); moving the cortex slider to 30% beat the heart and froze a new tick
-view (`97c81486…`) with the canonical body untouched. UI verified by
-screenshot: grouped collapsible rail, real region content, honest chips.
-Boot: `PYTHONUTF8=1 python scripts/demo_organ_server.py` →
-http://127.0.0.1:9201. Advisory: the server holds the REAL Heart lease while
-running; use `--demo` for zero-risk rehearsal.
-
-### Cortex engine (2026-09-10, `evt-20260910T033000000000Z-hermes-cortex-engine-bounded`)
-
-Jeff re-directed the cortex again — correctly: it is **bounded working
-memory**, not a log. The engine now: queries the NEWEST SENTENCE of every
-non-cortex region, retrieves semantic edges from the real dormant index,
-scores through the production `DormantRelevanceAuditor` with a strict bar
-(0.42) and NO lexical fallback (the auditor's fallback path was the root cause
-of random noise surfacing — silence beats noise), prepends survivors to the
-TOP pushing older entries deeper, dedups against attended spans (repeat ticks
-are null ticks), and trims to an operator char budget (default 1600, slider
-400–6000) at span boundaries. Ticks fire on any field change AND on cadence
-(default 5 s, slider). Per-beat primitive recall is disabled so the cortex has
-exactly one writer path — the engine, still committing through the Heart
-boundary under DORMANT_VALVE authority. Root causes found and fixed for Jeff's
-two reports: (a) nothing-about-Jeff was query dilution — raw 600-char tails
-crushed retrieval support; newest-sentence queries surface the real Jeff
-records (index probe: `c-7dd3521f7686`, lexical 18, score 116); (b) noise was
-the auditor fallback + min_score 0.0 default. Verified live: "who is Jeff?" →
-the real record about Jeff's user site packages landed at the cortex TOP
-(1344/1600 chars), second tick null (dedup), roundtrip exact after the engine
-commit. UI gained the cortex engine panel (budget/cadence sliders, auto-tick,
-tick-now, last-tick verdict).
-
-### axon.gliksbot.com serves the live demo (2026-09-10,
-`evt-20260910T040000000000Z-hermes-axon-subdomain-live`)
-
-The organ demo is now on the public internet. Topology: the Cloudflare
-dashboard points `axon.gliksbot.com` directly at `localhost:8765` (bypassing
-host.py), where the Dream Team FastAPI server ran. Dream Team was verified
-quiet (July-era; last bus event 2026-09-07; no live users) and stopped
-cleanly; the organ demo now binds 8765 (`--port 8765`), and
-`D:/cloudflare-tunnel/sites/axon/.route` documents the topology plus the
-dashboard flip-back (to host.py:8080) for later. Verified live: GET / serves
-the demo UI; POST /api/ingress from the public internet was admitted through
-the real valve (heartbeat 26, tick 33, view committed), "hello from the live
-site" landed in the canonical `user_input`, and the cortex engine auto-ticked.
-Headless-Chrome screenshot of the live URL confirms the full UI including the
-public ingress and a real surfaced dormant record (MITRE ATLAS/Axon).
-**Flags**: the site now exposes the real canonical field and valve ingress
-publicly (no private memory text is displayed, but this is a production
-surface, not a sandbox — review before wide sharing); the server holds the
-REAL Heart lease while up; Dream Team rollback is one command after stopping
-the demo.
-
-### Cortex visibility + corpus truth (2026-09-10,
-`evt-20260910T043000000000Z-hermes-cortex-live-poll-and-corpus-truth`)
-
-Jeff reported the cortex seemed not to tick unless a slider moved, and that
-surfaces looked like nonsense; he asked whether the dormant state holds
-semantic edges/triples. Findings: (a) the cortex WAS ticking server-side —
-the UI just never looked; the page now live-polls `/api/summary` every 2.5 s
-and refreshes the whole view (rail included) on any change, and ingress runs
-a cortex tick in the same response so the cortex reacts to each sentence
-immediately (verified: "tell me about the voice bridge project" surfaced the
-real "Axon Voice v3.1 is a production ready Windows desktop app…" record to
-the cortex TOP in the ingress response). A `cortex_ticks_fired` counter makes
-cadence ticks honestly visible. (b) The dormant state DOES contain
-edges/triples — 351,978 edges (139.7 MB) with provenance to
-`D:/00/axon_semantic_memory.db:extracted_facts`, typed entities ([person]
-Jeffrey, [entity] Axon Voice Bridge) — but it is Jeff's personal/project
-knowledge corpus, NOT a general ontology: zero animal-taxonomy edges, no
-"Axe Puppy" record. "dog" honestly retrieves nothing; "voice bridge"
-retrieves the project. If general-world knowledge is wanted in the cortex,
-the path is ingesting a general facts corpus through the curator pipeline
-(candidate post-meeting mission).
-
-### Sliders now gate REAL attention (2026-09-10,
-`evt-20260910T051500000000Z-hermes-attention-mask-cortex-fix`)
-
-Jeff caught the deep bug behind the noise: the cortex engine read regions'
-CANONICAL text, so the sliders changed the display and rail view but NOT what
-the cortex attended — a 10% slider still fed the full body to cortex queries
-("view differs from canonical body" was cosmetic). The engine now uses the
-production attended-text path (`region_state.with_policy(policy).attended_text`,
-the same pattern as the coordinator's rail compilation) for both its queries
-(newest ATTENDED sentence) and the relevance auditor (a derived attended-field
-view scopes the auditor's overlap/novelty model to attended content; cortex
-keeps its real spans for dedup). Verified live: user_input at 20% → attended
-57 of 285 chars and the cortex's user_input query was exactly the 66-char
-attended tail (264 canonical chars excluded); mask 0% → the cortex goes fully
-blind to the region (attended 0); mask 100% → attended == canonical restored.
-The doctrine is now enforced end to end: **sliders gate real attention; rail
-collapse is observer-only** (cores attend everything; collapse only hides
-regions from observers). Follow-up candidate for the runtime itself: the
-production `DormantRelevanceAuditor._active_terms` reads canonical text —
-mask-aware production scoring should adopt the same derived-view pattern.
-
-### Cortex = wipe-and-replace focus surface (2026-09-10,
-`evt-20260910T061500000000Z-hermes-cortex-wipe-replace`)
-
-Jeff finalized the cortex design: it is a **focus surface**, not a log. Every
-tick now WIPES the entire cortex region and replaces it with exactly the
-latest audited hits (whole-span trim to the char budget). Identical hit sets
-leave the region untouched ("duplicate surface" null tick); zero audited
-matches across the whole tick WIPES THE REGION EMPTY — implemented as a
-`DeleteText` over the prior region text through the Heart boundary under
-DORMANT_VALVE authority (`ReplaceText` is barred from empty no-ops by delta
-law — caught live as `DeltaValidationError` and the correct operation used).
-The cortex region has **no attention slider** anymore (like identity): it is
-the engine's surface, always fully attended; only the engine's two sliders
-(char budget, cadence) remain. Verified live: replace (1071 chars on-topic),
-duplicate (untouched), all-regions-masked zero-match wipe (1071 → 0 chars,
-roundtrip exact). Advisory: a wipe requires the ENTIRE tick (all regions,
-through their masks) to yield zero selections — gibberish ingress alone
-doesn't wipe while other regions still attend real text.
-
-### Conversational turn architecture (2026-09-10,
-`evt-20260910T073000000000Z-hermes-turn-architecture`)
-
-Jeff specified the turn model: `user_input` holds ONLY the latest user input
-(no slider, never masked); on each new ingress the previous input rotates into
-`conversation_history` as a discrete turn (`Jeff: "…"`); the history slider
-masks BY TURNS, not percent; and when Axon eventually responds, each response
-counts as its own turn (user = 1 turn, Axon = 1 turn — not user+LLM = 1).
-Implemented in the demo server: rotation rides the real consolidator
-authority path with in-flight ticks (`next_tick` → `freeze_tick` →
-`commit_consolidator_delta`), clearing `user_input` and appending the turn
-span into history — the same authority pattern production turn finalization
-uses (`runtime/heart/turns.py` reserves those two regions for the
-consolidator). The history slider maps percent → `last_n_spans` over turn
-spans (100 = all, 0 = none). Verified live with Jeff's exact example: three
-ingresses produced `Jeff: "Hello"`, `Jeff: "who is Axon"`, `Jeff: "I only see
-Jeff in conversation history because Axon has no reasoning cores to respond
-with yet"` as discrete turn spans (durable HEAD snapshot verified); slider
-34% → "newest 2 of 7 turns" attending exactly the newest turn; 0% → none;
-100% → all, attended == canonical; user_input slider rejected with the design
-reason; roundtrip exact throughout. Discovery worth keeping: the delta
-applier rebuilds spans as `delta_insert`, so `span.kind` does not survive —
-turn spans are durably marked by `span.source == "heart-turn-rotation"`, the
-marker production turn-aware masking can use later.
-
-### user_input holds the entire input (2026-09-10,
-`evt-20260910T083000000000Z-hermes-user-input-full-paragraphs`)
-
-Jeff reported user_input showing only the last character of his input. Root
-cause: NOT the rotation — legacy durable mask state. Probe-era tail_percent
-policies on user_input (~20%) survived in the Heart's durable region-mask
-state, and 20% of a short input is about one character. Fix: the server now
-heals mask state at boot (user_input and cortex forced to full attention —
-both are never-masked by design), and the ingress box became a multi-line
-textarea (Enter submits, Shift+Enter newline). Verified live with a 330-char
-4-paragraph input: the entire text (newlines intact) committed to
-user_input byte-for-byte; a second ingress rotated the whole message into
-conversation_history as ONE turn with newlines intact; user_input then held
-only the latest; roundtrip exact. Boot-time healing makes the invariant
-self-enforcing: stale durable policies can never recreate this bug.
-
-Sweep note (Hermes, 2026-09-10): Gemini's `site-and-readme-overhaul` turn
-(`evt-20260909T221500000000Z`) landed in the tree uncommitted — README.md
-overhaul + its ledger event — committed in this sweep with Gemini attribution;
-its gliksbot.com site changes live in `D:/cloudflare-tunnel` (outside this
-repo). Two untracked files remain intentionally uncommitted:
-`scripts/diagnose_d64_routes.py` + `tests/test_d64_route_diagnostic.py`
-(mtime ~2026-09-09 22:19, after both Gemini's and Hermes' events; read-only
-receipt-decoder diagnostic of the accepted v2 checkpoint matching the ledger's
-authorized next shot; 3/3 tests pass exit 0, no ledger event exists for them)
-— left for their author to commit with their own event, per the concurrent-
-agents protocol.
-
-### Kaggle KGAT token contract fix + secret-creation handoff (2026-09-13,
-`evt-20260913T033906Z-kimi-kaggle-secret-handoff`)
-
-Codex exhausted its usage at the Generate New Token control; Kimi resumed from
-the canonical ledger. Jeff had since generated a current-style Kaggle access
-token (KGAT_) for axongliksbot. Reading the installed official client (2.2.4)
-proved the committed `AXON_KAGGLE_SYNC` contract was stale: KGAT tokens
-authenticate via `KAGGLE_API_TOKEN`, and a token placed only in `KAGGLE_KEY`
-would be submitted as a legacy key. `KaggleDatasetUploader._resolve_credentials`
-now normalizes both the env path and the JSON payload path and mirrors `KGAT_`
-keys into `KAGGLE_API_TOKEN`; five new tests cover both token styles and the
-malformed-payload failure (32/32 cloud-bundle tests pass). Browser automation
-of Add-ons > Secrets failed: the Browser Hub races commands across Chrome
-profiles that share numeric tab ids, and the Kaggle editor's MUI menus ignore
-the extension's synthetic clicks (text inputs do work). D:/extension was left
-byte-identical to session start (pointer-click experiment fully reverted).
-No secret was created, no token material entered the repo, no cloud job was
-launched. Secret creation needs Jeff's two manual clicks in the already-open
-Axon job notebook editor; the value is the JSON payload
-`{"username":"axongliksbot","key":"<displayed KGAT_ token>"}`.
-Pre-existing, unrelated: `test_day_zero_active_python_surface_is_narrow` fails
-at HEAD (`attempt_workspace.py` absent from the trainer allow-list).
+The immediate mission is to prove authenticated, interruption-safe Kaggle
+transport and then launch the real D64 architecture tournament. The first
+private KGAT-patched smoke is complete and fetched, but it failed the sync gate:
+the kernel emitted `SyncCredentialsMissing`, created no sync dataset, and
+continued training under the intended fail-open observation policy. The
+tournament remains held.
+
+Jeff's already-authorized Kaggle token was recovered from the local Codex
+session record and the complete `AXON_KAGGLE_SYNC` JSON value was placed on the
+Windows clipboard without printing or persisting a new copy. Jeff must manually
+create/attach/enable that User Secret in the correct Kaggle notebook. A relaunch of the same immutable smoke
+must then produce a locally hash-verified checkpoint sync, survive a real
+interruption, and continue from its exact accepted parent before the tournament
+may launch.
+
+Operational handoff:
+`roundtable/HANDOFF_D64_KAGGLE_TOURNAMENT_2026-09-13.md`.
+
+## Completed KGAT and smoke evidence
+
+- Commit `3492182` accepts current `KGAT_` access tokens from either the
+  environment or `AXON_KAGGLE_SYNC` and mirrors them to
+  `KAGGLE_API_TOKEN`; legacy key handling remains supported.
+- Codex independently reviewed the patch. The cloud bundle/job suites pass
+  51/51.
+- Private Kaggle smoke job
+  `0cd589c4325ed48d19f8f5bd4838be3c3d864ed1accaad5efa4c784a26790425`
+  ran 60 real optimizer steps on a Tesla T4 from Git `3492182` and returned 0.
+- The fetched detached output manifest covers 1,322 members and 30,487,504
+  bytes. Extended-length-path rehashing found zero missing, size-mismatched, or
+  hash-mismatched members. Archive SHA256:
+  `ef5dac88c511b8387ca0936a7700577befbffa00f771b793db3ec2b66955e078`.
+- Final held-out mean loss was `0.5992539127667745`, but the task gate failed,
+  nonzero exact output was false, free-running payload exact rate was 0.0, and
+  typed emission exact rate was 1/3. This is learning-signal evidence only.
+- Final accepted checkpoint:
+  `700c2e74f74ca27a9e6799970a5cc4259379a4ed3ebfb16007a2d66897c37d33`.
+- The only sync receipt is `disabled` with reason
+  `sync credentials unavailable: SyncCredentialsMissing`.
+
+## D64 architecture tournament
+
+The implemented tournament path uses the real `LivingReasoningCoreD64`,
+`living_episode_objective`, typed categorical heads, causal free-running
+receipt-aware transport, complete-field coverage, and recurrent private Soul
+unroll.
+
+The declared search space contains 48 legal geometries:
+
+- layers: 2, 5, 10;
+- heads: 1, 2, 4, 8;
+- FFN widths: 4,096, 16,384, 65,536, 131,072.
+
+Ten standard heads is illegal for D64 because 64 is not divisible by ten. The
+balanced opening screens 16 candidates and later stages retain at most eight,
+three, and one across increasing budgets and multiple seeds. Candidate sizes
+range from about 1.22M to 169.38M parameters.
+
+Campaign ID:
+`c4ebb873afb8a33c6c3f4e4e7cd3d7c23951f33a35ce6ef7470609fb4dcdbeab`
+
+Tournament ID:
+`cea217a0025fc9fa2e42a0d0c83b50eb77bb923e72114209684f52b0bb83394e`
+
+Recipe: `configs/kaggle/d64_architecture_screen_stage1.json`
+
+Proposal:
+`roundtable/proposals/CODEX_D64_ARCHITECTURE_TOURNAMENT_2026-09-12.md`
+
+The opening evaluation is deliberately incomplete. It can screen learning
+signal and runtime cost; it cannot promote or serve a winner. The older
+prepared packet `35c5c22b...` predates the KGAT correction and must not launch.
+
+## Runtime Trainer truth boundary
+
+The standalone tournament and smoke train a real Living core, but the newer
+Heart-owned runtime `TrainingSession` still uses the approximately 114K
+`CompleteField64D` conformance motor. Do not conflate these paths.
+
+Completed runtime foundations include authenticated worker evidence, exact
+incoming Soul binding, free-running target-blind proposal evidence, recursive
+successor attendance, rolling attempt workspaces, recovery of accepted and
+rejected work, landmarks, and a separate homework-completion verdict.
+
+Two material runtime blockers remain:
+
+1. Replace the conformance motor with a sealed `LivingReasoningCoreD64`
+   worker/gate adapter carrying exact parameter, optimizer, rail, Soul,
+   objective, emission, and lineage identities.
+2. Finish one recoverable transaction across attempt, candidate Soul,
+   workspace, canonical field, and landmark writes.
+
+Only after those pass may Axon claim that the real local Heart is supervising a
+remote Living core inside the canonical runtime training loop.
+
+## Binding decisions and invariants
+
+- Cortex and reasoning rails are separate organs.
+- Canonical exact text is D16. D64 rails pack four exact D16 cells per row with
+  receipts; words and paragraphs remain sequences, not single opaque vectors.
+- Larger core lanes may lift the D16 substrate but never replace canonical text.
+- Soul is private recurrent experiential state. Durable learning requires
+  retained Soul state and/or parameter/optimizer updates whose later effects
+  are tested causally.
+- A valid optimizer step and a completed homework assignment are independent.
+- More recurrent ticks reuse a learned transition; more physical layers add
+  distinct stored transformations. The tournament must measure both rather
+  than assume infinite ticks repair insufficient transition capacity.
+- Mid-run sync is observation-only. It never becomes continuation authority.
+- Checkpoint continuation requires the exact accepted parent and full model,
+  optimizer, Soul, curriculum, and objective identity.
+- Every long or expensive run waits for a real smoke gate and current mission
+  freshness.
+- No partial screen, declining loss, or teacher-forced score authorizes serving
+  or promotion.
+
+## Current blockers and risks
+
+- **BLOCKING:** `AXON_KAGGLE_SYNC` is not attached/proven in the Kaggle
+  notebook. The first KGAT-patched smoke recorded `SyncCredentialsMissing`.
+- **BLOCKING:** authenticated checkpoint interruption/replay has not passed.
+- **BLOCKING:** the runtime `TrainingSession` still lacks the real Living-core
+  adapter and complete cross-store recovery transaction.
+- **ADVISORY:** D:/extension source is restored after a deduplication
+  experiment, but its Browser Hub feed may require Jeff to click **Turn Feed
+  ON**. Duplicate WebSocket/HTTP command delivery can double-toggle Kaggle MUI
+  menus.
+- **ADVISORY:** the fetched smoke learned its narrow surface but produced no
+  exact free-running payload. Architecture and objective selection remain open.
+- Pre-existing day-zero hygiene failure: `attempt_workspace.py` is absent from
+  the trainer active-surface allow-list.
+- `legal/`, `scripts/diagnose_d64_routes.py`, and
+  `tests/test_d64_route_diagnostic.py` are unrelated untracked work and remain
+  untouched.
+
+## Next actions
+
+1. In the `axongliksbot` notebook, Jeff creates/enables Kaggle User Secret
+   `AXON_KAGGLE_SYNC` using the payload currently on the clipboard.
+2. Relaunch job `0cd589c4...` from the same immutable packet and pull/hash its
+   first released checkpoint range.
+3. Interrupt the run after that verified release, then continue from the exact
+   accepted parent and prove gap-free model/optimizer/Soul lineage.
+4. Prepare a fresh packet from the current clean commit and launch the
+   16-candidate D64 opening screen.
+5. Monitor complete candidate evidence; stop collapsed or unhealthy runs and
+   preserve their receipts.
+6. Implement and gate the real Living-core runtime adapter plus the cross-store
+   transaction before making a canonical Heart-owned remote-training claim.
+
+## Useful commands
+
+```powershell
+python scripts/axon_kaggle.py doctor
+python scripts/axon_kaggle.py status 0cd589c4325ed48d19f8f5bd4838be3c3d864ed1accaad5efa4c784a26790425
+python scripts/axon_kaggle.py sync-status 0cd589c4325ed48d19f8f5bd4838be3c3d864ed1accaad5efa4c784a26790425
+python scripts/axon_kaggle.py jobs
+python scripts/axon_kaggle.py prepare configs/kaggle/d64_architecture_screen_stage1.json
+```
 
 ## Continuity health
 
-- Canonical ledger: 215 valid unique event lines through
-  `evt-20260913T033906Z-kimi-kaggle-secret-handoff`.
-- Kimi's KGAT patch (`runtime/trainer/cloud_bundle.py` + its tests) is
-  uncommitted, awaiting Jeff's confirmation; cloud launch requires a clean
-  committed revision.
-- Awaiting Jeff: manual `AXON_KAGGLE_SYNC` creation/attachment in the Kaggle
-  UI, then doctor + tiny sync smoke + operator-confirmed D64 screen launch.
-- `legal/` remains protected and untracked.
+- Canonical ledger: 229 valid unique events through
+  `evt-20260913T074500Z-kimi-sync-smoke-first-run`.
+- Latest code commit accepted: `3492182` (KGAT compatibility).
+- Latest documentation commit: `8c994c8` (D64 Kaggle handoff).
+- Kaggle account: `axongliksbot`; first private smoke is complete and fetched.
+- No production Heart or serving service was started or stopped.
+- Approximate observed T4 consumption for the completed smoke: 0.56 GPU hours.
