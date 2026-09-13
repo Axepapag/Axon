@@ -56,17 +56,21 @@ manifest. The resulting observation is
 `d2bf59af35fd432d66ead4cb5da27b1efcc77feb1d79adf94a94accb02cddbd6`.
 It explicitly reports no tournament metrics and makes no promotion claim.
 
-## Kaggle gate
+## Kaggle recovery boundary
 
-The official Kaggle CLI is authenticated as `axongliksbot` and reports 30 GPU
-hours available. The last mid-run sync receipt says
-`SyncCredentialsMissing`; therefore an interrupted job is not yet proven
-recoverable. The stage-one recipe enables private mid-run sync, but launch must
-wait until the Kaggle User Secret is attached and an authenticated
-checkpoint-sync/interruption/replay smoke succeeds. This is a real missing
-operational dependency, not a model limitation.
+Jeff removed mid-run sync from the stage-one launch gate on 2026-09-13. The
+User Secret is not required to train, and the bounded 32-step candidate screen
+does not justify blocking the campaign on kernel-to-workstation checkpoint
+uploads. Kaggle's completed private output bundle is the recovery boundary for
+this stage. Every fetched bundle is hash-verified before inspection or use.
 
-The launchable source is committed at `b91bf74955caccd0ee7a1e714e89c06067027e38`.
-Its immutable prepared job is
-`35c5c22b2e4e14c1db36b61306ec507bc79efbe72997cdcc43561a3dfab7a741`.
-Preparation uploaded nothing and consumed no GPU time.
+An interrupted in-flight candidate can lose its current 32-step tranche. It
+must be rerun from the same immutable recipe and seed; partial observation bytes
+never authorize continuation or promotion. Mid-run sync remains an optional
+facility for later long-duration runs where its recovery value exceeds its
+credential and operational cost.
+
+The older prepared job
+`35c5c22b2e4e14c1db36b61306ec507bc79efbe72997cdcc43561a3dfab7a741`
+predates the KGAT correction and this operator decision. It must not launch. A
+fresh packet must be prepared from the current committed revision.

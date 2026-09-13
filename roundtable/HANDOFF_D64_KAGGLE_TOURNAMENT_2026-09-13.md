@@ -1,6 +1,6 @@
-# Handoff: D64 Kaggle sync gate and architecture tournament
+# Handoff: D64 Kaggle architecture tournament
 
-Status: **first smoke fetched; secret/sync gate failed; tournament held**
+Status: **first smoke fetched; mid-run sync removed from tournament gate**
 
 Identity stamp: Codex / GPT-6 / 2026-09-13
 
@@ -110,43 +110,20 @@ The fetched `sync_receipts.jsonl`, runner events, segment report, checkpoint
 sentinels, and bundle hashes are the evidence. A missing-secret receipt is a
 failed sync gate even when training itself completes.
 
-## Secret boundary
+## Operator decision on mid-run sync
 
-The Kaggle account and local CLI are authenticated as `axongliksbot`. A
-current access token was generated in Kaggle, but Kimi could not complete the
-notebook `Add-ons > Secrets` flow. Codex recovered that token locally from the
-session record created during the authorized token-generation action and put
-the complete JSON payload on Jeff's clipboard without printing or persisting a
-new copy. The required Kaggle User Secret has label `AXON_KAGGLE_SYNC` and a
-JSON value with keys `username` and `key`.
+Jeff removed `AXON_KAGGLE_SYNC` from the stage-one launch path on 2026-09-13.
+It was an optional checkpoint-upload credential, not core or rail security. The
+feature remains available for future long runs, but this bounded screen does
+not require a User Secret or interruption/replay smoke.
 
-Secret existence and notebook attachment remain unverified until a real kernel
-creates the declared private sync dataset and the workstation pulls and hashes
-its contents.
+The accepted tradeoff is explicit: if Kaggle interrupts a candidate before the
+job publishes its final output bundle, its current 32-step tranche may be lost
+and must be rerun from the same immutable recipe and seed. Kaggle never writes
+the local canonical body directly. Only completed, locally fetched,
+hash-verified output bundles can be inspected or admitted by later governance.
 
-Browser control uses the Codex personal policy at
-`C:/Users/axema/.codex/AGENTS.md` and the unpacked Browser Hub in
-`D:/extension`. The hub currently broadcasts one command over WebSocket while
-also returning it through HTTP fallback; toggle clicks can execute twice and
-immediately close Kaggle MUI menus. Do not claim a secret was attached from a
-synthetic click receipt. Verify the visible menu state and then prove the
-kernel-side result.
-
-## Required gate before the tournament
-
-1. Prove the secret by pulling at least one checkpoint-bound sync range and
-   verifying every detached manifest/member hash locally.
-2. Stop a tiny learning run after a verified synced checkpoint.
-3. Prepare a continuation that names the exact accepted parent checkpoint and
-   restores model, optimizer, candidate Soul, and curriculum/objective identity.
-4. Resume and prove gap-free step/checkpoint lineage plus new sync output.
-5. Only then prepare the stage-one tournament from the current clean committed
-   revision and launch it with explicit operator authorization.
-
-Do not use observation-only sync bytes as continuation authority. The accepted
-checkpoint bundle and its exact parent lineage remain authoritative.
-
-## Tournament commands after the gate
+## Tournament commands
 
 ```powershell
 python scripts/axon_kaggle.py prepare configs/kaggle/d64_architecture_screen_stage1.json
@@ -167,11 +144,9 @@ Leave these pre-existing untracked paths untouched:
 
 ## Next engineering order
 
-1. Resolve the active smoke with fetched evidence and prove or correct the
-   Kaggle secret attachment.
-2. Pass the authenticated checkpoint interruption/continuation smoke.
-3. Launch and monitor the 16-candidate D64 opening screen.
-4. In parallel only when repository/machine ownership permits, replace the
+1. Prepare a fresh packet from the committed no-sync recipe.
+2. Launch and monitor the 16-candidate D64 opening screen.
+3. In parallel only when repository/machine ownership permits, replace the
    runtime conformance motor with the real Living core adapter and finish the
    cross-store recovery transaction.
 5. Run complete held-out, causal Soul, recurrence, degeneration, cost, and
