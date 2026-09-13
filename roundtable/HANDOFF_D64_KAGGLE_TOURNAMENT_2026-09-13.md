@@ -1,6 +1,6 @@
 # Handoff: D64 Kaggle architecture tournament
 
-Status: **first smoke fetched; mid-run sync removed from tournament gate**
+Status: **no-sync tournament active; first candidate boundary passed**
 
 Identity stamp: Codex / GPT-6 / 2026-09-13
 
@@ -123,12 +123,45 @@ and must be rerun from the same immutable recipe and seed. Kaggle never writes
 the local canonical body directly. Only completed, locally fetched,
 hash-verified output bundles can be inspected or admitted by later governance.
 
+## Tournament launch and repair
+
+The first no-sync packet was prepared from commit `87b5a52` and launched as
+job `c4e382262164f86be39da9dea5d53a9a8b1a98837419b7de7aea8aee0908871d`.
+Its T4 probe passed and candidate `d64-l2-h1-f4096` completed all 32 optimizer
+steps with checkpoints at steps 8, 16, 24, and 32. Held-out mean loss moved
+from `7.38446044921875` to `3.4451667070388794`; exact free-running payload
+transport remained `0.0`, so this is screening evidence only.
+
+The candidate wrote a valid content-addressed report and progress receipt, but
+Kaggle delivered an empty captured stdout stream to the tournament parent. The
+parent attempted `json.loads("")` and stopped the job after candidate 1. The
+fetched output bundle preserves the full failure and candidate evidence.
+
+Commit `9d177bd` repairs that orchestration boundary. The parent now falls back
+to the candidate's durable progress receipt, requires the report path to stay
+inside governed State, verifies the report's content address, and checks that
+the receipt names the same report. Three focused tests passed, including the
+existing multi-candidate launcher integration test.
+
+The active corrected job is:
+
+- job ID: `b4b9a3802abf24d9ebf493fc15b717dcc4e067f2e76ab405806f3980353911c5`;
+- Git revision: `9d177bddc0dfa4fd6dbf23ddab9e5ff8317976b6`;
+- packet SHA256: `12429739096a604eba19ab1614d8a3ef392bdd10bde9e942a47e02097343be0a`;
+- kernel: `axongliksbot/axon-job-b4b9a3802abf24d9`;
+- private input dataset: `axongliksbot/axon-job-b4b9a3802abf24d9-input`.
+
+Live Kaggle evidence proves the corrected parent accepted candidate 1 and
+started candidate 2, `d64-l2-h2-f16384`. The job remains private and running.
+Do not infer final ranking, competence, or promotion from this partial screen.
+
 ## Tournament commands
 
 ```powershell
 python scripts/axon_kaggle.py prepare configs/kaggle/d64_architecture_screen_stage1.json
-python scripts/axon_kaggle.py launch <new_job_id> --yes
-python scripts/axon_kaggle.py monitor <new_job_id>
+python scripts/axon_kaggle.py status b4b9a3802abf24d9ebf493fc15b717dcc4e067f2e76ab405806f3980353911c5
+python scripts/axon_kaggle.py monitor b4b9a3802abf24d9ebf493fc15b717dcc4e067f2e76ab405806f3980353911c5
+python scripts/axon_kaggle.py fetch b4b9a3802abf24d9ebf493fc15b717dcc4e067f2e76ab405806f3980353911c5
 ```
 
 Prepare a new packet after all required executable changes are committed. The
@@ -144,10 +177,11 @@ Leave these pre-existing untracked paths untouched:
 
 ## Next engineering order
 
-1. Prepare a fresh packet from the committed no-sync recipe.
-2. Launch and monitor the 16-candidate D64 opening screen.
+1. Monitor the active 16-candidate D64 opening screen without restarting it.
+2. After completion, fetch and independently inspect the hash-verified output
+   bundle before accepting any candidate metrics.
 3. In parallel only when repository/machine ownership permits, replace the
    runtime conformance motor with the real Living core adapter and finish the
    cross-store recovery transaction.
-5. Run complete held-out, causal Soul, recurrence, degeneration, cost, and
+4. Run complete held-out, causal Soul, recurrence, degeneration, cost, and
    multi-seed gates before any architectural promotion.
