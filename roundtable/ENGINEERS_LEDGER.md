@@ -1,14 +1,17 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-13T02:16:18.446473+00:00
+Updated: 2026-09-13T02:30:28.825206+00:00
 Current through event:
-`evt-20260913T021618446473Z-codex-d64-architecture-screen`
+`evt-20260913T023028825206Z-codex-kaggle-secret-auth-boundary`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 Identity stamp: Codex / GPT-6 / 2026-09-12
 
 ## Current mission and honest status
+
+The Kaggle secret-and-launch mission is paused at the only manual boundary. Codex opened Kaggle Settings in a fresh browser session and reached Google sign-in, but that browser is not authenticated. No credential was read or transmitted and no cloud job launched. Jeff must complete sign-in in the preserved browser tab; Codex can then inspect/create and attach `AXON_KAGGLE_SYNC`, prove a tiny authenticated checkpoint sync plus interruption/replay, and launch the 16-candidate tournament only after that gate passes.
+
 
 The real D64 Living-core architecture tournament is now implemented and
 packetized. The canonical campaign declares 48 legal shapes over 2/5/10
