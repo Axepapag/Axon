@@ -79,6 +79,7 @@ from runtime.trainer.training_session import (
     TrainingSession,
     TrainingSessionConfig,
     TrainingSessionError,
+    evaluate_homework_response,
 )
 from runtime.trainer.store import TrainerStateStore
 from substrate import get_letter_bank
@@ -171,6 +172,36 @@ def _serialize(model: torch.nn.Module) -> bytes:
     buffer = io.BytesIO()
     torch.save(model.state_dict(), buffer)
     return buffer.getvalue()
+
+
+def test_optimizer_admissibility_is_separate_from_homework_completion() -> None:
+    accepted_but_wrong = evaluate_homework_response(
+        target_text="D",
+        response_text="S",
+        response_terminated=True,
+        optimizer_step_accepted=True,
+    )
+    exact_but_rejected = evaluate_homework_response(
+        target_text="D",
+        response_text="D",
+        response_terminated=True,
+        optimizer_step_accepted=False,
+    )
+    exact_and_accepted = evaluate_homework_response(
+        target_text="D",
+        response_text="D",
+        response_terminated=True,
+        optimizer_step_accepted=True,
+    )
+
+    assert not accepted_but_wrong.completed
+    assert not exact_but_rejected.completed
+    assert exact_and_accepted.completed
+    assert len({item.verdict_id for item in (
+        accepted_but_wrong,
+        exact_but_rejected,
+        exact_and_accepted,
+    )}) == 3
 
 
 # --- the assignment reaches the core as exact D64 rows -----------------------
@@ -537,6 +568,10 @@ def test_loss_falls_and_accuracy_exceeds_constant_output_floor(state_root) -> No
     result = session.run(max_attempts=5)
     assert len(result.steps) == 5
     assert all(step.verdict.decision is GateDecision.ACCEPTED for step in result.steps)
+    assert all(step.optimizer_step_valid for step in result.steps)
+    assert all(not step.homework_completed for step in result.steps)
+    assert result.assignment.status is AssignmentStatus.ACTIVE
+    assert result.stopped_reason == "max_attempts"
     losses = [step.verdict.recomputed.loss for step in result.steps]
     accuracies = [step.verdict.recomputed.accuracy for step in result.steps]
     floors = [step.verdict.accuracy_floor for step in result.steps]

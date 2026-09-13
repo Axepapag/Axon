@@ -199,13 +199,16 @@ from .tranche import (
 # package init re-imports runtime.trainer; keeping this block at the end
 # avoids a partially-initialized circular import.
 from .training_session import (
+    HOMEWORK_VERDICT_SCHEMA,
     TRAINING_SESSION_OUTCOME_SCHEMA,
     TRAINING_SESSION_SCHEMA,
+    HomeworkVerdict,
     TrainingSession,
     TrainingSessionConfig,
     TrainingSessionError,
     TrainingSessionResult,
     TrainingSessionStep,
+    evaluate_homework_response,
 )
 
 __all__ = [
@@ -225,6 +228,7 @@ __all__ = [
     "EVALUATION_REQUIREMENT_SCHEMA",
     "EVENT_SCHEMA",
     "GENERATION_SNAPSHOT_SCHEMA",
+    "HOMEWORK_VERDICT_SCHEMA",
     "LEARNING_MICROSTEP_SCHEMA",
     "LEARNING_POLICY_SCHEMA",
     "LEASE_SCHEMA",
@@ -299,6 +303,7 @@ __all__ = [
     "EvaluationRequirement",
     "GenerationSnapshotRecord",
     "GovernedLearningPolicy",
+    "HomeworkVerdict",
     "IncompleteParameterInventoryError",
     "LearningMicrostepReceipt",
     "LivedExperienceSessionCompiler",
@@ -363,6 +368,7 @@ __all__ = [
     "TrainingSessionError",
     "TrainingSessionResult",
     "TrainingSessionStep",
+    "evaluate_homework_response",
     "TrancheContinuation",
     "TrancheError",
     "TrancheStore",

@@ -138,6 +138,7 @@ from .supervisory_gates import (
 
 TRAINING_SESSION_SCHEMA = "axon-trainer-training-session-v1"
 TRAINING_SESSION_OUTCOME_SCHEMA = "axon-trainer-session-outcome-v1"
+HOMEWORK_VERDICT_SCHEMA = "axon-trainer-homework-verdict-v1"
 
 INITIAL_PARAMETER_GENERATION = UNTRAINED_PARAMETER_GENERATION
 INITIAL_OPTIMIZER_GENERATION = "optimizer-init"
@@ -148,6 +149,42 @@ _CORE_STATUSES = (AssignmentStatus.CLAIMED, AssignmentStatus.ACTIVE)
 
 class TrainingSessionError(RuntimeError):
     """A session input is malformed, stale, or unauthenticated; fail closed."""
+
+
+@dataclass(frozen=True, slots=True)
+class HomeworkVerdict:
+    """Assignment-level judgment, deliberately separate from optimizer validity."""
+
+    completed: bool
+    reason: str
+    target_sha256: str | None
+    response_sha256: str
+    response_terminated: bool
+    optimizer_step_accepted: bool
+    schema: str = HOMEWORK_VERDICT_SCHEMA
+    verdict_id: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "reason", _required(self.reason, "reason"))
+        object.__setattr__(
+            self,
+            "verdict_id",
+            canonical_sha256(self.to_canonical_dict(include_id=False)),
+        )
+
+    def to_canonical_dict(self, *, include_id: bool = True) -> dict[str, object]:
+        value: dict[str, object] = {
+            "schema": self.schema,
+            "completed": self.completed,
+            "reason": self.reason,
+            "target_sha256": self.target_sha256,
+            "response_sha256": self.response_sha256,
+            "response_terminated": self.response_terminated,
+            "optimizer_step_accepted": self.optimizer_step_accepted,
+        }
+        if include_id:
+            value["verdict_id"] = self.verdict_id
+        return value
 
 
 def _required(value: str, label: str) -> str:
@@ -167,6 +204,48 @@ def _serialize_state_dict(model: torch.nn.Module) -> bytes:
     buffer = io.BytesIO()
     torch.save(model.state_dict(), buffer)
     return buffer.getvalue()
+
+
+def evaluate_homework_response(
+    *,
+    target_text: str | None,
+    response_text: str,
+    response_terminated: bool,
+    optimizer_step_accepted: bool,
+) -> HomeworkVerdict:
+    """Judge homework completion without borrowing the optimizer gate's result."""
+
+    response_hash = canonical_sha256(response_text)
+    target_hash = None if target_text is None else canonical_sha256(target_text)
+    if target_text is None:
+        return HomeworkVerdict(
+            completed=False,
+            reason="assignment has no exact completion target",
+            target_sha256=None,
+            response_sha256=response_hash,
+            response_terminated=response_terminated,
+            optimizer_step_accepted=optimizer_step_accepted,
+        )
+    if not optimizer_step_accepted:
+        reason = "optimizer step was not accepted; homework remains open"
+    elif not response_terminated:
+        reason = "free-running response did not terminate; homework remains open"
+    elif response_text != target_text:
+        reason = "free-running response did not exactly match the assignment target"
+    else:
+        reason = "accepted optimizer step produced the exact terminated assignment target"
+    return HomeworkVerdict(
+        completed=(
+            optimizer_step_accepted
+            and response_terminated
+            and response_text == target_text
+        ),
+        reason=reason,
+        target_sha256=target_hash,
+        response_sha256=response_hash,
+        response_terminated=response_terminated,
+        optimizer_step_accepted=optimizer_step_accepted,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -252,12 +331,23 @@ class TrainingSessionStep:
     verdict: GateVerdict
     worker_bundle: AttemptEvidenceBundle
     accepted_bundle: AcceptedTrainingStepBundle | None = None
+    homework_verdict: HomeworkVerdict | None = None
     landmark_id: str | None = None
     heart_commit: HeartCommit | None = None
 
     @property
     def accepted(self) -> bool:
         return self.accepted_bundle is not None
+
+    @property
+    def optimizer_step_valid(self) -> bool:
+        return self.accepted_bundle is not None
+
+    @property
+    def homework_completed(self) -> bool:
+        return bool(
+            self.homework_verdict is not None and self.homework_verdict.completed
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -720,6 +810,17 @@ class TrainingSession:
             snapshot=self._snapshot,
             nonce_cache=self._nonce_cache,
         )
+        response_text = "".join(
+            character
+            for character in bundle.emission.characters
+            if character != EOS_TOKEN_MARKER
+        )
+        homework_verdict = evaluate_homework_response(
+            target_text=target,
+            response_text=response_text,
+            response_terminated=bundle.emission.terminated,
+            optimizer_step_accepted=(verdict.decision is GateDecision.ACCEPTED),
+        )
 
         # (6) commit the outcome exactly once through the keyed store command,
         # preserving the worker's own evidence fields.
@@ -738,6 +839,7 @@ class TrainingSession:
             "decision": verdict.decision.value,
             "reasons": list(verdict.reasons),
             "verdict_id": verdict.verdict_id,
+            "homework_verdict": homework_verdict.to_canonical_dict(),
             "observed_at": float(self._clock()),
         }
         if verdict.recomputed is not None:
@@ -790,6 +892,17 @@ class TrainingSession:
             accepted = self._publish_accepted_step(bundle, verdict)
             landmark_id = self._mark_acceptance_landmark(accepted, bundle, verdict)
             self._rebind_binding(bundle, accepted)
+            if homework_verdict.completed:
+                updated = self._assignment_store.complete(
+                    updated.assignment_id,
+                    holder_core_id=core_id,
+                    expected_revision=updated.revision,
+                    idempotency_key=f"training-session-homework-complete:{bundle.attempt_id}",
+                    reason=(
+                        "exact terminated free-running response matched the assignment target; "
+                        "optimizer admissibility was evaluated separately"
+                    ),
+                )
 
         if verdict.decision is GateDecision.PAUSED and (
             updated.status is AssignmentStatus.ACTIVE
@@ -807,6 +920,7 @@ class TrainingSession:
             verdict=verdict,
             worker_bundle=bundle,
             accepted_bundle=accepted,
+            homework_verdict=homework_verdict,
             landmark_id=landmark_id,
             heart_commit=heart_commit,
         )
@@ -1400,13 +1514,16 @@ class TrainingSession:
 
 
 __all__ = [
+    "HOMEWORK_VERDICT_SCHEMA",
     "INITIAL_OPTIMIZER_GENERATION",
     "INITIAL_PARAMETER_GENERATION",
     "TRAINING_SESSION_OUTCOME_SCHEMA",
     "TRAINING_SESSION_SCHEMA",
+    "HomeworkVerdict",
     "TrainingSession",
     "TrainingSessionConfig",
     "TrainingSessionError",
     "TrainingSessionResult",
     "TrainingSessionStep",
+    "evaluate_homework_response",
 ]
