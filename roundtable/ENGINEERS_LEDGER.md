@@ -551,11 +551,36 @@ authorized next shot; 3/3 tests pass exit 0, no ledger event exists for them)
 — left for their author to commit with their own event, per the concurrent-
 agents protocol.
 
+### Kaggle KGAT token contract fix + secret-creation handoff (2026-09-13,
+`evt-20260913T033906Z-kimi-kaggle-secret-handoff`)
+
+Codex exhausted its usage at the Generate New Token control; Kimi resumed from
+the canonical ledger. Jeff had since generated a current-style Kaggle access
+token (KGAT_) for axongliksbot. Reading the installed official client (2.2.4)
+proved the committed `AXON_KAGGLE_SYNC` contract was stale: KGAT tokens
+authenticate via `KAGGLE_API_TOKEN`, and a token placed only in `KAGGLE_KEY`
+would be submitted as a legacy key. `KaggleDatasetUploader._resolve_credentials`
+now normalizes both the env path and the JSON payload path and mirrors `KGAT_`
+keys into `KAGGLE_API_TOKEN`; five new tests cover both token styles and the
+malformed-payload failure (32/32 cloud-bundle tests pass). Browser automation
+of Add-ons > Secrets failed: the Browser Hub races commands across Chrome
+profiles that share numeric tab ids, and the Kaggle editor's MUI menus ignore
+the extension's synthetic clicks (text inputs do work). D:/extension was left
+byte-identical to session start (pointer-click experiment fully reverted).
+No secret was created, no token material entered the repo, no cloud job was
+launched. Secret creation needs Jeff's two manual clicks in the already-open
+Axon job notebook editor; the value is the JSON payload
+`{"username":"axongliksbot","key":"<displayed KGAT_ token>"}`.
+Pre-existing, unrelated: `test_day_zero_active_python_surface_is_narrow` fails
+at HEAD (`attempt_workspace.py` absent from the trainer allow-list).
+
 ## Continuity health
 
-- Canonical ledger: 214 valid unique event lines plus preserved historical
-  whitespace through `evt-20260911T033046641618Z-codex-fresh-runtime-training-audit`.
-- `scripts/append_engineers_ledger_event.py` validated and cleanly appended the turn event.
-- Kimi CLI is globally pinned to standard K2.7 Coding; its first bounded,
-  read-only Codex-directed evidence audit completed without repository writes.
-- After this closeout commit, `legal/` remains protected and untracked.
+- Canonical ledger: 215 valid unique event lines through
+  `evt-20260913T033906Z-kimi-kaggle-secret-handoff`.
+- Kimi's KGAT patch (`runtime/trainer/cloud_bundle.py` + its tests) is
+  uncommitted, awaiting Jeff's confirmation; cloud launch requires a clean
+  committed revision.
+- Awaiting Jeff: manual `AXON_KAGGLE_SYNC` creation/attachment in the Kaggle
+  UI, then doctor + tiny sync smoke + operator-confirmed D64 screen launch.
+- `legal/` remains protected and untracked.

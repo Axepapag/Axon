@@ -282,8 +282,10 @@ class KaggleDatasetUploader:
 
     Credentials come from the kernel environment (Kaggle User Secrets inject
     ``KAGGLE_USERNAME``/``KAGGLE_KEY`` or the ``AXON_KAGGLE_SYNC`` secret as a
-    JSON ``{"username", "key"}`` payload).  Token material is never printed,
-    logged, or persisted by this class.
+    JSON ``{"username", "key"}`` payload).  ``key`` may be a legacy API key or
+    a current ``KGAT_`` access token, which is additionally mirrored to
+    ``KAGGLE_API_TOKEN`` for the official client.  Token material is never
+    printed, logged, or persisted by this class.
     """
 
     def __init__(
@@ -305,8 +307,22 @@ class KaggleDatasetUploader:
 
         username = (self._environ.get("KAGGLE_USERNAME") or "").strip()
         key = (self._environ.get("KAGGLE_KEY") or "").strip()
-        if username and key:
-            return username
+        if not (username and key):
+            username, key = self._load_secret_payload()
+        # The official client authenticates from these exact env names.
+        os.environ["KAGGLE_USERNAME"] = username
+        os.environ["KAGGLE_KEY"] = key
+        if key.startswith("KGAT_"):
+            # Kaggle's current Settings page issues OAuth-style access tokens
+            # (KAGGLE_API_TOKEN), not legacy username/key pairs.  The official
+            # client checks this env name before the legacy pair, so mirror the
+            # token there or it would be submitted as a legacy key.
+            os.environ["KAGGLE_API_TOKEN"] = key
+        return username
+
+    def _load_secret_payload(self) -> tuple[str, str]:
+        """Read the AXON_KAGGLE_SYNC JSON payload from Kaggle User Secrets."""
+
         try:
             from kaggle_secrets import UserSecretsClient  # type: ignore
         except ImportError as exc:
@@ -327,10 +343,7 @@ class KaggleDatasetUploader:
             ) from exc
         if not username or not key:
             raise SyncCredentialsMissing(f"Kaggle User Secret {SYNC_SECRET_LABEL} is empty")
-        # The official client authenticates from these exact env names.
-        os.environ["KAGGLE_USERNAME"] = username
-        os.environ["KAGGLE_KEY"] = key
-        return username
+        return username, key
 
     def _api(self) -> Any:
         if self._api_factory is not None:

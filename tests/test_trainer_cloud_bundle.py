@@ -492,6 +492,65 @@ def test_secret_env_is_never_printed_or_receipted(tmp_path, capsys, monkeypatch)
     assert "SECRET-TOKEN-VALUE" not in receipt_log.read_text(encoding="utf-8")
 
 
+def test_kgat_access_token_is_mirrored_to_kaggle_api_token(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("KAGGLE_USERNAME", "sync-account")
+    monkeypatch.setenv("KAGGLE_KEY", "KGAT_SECRET_TOKEN_VALUE")
+    monkeypatch.delenv("KAGGLE_API_TOKEN", raising=False)
+    uploader = KaggleDatasetUploader("slug")
+    assert uploader._resolve_credentials() == "sync-account"
+    assert os.environ["KAGGLE_API_TOKEN"] == "KGAT_SECRET_TOKEN_VALUE"
+
+
+def test_legacy_key_does_not_set_kaggle_api_token(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("KAGGLE_USERNAME", "sync-account")
+    monkeypatch.setenv("KAGGLE_KEY", "legacy-secret-key")
+    monkeypatch.delenv("KAGGLE_API_TOKEN", raising=False)
+    uploader = KaggleDatasetUploader("slug")
+    assert uploader._resolve_credentials() == "sync-account"
+    assert "KAGGLE_API_TOKEN" not in os.environ
+
+
+def _install_fake_user_secrets(monkeypatch, payload: str) -> None:
+    class _FakeUserSecretsClient:
+        def get_secret(self, label: str) -> str:
+            assert label == "AXON_KAGGLE_SYNC"
+            return payload
+
+    fake_module = type("kaggle_secrets", (), {"UserSecretsClient": _FakeUserSecretsClient})
+    monkeypatch.setitem(__import__("sys").modules, "kaggle_secrets", fake_module)
+
+
+def test_secret_payload_kgat_token_installs_all_env_names(tmp_path, monkeypatch) -> None:
+    for name in ("KAGGLE_USERNAME", "KAGGLE_KEY", "KAGGLE_API_TOKEN"):
+        monkeypatch.delenv(name, raising=False)
+    _install_fake_user_secrets(monkeypatch, json.dumps({"username": "axongliksbot", "key": "KGAT_SECRET_TOKEN_VALUE"}))
+    uploader = KaggleDatasetUploader("slug")
+    assert uploader._resolve_credentials() == "axongliksbot"
+    assert os.environ["KAGGLE_USERNAME"] == "axongliksbot"
+    assert os.environ["KAGGLE_KEY"] == "KGAT_SECRET_TOKEN_VALUE"
+    assert os.environ["KAGGLE_API_TOKEN"] == "KGAT_SECRET_TOKEN_VALUE"
+
+
+def test_secret_payload_legacy_key_installs_env_pair_only(tmp_path, monkeypatch) -> None:
+    for name in ("KAGGLE_USERNAME", "KAGGLE_KEY", "KAGGLE_API_TOKEN"):
+        monkeypatch.delenv(name, raising=False)
+    _install_fake_user_secrets(monkeypatch, json.dumps({"username": "axongliksbot", "key": "legacy-secret-key"}))
+    uploader = KaggleDatasetUploader("slug")
+    assert uploader._resolve_credentials() == "axongliksbot"
+    assert os.environ["KAGGLE_USERNAME"] == "axongliksbot"
+    assert os.environ["KAGGLE_KEY"] == "legacy-secret-key"
+    assert "KAGGLE_API_TOKEN" not in os.environ
+
+
+def test_secret_payload_bad_json_raises_sync_credentials_missing(tmp_path, monkeypatch) -> None:
+    for name in ("KAGGLE_USERNAME", "KAGGLE_KEY"):
+        monkeypatch.delenv(name, raising=False)
+    _install_fake_user_secrets(monkeypatch, "not-json")
+    uploader = KaggleDatasetUploader("slug")
+    with pytest.raises(SyncCredentialsMissing):
+        uploader._resolve_credentials()
+
+
 # ── adapter: fetch bundle path, legacy fallback, sync pull/status ───────────
 
 
