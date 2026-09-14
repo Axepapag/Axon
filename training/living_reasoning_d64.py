@@ -91,6 +91,7 @@ class LivingReasoningCoreConfig:
     lift_seed: int = 7
     generate_gate_bias: float = 1.5
     receipt_continuation: bool = False
+    eos_generate_head_route: bool = False
     field_schema_version: str = SCHEMA_VERSION
     architecture_id: str = field(init=False)
 
@@ -119,6 +120,12 @@ class LivingReasoningCoreConfig:
             raise ValueError("generate_gate_bias must be a finite float")
         if not isinstance(self.receipt_continuation, bool):
             raise TypeError("receipt_continuation must be boolean")
+        if not isinstance(self.eos_generate_head_route, bool):
+            raise TypeError("eos_generate_head_route must be boolean")
+        if self.eos_generate_head_route and not self.receipt_continuation:
+            raise ValueError(
+                "eos_generate_head_route requires the receipt_continuation architecture"
+            )
         object.__setattr__(self, "generate_gate_bias", float(self.generate_gate_bias))
         if self.receipt_continuation:
             identity = self.to_canonical_dict(False)
@@ -174,15 +181,21 @@ class LivingReasoningCoreConfig:
                 region.value for region in canonical_region_order(self.field_schema_version)
             ]
         if self.receipt_continuation:
+            emission_routes = [
+                "learned_generate",
+                "learned_copy_anchor",
+                "deterministic_receipt_continuation",
+            ]
+            if self.eos_generate_head_route:
+                # EOS is a generate-head decision, not a gate vote: the copy/
+                # generate gate arbitrates content only, so a uniformly
+                # copy-biased gate no longer prevents termination.
+                emission_routes = emission_routes + ["generate_head_eos"]
             value.update(
                 {
                     "receipt_continuation": True,
                     "decoder_execution_state_schema": D64_DECODER_EXECUTION_STATE_SCHEMA,
-                    "emission_routes": [
-                        "learned_generate",
-                        "learned_copy_anchor",
-                        "deterministic_receipt_continuation",
-                    ],
+                    "emission_routes": emission_routes,
                 }
             )
         if include_id:
@@ -805,6 +818,50 @@ class LivingReasoningCoreD64(CompleteField64D):
         summary = reader_state.mean(dim=1)
         head_vec = self.decoder_head_embedding(torch.tensor([head], device=self.device))
         return torch.tanh(self.decoder_init(torch.cat((summary, head_vec), dim=-1))).unsqueeze(0)
+
+    def _decoder_logits(
+        self,
+        output: torch.Tensor,
+        memory: AddressableMemory | None,
+        *,
+        return_alignment: bool = False,
+    ) -> torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]:
+        """Keep the opt-in EOS route identical in training and execution.
+
+        The legacy decoder uses one gate to mix generated and copied
+        categories.  That makes EOS probability depend on the content gate,
+        even though the opt-in execution policy assigns termination to the
+        generated head.  For the opt-in architecture, factor the distribution
+        hierarchically: generated-head EOS probability decides termination;
+        the existing mixture, renormalized over non-EOS categories, decides
+        content.  This is a normalized distribution and gives content targets
+        direct pressure against premature EOS.
+        """
+
+        decoded = super()._decoder_logits(output, memory, return_alignment=True)
+        mixed_logits, alignment = decoded
+        if self.living_config.eos_generate_head_route:
+            generated_log_probabilities = F.log_softmax(
+                alignment["generated_logits"], dim=-1
+            )
+            if memory is None:
+                mixed_logits = generated_log_probabilities
+            else:
+                tiny = torch.finfo(mixed_logits.dtype).tiny
+                epsilon = torch.finfo(mixed_logits.dtype).eps
+                generated_eos = generated_log_probabilities[..., self.eos_index].exp()
+                mixed_eos = mixed_logits[..., self.eos_index].exp()
+                generated_eos = generated_eos.clamp(min=tiny, max=1.0 - epsilon)
+                mixed_eos = mixed_eos.clamp(min=tiny, max=1.0 - epsilon)
+                content_scale = torch.log1p(-generated_eos) - torch.log1p(-mixed_eos)
+                mixed_logits = mixed_logits + content_scale.unsqueeze(-1)
+                mixed_logits = mixed_logits.clone()
+                mixed_logits[..., self.eos_index] = generated_log_probabilities[
+                    ..., self.eos_index
+                ]
+        if return_alignment:
+            return mixed_logits, alignment
+        return mixed_logits
 
     def causal_decoder_step(
         self,
@@ -1535,9 +1592,29 @@ class LivingReasoningCoreD64(CompleteField64D):
         step: CausalDecoderStep,
         memory: AddressableMemory,
     ) -> tuple[DecoderEmissionRoute, int, int | None, MemoryCellReceipt | None]:
+        """Route one decoder step between learned generate and learned copy.
+
+        With ``eos_generate_head_route`` the copy/generate gate arbitrates
+        content only.  EOS wins when the matching hierarchical distribution's
+        most probable category is EOS, regardless of the gate sign, because
+        EOS is not a memory cell and cannot be copied.  Termination therefore
+        does not require a per-position gate separation that the shared-bias
+        gate geometry cannot learn within renewable tranches.
+        """
+
+        if self.living_config.eos_generate_head_route:
+            routed_category = int(step.mixed_logits[0, 0].argmax(dim=-1).item())
+            if routed_category == self.eos_index:
+                return DecoderEmissionRoute.LEARNED_GENERATE, routed_category, None, None
         gate = float(step.generate_gate_logits[0, 0].item())
         if gate >= 0.0:
-            category = int(step.generated_logits[0, 0].argmax(dim=-1).item())
+            generated_logits = step.generated_logits[0, 0]
+            if self.living_config.eos_generate_head_route:
+                # The hierarchical distribution already decided that this is
+                # a content step. Do not let the generate branch reintroduce
+                # EOS while selecting its non-EOS category.
+                generated_logits = generated_logits[: self.eos_index]
+            category = int(generated_logits.argmax(dim=-1).item())
             return DecoderEmissionRoute.LEARNED_GENERATE, category, None, None
         if step.position_logits.shape[-1] != memory.states.shape[1]:
             raise ValueError("learned pointer surface does not match addressable memory")

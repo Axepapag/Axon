@@ -23,6 +23,10 @@ from training import (
     load_first_form_curriculum,
     load_sequential_first_form,
 )
+from training.foundation_motor_curriculum import (
+    RECEIPT_TEACHING_PROFILES,
+    RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 LAUNCH_SCHEMA = "axon-d64-tournament-launch-v2"
@@ -51,6 +55,27 @@ def _arguments() -> argparse.Namespace:
         help="immutable FFCS manifest (standard or sequential schema); repeatable",
     )
     parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
+    parser.add_argument(
+        "--receipt-teaching-profile",
+        choices=RECEIPT_TEACHING_PROFILES,
+        default=RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2,
+        help=(
+            "content-addressed receipt objective profile for receipt-aware candidates; "
+            "the continuation_v1 default's documented failure mode (learned copy/"
+            "generate route pinned to zero) was reproduced by the paused architecture "
+            "screen, so new screen launches default to route_eos_balanced_v2"
+        ),
+    )
+    parser.add_argument(
+        "--generate-gate-bias",
+        type=float,
+        default=None,
+        help=(
+            "override the initial copy/generate-gate bias for child candidates; "
+            "initialization only, never architecture identity; omit to keep the "
+            "candidate's configured default"
+        ),
+    )
     parser.add_argument("--max-steps", type=int, default=1)
     parser.add_argument(
         "--legacy-plan-v1",
@@ -129,6 +154,19 @@ def _command(args: argparse.Namespace, *, candidate: Any) -> list[str]:
     ]
     if candidate.config.receipt_continuation:
         command.append("--receipt-continuation")
+        command.extend(
+            (
+                "--receipt-teaching-profile",
+                str(args.receipt_teaching_profile),
+            )
+        )
+    if args.generate_gate_bias is not None:
+        command.extend(
+            (
+                "--generate-gate-bias",
+                repr(args.generate_gate_bias),
+            )
+        )
     if args.legacy_plan_v1:
         command.extend(("--max-steps", str(args.max_steps)))
     if args.run_steps is not None and args.tranche_steps is None and not args.evaluate_only:

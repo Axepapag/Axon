@@ -43,6 +43,7 @@ from training import (
     FOUNDATION_MOTOR_V2_STAGE_ORDER,
     FOUNDATION_SEQUENCE_GATE_POLICY_ID,
     RECEIPT_TEACHING_PROFILE_CONTINUATION_V1,
+    RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_EOS_V3,
     RECEIPT_TEACHING_PROFILES,
     LivingReasoningCoreD64,
     LivingReasoningCurriculum,
@@ -343,6 +344,14 @@ def _arguments() -> argparse.Namespace:
             "a new candidate lineage and is never a checkpoint resume"
         ),
     )
+    parser.add_argument(
+        "--eos-generate-head-route",
+        action="store_true",
+        help=(
+            "use generated-head EOS termination; requires receipt continuation "
+            "and the generate_head_eos_v3 objective profile"
+        ),
+    )
     return parser.parse_args()
 
 
@@ -640,6 +649,14 @@ def main() -> int:
         raise ValueError(
             "a non-default --receipt-teaching-profile requires --receipt-continuation"
         )
+    if args.eos_generate_head_route != (
+        args.receipt_teaching_profile
+        == RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_EOS_V3
+    ):
+        raise ValueError(
+            "--eos-generate-head-route and --receipt-teaching-profile "
+            "generate_head_eos_v3 must be selected together"
+        )
     _seed_everything(args.seed)
     device = _device(args.device)
     config = candidate_a_config(
@@ -650,6 +667,7 @@ def main() -> int:
         dropout=0.0,
         generate_gate_bias=args.generate_gate_bias,
         receipt_continuation=bool(args.receipt_continuation),
+        eos_generate_head_route=bool(args.eos_generate_head_route),
     )
     model = LivingReasoningCoreD64(config).to(device)
     standard_ffcs = []
@@ -1814,6 +1832,7 @@ def main() -> int:
                 complete_regression=complete_regression_evaluation,
                 receipt_continuation=bool(args.receipt_continuation),
                 receipt_teaching_profile=args.receipt_teaching_profile,
+                eos_generate_head_route=bool(args.eos_generate_head_route),
             )
         )
         foundation_motor_v2_program_complete = bool(

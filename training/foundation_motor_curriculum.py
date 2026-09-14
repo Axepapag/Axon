@@ -261,11 +261,61 @@ FOUNDATION_MOTOR_V2_RECEIPT_ROUTE_EOS_BALANCED_PROGRAM_ID = canonical_sha256(
     FOUNDATION_MOTOR_V2_RECEIPT_ROUTE_EOS_BALANCED_PROGRAM
 )
 
+# Receipt continuation with an explicit generated-head termination route uses
+# a hierarchical decoder distribution: generated-head EOS probability decides
+# termination and the copy/generate gate arbitrates non-EOS content. The old
+# EOS gate loss is therefore both redundant and contradictory. Preserve all
+# prior profiles and identify this objective separately.
+RECEIPT_GENERATE_HEAD_EOS_TEACH = {
+    "schema": "axon-foundation-motor-receipt-continuation-teach-v3",
+    "profile": "generate_head_eos_v3",
+    "requires_architecture_features": [
+        "receipt_continuation",
+        "eos_generate_head_route",
+    ],
+    "deterministic_continuation_losses_masked": [
+        "payload",
+        "alignment_position",
+        "alignment_copy_gate",
+    ],
+    "learned_decisions_retained": [
+        "payload_anchor_category",
+        "copy_generate_route",
+        "source_anchor",
+        "generate_head_eos",
+    ],
+    "component_weight_overrides": {
+        "payload": 1.0,
+        "alignment_position": 1.0,
+        "alignment_copy_gate": 4.0,
+        "alignment_eos_gate": 0.0,
+    },
+    "alignment_position_reduction": "mean",
+    "oversample_multicell": True,
+    "same_stage_eos_retention_required": True,
+    "termination_objective": "hierarchical_generated_head_eos_probability",
+}
+RECEIPT_GENERATE_HEAD_EOS_TEACH_ID = canonical_sha256(
+    RECEIPT_GENERATE_HEAD_EOS_TEACH
+)
+FOUNDATION_MOTOR_V2_RECEIPT_GENERATE_HEAD_EOS_PROGRAM = {
+    "schema": "axon-foundation-motor-teaching-program-variant-v4",
+    "base_program_id": FOUNDATION_MOTOR_V2_PROGRAM_ID,
+    "teaching_overlay_ids": [RECEIPT_GENERATE_HEAD_EOS_TEACH_ID],
+    "layer_13_resolution": "deterministic_receipt_continuation_is_categorical_transport",
+    "termination_resolution": "generate_head_eos_is_independent_of_content_route",
+}
+FOUNDATION_MOTOR_V2_RECEIPT_GENERATE_HEAD_EOS_PROGRAM_ID = canonical_sha256(
+    FOUNDATION_MOTOR_V2_RECEIPT_GENERATE_HEAD_EOS_PROGRAM
+)
+
 RECEIPT_TEACHING_PROFILE_CONTINUATION_V1 = "continuation_v1"
 RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2 = "route_eos_balanced_v2"
+RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_EOS_V3 = "generate_head_eos_v3"
 RECEIPT_TEACHING_PROFILES = (
     RECEIPT_TEACHING_PROFILE_CONTINUATION_V1,
     RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2,
+    RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_EOS_V3,
 )
 
 
@@ -274,6 +324,8 @@ def receipt_continuation_teach_profile(profile: str) -> Mapping[str, Any]:
         return RECEIPT_CONTINUATION_TEACH
     if profile == RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2:
         return RECEIPT_ROUTE_EOS_BALANCED_TEACH
+    if profile == RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_EOS_V3:
+        return RECEIPT_GENERATE_HEAD_EOS_TEACH
     raise ValueError(f"unknown receipt teaching profile {profile!r}")
 
 
@@ -286,6 +338,8 @@ def foundation_motor_v2_objective_program_id(
     """Return the exact optimizer objective identity for this campaign."""
 
     if receipt_continuation:
+        if receipt_teaching_profile == RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_EOS_V3:
+            return FOUNDATION_MOTOR_V2_RECEIPT_GENERATE_HEAD_EOS_PROGRAM_ID
         if receipt_teaching_profile == RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2:
             return FOUNDATION_MOTOR_V2_RECEIPT_ROUTE_EOS_BALANCED_PROGRAM_ID
         if receipt_teaching_profile != RECEIPT_TEACHING_PROFILE_CONTINUATION_V1:
@@ -1218,9 +1272,17 @@ def decide_foundation_motor_v2_stage(
     complete_regression: bool,
     receipt_continuation: bool = False,
     receipt_teaching_profile: str = RECEIPT_TEACHING_PROFILE_CONTINUATION_V1,
+    eos_generate_head_route: bool = False,
 ) -> dict[str, Any]:
     if training_stage not in FOUNDATION_MOTOR_V2_STAGE_ORDER:
         raise ValueError(f"unknown foundation motor v2 training stage {training_stage!r}")
+    generate_head_profile = (
+        receipt_teaching_profile == RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_EOS_V3
+    )
+    if eos_generate_head_route != generate_head_profile:
+        raise ValueError(
+            "eos_generate_head_route and generate_head_eos_v3 must be selected together"
+        )
     failures: list[str] = []
     if heldout_probe is None or regression_probe is None:
         failures.append("missing heldout or regression motor-v2 probe")
@@ -1264,19 +1326,24 @@ def decide_foundation_motor_v2_stage(
                 require_pair("position")
                 require_pair("copy_gate")
                 if receipt_continuation:
-                    require("alignment_eos_gate_accuracy")
                     require("payload_eos_accuracy")
-                    require_pair("eos_gate")
+                    if not eos_generate_head_route:
+                        require("alignment_eos_gate_accuracy")
+                        require_pair("eos_gate")
             elif training_stage == "transport_eos":
-                for metric in (
+                required_metrics = [
                     "alignment_position_accuracy",
                     "alignment_copy_gate_accuracy",
-                    "alignment_eos_gate_accuracy",
                     "payload_content_accuracy",
                     "payload_eos_accuracy",
-                ):
+                ]
+                required_pairs = ["position", "copy_gate", "content"]
+                if not eos_generate_head_route:
+                    required_metrics.append("alignment_eos_gate_accuracy")
+                    required_pairs.append("eos_gate")
+                for metric in required_metrics:
                     require(metric)
-                for component in ("position", "copy_gate", "eos_gate", "content"):
+                for component in required_pairs:
                     require_pair(component)
                 if not (
                     float(probe["payload_content_accuracy"])
@@ -1323,6 +1390,7 @@ def decide_foundation_motor_v2_stage(
             receipt_teaching_profile=receipt_teaching_profile,
         ),
         "receipt_continuation": receipt_continuation,
+        "eos_generate_head_route": eos_generate_head_route,
         "receipt_teaching_profile": (
             receipt_teaching_profile if receipt_continuation else None
         ),
@@ -1348,6 +1416,8 @@ __all__ = [
     "FOUNDATION_MOTOR_V2_RECEIPT_PROGRAM_ID",
     "FOUNDATION_MOTOR_V2_RECEIPT_ROUTE_EOS_BALANCED_PROGRAM",
     "FOUNDATION_MOTOR_V2_RECEIPT_ROUTE_EOS_BALANCED_PROGRAM_ID",
+    "FOUNDATION_MOTOR_V2_RECEIPT_GENERATE_HEAD_EOS_PROGRAM",
+    "FOUNDATION_MOTOR_V2_RECEIPT_GENERATE_HEAD_EOS_PROGRAM_ID",
     "FOUNDATION_MOTOR_V2_SOURCE_ID",
     "FOUNDATION_MOTOR_V2_STAGE",
     "FOUNDATION_MOTOR_V2_STAGE_ORDER",
@@ -1356,9 +1426,12 @@ __all__ = [
     "RECEIPT_CONTINUATION_TEACH_ID",
     "RECEIPT_ROUTE_EOS_BALANCED_TEACH",
     "RECEIPT_ROUTE_EOS_BALANCED_TEACH_ID",
+    "RECEIPT_GENERATE_HEAD_EOS_TEACH",
+    "RECEIPT_GENERATE_HEAD_EOS_TEACH_ID",
     "RECEIPT_TEACHING_PROFILES",
     "RECEIPT_TEACHING_PROFILE_CONTINUATION_V1",
     "RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2",
+    "RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_EOS_V3",
     "apply_copy_alignment_multicell_teach_weights",
     "apply_receipt_continuation_teach_weights",
     "compile_foundation_motor",

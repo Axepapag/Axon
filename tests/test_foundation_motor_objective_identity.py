@@ -1,3 +1,5 @@
+import pytest
+
 from runtime.field import canonical_sha256
 from training.foundation_motor_curriculum import (
     COPY_ALIGNMENT_MULTICELL_TEACH,
@@ -9,10 +11,15 @@ from training.foundation_motor_curriculum import (
     FOUNDATION_MOTOR_V2_RECEIPT_PROGRAM_ID,
     FOUNDATION_MOTOR_V2_RECEIPT_ROUTE_EOS_BALANCED_PROGRAM,
     FOUNDATION_MOTOR_V2_RECEIPT_ROUTE_EOS_BALANCED_PROGRAM_ID,
+    FOUNDATION_MOTOR_V2_RECEIPT_GENERATE_HEAD_EOS_PROGRAM,
+    FOUNDATION_MOTOR_V2_RECEIPT_GENERATE_HEAD_EOS_PROGRAM_ID,
     RECEIPT_CONTINUATION_TEACH,
     RECEIPT_CONTINUATION_TEACH_ID,
     RECEIPT_ROUTE_EOS_BALANCED_TEACH,
     RECEIPT_ROUTE_EOS_BALANCED_TEACH_ID,
+    RECEIPT_GENERATE_HEAD_EOS_TEACH,
+    RECEIPT_GENERATE_HEAD_EOS_TEACH_ID,
+    RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_EOS_V3,
     RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2,
     apply_receipt_continuation_teach_weights,
     decide_foundation_motor_v2_stage,
@@ -155,3 +162,58 @@ def test_route_eos_balanced_stage_gate_reports_exact_objective_identity() -> Non
     assert decision["receipt_teaching_profile"] == (
         RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2
     )
+
+
+def test_generate_head_eos_profile_has_distinct_objective_and_matching_gate() -> None:
+    assert canonical_sha256(RECEIPT_GENERATE_HEAD_EOS_TEACH) == (
+        RECEIPT_GENERATE_HEAD_EOS_TEACH_ID
+    )
+    assert canonical_sha256(
+        FOUNDATION_MOTOR_V2_RECEIPT_GENERATE_HEAD_EOS_PROGRAM
+    ) == FOUNDATION_MOTOR_V2_RECEIPT_GENERATE_HEAD_EOS_PROGRAM_ID
+    assert RECEIPT_GENERATE_HEAD_EOS_TEACH["component_weight_overrides"][
+        "alignment_eos_gate"
+    ] == 0.0
+    assert foundation_motor_v2_objective_program_id(
+        teach_multicell_copy=False,
+        receipt_continuation=True,
+        receipt_teaching_profile=RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_EOS_V3,
+    ) == FOUNDATION_MOTOR_V2_RECEIPT_GENERATE_HEAD_EOS_PROGRAM_ID
+
+    exact_without_legacy_eos_gate = {
+        "complete_field_coverage_rate": 1.0,
+        "alignment_position_accuracy": 1.0,
+        "alignment_copy_gate_accuracy": 1.0,
+        "alignment_eos_gate_accuracy": 0.0,
+        "payload_eos_accuracy": 1.0,
+        "pair_exact_rates": {
+            "position": 1.0,
+            "copy_gate": 1.0,
+            "eos_gate": 0.0,
+        },
+    }
+    decision = decide_foundation_motor_v2_stage(
+        training_stage="copy_alignment",
+        heldout_probe=exact_without_legacy_eos_gate,
+        regression_probe=exact_without_legacy_eos_gate,
+        complete_heldout=True,
+        complete_regression=True,
+        receipt_continuation=True,
+        receipt_teaching_profile=RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_EOS_V3,
+        eos_generate_head_route=True,
+    )
+    assert decision["passed"] is True
+    assert decision["effective_objective_program_id"] == (
+        FOUNDATION_MOTOR_V2_RECEIPT_GENERATE_HEAD_EOS_PROGRAM_ID
+    )
+
+    with pytest.raises(ValueError, match="must be selected together"):
+        decide_foundation_motor_v2_stage(
+            training_stage="copy_alignment",
+            heldout_probe=exact_without_legacy_eos_gate,
+            regression_probe=exact_without_legacy_eos_gate,
+            complete_heldout=True,
+            complete_regression=True,
+            receipt_continuation=True,
+            receipt_teaching_profile=RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_EOS_V3,
+        )

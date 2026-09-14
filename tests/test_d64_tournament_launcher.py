@@ -9,7 +9,8 @@ from pathlib import Path
 import pytest
 
 from runtime.field import canonical_sha256
-from scripts.run_d64_tournament import _load_candidate_report
+from scripts.run_d64_tournament import _command, _load_candidate_report
+from training.reasoning_tournament import d64_architecture_search_space
 
 
 def _write_progress_report(tmp_path: Path) -> tuple[Path, Path, dict]:
@@ -90,3 +91,43 @@ def test_progress_report_hash_mismatch_is_rejected(tmp_path: Path) -> None:
             progress_dir=progress_dir,
             candidate_label=report["candidate_label"],
         )
+
+
+def test_receipt_candidate_receives_profile_and_optional_gate_bias() -> None:
+    import argparse
+
+    from training.foundation_motor_curriculum import (
+        RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2,
+    )
+
+    candidate = next(
+        item for item in d64_architecture_search_space() if item.config.receipt_continuation
+    )
+    args = argparse.Namespace(
+        state_root=Path("State"),
+        device="cuda",
+        evaluation_case_limit=4,
+        learning_rate=1e-4,
+        seed=20260912,
+        checkpoint_interval=16,
+        legacy_plan_v1=False,
+        run_steps=None,
+        tranche_steps=32,
+        evaluate_only=False,
+        curriculum_manifest=[Path("manifest.json")],
+        preflight_only=False,
+        resume=False,
+        progress_dir=None,
+        external_job_id=None,
+        receipt_teaching_profile=RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2,
+        generate_gate_bias=None,
+    )
+    command = _command(args, candidate=candidate)
+    profile_index = command.index("--receipt-teaching-profile")
+    assert command[profile_index + 1] == RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2
+    assert "--generate-gate-bias" not in command
+
+    args.generate_gate_bias = 0.0
+    command = _command(args, candidate=candidate)
+    bias_index = command.index("--generate-gate-bias")
+    assert float(command[bias_index + 1]) == 0.0

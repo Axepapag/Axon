@@ -470,3 +470,205 @@ def test_architecture_campaign_declares_balanced_legal_d64_search() -> None:
     assert [stage.promotion_count for stage in campaign.stages] == [8, 3, 1]
     assert [stage.entrant_count for stage in campaign.stages] == [16, 8, 3]
     assert [len(stage.seeds) for stage in campaign.stages] == [1, 3, 3]
+class _StubMemory:
+    """Minimal AddressableMemory stand-in for route-selection unit tests."""
+
+    def __init__(self, slots: int, d_model: int, token_id: int = 0) -> None:
+        self.states = torch.zeros(1, slots, d_model)
+        self.char_indices = torch.full((1, slots), token_id, dtype=torch.long)
+        self.receipts = ()
+        self.segments = ()
+
+    def receipt(self, index: int):
+        from types import SimpleNamespace
+
+        return SimpleNamespace(
+            address=SimpleNamespace(transport_token_id=int(self.char_indices[0, index]))
+        )
+
+
+def test_eos_generate_head_route_is_opt_in_and_changes_emission_identity() -> None:
+    model = LivingReasoningCoreD64(
+        LivingReasoningCoreConfig(
+            n_heads=1,
+            n_layers=2,
+            ffn_dim=128,
+            state_tokens=2,
+            page_size=2,
+            dropout=0.0,
+            receipt_continuation=True,
+        )
+    )
+    routed = LivingReasoningCoreD64(
+        LivingReasoningCoreConfig(
+            n_heads=1,
+            n_layers=2,
+            ffn_dim=128,
+            state_tokens=2,
+            page_size=2,
+            dropout=0.0,
+            receipt_continuation=True,
+            eos_generate_head_route=True,
+        )
+    )
+    assert model.architecture_id != routed.architecture_id
+    identity = routed.living_config.to_canonical_dict(False)
+    assert "generate_head_eos" in identity["emission_routes"]
+
+    with pytest.raises(ValueError, match="receipt_continuation"):
+        LivingReasoningCoreConfig(eos_generate_head_route=True)
+
+
+def test_eos_generate_head_route_lets_generate_head_emit_eos_under_copy_gate() -> None:
+    from training.living_reasoning_d64 import (
+        CausalDecoderStep,
+        DecoderEmissionRoute,
+    )
+
+    model = LivingReasoningCoreD64(
+        LivingReasoningCoreConfig(
+            n_heads=1,
+            n_layers=2,
+            ffn_dim=128,
+            state_tokens=2,
+            page_size=2,
+            dropout=0.0,
+            receipt_continuation=True,
+            eos_generate_head_route=True,
+        )
+    )
+    hidden = torch.zeros(1, 1, model.living_config.d_model)
+    generated = torch.zeros(1, 1, model.eos_index + 1)
+    generated[0, 0, model.eos_index] = 10.0
+    step = CausalDecoderStep(
+        hidden=hidden,
+        mixed_logits=generated.clone(),
+        generated_logits=generated,
+        position_logits=torch.zeros(1, 1, 4),
+        generate_gate_logits=torch.full((1, 1), -5.0),
+    )
+    memory = _StubMemory(slots=4, d_model=model.living_config.d_model)
+    route, category, memory_index, receipt = model._select_learned_emission(step, memory)
+    assert route is DecoderEmissionRoute.LEARNED_GENERATE
+    assert category == model.eos_index
+    assert memory_index is None
+    assert receipt is None
+
+
+def test_eos_generate_head_route_uses_one_normalized_training_and_runtime_distribution() -> None:
+    model = LivingReasoningCoreD64(
+        LivingReasoningCoreConfig(
+            n_heads=1,
+            n_layers=2,
+            ffn_dim=128,
+            state_tokens=2,
+            page_size=2,
+            dropout=0.0,
+            receipt_continuation=True,
+            eos_generate_head_route=True,
+        )
+    )
+    memory = _StubMemory(slots=4, d_model=model.living_config.d_model, token_id=7)
+    output = torch.zeros(1, 1, model.living_config.d_model)
+    with torch.no_grad():
+        model.copy_gate.weight.zero_()
+        model.copy_gate.bias.fill_(-5.0)
+        model.decoder_output.weight.zero_()
+        model.decoder_output.bias.zero_()
+        model.decoder_output.bias[model.eos_index] = 1.0
+
+    logits, alignment = model._decoder_logits(output, memory, return_alignment=True)
+    probabilities = logits.exp()
+    generated_probabilities = torch.softmax(alignment["generated_logits"], dim=-1)
+    assert torch.allclose(probabilities.sum(dim=-1), torch.ones(1, 1), atol=1e-6)
+    assert torch.allclose(
+        probabilities[..., model.eos_index],
+        generated_probabilities[..., model.eos_index],
+        atol=1e-6,
+    )
+
+    content_loss = torch.nn.functional.nll_loss(
+        logits.reshape(-1, logits.shape[-1]), torch.tensor([7])
+    )
+    model.zero_grad(set_to_none=True)
+    content_loss.backward()
+    assert model.decoder_output.bias.grad[model.eos_index] > 0
+
+
+def test_eos_generate_head_route_does_not_terminate_when_content_distribution_wins() -> None:
+    from training.living_reasoning_d64 import CausalDecoderStep, DecoderEmissionRoute
+
+    model = LivingReasoningCoreD64(
+        LivingReasoningCoreConfig(
+            n_heads=1,
+            n_layers=2,
+            ffn_dim=128,
+            state_tokens=2,
+            page_size=2,
+            dropout=0.0,
+            receipt_continuation=True,
+            eos_generate_head_route=True,
+        )
+    )
+    hidden = torch.zeros(1, 1, model.living_config.d_model)
+    generated = torch.zeros(1, 1, model.eos_index + 1)
+    generated[0, 0, model.eos_index] = 10.0
+    mixed = torch.zeros_like(generated)
+    mixed[0, 0, 0] = 11.0
+    step = CausalDecoderStep(
+        hidden=hidden,
+        mixed_logits=mixed,
+        generated_logits=generated,
+        position_logits=torch.zeros(1, 1, 4),
+        generate_gate_logits=torch.full((1, 1), -5.0),
+    )
+    memory = _StubMemory(slots=4, d_model=model.living_config.d_model)
+    route, category, _memory_index, _receipt = model._select_learned_emission(step, memory)
+    assert route is DecoderEmissionRoute.LEARNED_COPY_ANCHOR
+    assert category == 0
+
+    generated[0, 0, 7] = 9.0
+    generated_step = CausalDecoderStep(
+        hidden=hidden,
+        mixed_logits=mixed,
+        generated_logits=generated,
+        position_logits=torch.zeros(1, 1, 4),
+        generate_gate_logits=torch.full((1, 1), 5.0),
+    )
+    route, category, _memory_index, _receipt = model._select_learned_emission(
+        generated_step, memory
+    )
+    assert route is DecoderEmissionRoute.LEARNED_GENERATE
+    assert category == 7
+
+
+def test_legacy_route_still_requires_gate_for_eos() -> None:
+    from training.living_reasoning_d64 import (
+        CausalDecoderStep,
+        DecoderEmissionRoute,
+    )
+
+    model = LivingReasoningCoreD64(
+        LivingReasoningCoreConfig(
+            n_heads=1,
+            n_layers=2,
+            ffn_dim=128,
+            state_tokens=2,
+            page_size=2,
+            dropout=0.0,
+            receipt_continuation=True,
+        )
+    )
+    hidden = torch.zeros(1, 1, model.living_config.d_model)
+    generated = torch.zeros(1, 1, model.eos_index + 1)
+    generated[0, 0, model.eos_index] = 10.0
+    step = CausalDecoderStep(
+        hidden=hidden,
+        mixed_logits=generated.clone(),
+        generated_logits=generated,
+        position_logits=torch.zeros(1, 1, 4),
+        generate_gate_logits=torch.full((1, 1), -5.0),
+    )
+    memory = _StubMemory(slots=4, d_model=model.living_config.d_model)
+    route, _category, _memory_index, _receipt = model._select_learned_emission(step, memory)
+    assert route is DecoderEmissionRoute.LEARNED_COPY_ANCHOR
