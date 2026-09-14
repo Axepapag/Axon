@@ -168,6 +168,18 @@ journaling is enabled, so progress-prefixed stdout cannot invalidate a correct
 report. The monolithic recipe was removed and replaced by 16 single-candidate
 shards with checkpoints at steps 16 and 32.
 
+The largest shard proof is currently running:
+
+- job ID: `ff09dd152c2cb657b696f509725092e84efebbb2d6915e0a15503d67a492a1d2`;
+- Git revision: `0c78b538cf3b7c61ffdc6e55e59d62c377a82fae`;
+- packet SHA256: `48d0c92bb3688c0d63f139441cdece9035562bcc98dcc102e5ca583449e68307`;
+- candidate: `d64-l10-h2-f131072`;
+- kernel: `axongliksbot/axon-job-ff09dd152c2cb657`;
+- live probe: Tesla T4, runner active.
+
+Do not launch the other 15 shards until this job publishes a complete bundle
+and local fetch verifies its detached manifest.
+
 ## Tournament commands
 
 ```powershell

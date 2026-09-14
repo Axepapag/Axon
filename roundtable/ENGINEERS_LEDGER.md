@@ -1,14 +1,14 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-13T23:52:42+00:00
+Updated: 2026-09-14T15:20:14+00:00
 Current through event:
-`evt-20260913T235242Z-codex-no-sync-tournament-launch`
+`evt-20260914T152014Z-codex-shard-tournament-recovery`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
-Identity stamp: Codex / GPT-6 / 2026-09-13
+Identity stamp: Codex / GPT-6 / 2026-09-14
 
 ## Current mission and honest status
 
@@ -18,11 +18,18 @@ this tournament. The accepted recovery boundary is Kaggle's completed private,
 locally fetched, hash-verified output bundle; an interrupted 32-step candidate
 may be rerun from its immutable recipe and seed.
 
-The real 16-candidate D64 architecture screen is active on a Tesla T4 as job
-`b4b9a3802abf24d9ebf493fc15b717dcc4e067f2e76ab405806f3980353911c5`
-from commit `9d177bd`. Candidate 1 completed and candidate 2 started, proving the
-repaired candidate-report handoff in Kaggle. No tournament result, competence,
-promotion, or serving claim exists while the screen is incomplete.
+The monolithic 16-candidate job `b4b9a380...` is terminal with provider status
+`ERROR`. Candidates 1 through 9 completed 32 optimizer steps and wrote
+content-address-correct reports. Candidate 10 reached step 31, then accumulated
+model/optimizer checkpoints filled Kaggle's notebook disk. Candidate 11 and
+papermill output saving failed with `OSError: [Errno 28] No space left on
+device`. No detached archive/manifest was published, so those reports remain
+diagnostic evidence rather than accepted tournament results.
+
+Commit `0c78b53` replaces the monolithic recipe with 16 single-candidate shard
+recipes and makes the parent prefer durable progress receipts over stdout that
+contains progress prefixes. The largest shard, `d64-l10-h2-f131072`, is active
+on a Tesla T4 as job `ff09dd152c2cb657b696f509725092e84efebbb2d6915e0a15503d67a492a1d2`.
 
 Operational handoff:
 `roundtable/HANDOFF_D64_KAGGLE_TOURNAMENT_2026-09-13.md`.
@@ -73,7 +80,7 @@ Campaign ID:
 Tournament ID:
 `cea217a0025fc9fa2e42a0d0c83b50eb77bb923e72114209684f52b0bb83394e`
 
-Recipe: `configs/kaggle/d64_architecture_screen_stage1.json`
+Recipes: `configs/kaggle/d64_architecture_screen_stage1_shards/`
 
 Proposal:
 `roundtable/proposals/CODEX_D64_ARCHITECTURE_TOURNAMENT_2026-09-12.md`
@@ -89,6 +96,12 @@ durable report was intact: held-out mean loss moved from `7.38446` to `3.44517`
 and free-running payload exact rate stayed `0.0`. Commit `9d177bd` makes the
 parent recover that report through its content-addressed progress receipt and
 reject path escapes, hash mismatches, or receipt/report disagreement.
+
+The second monolithic launch proved all nine completed segment reports and
+their progress receipts were internally hash-consistent, but stdout progress
+prefixes still caused `ReportContractError`. It then proved the shared-job disk
+shape was unsound. Stage one now uses one candidate and two checkpoints per
+private Kaggle job. The removed monolithic config must not be recreated.
 
 ## Runtime Trainer truth boundary
 
@@ -137,6 +150,8 @@ remote Living core inside the canonical runtime training loop.
 
 - **BLOCKING:** the runtime `TrainingSession` still lacks the real Living-core
   adapter and complete cross-store recovery transaction.
+- **ADVISORY:** the largest stage-one shard is still running; do not launch the
+  remaining 15 until its completed bundle is fetched and hash-verified.
 - **ADVISORY:** D:/extension source is restored and the Browser Hub recovered
   to two WebSocket clients at the final machine sweep. Duplicate WebSocket/HTTP
   command delivery can still double-toggle Kaggle MUI menus.
@@ -150,31 +165,32 @@ remote Living core inside the canonical runtime training loop.
 
 ## Next actions
 
-1. Monitor active job `b4b9a380...` through completion without restarting it.
-2. Fetch and independently inspect the completed hash-verified output bundle.
-3. Compare all complete candidate metrics and cost; make no promotion from this
+1. Monitor active shard `ff09dd15...` through completion without restarting it.
+2. Fetch and independently inspect its completed hash-verified output bundle.
+3. If the largest shard closes cleanly, launch the remaining 15 shard recipes.
+4. Compare all complete candidate metrics and cost; make no promotion from this
    deliberately incomplete, single-seed opening.
-4. Implement and gate the real Living-core runtime adapter plus the cross-store
+5. Implement and gate the real Living-core runtime adapter plus the cross-store
    transaction before making a canonical Heart-owned remote-training claim.
 
 ## Useful commands
 
 ```powershell
 python scripts/axon_kaggle.py doctor
-python scripts/axon_kaggle.py status b4b9a3802abf24d9ebf493fc15b717dcc4e067f2e76ab405806f3980353911c5
-python scripts/axon_kaggle.py monitor b4b9a3802abf24d9ebf493fc15b717dcc4e067f2e76ab405806f3980353911c5
-python scripts/axon_kaggle.py fetch b4b9a3802abf24d9ebf493fc15b717dcc4e067f2e76ab405806f3980353911c5
+python scripts/axon_kaggle.py status ff09dd152c2cb657b696f509725092e84efebbb2d6915e0a15503d67a492a1d2
+python scripts/axon_kaggle.py monitor ff09dd152c2cb657b696f509725092e84efebbb2d6915e0a15503d67a492a1d2
+python scripts/axon_kaggle.py fetch ff09dd152c2cb657b696f509725092e84efebbb2d6915e0a15503d67a492a1d2
 python scripts/axon_kaggle.py jobs
 ```
 
 ## Continuity health
 
-- Canonical ledger: 230 valid unique events through
-  `evt-20260913T235242Z-codex-no-sync-tournament-launch`.
-- Latest launch configuration commit: `87b5a52` (optional sync removed).
-- Latest code commit: `9d177bd` (durable candidate report handoff).
-- Kaggle account: `axongliksbot`; corrected private tournament is active.
+- Canonical ledger: 231 valid unique events through
+  `evt-20260914T152014Z-codex-shard-tournament-recovery`.
+- Latest architecture-screen commit: `0c78b53` (single-candidate shards and
+  receipt-first report loading).
+- Kaggle account: `axongliksbot`; largest private shard is active on Tesla T4.
 - No production Heart or serving service was started or stopped.
 - The Windows clipboard was cleared of the earlier secret payload.
-- No billed API spend was incurred; Kaggle GPU use remains within free account
-  quota and the final tournament consumption is not yet known.
+- No billed API spend was incurred. Kaggle reported 27.88 of 30 GPU hours
+  remaining before the shard proof; its final consumption is not yet known.
