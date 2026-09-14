@@ -1,0 +1,35 @@
+{
+  "accelerator": "gpu",
+  "allow_sensitive_state_upload": true,
+  "entrypoint_argv": [
+    "python",
+    "scripts/run_d64_tournament.py",
+    "--state-root",
+    "State",
+    "--profile",
+    "architecture-screen",
+    "--curriculum-manifest",
+    "State/training/curricula/ffcs_v1/a872278fd0e8ef926370e1712d01dcf0a277672c4a0088af44aef483d8417740/manifest.json",
+    "--device",
+    "cuda",
+    "--evaluation-case-limit",
+    "4",
+    "--checkpoint-interval",
+    "16",
+    "--tranche-steps",
+    "32",
+    "--seed",
+    "20260912",
+    "--candidate-label",
+    "d64-l10-h2-f131072"
+  ],
+  "include_paths": [
+    "State/active/branches/active",
+    "State/training/curricula/ffcs_v1/a872278fd0e8ef926370e1712d01dcf0a277672c4a0088af44aef483d8417740/manifest.json",
+    "configs/source_of_truth/capacity_policy.json"
+  ],
+  "name": "Axon D64 stage 1 shard d64-l10-h2-f131072",
+  "notes": "Private, non-serving single-candidate shard for d64-l10-h2-f131072 in the governed D64 architecture screen. It uses the identical foundation-motor-v2 curriculum, seed, 32-step optimizer allowance, causal free-running typed evaluation, exact receipt-aware Unicode transport, and candidate-private Soul. Checkpoints at steps 16 and 32 bound disk use while preserving two landmarks. The shard is an incomplete single-seed diagnostic and cannot promote or serve a winner. Mid-run sync is disabled; the completed, locally fetched, hash-verified Kaggle output bundle is the recovery boundary.",
+  "provider": "kaggle",
+  "schema": "axon-cloud-training-job-config-v1"
+}

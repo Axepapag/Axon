@@ -32,10 +32,10 @@ Campaign ID:
 Tournament ID:
 `cea217a0025fc9fa2e42a0d0c83b50eb77bb923e72114209684f52b0bb83394e`
 
-The opening recipe is
-`configs/kaggle/d64_architecture_screen_stage1.json`. It is deliberately an
-incomplete screen. It may diagnose learning signal and runtime cost; it may not
-promote or serve a winner.
+The opening recipes are under
+`configs/kaggle/d64_architecture_screen_stage1_shards/`. Each Kaggle job runs
+exactly one candidate. The stage remains an incomplete screen: it may diagnose
+learning signal and runtime cost; it may not promote or serve a winner.
 
 The newer runtime `TrainingSession` is a separate path and still uses the
 `CompleteField64D` conformance motor. Do not report the standalone tournament
@@ -151,17 +151,30 @@ The active corrected job is:
 - kernel: `axongliksbot/axon-job-b4b9a3802abf24d9`;
 - private input dataset: `axongliksbot/axon-job-b4b9a3802abf24d9-input`.
 
-Live Kaggle evidence proves the corrected parent accepted candidate 1 and
-started candidate 2, `d64-l2-h2-f16384`. The job remains private and running.
-Do not infer final ranking, competence, or promotion from this partial screen.
+The corrected monolithic job ultimately completed candidate training for
+candidates 1 through 9, but marked each child `ReportContractError` because its
+captured stdout contained progress lines before the final JSON. Candidate 10
+reached step 31 and then failed writing its final state. Accumulated candidate
+checkpoints filled Kaggle's notebook disk; candidate 11 and papermill output
+saving then failed with `OSError: [Errno 28] No space left on device`.
+
+The nine surviving segment reports are individually content-address correct
+and agree with their progress receipts, but the full job could not publish its
+detached archive and manifest. They are diagnostic evidence, not an admissible
+tournament result.
+
+The current launcher prefers the durable progress receipt whenever progress
+journaling is enabled, so progress-prefixed stdout cannot invalidate a correct
+report. The monolithic recipe was removed and replaced by 16 single-candidate
+shards with checkpoints at steps 16 and 32.
 
 ## Tournament commands
 
 ```powershell
-python scripts/axon_kaggle.py prepare configs/kaggle/d64_architecture_screen_stage1.json
-python scripts/axon_kaggle.py status b4b9a3802abf24d9ebf493fc15b717dcc4e067f2e76ab405806f3980353911c5
-python scripts/axon_kaggle.py monitor b4b9a3802abf24d9ebf493fc15b717dcc4e067f2e76ab405806f3980353911c5
-python scripts/axon_kaggle.py fetch b4b9a3802abf24d9ebf493fc15b717dcc4e067f2e76ab405806f3980353911c5
+python scripts/axon_kaggle.py prepare configs/kaggle/d64_architecture_screen_stage1_shards/d64-l10-h2-f131072.json
+python scripts/axon_kaggle.py launch <prepared_job_id> --yes
+python scripts/axon_kaggle.py monitor <prepared_job_id>
+python scripts/axon_kaggle.py fetch <prepared_job_id>
 ```
 
 Prepare a new packet after all required executable changes are committed. The
@@ -177,9 +190,10 @@ Leave these pre-existing untracked paths untouched:
 
 ## Next engineering order
 
-1. Monitor the active 16-candidate D64 opening screen without restarting it.
-2. After completion, fetch and independently inspect the hash-verified output
-   bundle before accepting any candidate metrics.
+1. Prove the shard boundary with `d64-l10-h2-f131072`, the largest candidate
+   that exhausted the accumulated monolithic disk at step 31.
+2. After completion, fetch and independently inspect its hash-verified output
+   bundle before launching the remaining shards.
 3. In parallel only when repository/machine ownership permits, replace the
    runtime conformance motor with the real Living core adapter and finish the
    cross-store recovery transaction.

@@ -172,15 +172,15 @@ def _load_candidate_report(
     progress_dir: Path | None,
     candidate_label: str,
 ) -> dict[str, Any]:
-    """Load a child's report from stdout or its durable progress receipt."""
+    """Load a child's report from its durable receipt or plain JSON stdout."""
 
-    if completed.stdout.strip():
+    if progress_dir is None:
+        if not completed.stdout.strip():
+            raise ValueError("candidate returned no stdout report and has no progress receipt")
         report = json.loads(completed.stdout)
         if not isinstance(report, dict):
             raise ValueError("candidate stdout report must be a JSON object")
         return report
-    if progress_dir is None:
-        raise ValueError("candidate returned no stdout report and has no progress receipt")
 
     current_path = progress_dir / "candidates" / candidate_label / "current.json"
     current = json.loads(current_path.read_text(encoding="utf-8"))

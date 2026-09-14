@@ -74,3 +74,10 @@ The older prepared job
 `35c5c22b2e4e14c1db36b61306ec507bc79efbe72997cdcc43561a3dfab7a741`
 predates the KGAT correction and this operator decision. It must not launch. A
 fresh packet must be prepared from the current committed revision.
+
+The later monolithic 16-candidate run filled Kaggle's notebook disk during its
+tenth candidate and could not publish a detached output manifest. Stage one is
+therefore executed as 16 single-candidate recipes under
+`configs/kaggle/d64_architecture_screen_stage1_shards/`, with two checkpoint
+landmarks per shard. Candidate results are aggregated only after every shard's
+completed bundle is fetched and hash-verified locally.

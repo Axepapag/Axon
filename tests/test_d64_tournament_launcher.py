@@ -37,9 +37,14 @@ def _write_progress_report(tmp_path: Path) -> tuple[Path, Path, dict]:
     return state_root, progress_dir, report
 
 
-def test_empty_child_stdout_uses_content_addressed_progress_report(tmp_path: Path) -> None:
+def test_noisy_child_stdout_uses_content_addressed_progress_report(tmp_path: Path) -> None:
     state_root, progress_dir, report = _write_progress_report(tmp_path)
-    completed = subprocess.CompletedProcess(["python"], 0, stdout="", stderr="")
+    completed = subprocess.CompletedProcess(
+        ["python"],
+        0,
+        stdout='AXON_PROGRESS {"status":"training"}\n{not one JSON document}\n',
+        stderr="",
+    )
 
     loaded = _load_candidate_report(
         completed,
@@ -50,6 +55,19 @@ def test_empty_child_stdout_uses_content_addressed_progress_report(tmp_path: Pat
 
     assert loaded["report_id"] == report["report_id"]
     assert Path(loaded["report_path"]).is_file()
+
+
+def test_plain_json_stdout_remains_supported_without_progress_journal() -> None:
+    report = {"candidate_label": "local-candidate", "report_id": "local-report"}
+    loaded = _load_candidate_report(
+        subprocess.CompletedProcess(
+            ["python"], 0, stdout=json.dumps(report), stderr=""
+        ),
+        state_root=Path("State"),
+        progress_dir=None,
+        candidate_label="local-candidate",
+    )
+    assert loaded == report
 
 
 def test_progress_report_hash_mismatch_is_rejected(tmp_path: Path) -> None:
