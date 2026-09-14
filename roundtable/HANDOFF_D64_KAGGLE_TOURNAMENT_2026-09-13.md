@@ -168,17 +168,46 @@ journaling is enabled, so progress-prefixed stdout cannot invalidate a correct
 report. The monolithic recipe was removed and replaced by 16 single-candidate
 shards with checkpoints at steps 16 and 32.
 
-The largest shard proof is currently running:
+The largest shard proof completed and its detached output was fetched locally:
 
 - job ID: `ff09dd152c2cb657b696f509725092e84efebbb2d6915e0a15503d67a492a1d2`;
 - Git revision: `0c78b538cf3b7c61ffdc6e55e59d62c377a82fae`;
 - packet SHA256: `48d0c92bb3688c0d63f139441cdece9035562bcc98dcc102e5ca583449e68307`;
 - candidate: `d64-l10-h2-f131072`;
 - kernel: `axongliksbot/axon-job-ff09dd152c2cb657`;
-- live probe: Tesla T4, runner active.
+- live probe: Tesla T4;
+- provider result: completed with return code 0;
+- report ID: `f5a253102ba667146a68fbfcc8780c6660795743a7bbe578d01c5fac3afabbec`,
+  independently recomputed from the unsigned report;
+- detached archive: 3,748,890,320 bytes, 998 manifest members, SHA256
+  `bfa980e394ce9df5eae8a45cd12d199910565696848434ab9c3209a40cd38d77`;
+- two checkpoint files total 4,065,522,026 bytes.
 
-Do not launch the other 15 shards until this job publishes a complete bundle
-and local fetch verifies its detached manifest.
+The shard boundary is operationally sound, but the architecture tournament is
+paused by operator decision. Across the nine recovered monolithic candidates
+and this completed shard, every 32-step opening reduced held-out loss and
+reached teacher-forced payload-content accuracy 1.0, while every candidate
+remained at free-running payload-transport exact rate 0.0 and copy-gate
+accuracy 0.0. Candidate sizes ranged from 1.22M to 169.38M parameters, so this
+opening did not expose a useful capacity ranking.
+
+This is a training-objective diagnosis, not evidence that all geometries are
+incapable. Each report is explicitly a renewable opening tranche with
+`paused_for_next_tranche: true`; none was trained to assignment completion.
+The receipt-continuation teaching profile also overrides the nominal
+copy-alignment stage weights: source-position alignment receives weight 4.0,
+payload 1.0, EOS 1.0, and the copy/generate gate only 0.25. On the largest
+candidate, position loss fell from 8.1350 to 0.6441 and payload loss from
+4.9585 to 3.6705, while copy-gate loss barely moved from 1.7014 to 1.6871.
+The initialized +1.5 generate bias therefore never crossed the zero threshold
+needed to select the learned copy route.
+
+Two newly submitted shards were deleted immediately after the operator paused
+the tournament. Two additional local records say submitted but their kernels
+never appeared in Kaggle and return 404; a fifth job remained local-only in
+`prepared` phase. A current Kaggle listing contains none of these five kernel
+slugs. Do not relaunch any remaining shard until the motor curriculum proves
+one reference core can cross the exact free-running gate.
 
 ## Tournament commands
 
@@ -202,12 +231,18 @@ Leave these pre-existing untracked paths untouched:
 
 ## Next engineering order
 
-1. Prove the shard boundary with `d64-l10-h2-f131072`, the largest candidate
-   that exhausted the accumulated monolithic disk at step 31.
-2. After completion, fetch and independently inspect its hash-verified output
-   bundle before launching the remaining shards.
-3. In parallel only when repository/machine ownership permits, replace the
+1. Freeze breadth-first architecture screening.
+2. Use one small reference core to diagnose the exact motor transition. First
+   prove that copy-gate logits receive useful gradients and can cross below
+   zero on a tiny overfit assignment; then prove free-running EOS and complete
+   payload transport on disjoint held-out examples.
+3. Align the staged objective with its gate, and renew tranches by assignment
+   progress rather than treating a fixed 32-step boundary as candidate failure.
+4. Resume architecture comparison only after the same reference recipe can
+   produce nonzero exact free-running deltas; compare time/steps-to-gate and
+   multi-seed retention rather than 32-step loss alone.
+5. In parallel only when repository/machine ownership permits, replace the
    runtime conformance motor with the real Living core adapter and finish the
    cross-store recovery transaction.
-4. Run complete held-out, causal Soul, recurrence, degeneration, cost, and
+6. Run complete held-out, causal Soul, recurrence, degeneration, cost, and
    multi-seed gates before any architectural promotion.

@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-14T15:20:14+00:00
+Updated: 2026-09-14T16:43:46+00:00
 Current through event:
-`evt-20260914T152014Z-codex-shard-tournament-recovery`
+`evt-20260914T164346Z-codex-tournament-pause-diagnosis`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 
@@ -28,8 +28,17 @@ diagnostic evidence rather than accepted tournament results.
 
 Commit `0c78b53` replaces the monolithic recipe with 16 single-candidate shard
 recipes and makes the parent prefer durable progress receipts over stdout that
-contains progress prefixes. The largest shard, `d64-l10-h2-f131072`, is active
+contains progress prefixes. The largest shard, `d64-l10-h2-f131072`, completed
 on a Tesla T4 as job `ff09dd152c2cb657b696f509725092e84efebbb2d6915e0a15503d67a492a1d2`.
+Its locally fetched 3.49 GiB detached archive passed the bundle verifier, and
+its report ID independently recomputed exactly.
+
+The architecture tournament is now paused. Ten completed 32-step openings,
+from 1.22M through 169.38M parameters, all reduced loss and reached
+teacher-forced payload-content accuracy 1.0, but all retained copy-gate
+accuracy 0.0 and exact free-running payload transport 0.0. The common failure
+surface means the current opening diagnoses the motor objective more strongly
+than architecture capacity. No candidate is promoted.
 
 Operational handoff:
 `roundtable/HANDOFF_D64_KAGGLE_TOURNAMENT_2026-09-13.md`.
@@ -150,8 +159,11 @@ remote Living core inside the canonical runtime training loop.
 
 - **BLOCKING:** the runtime `TrainingSession` still lacks the real Living-core
   adapter and complete cross-store recovery transaction.
-- **ADVISORY:** the largest stage-one shard is still running; do not launch the
-  remaining 15 until its completed bundle is fetched and hash-verified.
+- **BLOCKING:** breadth-first architecture screening is paused until one
+  reference core crosses the exact free-running motor gate. The current
+  receipt-continuation objective emphasizes source position (4.0) while giving
+  the copy/generate route only 0.25 weight; the route loss remained effectively
+  flat across the completed largest shard.
 - **ADVISORY:** D:/extension source is restored and the Browser Hub recovered
   to two WebSocket clients at the final machine sweep. Duplicate WebSocket/HTTP
   command delivery can still double-toggle Kaggle MUI menus.
@@ -165,12 +177,14 @@ remote Living core inside the canonical runtime training loop.
 
 ## Next actions
 
-1. Monitor active shard `ff09dd15...` through completion without restarting it.
-2. Fetch and independently inspect its completed hash-verified output bundle.
-3. If the largest shard closes cleanly, launch the remaining 15 shard recipes.
-4. Compare all complete candidate metrics and cost; make no promotion from this
-   deliberately incomplete, single-seed opening.
-5. Implement and gate the real Living-core runtime adapter plus the cross-store
+1. Diagnose one small reference core on a tiny exact-copy assignment, including
+   copy-gate logit, gradient, route choice, EOS, and free-running payload traces.
+2. Align the staged objective with the advancement gate and renew assignments
+   until pass, bounded supervisory stop, or a localized failure.
+3. Resume the breadth tournament only after the reference core establishes
+   nonzero exact free-running output; rank time/steps-to-gate, retention, causal
+   Soul use, recurrence, degeneration, and cost across multiple seeds.
+4. Implement and gate the real Living-core runtime adapter plus the cross-store
    transaction before making a canonical Heart-owned remote-training claim.
 
 ## Useful commands
@@ -185,12 +199,13 @@ python scripts/axon_kaggle.py jobs
 
 ## Continuity health
 
-- Canonical ledger: 231 valid unique events through
-  `evt-20260914T152014Z-codex-shard-tournament-recovery`.
+- Canonical ledger: 232 valid unique events through
+  `evt-20260914T164346Z-codex-tournament-pause-diagnosis`.
 - Latest architecture-screen commit: `0c78b53` (single-candidate shards and
   receipt-first report loading).
-- Kaggle account: `axongliksbot`; largest private shard is active on Tesla T4.
+- Kaggle account: `axongliksbot`; no newly launched tournament kernel remains
+  active. The completed largest-shard proof is preserved locally.
 - No production Heart or serving service was started or stopped.
 - The Windows clipboard was cleared of the earlier secret payload.
-- No billed API spend was incurred. Kaggle reported 27.88 of 30 GPU hours
-  remaining before the shard proof; its final consumption is not yet known.
+- No billed API spend was incurred. Kaggle reported 27.46 of 30 GPU hours after
+  the completed shard proof and before the brief, cancelled launches.
