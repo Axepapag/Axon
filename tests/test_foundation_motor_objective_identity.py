@@ -37,6 +37,7 @@ from training.foundation_motor_curriculum import (
     decide_foundation_motor_v2_stage,
     foundation_motor_v2_objective_program_id,
     foundation_motor_v2_stage_policy,
+    foundation_motor_v2_unreachable_gate_requirements,
     resolve_retention_action,
 )
 
@@ -311,10 +312,15 @@ def test_copy_alignment_teaches_emission_before_termination() -> None:
         "payload content does not beat constant floor" in reason
         for reason in decision["failures"]
     )
-    assert any(
-        "does not beat the constant-answer floor" in reason
-        for reason in decision["failures"]
+    # Typed exactness is a DELTA conjunction whose decision/operation/region/
+    # start/end components are weighted 0.0 at this stage, so gating on it here
+    # would be unsatisfiable by construction.  The dead state is rejected by the
+    # content and transport requirements instead, and the floor comparison is
+    # asserted at the stages that do carry those weights.
+    assert not any(
+        "typed_emission_exact_rate" in reason for reason in decision["failures"]
     )
+    assert foundation_motor_v2_unreachable_gate_requirements() == []
     assert any(
         "changed-source content below" in reason for reason in decision["failures"]
     )

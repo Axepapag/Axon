@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-17T22:05:00+00:00
+Updated: 2026-09-17T22:45:00+00:00
 current_through_event_id:
-`evt-20260917T220500000000Z-copilot-emission-rung-final-verdict-and-empty-fetch-trap`
+`evt-20260917T224500000000Z-copilot-unwinnable-gate-audit-and-reachability-contract`
 
 Append order note: the two events carrying timestamps `19:10` and `19:30` sit
 *earlier* in the file than the `20:00` launch event, because the correction was
@@ -42,6 +42,43 @@ still-running kernel downloads as an empty tree without raising. Now guarded
 wrongly marked and has been corrected back to `submitted`. Outputs are still
 unavailable — the kernel has not left `RUNNING` long after the loop and final
 eval finished.
+
+**I FOUND AN UNWINNABLE GATE, AND IT WAS MINE.** `evt-20260917T224500000000Z`.
+While verifying my own floor repair I discovered that the `beat_floor`
+assertions I had just added to `copy_alignment` and `transport_eos` required
+`typed_emission_exact_rate` — a metric whose inputs that stage weights at
+**0.0**. `typed_emission_exact_rate` is a DELTA conjunction over decision,
+operation, region, start, end and exact free-running payload transport
+(`living_reasoning_curriculum.py:897`), and `decision` is the decision head's
+argmax (`:702`) whose loss carries weight `0.0` there (`:401-405`).
+**Zero weight is exactly zero gradient**, so the maximum reachable value in
+those stages is `0`. No lineage could ever have passed. That is the definition
+of "setting us up for failure", and I had just written it in.
+
+**The same defect class explains the flat lineage.** The historical
+`transport_eos` gate demanded `payload_transport_exact_rate >= 0.95` while the
+typed conjunction's inputs were untrainable in that stage. The termhead-v1
+probation's "exhausted 3/3" plateau was a **mathematical impossibility recorded
+as a learning failure**, not a core that failed to learn.
+
+**Fixed, and made unrepresentable.** Both unreachable floor assertions are
+removed. The emission rung keeps its real, trainable anti-vacuity proof —
+`payload_content_accuracy > payload_content_constant_floor`, which an
+emit-nothing core scores `0.0` on. The two floor comparisons moved to `joint`,
+the first stage that weights every component the typed conjunction needs. And
+the invariant is now declared in the objective program itself:
+
+> **A stage gate may only require a metric whose causal components all carry
+> nonzero weight in that stage.**
+
+`FOUNDATION_MOTOR_V2_METRIC_COMPONENTS` and
+`FOUNDATION_MOTOR_V2_STAGE_GATE_METRICS` declare the dependency map;
+`foundation_motor_v2_unreachable_gate_requirements()` returns `[]` for the base
+program, all six receipt teaching profiles and the multicell overlay.
+`tests/test_foundation_motor_gate_reachability.py` holds seven tests including a
+**negative control** that re-declares the historical defect and asserts the
+guard fires. 131 tests pass, `EXIT=0`. Design choices that remain Jeff's: see
+open questions (a)–(e) below.
 
 **THE FALSE-PROGRESS TRAP IS FIXED — and the number we were reading as progress
 was the constant answer.** `evt-20260917T211900000000Z`. Two exactness floors
@@ -1199,6 +1236,105 @@ disk: 40 files / 26,836 bytes / 40 `SoulLayer` records, **every
 The sequencing rule stands: no Soul work ahead of or in parallel with the motor
 fix. This run is the test of whether the motor fix alone moves the rung.
 
+## 2026-09-17 — the unwinnable gate (this turn's headline)
+
+`evt-20260917T224500000000Z-copilot-unwinnable-gate-audit-and-reachability-contract`.
+Corrects `evt-20260917T211900000000Z`. That earlier event's floor repair was
+right about the *numbers* and wrong about *where to enforce them*.
+
+### The defect, line by line
+
+Stage weight tables (`training/foundation_motor_curriculum.py`, `_weights`
+defaults every unlisted component to `0.0`):
+
+| stage | decision | operation | region | start | end | payload | eos_gate |
+|---|---|---|---|---|---|---|---|
+| `copy_alignment` | **0.0** | 0.0 | 0.0 | 0.0 | 0.0 | 1.0 | **0.0** |
+| `transport_eos` | **0.0** | 0.0 | 0.0 | 0.0 | 0.0 | 1.0 | 1.0 |
+| `decision` | 1.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.25 | 0.25 |
+| `operation` | 0.25 | 1.0 | 0.0 | 0.0 | 0.0 | 0.25 | 0.25 |
+| `address` | 0.25 | 0.25 | 1.0 | 1.0 | 1.0 | 0.25 | 0.25 |
+| `joint` | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 |
+
+The metric being gated on:
+
+- `living_reasoning_curriculum.py:702` — `decision_is_exact = decision is target.decision`
+  (argmax of `output.decision_logits`).
+- `:897` — for a DELTA target, `exact = exact and all((operation is target.operation,
+  region is target.region, start == target.start, end == target.end, payload_match))`.
+- `:789` — `payload_match = terminated and payload == target.payload`, i.e. the
+  **free-running** decode; `terminated` is the payload decoder's own EOS token
+  (`living_reasoning_d64.py:2040-2070`), not `alignment_eos_gate`.
+- `:927` — `typed_emission_exact_rate = typed_exact / supervised`.
+- `:401-405` — `decision_loss = F.cross_entropy(output.decision_logits, …)` then
+  `loss = weighted("decision", decision_loss)`, and `weighted` multiplies by
+  `weights["decision"]`.
+
+So at `copy_alignment` and `transport_eos` the decision head receives **exactly
+zero gradient**, and the DELTA inputs the conjunction demands are untrained.
+The maximum reachable `typed_emission_exact_rate` in those stages is **0**. The
+requirement I added could never be satisfied, at any step, by any lineage.
+
+The teaching overlays do not rescue it: `apply_receipt_continuation_teach_weights`
+and `apply_copy_alignment_multicell_teach_weights` return early unless the stage
+is `copy_alignment`, and none of the six receipt profiles or the multicell
+overlay gives `decision`, `operation`, `region`, `start` or `end` a nonzero
+weight there.
+
+### The historical damage this explains
+
+`transport_eos` gated on `payload_transport_exact_rate >= 0.95` (`gate_threshold
+= 0.95`) while the typed conjunction's inputs carried weight `0.0` in that
+stage. The termhead-v1 probation's **"exhausted 3/3"** plateau at
+`payload_transport_exact_rate = 0.3333` was therefore not a learning failure.
+It was a **gate that could not be passed** — recorded, correctly for the
+instrument but wrongly for the science, as the core's shortcoming.
+
+### The fix
+
+1. Removed `beat_floor("typed_emission_exact_rate", …)` from **both**
+   `copy_alignment` and `transport_eos`, with in-code comments stating why it is
+   unreachable there. Removed the redundant duplicate
+   `require("payload_transport_exact_rate")` and corrected the stale comment
+   claiming an always-stopping lineage "can never satisfy" transport
+   exactness — it can satisfy the *floor*, which is why the `0.95` threshold and
+   not the floor is the binding requirement.
+2. Retained the emission rung's genuine anti-vacuity proof at
+   `copy_alignment`: `payload_content_accuracy > payload_content_constant_floor`,
+   which an emit-nothing core scores `0.0` on. The dead state is still rejected;
+   it is now rejected by a metric that stage can actually move.
+3. Moved both floor comparisons to `joint` — the first stage that weights every
+   component the typed conjunction needs.
+4. Declared the invariant in the objective program itself:
+   `FOUNDATION_MOTOR_V2_METRIC_COMPONENTS` (metric → causal components),
+   `FOUNDATION_MOTOR_V2_STAGE_GATE_METRICS` (stage → enforced metrics),
+   `foundation_motor_v2_component_weights` (base ∪ teaching overlay),
+   `foundation_motor_v2_first_reachable_stage`, and
+   `foundation_motor_v2_unreachable_gate_requirements`.
+   `foundation_motor_v2_first_reachable_stage("typed_emission_exact_rate") == "address"`.
+5. `tests/test_foundation_motor_gate_reachability.py` — 7 tests, including a
+   negative control that re-declares `typed_emission_exact_rate` as a
+   `copy_alignment` requirement and asserts the guard reports exactly one
+   violation naming `decision` as the dead component. The guard is not vacuous.
+
+### Verification
+
+`foundation_motor_v2_unreachable_gate_requirements()` → `[]` for the base
+program, all six receipt teaching profiles, and the multicell overlay.
+`tests/test_foundation_motor_gate_reachability.py`,
+`test_foundation_motor_objective_identity.py`, `test_termination_head_route.py`,
+`test_foundation_motor_v2_curriculum.py`, `test_constant_baseline_floors.py`,
+`test_living_reasoning_smoke_gates.py`, `test_living_reasoning_d64.py`,
+`test_training_watch.py`, `test_trainer_cloud_bundle.py` → **131 passed,
+EXIT=0**. `py_compile` clean on every edited file.
+
+### Files
+
+Modified: `training/foundation_motor_curriculum.py`, `training/__init__.py`,
+`tests/test_foundation_motor_objective_identity.py`,
+`tests/test_constant_baseline_floors.py`.
+Created: `tests/test_foundation_motor_gate_reachability.py`.
+
 ## 2026-09-17 — the false-progress trap, the screen-hogging monitor, and a sync that never ran
 
 `evt-20260917T211900000000Z-copilot-constant-floor-and-monitor-trap-repair`.
@@ -1430,6 +1566,14 @@ of a frozen-looking dashboard). Should the trainer emit progress during evaluati
 - Acceptance policy (guard semantics, probation allowance) never enters
   candidate identity; only choices that change optimizer pressure may.
 - No production Heart or serving process changed in this work.
+- **Gate reachability (new, 2026-09-17): a stage gate may only require a metric
+  whose causal components all carry nonzero weight in that stage.** A component
+  weighted `0.0` receives exactly zero gradient, so a metric depending on it
+  cannot move during the stage and the requirement is unreachable by
+  construction. Enforced by `foundation_motor_v2_unreachable_gate_requirements()`
+  and `tests/test_foundation_motor_gate_reachability.py`. A plateau produced by
+  such a gate is a construction defect and must never be recorded as a failure
+  of the core to learn.
 
 ## Verification
 

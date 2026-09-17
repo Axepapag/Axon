@@ -181,25 +181,7 @@ FOUNDATION_MOTOR_V2_PROGRAM = {
     "complete_field_coverage_rate": 1.0,
 }
 FOUNDATION_MOTOR_V2_PROGRAM_ID = canonical_sha256(FOUNDATION_MOTOR_V2_PROGRAM)
-FOUNDATION_MOTOR_V2_RETENTION_CONTRACT = {
-    "schema": "axon-foundation-motor-v2-retention-contract-v1",
-    "scope": "checkpoint_lineage_acceptance_not_curriculum_promotion",
-    "acceptance_surface": "complete_heldout_and_regression",
-    "evaluation_loss": "effective_training_component_weights",
-    "comparison": "candidate_metrics_must_not_regress_from_accepted_parent",
-    "progress_requirement": "at_least_one_protected_behavior_must_strictly_improve",
-    "copy_alignment_metrics": [
-        "alignment_position_accuracy",
-        "alignment_copy_gate_accuracy",
-        "payload_content_accuracy",
-        "payload_eos_accuracy",
-        "payload_transport_exact_rate",
-    ],
-    "copy_alignment_pair_metrics": ["position", "copy_gate", "content"],
-}
-FOUNDATION_MOTOR_V2_RETENTION_CONTRACT_ID = canonical_sha256(
-    FOUNDATION_MOTOR_V2_RETENTION_CONTRACT
-)
+
 # Same exam, same gates, same architecture; this overlay changes optimizer
 # pressure and therefore MUST participate in the effective objective identity.
 COPY_ALIGNMENT_MULTICELL_TEACH = {
@@ -480,6 +462,155 @@ RECEIPT_TEACHING_PROFILES = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Gate reachability contract.
+#
+# A stage gate may only require a metric whose causal components all carry
+# nonzero weight in that stage.  A component weighted 0.0 receives exactly zero
+# gradient, so a metric that depends on it cannot move during the stage and the
+# requirement is unreachable by construction: the stage becomes a gate no
+# lineage can ever pass, and the plateaus it reports are mathematical
+# impossibilities read as learning failures.
+#
+# This is not hypothetical.  transport_eos required
+# payload_transport_exact_rate while the typed conjunction's inputs were
+# weighted 0.0 there, and the termhead-v1 probation "exhausted 3/3" on that
+# plateau.  Typed exactness is a DELTA-phase conjunction over decision,
+# operation, region, start, end and exact free-running payload transport
+# (living_reasoning_curriculum.py:897), so it is unreachable before the address
+# stage in every teaching profile.
+# ---------------------------------------------------------------------------
+FOUNDATION_MOTOR_V2_METRIC_COMPONENTS: dict[str, tuple[str, ...]] = {
+    "alignment_position_accuracy": ("alignment_position",),
+    "alignment_copy_gate_accuracy": ("alignment_copy_gate",),
+    "alignment_eos_gate_accuracy": ("alignment_eos_gate",),
+    "region_accuracy": ("region",),
+    "start_accuracy": ("start",),
+    "end_accuracy": ("end",),
+    "payload_content_accuracy": ("payload",),
+    "payload_eos_accuracy": ("payload",),
+    "payload_transport_exact_rate": ("payload",),
+    "typed_emission_exact_rate": (
+        "decision",
+        "operation",
+        "region",
+        "start",
+        "end",
+        "payload",
+    ),
+}
+
+# The metric requirements each stage's gate actually enforces.  Kept beside the
+# component map so the invariant in
+# foundation_motor_v2_unreachable_gate_requirements() can be checked in a test
+# instead of being re-derived by reading the gate body.
+FOUNDATION_MOTOR_V2_STAGE_GATE_METRICS: dict[str, tuple[str, ...]] = {
+    "copy_alignment": (
+        "alignment_position_accuracy",
+        "alignment_copy_gate_accuracy",
+        "payload_content_accuracy",
+        "payload_transport_exact_rate",
+    ),
+    "transport_eos": (
+        "alignment_position_accuracy",
+        "alignment_copy_gate_accuracy",
+        "payload_content_accuracy",
+        "payload_eos_accuracy",
+        "payload_transport_exact_rate",
+    ),
+    "decision": (),
+    "operation": (),
+    "address": ("region_accuracy", "start_accuracy", "end_accuracy"),
+    "joint": ("typed_emission_exact_rate", "payload_transport_exact_rate"),
+}
+
+
+def foundation_motor_v2_component_weights(
+    training_stage: str,
+    *,
+    receipt_continuation: bool = False,
+    receipt_teaching_profile: str = RECEIPT_TEACHING_PROFILE_CONTINUATION_V1,
+    teach_multicell_copy: bool = False,
+) -> dict[str, float]:
+    """Effective objective weight per component for one stage and teaching profile."""
+
+    if training_stage not in FOUNDATION_MOTOR_V2_STAGE_ORDER:
+        raise ValueError(f"unknown foundation motor v2 training stage {training_stage!r}")
+    weights = dict(foundation_motor_v2_stage_policy(training_stage)["component_weights"])
+    if receipt_continuation:
+        weights = apply_receipt_continuation_teach_weights(
+            weights,
+            training_stage=training_stage,
+            receipt_teaching_profile=receipt_teaching_profile,
+        )
+    elif teach_multicell_copy:
+        weights = apply_copy_alignment_multicell_teach_weights(
+            weights, training_stage=training_stage
+        )
+    return {name: float(value) for name, value in weights.items()}
+
+
+def foundation_motor_v2_first_reachable_stage(metric: str) -> str | None:
+    """First stage, in program order, at which ``metric`` can actually move.
+
+    ``None`` means no stage weights every component the metric depends on, so
+    the metric may never be a gate requirement.
+    """
+
+    components = FOUNDATION_MOTOR_V2_METRIC_COMPONENTS[metric]
+    for stage in FOUNDATION_MOTOR_V2_STAGE_ORDER:
+        weights = foundation_motor_v2_component_weights(stage)
+        if all(weights.get(name, 0.0) > 0.0 for name in components):
+            return stage
+    return None
+
+
+def foundation_motor_v2_unreachable_gate_requirements(
+    *,
+    receipt_continuation: bool = False,
+    receipt_teaching_profile: str = RECEIPT_TEACHING_PROFILE_CONTINUATION_V1,
+    teach_multicell_copy: bool = False,
+) -> list[str]:
+    """Stage/metric pairs that are unmet-able by construction; empty when healthy."""
+
+    violations: list[str] = []
+    for stage in FOUNDATION_MOTOR_V2_STAGE_ORDER:
+        weights = foundation_motor_v2_component_weights(
+            stage,
+            receipt_continuation=receipt_continuation,
+            receipt_teaching_profile=receipt_teaching_profile,
+            teach_multicell_copy=teach_multicell_copy,
+        )
+        for metric in FOUNDATION_MOTOR_V2_STAGE_GATE_METRICS.get(stage, ()):
+            components = FOUNDATION_MOTOR_V2_METRIC_COMPONENTS.get(metric)
+            if components is None:
+                continue
+            dead = [name for name in components if weights.get(name, 0.0) == 0.0]
+            if dead:
+                violations.append(
+                    f"{stage} gates on {metric} while weighting {dead} at 0.0"
+                )
+    return violations
+
+FOUNDATION_MOTOR_V2_RETENTION_CONTRACT = {
+    "schema": "axon-foundation-motor-v2-retention-contract-v1",
+    "scope": "checkpoint_lineage_acceptance_not_curriculum_promotion",
+    "acceptance_surface": "complete_heldout_and_regression",
+    "evaluation_loss": "effective_training_component_weights",
+    "comparison": "candidate_metrics_must_not_regress_from_accepted_parent",
+    "progress_requirement": "at_least_one_protected_behavior_must_strictly_improve",
+    "copy_alignment_metrics": [
+        "alignment_position_accuracy",
+        "alignment_copy_gate_accuracy",
+        "payload_content_accuracy",
+        "payload_eos_accuracy",
+        "payload_transport_exact_rate",
+    ],
+    "copy_alignment_pair_metrics": ["position", "copy_gate", "content"],
+}
+FOUNDATION_MOTOR_V2_RETENTION_CONTRACT_ID = canonical_sha256(
+    FOUNDATION_MOTOR_V2_RETENTION_CONTRACT
+)
 def receipt_continuation_teach_profile(profile: str) -> Mapping[str, Any]:
     if profile == RECEIPT_TEACHING_PROFILE_CONTINUATION_V1:
         return RECEIPT_CONTINUATION_TEACH
@@ -1804,14 +1935,18 @@ def decide_foundation_motor_v2_stage(
                     > float(probe["payload_content_constant_floor"])
                 ):
                     failures.append(f"{label} payload content does not beat constant floor")
-                # A constant-answer lineage collects every no-op case for free,
-                # so typed exactness must be compared against the strongest
-                # fixed answer rather than against an assumed zero.
-                beat_floor("typed_emission_exact_rate", "constant_typed_emission_exact_floor")
-                beat_floor(
-                    "payload_transport_exact_rate",
-                    "constant_payload_transport_exact_floor",
-                )
+                # The two exactness rates are deliberately NOT blockers here.
+                # This stage weights decision/operation/region/start/end at 0.0
+                # and alignment_eos_gate at 0.0, while typed_emission_exact_rate
+                # demands a DELTA-phase conjunction over decision, operation,
+                # region, start, end and exact free-running payload transport
+                # (living_reasoning_curriculum.py:897).  Requiring it here would
+                # be a gate no lineage can ever pass: the maximum reachable
+                # value is 0.  The emission rung is proven non-vacuous by
+                # payload_content_accuracy above, which an emit-nothing core
+                # scores 0.0 on.  The floors are asserted at the stages that do
+                # carry those weights (joint) and by
+                # tests/test_foundation_motor_gate_reachability.py.
                 if receipt_continuation:
                     require("payload_eos_accuracy")
                     if not eos_generate_head_route:
@@ -1823,10 +1958,10 @@ def decide_foundation_motor_v2_stage(
                     "alignment_copy_gate_accuracy",
                     "payload_content_accuracy",
                     "payload_eos_accuracy",
-                    # Ratified 2026-09-17 after the probation autopsy: the only
-                    # metric that exposes the emit-nothing dead state.  A lineage
-                    # that stops immediately scores exactly the empty-payload
-                    # floor and can never satisfy this requirement.
+                    # Ratified 2026-09-17 with the emission rung: the metric that
+                    # exposes the emit-nothing dead state.  Sixteen of the 24
+                    # heldout transport cases require a non-empty payload, so a
+                    # lineage that always stops immediately cannot reach 0.95.
                     "payload_transport_exact_rate",
                 ]
                 required_pairs = ["position", "copy_gate", "content"]
@@ -1842,11 +1977,11 @@ def decide_foundation_motor_v2_stage(
                     > float(probe["payload_content_constant_floor"])
                 ):
                     failures.append(f"{label} payload content does not beat constant floor")
-                beat_floor("typed_emission_exact_rate", "constant_typed_emission_exact_floor")
-                beat_floor(
-                    "payload_transport_exact_rate",
-                    "constant_payload_transport_exact_floor",
-                )
+                # typed_emission_exact_rate is unreachable in this stage for the
+                # same reason as at copy_alignment: decision, operation, region,
+                # start and end all carry weight 0.0 here, and the typed
+                # conjunction demands them for every DELTA phase.  It is
+                # asserted at joint, the only stage that weights all of them.
             elif training_stage == "decision":
                 if any(float(value) < threshold for value in probe["per_decision_accuracy"].values()):
                     failures.append(f"{label} per-decision accuracy below {threshold}")
@@ -1867,6 +2002,17 @@ def decide_foundation_motor_v2_stage(
                     failures.append(f"{label} per-action joint exact rate below {threshold}")
                 require_pair("joint")
                 require_pair("content")
+                # joint is the only stage that weights decision, operation,
+                # region, start and end (all 1.0), so it is the first stage at
+                # which typed exactness is reachable at all.  Compare against
+                # the strongest constant answer rather than an assumed zero.
+                beat_floor(
+                    "typed_emission_exact_rate", "constant_typed_emission_exact_floor"
+                )
+                beat_floor(
+                    "payload_transport_exact_rate",
+                    "constant_payload_transport_exact_floor",
+                )
     if not complete_heldout:
         failures.append("heldout surface is incomplete")
     if not complete_regression:
@@ -1905,6 +2051,7 @@ __all__ = [
     "FOUNDATION_MOTOR_GATE_POLICY_ID",
     "FOUNDATION_MOTOR_SOURCE_ID",
     "FOUNDATION_MOTOR_STAGE",
+    "FOUNDATION_MOTOR_V2_METRIC_COMPONENTS",
     "FOUNDATION_MOTOR_V2_MULTICELL_PROGRAM",
     "FOUNDATION_MOTOR_V2_MULTICELL_PROGRAM_ID",
     "FOUNDATION_MOTOR_V2_PROGRAM",
@@ -1923,6 +2070,7 @@ __all__ = [
     "FOUNDATION_MOTOR_V2_RETENTION_CONTRACT_V2_ID",
     "FOUNDATION_MOTOR_V2_SOURCE_ID",
     "FOUNDATION_MOTOR_V2_STAGE",
+    "FOUNDATION_MOTOR_V2_STAGE_GATE_METRICS",
     "FOUNDATION_MOTOR_V2_STAGE_ORDER",
     "FOUNDATION_MOTOR_V2_UNICODE_WALK_SOURCE_ID",
     "RECEIPT_CONTINUATION_TEACH",
@@ -1951,9 +2099,12 @@ __all__ = [
     "foundation_motor_payload_transport_cells",
     "foundation_motor_probe",
     "foundation_motor_v2_action",
+    "foundation_motor_v2_component_weights",
+    "foundation_motor_v2_first_reachable_stage",
     "foundation_motor_v2_objective_program_id",
     "foundation_motor_v2_probe",
     "foundation_motor_v2_stage_policy",
+    "foundation_motor_v2_unreachable_gate_requirements",
     "is_foundation_motor_episode",
     "is_foundation_motor_v2_episode",
     "oversample_multicell_copy_cases",
