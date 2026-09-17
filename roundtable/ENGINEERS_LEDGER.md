@@ -1,14 +1,14 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-17T20:00:00+00:00
+Updated: 2026-09-17T20:34:00+00:00
 current_through_event_id:
-`evt-20260917T200034380158Z-copilot-kaggle-emission-rung-launch`
+`evt-20260917T203355955734Z-copilot-constant-floor-attribution-correction`
 
-Append order note: the two events below this one carry timestamps `19:10` and
-`19:30` but sit *earlier* in the file than the `20:00` launch event, because the
-correction was appended after the verdict it corrects. The canonical file is
-authority in **append** order; these are correct events appended in a
-non-monotonic timestamp sequence. The line above names the last physical line.
+Append order note: the two events carrying timestamps `19:10` and `19:30` sit
+*earlier* in the file than the `20:00` launch event, because the correction was
+appended after the verdict it corrects. The canonical file is authority in
+**append** order; these are correct events appended in a non-monotonic timestamp
+sequence. The line above names the last physical line.
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 
@@ -34,7 +34,9 @@ live dashboard open. The recipe changes exactly one variable versus the local ru
 (`--tranche-steps` 60 → 600) and deliberately omits `--evaluation-case-limit`, so
 the stage gate can return a **real** verdict. The two numbers to watch are
 `payload_transport_exact_rate` leaving `0.0` and `nonzero_exact_output_observed`
-flipping `True`. (`evt-20260917T200034380158Z-copilot-kaggle-emission-rung-launch`;
+flipping `True`. **Live progress at ~step 247/600 (≈7.2 s/step): loss has fallen
+from ≈19 to ≈2.4–3.7**, the first checkpoint `0dfed88de4396d4` is written, and
+mid-run sync reports `kernel disabled` (observation missing, training unaffected). (`evt-20260917T200034380158Z-copilot-kaggle-emission-rung-launch`;
 full detail in *"2026-09-17 — the emission rung launched on Kaggle"* below.)
 
 Jeff authorized the fix: *"Yes please do it. forget about kaggle for now and use
@@ -1178,6 +1180,49 @@ fix. This run is the test of whether the motor fix alone moves the rung.
 
 ## Verification
 
+- **WHAT THE "CONSTANT FLOOR" ACTUALLY IS — AND A CORRECTION TO MY OWN LAST
+  MESSAGE.** (`evt-20260917T203355955734Z-copilot-constant-floor-attribution-correction`)
+  `constant_payload_token_accuracy_floor` is *not* a threshold. It is computed at
+  `training/living_reasoning_curriculum.py:848` and `:911` as
+  `max(payload_target_counts) / payload_token_count` — the accuracy a **constant
+  emitter** would score by always outputting the single most frequent payload
+  token, EOS included. `payload_target_counts` is a per-token bincount over every
+  supervised payload target (`:630-635`, `:782-785`).
+  The **real** stage bar is `gate_threshold: 0.95`
+  (`training/foundation_motor_curriculum.py:176`, consumed at `:1698`): the
+  `require()` calls at `:1731-1739` demand `alignment_position_accuracy`,
+  `alignment_copy_gate_accuracy`, `payload_content_accuracy` and
+  `payload_transport_exact_rate` all ≥ 0.95 on **both** the complete heldout and
+  complete regression probes, plus `complete_field_coverage_rate == 1.0` exactly,
+  plus — as one *extra, lower* condition at `:1744-1747` —
+  `payload_content_accuracy > payload_content_constant_floor`.
+  **My error:** I wrote that "the full-surface floor is 43.6%, not the 18.18% the
+  local 16-case probe showed." Those are **two different metrics**. 43.6% is the
+  *token* floor (EOS included); `0.18181818181818182` is exactly `2/11`, the
+  *content* floor (EOS excluded). The like-for-like local figure is the token
+  floor `0.35294117647058826` = `6/17`. The conclusion survives — the floor really
+  is surface-dependent, which independently re-justifies omitting
+  `--evaluation-case-limit` — but I quoted the wrong local number and I am
+  recording that rather than quietly restating it.
+- **THE LOCAL RUN CLEARED BOTH FLOORS — ON A 16-CASE SLICE ONLY.**
+  `State/training/reasoning/r64v3-547233f2383a7c68/segment_000000001_000000060.json`:
+  `initial evaluated_case_count 16`; token floor `0.3529` (6/17) with
+  `payload_teacher_forced_token_accuracy` `0.0 → 0.4706` (8/17); content floor
+  `0.1818` (2/11) with `payload_teacher_forced_content_accuracy` `0.0 → 0.3636`
+  (4/11). Both floors beaten, neither *transport*. The cloud run measures all 72
+  heldout cases, where the same token floor reads **43.6%** — so the local slice
+  was **not** a valid stand-in and the local result does **not** yet show the real
+  bar can be cleared. (`evt-20260917T203355955734Z`)
+- **`typed_emission_exact_rate` CAN BE EARNED BY EMITTING NOTHING.**
+  `payload_match = terminated and payload == target.payload`
+  (`training/living_reasoning_curriculum.py:716`) and `typed exact` additionally
+  requires operation/region/start/end to be exact (`:836-845`) — so a no-op case
+  answered with an empty payload **and a stop** is legitimately typed-exact. The
+  live cloud initial evaluation proves the degenerate case is worth real credit:
+  `typed_exact 33.3%` with `payload_exact 0.0%` at **step 0 on freshly initialised
+  tissue**. So a third of typed-exact credit needs no learning at all. This is the
+  same family as the emit-nothing dead state the transport rung exists to kill.
+  (`evt-20260917T203355955734Z`)
 - Kaggle launch (`evt-20260917T200034380158Z-copilot-kaggle-emission-rung-launch`):
   `scan_active_capacity_poison(r"D:\Axon")` → **passed: True, 147 files,
   0 violations**; seven focused suites (`test_training_watch`,
@@ -1358,6 +1403,31 @@ fix. This run is the test of whether the motor fix alone moves the rung.
 
 ## Active blockers and risks
 
+- **`constant_typed_emission_exact_floor` IS HARDCODED `0.0` AND IS NOT A FLOOR.**
+  It is a literal `0.0` in three places —
+  `training/living_reasoning_curriculum.py:909`,
+  `training/sequential_first_form.py:654`, and the aggregation at
+  `scripts/train_living_reasoning_smoke.py:1787` — never computed from the
+  surface, unlike its content and token siblings. The live cloud initial
+  evaluation scores `typed_exact 33.3%` at **step 0 with random tissue**, so a
+  degenerate emit-nothing emitter beats the declared floor by a third of the
+  surface. **No gate is currently broken**: `typed_emission_exact_rate` is not a
+  `require()`d metric at `copy_alignment` or `transport_eos`, and the
+  `nonzero_exact_output_observed` flag needs *both* typed emission and transport
+  above their floors, so transport still refuses the degenerate case. But a number
+  advertised as a floor that a degenerate emitter trivially beats is a latent
+  trap: any future gate that requires typed emission would be satisfiable by
+  emitting nothing. **Open item for Jeff.**
+  (`evt-20260917T203355955734Z-copilot-constant-floor-attribution-correction`)
+- **MID-RUN SYNC IS DISABLED FOR THE RUNNING JOB (`kernel disabled`).** The
+  dashboard reports `sync: waiting for first checkpoint upload  kernel disabled`.
+  The runner-side `sync_enabled` fired, but the kernel side has no sync channel,
+  so the one-time Jeff-only Kaggle UI step (secret `AXON_KAGGLE_SYNC`, or
+  `KAGGLE_USERNAME`/`KAGGLE_KEY`, attached to the kernel **with internet
+  enabled**) was not applied. This is **not a failure** — training is unaffected —
+  but it means **no mid-run observability** for this tranche; the outputs arrive
+  only with the final bundle. Fix it once in the Kaggle UI to stream future runs.
+  (`evt-20260917T203355955734Z`)
 - **CLOUD PACKET GATE REFUSES A DIRTY TRACKED TREE — RESOLVED THIS TURN, BUT IT
   IS A STANDING TRAP.** `runtime/trainer/cloud_jobs.py:135-137` raises
   `CloudPacketError("tracked Axon files are modified; commit them before
