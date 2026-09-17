@@ -1,14 +1,14 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-17T19:30:00+00:00
+Updated: 2026-09-17T20:00:00+00:00
 current_through_event_id:
-`evt-20260917T191000000000Z-copilot-event-schema-self-correction`
+`evt-20260917T200034380158Z-copilot-kaggle-emission-rung-launch`
 
-Append order note: that correction event carries timestamp `19:10` but was
-appended at `19:30`, *after*
-`evt-20260917T193000000000Z-copilot-qa-transcript-attribution-and-blank-line-verdict`.
-The canonical file is authority in **append** order; the two are correct events
-appended in the wrong sequence. The line above names the last physical line.
+Append order note: the two events below this one carry timestamps `19:10` and
+`19:30` but sit *earlier* in the file than the `20:00` launch event, because the
+correction was appended after the verdict it corrects. The canonical file is
+authority in **append** order; these are correct events appended in a
+non-monotonic timestamp sequence. The line above names the last physical line.
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 
@@ -21,11 +21,21 @@ those revisions are superseded, not erased; canonical events remain the authorit
 
 ## Current mission and honest status
 
-**EMISSION RUNG IMPLEMENTED AND EXERCISED ON THE LOCAL GPU — the rung moved but
-only partially: content now beats the constant floor and typed emission is exact
-25% of the time, yet exact end-to-end payload transport is still 0.0.**
+**EMISSION RUNG IMPLEMENTED LOCALLY, THEN LAUNCHED ON KAGGLE — the rung moved
+but only partially: content now beats the constant floor and typed emission is
+exact 25% of the time, yet exact end-to-end payload transport is still 0.0.**
 (`evt-20260917T103000Z-copilot-emission-rung-implemented-and-local-gpu-tranche`;
 full detail in *"2026-09-17 — the emission rung implemented and run"* below.)
+
+**IN FLIGHT:** the same configuration now runs on Kaggle as a **600-step**
+tranche — job `389df54d01fbda8ec6625b9019ff5fb1ec254c08360bf3d8cf4570c41ee45bd9`,
+committed revision `1a4bc416`, Tesla T4, mid-run sync enabled, launched with a
+live dashboard open. The recipe changes exactly one variable versus the local run
+(`--tranche-steps` 60 → 600) and deliberately omits `--evaluation-case-limit`, so
+the stage gate can return a **real** verdict. The two numbers to watch are
+`payload_transport_exact_rate` leaving `0.0` and `nonzero_exact_output_observed`
+flipping `True`. (`evt-20260917T200034380158Z-copilot-kaggle-emission-rung-launch`;
+full detail in *"2026-09-17 — the emission rung launched on Kaggle"* below.)
 
 Jeff authorized the fix: *"Yes please do it. forget about kaggle for now and use
 the local GPU. if the soul does not interfere than we can leave it as it."* The
@@ -1011,6 +1021,128 @@ produced a misleading `FileNotFoundError` in
 Re-running that suite alone: **7 passed**. Temp cleanup must happen only after all
 subprocess suites have exited.
 
+## 2026-09-17 — the emission rung launched on Kaggle, with a live dashboard
+
+Jeff: *"ok lets run the training on kaggle and please open a monitor so I can see
+it."*
+
+### The blocker that would have wasted the GPU spend
+
+`runtime/trainer/cloud_jobs.py:132-154` `_committed_source()` runs
+`git status --porcelain --untracked-files=no` and, if anything tracked is
+modified, raises `CloudPacketError("tracked Axon files are modified; commit them
+before exporting a cloud packet")`. The emission rung and the QA-transcript
+attribution were both **uncommitted**. A packet built at that moment would have
+shipped without either fix and the run would have failed for exactly the reasons
+the fixes exist to cure.
+
+Note the asymmetry: a modified **tracked** file blocks the packet, but an
+**untracked** file neither blocks nor ships. `roundtable/` is not in
+`_SOURCE_ROOTS` either — so the roundtable artifacts ride the commit but never
+ride the packet.
+
+Jeff authorized **one commit containing everything**; pre-commit verification was
+`scan_active_capacity_poison` (**147 files, 0 violations, passed**) and seven
+focused suites (**69 passed, exit 0**).
+
+### Commit `1a4bc416` — *"Teach Stage-0 emission and attribute every training surface"*
+
+23 files, +7,562 / −444. New: the Kaggle recipe, `scripts/diagnose_d64_routes.py`,
+`tests/test_d64_route_diagnostic.py`, `tests/test_termination_head_route.py`,
+the Copilot Soul-completion review, and the four roundtable proposals that had
+been sitting untracked. Modified: `scripts/train_living_reasoning_smoke.py`,
+`scripts/axon_training_watch.py`, `training/foundation_motor_curriculum.py`,
+`training/living_reasoning_curriculum.py`, `training/complete_field_64d.py`,
+`training/living_reasoning_d64.py`, `training/__init__.py`, four test files, and
+the roundtable ledger files.
+
+### The recipe — `configs/kaggle/axon_d64_emission_rung_first_tranche.json`
+
+`config_id 73898b62333eaf87627e69449a93c194635076f49429425b53a63a5c1212fcab`,
+validated by feeding it through the real `CloudJobConfig.from_mapping`. It mirrors
+local run `r64v3-547233f2383a7c68` exactly — same `seed 20260908`, same
+`--generate-gate-bias 1.5`, same `--heads 1 --layers 4 --ffn-dim 256
+--page-size 32`, same two ffcs manifests — and changes **one** variable:
+
+| variable | local | cloud |
+|---|---|---|
+| `--tranche-steps` | 60 | **600** |
+
+Two deliberate omissions:
+
+- **No `--evaluation-case-limit`.** `complete_heldout_evaluation` is true only
+  when *every* episode is evaluated (`scripts/train_living_reasoning_smoke.py:1549-1554`),
+  and the gate otherwise appends *"heldout surface is incomplete"*
+  (`training/foundation_motor_curriculum.py:1798-1801`). Any limited surface
+  therefore fails its own stage gate **by construction** and teaches us nothing.
+- **No `--resume`.** The local step-60 lineage is nowhere near converged, so 600
+  fresh steps are cheaper than paying continuation-closure risk. 600 steps is
+  roughly an hour on a T4; the risk is not worth the ~6 minutes saved.
+
+`sync_mid_run: true` and `allow_sensitive_state_upload: true` are set because the
+recipe includes `State/active/` and the two curriculum manifests.
+
+### Launch
+
+- `doctor` → **READY**: account `axongliksbot`, Kaggle CLI 2.2.4, **27.34 of 30
+  GPU hours** remaining, TPU 20/20.
+- **Quota is not entitlement.** The 27.34 h figure proves nothing about GPU
+  allocation; only the in-job probe does, and it passed — the runner reports
+  `accelerator: cuda` with a Tesla T4 resolved rather than falling back to CPU.
+- Job `389df54d01fbda8ec6625b9019ff5fb1ec254c08360bf3d8cf4570c41ee45bd9`;
+  phase `prepared` → `submitted`; git revision `1a4bc416`; packet **7.5 MiB /
+  459 files**. The four load-bearing files were re-hashed against disk and
+  match: `axon_training_watch.py 07b63977768e0941`,
+  `train_living_reasoning_smoke.py b5d56d065f1ff416`,
+  `foundation_motor_curriculum.py 42aed216815736e0`,
+  `living_reasoning_curriculum.py 89eb0013447a2fcb`. So the emission rung and the
+  QA attribution are **provably inside the shipped packet**, not merely inside
+  the commit.
+- Private dataset `axongliksbot/axon-job-389df54d01fbda8e-input`; private kernel
+  `axongliksbot/axon-job-389df54d01fbda8e`. Status `KernelWorkerStatus.RUNNING`.
+- Dashboard open (`monitor 389df54d… --follow`): candidate
+  `axon-d64-emission-rung-cloud-v1`, `tranche: 0/600`, runner sequence
+  `input_discovery → python_selected → running → sync_enabled`, status
+  `evaluating(initial)`. **No QA events yet, and that is expected** — transcripts
+  are emitted at the terminal evaluation, not per step.
+
+### What to watch
+
+The run has three observable stages: the initial baseline evaluation of the
+**complete** surface (no `--evaluation-case-limit`, so the whole heldout +
+regression surface), then 600 training steps, then the terminal evaluation that
+carries the QA transcripts and the stage-gate verdict.
+
+The decisive signals are exactly the two that were still dead in the local run:
+
+- **`payload_transport_exact_rate` leaving `0.0`** (local was `0.0`)
+- **`nonzero_exact_output_observed` flipping to `True`** — it requires *both*
+  typed emission *and* exact transport above the constant floor, so it is the
+  single honest "the core emitted a real answer" flag.
+
+Reference from the local run to beat: `payload_content_accuracy` 0.3636 against a
+0.1818 floor, `typed_emission_exact_rate` 0.25, `alignment_eos_gate_accuracy`
+1.0, `alignment_copy_gate_accuracy` 0.0, heldout mean loss 3.437 (first-10 mean
+19.874 → last-10 mean 11.796).
+
+Operational notes: `python scripts\axon_kaggle.py status <job_id>` and
+`fetch <job_id>` are available; `MONITOR_AXON_KAGGLE.bat` opens the same
+dashboard with no arguments; and **closing any window never stops the cloud
+job.** `sync:` reads *"waiting for first checkpoint upload"* until the first
+checkpoint boundary (step 60) — and if the one-time `AXON_KAGGLE_SYNC` secret is
+absent, sync quietly disables itself with a journal note and **no failure**.
+Synced artifacts are observation-only: never canonical State, never a
+continuation grant.
+
+### The Soul stayed out of it
+
+Per Jeff's standing ruling — *"if the soul does not interfere then we can leave
+it as it"* — this run touches nothing under `State/active/souls`. Re-verified on
+disk: 40 files / 26,836 bytes / 40 `SoulLayer` records, **every
+`payload_base64` empty**, every `generation: 0`, every `parent_soul_id: null`.
+The sequencing rule stands: no Soul work ahead of or in parallel with the motor
+fix. This run is the test of whether the motor fix alone moves the rung.
+
 ## Paused lineages (preserved as diagnostic evidence, untouched)
 
 - **termhead-v1 at confirmed step 24 `bfe76d52`** (guard-accepted; copy_gate
@@ -1046,6 +1178,37 @@ subprocess suites have exited.
 
 ## Verification
 
+- Kaggle launch (`evt-20260917T200034380158Z-copilot-kaggle-emission-rung-launch`):
+  `scan_active_capacity_poison(r"D:\Axon")` → **passed: True, 147 files,
+  0 violations**; seven focused suites (`test_training_watch`,
+  `test_sequential_wiring`, `test_living_reasoning_smoke_gates`,
+  `test_no_tissue_ceilings_policy`, `test_heart_training_preflight`,
+  `test_foundation_motor_objective_identity`, `test_living_reasoning_d64`)
+  → **69 passed, exit 0**.
+- Kaggle launch: the recipe was validated by feeding it through the real
+  `CloudJobConfig.from_mapping` rather than by eyeballing JSON;
+  `config_id 73898b62333eaf87627e69449a93c194635076f49429425b53a63a5c1212fcab`.
+  `sync_mid_run: true` joins the identity **only** when enabled, so older recipes
+  keep their historical ids.
+- Kaggle launch: the packet was re-hashed member-by-member against disk —
+  `scripts/axon_training_watch.py 07b63977768e0941`,
+  `scripts/train_living_reasoning_smoke.py b5d56d065f1ff416`,
+  `training/foundation_motor_curriculum.py 42aed216815736e0`,
+  `training/living_reasoning_curriculum.py 89eb0013447a2fcb` — **all match**.
+  This is what proves the emission rung and the QA attribution were actually
+  shipped, not merely committed.
+- Kaggle launch: the dirty-tree blocker was read at source
+  (`runtime/trainer/cloud_jobs.py:135-137`) and the post-commit tracked tree was
+  confirmed clean, so the packet gate and the launch both saw the same revision
+  `1a4bc416`.
+- Kaggle launch: entitlement was proved by the job, not by the quota page — the
+  dashboard reports `accelerator: cuda` with a Tesla T4 resolved, which is the
+  fail-closed CUDA probe passing rather than a CPU fallback.
+- Kaggle launch: the canonical ledger tail was re-read immediately before
+  appending (319 raw lines, trailing newline present, no concurrent append), the
+  event was appended through the sanctioned appender, and the file now reads
+  **320 raw lines = 319 events + blank line 192 + trailing newline**. The new
+  event's `actions` are all objects and `identity_stamp` is a string.
 - QA attribution (`evt-20260917T193000000000Z`): `tests/test_training_watch.py`
   **14 passed** (12 + 2 new render tests); `tests/test_trainer_progress.py`
   **4 passed** (the extended two-manifest CPU subprocess test now also asserts
@@ -1195,9 +1358,50 @@ subprocess suites have exited.
 
 ## Active blockers and risks
 
+- **CLOUD PACKET GATE REFUSES A DIRTY TRACKED TREE — RESOLVED THIS TURN, BUT IT
+  IS A STANDING TRAP.** `runtime/trainer/cloud_jobs.py:135-137` raises
+  `CloudPacketError("tracked Axon files are modified; commit them before
+  exporting a cloud packet")` whenever `git status --porcelain
+  --untracked-files=no` is non-empty. The failure mode is safe but *late*: the
+  error only fires at `prepare`, and the natural workaround — committing first —
+  is undone the moment any later edit touches a shipped root (`adapters/`,
+  `configs/`, `cores/`, `curator/`, `runtime/`, `scripts/`, `slots/`,
+  `substrate/`, `training/`). Note the asymmetry: a modified **tracked** file
+  blocks the packet, while an **untracked** file neither blocks nor ships; and
+  `roundtable/` is not a `_SOURCE_ROOT`, so ledger edits do not ship (and did not
+  need to). **Rule: commit the shipped source, then `prepare`, then launch — and
+  never edit a `_SOURCE_ROOT` path between `prepare` and `launch`.**
+  (`evt-20260917T200034380158Z-copilot-kaggle-emission-rung-launch`)
+- **THE STAGE GATE FAILS BY CONSTRUCTION ON ANY LIMITED EVALUATION SURFACE.**
+  `complete_heldout_evaluation`/`complete_regression_evaluation` are true only
+  when *every* episode is evaluated
+  (`scripts/train_living_reasoning_smoke.py:1549-1554`), and otherwise the gate
+  appends *"heldout surface is incomplete"*
+  (`training/foundation_motor_curriculum.py:1798-1801`). Any recipe passing
+  `--evaluation-case-limit` therefore cannot pass its own stage gate, no matter
+  how well the model did. The cloud recipe deliberately omits the flag. This
+  remains an **open defect** in the product, not just a recipe choice.
+  (`evt-20260917T200034380158Z-copilot-kaggle-emission-rung-launch`)
+- **QUOTA IS NOT ENTITLEMENT.** `doctor` reports 27.34 of 30 GPU-hours remaining,
+  but that figure says nothing about whether a GPU will be allocated. Only the
+  in-job CUDA probe does, and it must fail **closed** — never fall back to CPU.
+  It passed for this job (`accelerator: cuda`, Tesla T4). Treat the quota page as
+  a scheduling hint, never as proof. (`evt-20260917T200034380158Z-copilot-kaggle-emission-rung-launch`)
+- **MID-RUN SYNC IS OBSERVATION-ONLY.** `sync_mid_run: true` needs a one-time
+  Jeff-only Kaggle UI step attaching the `AXON_KAGGLE_SYNC` secret with internet
+  enabled. Without it, sync disables itself with a journal note and **no
+  failure**, so *"sync: waiting for first checkpoint upload"* is not an error
+  signal. Synced payloads are never canonical State and never a continuation
+  grant. (`evt-20260917T200034380158Z-copilot-kaggle-emission-rung-launch`)
+- **THE DECISIVE CLOUD SIGNALS ARE STILL UNKNOWN.** `payload_transport_exact_rate`
+  was `0.0` and `nonzero_exact_output_observed` was `False` in the local run. The
+  Kaggle run exists to move them. Until the terminal evaluation reports, the
+  emission rung is **partially** validated at best, and no further GPU hours
+  should be spent on widening Stage-0 material before those two numbers are
+  known. (`evt-20260917T200034380158Z-copilot-kaggle-emission-rung-launch`)
 - **CANONICAL LEDGER BLANK LINE (line 192) — CLOSED: LEAVE IT.** Jeff's answer to
   "should we delete it?" was *"yes if we need it."* Empirically **we do not**.
-  `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl` is now 319 body lines (**318 JSON
+  `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl` is now 320 body lines (**319 JSON
   events** + the empty line 192 + one trailing newline); line 192 sits between
   `evt-20260908T163825100000Z-gemini-pickup-codex-google-prep` (191) and
   `evt-20260908T171000000000Z-gemini-deep-repo-analysis` (193). The canonical
@@ -1342,6 +1546,17 @@ subprocess suites have exited.
 **PRIORITY 0 — the three moves that come before anything else
 (`evt-20260917T100000Z`):**
 
+- **IN FLIGHT — the 600-step cloud tranche is running.**
+  `evt-20260917T200034380158Z-copilot-kaggle-emission-rung-launch`: job
+  `389df54d01fbda8ec6625b9019ff5fb1ec254c08360bf3d8cf4570c41ee45bd9`, committed
+  revision `1a4bc416`, packet 7.5 MiB / 459 files with the four load-bearing
+  source hashes verified against disk, running privately on a Tesla T4 with
+  mid-run sync enabled. **Nothing else should be launched while it runs.** When
+  it reaches its terminal evaluation, read the two decisive numbers
+  (`payload_transport_exact_rate`, `nonzero_exact_output_observed`), then
+  `python scripts/axon_kaggle.py fetch <job_id>` — the bundle path verifies the
+  archive hash, re-hashes every member, and quarantines on any mismatch.
+  **Do not widen Stage-0 material before those numbers are known.**
 - **Zero-GPU measurement.** Re-evaluate `bfe76d52` under the corrected gate
   (`payload_transport_exact_rate >= 0.95`) **and add a free-running
   non-empty-emission count metric** — `terminated: True` with
