@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-17T21:20:00+00:00
+Updated: 2026-09-17T22:05:00+00:00
 current_through_event_id:
-`evt-20260917T211900000000Z-copilot-constant-floor-and-monitor-trap-repair`
+`evt-20260917T220500000000Z-copilot-emission-rung-final-verdict-and-empty-fetch-trap`
 
 Append order note: the two events carrying timestamps `19:10` and `19:30` sit
 *earlier* in the file than the `20:00` launch event, because the correction was
@@ -20,6 +20,28 @@ and before that GitHub Copilot CLI / deepseek-v4.1-flash:cloud / 2026-09-16 —
 those revisions are superseded, not erased; canonical events remain the authority)
 
 ## Current mission and honest status
+
+**THE EMISSION RUNG'S VERDICT, READ AGAINST THE REAL FLOORS: content learned,
+exactness went backwards into noise.** `evt-20260917T220500000000Z`. The
+600-step tranche finished. Final heldout: `heldout_loss 5.206 → 1.056`,
+**payload teacher-forced token accuracy 0.0% → 61.8% (real floor 43.6% —
+BEATEN)**, motor-v2 copy gates 0.000 → heldout `copy-gate 0.903 / position 0.968
+/ pair-gate 0.625 / pair-pos 0.875`, regression `0.914 / 0.971 / 0.750 / 0.875`.
+**But:** `typed_exact` fell from **33.3% (exactly at the 24/72 floor, i.e. the
+constant answer) to 0.0% — below floor**, and payload exactness sits at
+**16.7% against the 8/24 = 33.3% floor — below floor**. The teacher-forced rows
+show why: cases that must emit *nothing* now answer `'i'`, `'oo'`, `'VV'`, `'YYY'`.
+The core left the emit-nothing dead state and entered a **noisy-emission** state.
+**The rung did not pass its stage gate.** Content moved; exactness moved the wrong
+way. The next objective must separate those two failure modes.
+
+**Also found: a false-success fetch.** `Adapter.fetch` stamped the job record
+`outputs_fetched` and returned exit 0 while downloading **zero** files, because a
+still-running kernel downloads as an empty tree without raising. Now guarded
+(`CloudPacketError` naming the provider status); the record for this run was
+wrongly marked and has been corrected back to `submitted`. Outputs are still
+unavailable — the kernel has not left `RUNNING` long after the loop and final
+eval finished.
 
 **THE FALSE-PROGRESS TRAP IS FIXED — and the number we were reading as progress
 was the constant answer.** `evt-20260917T211900000000Z`. Two exactness floors
@@ -43,10 +65,10 @@ rendered. **Jeff's decision:** attach the secret, or stop advertising sync.
 
 **IN FLIGHT:** Kaggle job
 `389df54d01fbda8ec6625b9019ff5fb1ec254c08360bf3d8cf4570c41ee45bd9`, revision
-`1a4bc416`, Tesla T4, 600-step emission-rung tranche, last seen at step 580/600
-(`loss: last 0.319 recent10 mean 0.781`), unaffected by local edits because its
-packet was already uploaded. The final heldout number read against the **real**
-floors is the actual verdict on the emission rung.
+`1a4bc416`, Tesla T4, 600-step emission-rung tranche — **the loop and the final
+evaluation are both done** (final numbers above); the kernel has not left
+`RUNNING`, so the outputs bundle is still unfetched. Unaffected by local edits
+because its packet was already uploaded.
 
 **Prior state — the emission rung, launched on Kaggle.**
 **EMISSION RUNG IMPLEMENTED LOCALLY, THEN LAUNCHED ON KAGGLE — the rung moved
@@ -1330,15 +1352,51 @@ That lab never had a training dashboard at all.
   `test_matching_the_constant_answer_is_not_progress` (must be False) and
   `test_nonzero_exact_output_is_progress_not_serving_readiness` (True at 2/3).
 
+### The 600-step tranche's verdict (`evt-20260917T220500000000Z`)
+
+The tranche finished at step 600 (loss 0.473, checkpoint `7856218f7e873de…`,
+10 checkpoints / 10 bundles) and evaluated. Read against the **corrected** floors:
+
+| metric | step 0 | step 600 | real floor | verdict |
+|---|---|---|---|---|
+| heldout loss | 5.206 | **1.056** | — | down |
+| payload teacher-forced token accuracy | 0.0% | **61.8%** | 43.6% | **BEATEN** |
+| `typed_emission_exact_rate` | 33.3% | **0.0%** | 33.3% | **BELOW** |
+| payload exactness | 0.0% | **16.7%** | 33.3% | **BELOW** |
+| motor-v2 copy-gate / position (heldout, n=72) | 0.000 / 0.000 | **0.903 / 0.968** | — | up |
+| motor-v2 pair-gate / pair-pos (heldout) | 0.000 / 0.000 | **0.625 / 0.875** | — | up |
+| motor-v2 copy-gate / position (regression) | 0.000 / 0.000 | **0.914 / 0.971** | — | up |
+
+The teacher-forced rows explain the exactness collapse: cases whose expected
+payload is **empty** (the `delete` cases) now answer `'i'`, `'oo'`, `'VV'`,
+`'YYY'`. The core stopped being silent and started emitting noise. It moved off
+the emit-nothing dead state in the wrong direction.
+
+**Reading:** content is genuinely learned and above its constant floor; exact
+transport is not, and `typed_exact` is now *worse* than doing nothing. The rung
+did not pass its stage gate. Content-accuracy and exactness moved in opposite
+directions, which is the signature of an objective that is not asking for the
+thing the gate measures.
+
+**Also:** `Adapter.fetch` reported success while downloading 0 files. A
+still-running kernel downloads as an empty tree without raising, so the job
+record was stamped `outputs_fetched` with `result: null`. Guarded now
+(`CloudPacketError` naming the provider status); this run's record was corrected
+back to `submitted`. The kernel has not left `RUNNING` since.
+
 ### Open for Jeff
 
 (a) Should the 48 zero-weight `no_op` + `abstain` phases leave the
 `typed_emission_exact_rate` denominator, or should the Stage-0 surface be
 rebalanced toward emission? Only 16/72 cases currently demand a character.
+**The measured verdict above makes this urgent:** a core can now *lose* typed
+exactness without the loss noticing, because those 48 phases carry zero gradient.
 (b) Attach `AXON_KAGGLE_SYNC`, or stop advertising sync on recipes that cannot use it?
 (c) Adopt the readiness-gated difficulty ramp and the grad-carrying-egress +
 pad-weighted-CE recipe from `D:\AxonGliksbot`?
 (d) Should `evaluation` run periodically inside a tranche instead of only at its ends?
+(e) The `evaluating(final)` phase emits **no events at all** while it runs (≈30 min
+of a frozen-looking dashboard). Should the trainer emit progress during evaluation?
 
 ## Paused lineages (preserved as diagnostic evidence, untouched)
 
