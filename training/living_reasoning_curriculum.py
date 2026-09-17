@@ -374,7 +374,14 @@ def living_phase_objective(
     *,
     component_weights: Mapping[str, float] | None = None,
     alignment_position_reduction: str = "mean",
+    payload_eos_weight: float = 4.0,
+    termination_continue_supervision: bool = False,
 ) -> tuple[torch.Tensor, dict[str, float]]:
+    payload_eos_weight = float(payload_eos_weight)
+    if not math.isfinite(payload_eos_weight) or payload_eos_weight <= 0.0:
+        raise ValueError("payload_eos_weight must be finite and positive")
+    if not isinstance(termination_continue_supervision, bool):
+        raise TypeError("termination_continue_supervision must be boolean")
     weights: dict[str, float] | None = None
     if component_weights is not None:
         unknown = set(component_weights) - set(LIVING_OBJECTIVE_COMPONENTS)
@@ -439,10 +446,12 @@ def living_phase_objective(
             decoder_alignment=decoder_alignment,
             specification=target.payload_alignment,
             position_reduction=alignment_position_reduction,
+            supervise_termination_continue=termination_continue_supervision,
         )
     payload_loss = sequence_cross_entropy(
         payload_logits,
         payload_targets,
+        eos_weight=payload_eos_weight,
         token_mask=(
             None
             if alignment_supervision is None
@@ -500,6 +509,12 @@ def living_phase_objective(
                 "alignment_eos_gate_accuracy": float(
                     alignment_supervision["eos_gate_accuracy"]
                 ),
+                "termination_continue_positions": float(
+                    alignment_supervision["termination_continue_positions"]
+                ),
+                "termination_continue_accuracy": float(
+                    alignment_supervision["termination_continue_accuracy"]
+                ),
                 "alignment_gate_accuracy": float(alignment_supervision["gate_accuracy"]),
             }
         )
@@ -516,6 +531,8 @@ def living_episode_objective(
     ablate_temperatures: tuple[SoulTemperature, ...] = (),
     component_weights: Mapping[str, float] | None = None,
     alignment_position_reduction: str = "mean",
+    payload_eos_weight: float = 4.0,
+    termination_continue_supervision: bool = False,
 ) -> tuple[torch.Tensor, CausalLivingUnroll, tuple[dict[str, float], ...]]:
     compiled = D64FieldCompiler().compile(episode.snapshot)
     compiled.verify_roundtrip(episode.snapshot)
@@ -536,6 +553,8 @@ def living_episode_objective(
             target,
             component_weights=component_weights,
             alignment_position_reduction=alignment_position_reduction,
+            payload_eos_weight=payload_eos_weight,
+            termination_continue_supervision=termination_continue_supervision,
         )
         for output, target in zip(unroll.outputs, episode.targets, strict=True)
     )
@@ -704,6 +723,9 @@ def evaluate_living_episode(
                 transcript_sink.append(
                     {
                         "episode_id": episode.episode_id,
+                        # A transcript that cannot name its case is unreadable
+                        # during a run; the label is the only human-usable key.
+                        "episode_label": episode.label,
                         "prompt": prompt_text,
                         "predicted_payload": payload,
                         "expected_payload": target.payload,

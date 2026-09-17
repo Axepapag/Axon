@@ -776,13 +776,15 @@ class CompleteField64D(nn.Module):
         supervisable instead of crediting every matching character.
         """
         if memory is None:
-            generated_logits = self.decoder_output(self.decoder_norm(output))
+            fused = self.decoder_norm(output)
+            generated_logits = self.decoder_output(fused)
             logits = generated_logits
             if return_alignment:
                 empty = torch.empty(output.shape[0], output.shape[1], 0, device=output.device, dtype=output.dtype)
                 return logits, {
                     "position_logits": empty,
                     "generated_logits": generated_logits,
+                    "decoder_fused": fused,
                     "generate_gate_logits": torch.full(
                         (output.shape[0], output.shape[1]),
                         30.0,
@@ -839,6 +841,7 @@ class CompleteField64D(nn.Module):
             return log_probabilities, {
                 "position_logits": masked_position_logits,
                 "generated_logits": generated_logits,
+                "decoder_fused": fused,
                 "generate_gate_logits": generate_gate_logits,
             }
         return log_probabilities

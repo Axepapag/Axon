@@ -19,6 +19,7 @@ from runtime.field import CanonicalStateBranch, LogicalRegion, canonical_sha256
 from runtime.heart import ReasoningDecision, ReasoningOperationKind
 from runtime.soul import SoulStore
 from runtime.trainer import (
+    CandidateCheckpointRecord,
     CandidateSoulWorkspace,
     CandidateStepBundleCoordinator,
     GovernedLearningPolicy,
@@ -40,10 +41,14 @@ from training import (
     COPY_ALIGNMENT_MULTICELL_TEACH_ID,
     FOUNDATION_MOTOR_GATE_POLICY_ID,
     FOUNDATION_MOTOR_V2_PROGRAM_ID,
+    FOUNDATION_MOTOR_V2_RETENTION_CONTRACT_ID,
+    FOUNDATION_MOTOR_V2_RETENTION_CONTRACT_V2_ID,
     FOUNDATION_MOTOR_V2_STAGE_ORDER,
     FOUNDATION_SEQUENCE_GATE_POLICY_ID,
     RECEIPT_TEACHING_PROFILE_CONTINUATION_V1,
+    RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_BALANCED_V4,
     RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_EOS_V3,
+    RECEIPT_TERMINATION_HEAD_PROFILES,
     RECEIPT_TEACHING_PROFILES,
     LivingReasoningCoreD64,
     LivingReasoningCurriculum,
@@ -55,8 +60,11 @@ from training import (
     candidate_a_config,
     d64_tournament_metric_computation,
     decide_foundation_motor_mastery,
+    decide_foundation_motor_v2_checkpoint_retention,
+    decide_foundation_motor_v2_checkpoint_retention_v2,
     decide_foundation_motor_v2_stage,
     decide_foundation_sequence_mastery,
+    resolve_retention_action,
     evaluate_living_episode,
     evaluate_sequential_case,
     foundation_motor_probe,
@@ -111,6 +119,83 @@ def nonzero_exact_output_observed(evaluation: dict[str, Any]) -> bool:
     )
 
 
+PROBATION_SIDECAR_SCHEMA = "axon-motor-retention-probation-v1"
+
+
+def _probation_sidecar_path(campaign_report_dir: Path) -> Path:
+    return campaign_report_dir / "retention_probation.json"
+
+
+def _write_probation_sidecar(path: Path, body: dict[str, Any]) -> None:
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(body, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def _clear_probation_sidecar(path: Path) -> None:
+    if path.exists():
+        path.unlink()
+
+
+def _load_probation_sidecar(
+    *,
+    path: Path,
+    candidate_generation: str,
+    learning_policy: dict[str, Any],
+    effective_objective_program_id: str,
+    architecture_id: str,
+    standard_ffcs_manifest_ids: list[str],
+    max_plateau_probation: int,
+) -> dict[str, Any] | None:
+    """Load and validate a probation sidecar; fail closed on any mismatch.
+
+    Returns None when no sidecar exists.  A malformed or identity-mismatched
+    sidecar raises: silently ignoring it could resume the wrong optimizer
+    state under a different recipe.
+    """
+
+    if not path.exists():
+        return None
+    body = json.loads(path.read_text(encoding="utf-8"))
+    if body.get("schema") != PROBATION_SIDECAR_SCHEMA:
+        raise RuntimeError(f"probation sidecar schema mismatch: {path}")
+    identity_checks = {
+        "candidate_generation_id": candidate_generation,
+        "learning_policy": learning_policy,
+        "effective_objective_program_id": effective_objective_program_id,
+        "architecture_id": architecture_id,
+        "standard_ffcs_manifest_ids": standard_ffcs_manifest_ids,
+        "max_plateau_probation": max_plateau_probation,
+    }
+    for key, expected in identity_checks.items():
+        if body.get(key) != expected:
+            raise RuntimeError(f"probation sidecar identity mismatch on {key}: {path}")
+    for key in (
+        "probationary_checkpoint",
+        "probationary_step",
+        "probation_count",
+        "reference_evaluation",
+        "confirmed_checkpoint",
+    ):
+        if key not in body:
+            raise RuntimeError(f"probation sidecar is missing {key}: {path}")
+    if (
+        isinstance(body["probation_count"], bool)
+        or not isinstance(body["probation_count"], int)
+        or body["probation_count"] < 1
+    ):
+        raise RuntimeError(f"probation sidecar has an invalid count: {path}")
+    if body["probation_count"] >= max_plateau_probation:
+        raise RuntimeError(
+            "probation sidecar meets or exceeds its allowance; the branch "
+            f"should have been abandoned and cannot be resumed: {path}"
+        )
+    # Validate the embedded checkpoint records deserialize and are self-consistent.
+    CandidateCheckpointRecord.from_mapping(body["probationary_checkpoint"])
+    CandidateCheckpointRecord.from_mapping(body["confirmed_checkpoint"])
+    return body
+
+
 def exact_serving_gate_passed(
     evaluation: dict[str, Any],
     *,
@@ -157,21 +242,38 @@ def _prior_consumed_tranche_id(
     tranche_store: TrancheStore,
     plan_id: str,
     learning_policy_id: str,
+    probation_sidecar: dict | None = None,
 ) -> str | None:
-    """Prove which resource tranche, if any, produced an accepted parent.
+    """Prove which resource tranche, if any, produced the resuming parent.
 
     A tranche record is only an issued allowance. It becomes lineage only when
     an immutable segment report binds it to the exact final checkpoint and
     accepted step bundle. This prevents an abandoned allowance from being
     mistaken for consumed history.
+
+    Under a plateau probation the resuming parent is the probationary
+    checkpoint, not the confirmed accepted bundle, so the proof targets the
+    probation anchor: the segment report reaching the probationary step whose
+    final checkpoint is the sidecar's probationary checkpoint.
     """
+
+    if probation_sidecar is not None:
+        anchor_step = int(probation_sidecar["probationary_step"])
+        anchor_checkpoint = str(probation_sidecar["probationary_checkpoint"]["checkpoint_id"])
+        target_step = anchor_step
+        target_checkpoint_id = anchor_checkpoint
+        target_bundle_id = None
+    else:
+        target_step = int(latest_bundle.step)
+        target_checkpoint_id = str(latest_bundle.checkpoint_id)
+        target_bundle_id = str(latest_bundle.bundle_id)
 
     matching_issued = tuple(
         item
         for item in tranche_store.tranches_for(module_id, candidate_generation_id)
         if item.plan_id == plan_id
         and item.learning_policy_id == learning_policy_id
-        and item.final_global_step == latest_bundle.step
+        and item.final_global_step == target_step
     )
     consumed: set[str] = set()
     for path in sorted(campaign_report_dir.glob("segment_*.json")):
@@ -185,17 +287,29 @@ def _prior_consumed_tranche_id(
         if (
             body.get("evaluation_only")
             or body.get("candidate_generation_id") != candidate_generation_id
-            or body.get("segment_end_step") != latest_bundle.step
-            or body.get("final_checkpoint_id") != latest_bundle.checkpoint_id
+            or body.get("segment_end_step") != target_step
+            or body.get("final_checkpoint_id") != target_checkpoint_id
         ):
             continue
-        accepted_bundle_ids = tuple(
-            item.get("accepted_step_bundle_id")
-            for item in body.get("steps", ())
-            if item.get("accepted_step_bundle_id") is not None
-        )
-        if not accepted_bundle_ids or accepted_bundle_ids[-1] != latest_bundle.bundle_id:
-            continue
+        if target_bundle_id is not None:
+            accepted_bundle_ids = tuple(
+                item.get("accepted_step_bundle_id")
+                for item in body.get("steps", ())
+                if item.get("accepted_step_bundle_id") is not None
+            )
+            if accepted_bundle_ids:
+                if accepted_bundle_ids[-1] != target_bundle_id:
+                    continue
+            else:
+                # Promotion path: a stage-gate promotion accepts at segment
+                # end, after per-step records are built, so no step carries
+                # the bundle id. The binding above already requires the
+                # report's final checkpoint to equal the accepted chain
+                # head's checkpoint (coordinator-verified bundle<->checkpoint
+                # identity), which an abandoned tranche can never satisfy —
+                # abandonment by definition never advances the accepted head
+                # to the tentative state.
+                pass
         resource = body.get("resource_tranche")
         if resource is None:
             continue
@@ -205,15 +319,29 @@ def _prior_consumed_tranche_id(
             raise RuntimeError("segment report resource tranche differs from durable record")
         consumed.add(reported.tranche_id)
     if len(consumed) > 1:
-        raise RuntimeError("multiple consumed tranches claim the accepted parent bundle")
+        raise RuntimeError("multiple consumed tranches claim the resuming parent state")
     if consumed:
         return next(iter(consumed))
     if matching_issued:
         raise RuntimeError(
-            "accepted parent coincides with an issued but unclosed resource tranche; "
+            "resuming parent coincides with an issued but unclosed resource tranche; "
             "regenerate its evaluation/report before issuing a continuation"
         )
     return None
+
+
+def _continuation_parent_global_step(latest_bundle_step: int, probation_sidecar) -> int:
+    """Parent step recorded on a tranche continuation receipt.
+
+    Must equal the leased tranche's ``base_global_step``. Under a plateau
+    probation the lease anchors at the probationary step while the accepted
+    chain stays at the confirmed parent, so the receipt must follow the
+    anchor rather than the accepted bundle's step. The probationary
+    checkpoint's own provenance lives in the probation sidecar.
+    """
+    if probation_sidecar is not None:
+        return int(probation_sidecar["probationary_step"])
+    return int(latest_bundle_step)
 
 
 def _arguments() -> argparse.Namespace:
@@ -350,6 +478,37 @@ def _arguments() -> argparse.Namespace:
         help=(
             "use generated-head EOS termination; requires receipt continuation "
             "and the generate_head_eos_v3 objective profile"
+        ),
+    )
+    parser.add_argument(
+        "--termination-head-route",
+        action="store_true",
+        help=(
+            "use a dedicated scalar termination head; requires receipt "
+            "continuation and the termination_head_v5 objective profile; "
+            "mutually exclusive with --eos-generate-head-route"
+        ),
+    )
+    parser.add_argument(
+        "--motor-retention-guard",
+        action="store_true",
+        help=(
+            "evaluate one tentative end-of-tranche checkpoint before publishing it; "
+            "restore the accepted parameter/optimizer/Soul parent if complete-surface "
+            "closed-loop motor behavior regresses. Requires one checkpoint at the "
+            "tranche boundary and forbids --evaluation-case-limit."
+        ),
+    )
+    parser.add_argument(
+        "--motor-retention-plateau-probation",
+        type=int,
+        default=0,
+        help=(
+            "three-state guard: allow this many consecutive plateau tranches to "
+            "continue their exact optimizer state without promotion (reference "
+            "stays the last confirmed accepted parent; regression rolls all the "
+            "way back; exhaustion abandons the branch). 0 keeps the legacy "
+            "two-state contract where plateau rejects immediately."
         ),
     )
     return parser.parse_args()
@@ -553,6 +712,8 @@ def _material_objective(
     parameter_generation: str,
     component_weights: dict[str, float] | None = None,
     alignment_position_reduction: str = "mean",
+    payload_eos_weight: float = 4.0,
+    termination_continue_supervision: bool = False,
 ) -> tuple[torch.Tensor, Any, tuple[dict[str, float], ...], tuple[Any, ...]]:
     """Run one scheduled lesson and return its complete Soul lineage."""
 
@@ -589,6 +750,8 @@ def _material_objective(
         parameter_generation=parameter_generation,
         component_weights=component_weights,
         alignment_position_reduction=alignment_position_reduction,
+        payload_eos_weight=payload_eos_weight,
+        termination_continue_supervision=termination_continue_supervision,
     )
     return loss, unroll, phase_metrics, unroll.transitions
 
@@ -651,12 +814,40 @@ def main() -> int:
         )
     if args.eos_generate_head_route != (
         args.receipt_teaching_profile
-        == RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_EOS_V3
+        in {
+            RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_EOS_V3,
+            RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_BALANCED_V4,
+        }
     ):
         raise ValueError(
             "--eos-generate-head-route and --receipt-teaching-profile "
-            "generate_head_eos_v3 must be selected together"
+            "a generated-head EOS profile must be selected together"
         )
+    if args.termination_head_route != (
+        args.receipt_teaching_profile in RECEIPT_TERMINATION_HEAD_PROFILES
+    ):
+        raise ValueError(
+            "--termination-head-route and --receipt-teaching-profile "
+            "a termination-head profile must be selected together"
+        )
+    if args.motor_retention_plateau_probation < 0:
+        raise ValueError("--motor-retention-plateau-probation must be non-negative")
+    if args.motor_retention_plateau_probation > 0 and not args.motor_retention_guard:
+        raise ValueError(
+            "--motor-retention-plateau-probation requires --motor-retention-guard"
+        )
+    if args.motor_retention_guard and not args.evaluate_only:
+        if args.evaluation_case_limit is not None:
+            raise ValueError(
+                "--motor-retention-guard requires the complete heldout and regression "
+                "surfaces; --evaluation-case-limit is a debug probe and cannot accept "
+                "a checkpoint"
+            )
+        if args.tranche_steps is None or args.checkpoint_interval != args.tranche_steps:
+            raise ValueError(
+                "--motor-retention-guard requires checkpoint_interval == tranche_steps "
+                "so no tentative checkpoint can advance the accepted pointer before the guard"
+            )
     _seed_everything(args.seed)
     device = _device(args.device)
     config = candidate_a_config(
@@ -668,6 +859,7 @@ def main() -> int:
         generate_gate_bias=args.generate_gate_bias,
         receipt_continuation=bool(args.receipt_continuation),
         eos_generate_head_route=bool(args.eos_generate_head_route),
+        termination_head_route=bool(args.termination_head_route),
     )
     model = LivingReasoningCoreD64(config).to(device)
     standard_ffcs = []
@@ -719,6 +911,19 @@ def main() -> int:
         for item in standard_ffcs
         for case in item.teaching_cases
     }
+    evaluation_case_id_by_episode = {
+        case.episode.episode_id: case.case_id
+        for item in standard_ffcs
+        for case in item.teaching_cases
+    }
+    # The training lanes tag every step with the living-curriculum train manifest
+    # id, so an evaluation transcript must use the same identifier or the two
+    # surfaces disagree about which curriculum they are describing.
+    evaluation_train_manifest_by_episode = {
+        case.episode.episode_id: item.teaching_living_curriculum.train_manifest_id
+        for item in standard_ffcs
+        for case in item.teaching_cases
+    }
     foundation_sequence_enabled = any(
         is_foundation_sequence_episode(case.episode)
         for item in standard_ffcs
@@ -740,6 +945,8 @@ def main() -> int:
         raise RuntimeError("--teach-multicell-copy requires a motor-v2 curriculum")
     if args.receipt_continuation and not foundation_motor_v2_enabled:
         raise RuntimeError("--receipt-continuation requires a motor-v2 curriculum")
+    if args.motor_retention_guard and not foundation_motor_v2_enabled:
+        raise RuntimeError("--motor-retention-guard requires a motor-v2 curriculum")
     receipt_teach = (
         receipt_continuation_teach_profile(args.receipt_teaching_profile)
         if args.receipt_continuation
@@ -812,6 +1019,19 @@ def main() -> int:
             **(
                 {"foundation_motor_v2_program_id": FOUNDATION_MOTOR_V2_PROGRAM_ID}
                 if foundation_motor_v2_enabled
+                else {}
+            ),
+            **(
+                {
+                    # Governance (guard/probation) is acceptance policy, not
+                    # optimizer recipe: the contract family stays constant so
+                    # enabling probation never forks candidate identity.  The
+                    # contract actually used is recorded per decision.
+                    "foundation_motor_v2_retention_contract_id": (
+                        FOUNDATION_MOTOR_V2_RETENTION_CONTRACT_ID
+                    )
+                }
+                if args.motor_retention_guard
                 else {}
             ),
             **(
@@ -925,6 +1145,7 @@ def main() -> int:
         "seed": args.seed,
         "preflight_only": bool(args.preflight_only),
         "architecture": model.architecture_report(),
+        "motor_retention_guard_enabled": bool(args.motor_retention_guard),
         "curriculum_id": curriculum.curriculum_id,
         "campaign_curriculum_id": campaign_curriculum_id,
         "campaign_curriculum_path": str(campaign_curriculum_path),
@@ -1014,10 +1235,39 @@ def main() -> int:
             learning_rate=args.learning_rate,
             objective_program_id=effective_objective_program_id,
         )
+        report["learning_policy"] = policy.to_canonical_dict()
+        if args.motor_retention_guard:
+            report["foundation_motor_v2_retention_contract_id"] = (
+                FOUNDATION_MOTOR_V2_RETENTION_CONTRACT_ID
+            )
         if args.legacy_plan_v1:
             step_bundles = CandidateStepBundleCoordinator(args.state_root)
         latest_bundle = step_bundles.latest_bundle(module_id, candidate_generation)
         campaign_report_dir = args.state_root.resolve() / "training" / "reasoning" / candidate_generation
+        probation_sidecar: dict[str, Any] | None = None
+        probation_count = 0
+        sidecar_path = _probation_sidecar_path(campaign_report_dir)
+        if (
+            args.motor_retention_guard
+            and args.motor_retention_plateau_probation > 0
+            and not args.evaluate_only
+        ):
+            probation_sidecar = _load_probation_sidecar(
+                path=sidecar_path,
+                candidate_generation=candidate_generation,
+                learning_policy=policy.to_canonical_dict(),
+                effective_objective_program_id=effective_objective_program_id,
+                architecture_id=config.architecture_id,
+                standard_ffcs_manifest_ids=[item.manifest_id for item in standard_ffcs],
+                max_plateau_probation=args.motor_retention_plateau_probation,
+            )
+            if probation_sidecar is not None:
+                probation_count = int(probation_sidecar["probation_count"])
+        report["motor_retention_plateau_probation"] = args.motor_retention_plateau_probation
+        if args.motor_retention_plateau_probation > 0:
+            report["foundation_motor_v2_retention_contract_id"] = (
+                FOUNDATION_MOTOR_V2_RETENTION_CONTRACT_V2_ID
+            )
         if not args.legacy_plan_v1:
             _write_immutable_json(
                 campaign_report_dir / "candidate_initialization.json",
@@ -1087,8 +1337,14 @@ def main() -> int:
                     tranche_store=tranche_store,
                     plan_id=plan.plan_id,
                     learning_policy_id=policy.policy_id,
+                    probation_sidecar=probation_sidecar,
                 )
-            base_global_step = 0 if latest_bundle is None else latest_bundle.step
+            anchor_step = (
+                int(probation_sidecar["probationary_step"])
+                if probation_sidecar is not None
+                else (0 if latest_bundle is None else latest_bundle.step)
+            )
+            base_global_step = anchor_step
             parent_bundle_id = None if latest_bundle is None else latest_bundle.bundle_id
             tranche = ResourceTranche(
                 module_id=module_id,
@@ -1250,6 +1506,19 @@ def main() -> int:
             session.restore_checkpoint(parent_checkpoint)
             if soul_branch.load_head().soul_id != latest_bundle.after_soul_id:
                 raise RuntimeError("accepted checkpoint and candidate Soul HEAD disagree")
+            if probation_sidecar is not None:
+                # Continue the probationary branch: the accepted chain (and
+                # its Soul HEAD) stays at the confirmed parent, while
+                # parameters/optimizer resume from the held probationary
+                # checkpoint.  Verify the payload survived store pruning
+                # before committing to the branch.
+                probationary_record = CandidateCheckpointRecord.from_mapping(
+                    probation_sidecar["probationary_checkpoint"]
+                )
+                step_bundles.trainer_store.load_verified_candidate_checkpoint(
+                    probationary_record
+                )
+                session.restore_checkpoint(probationary_record)
             if tranche is not None:
                 continuation = TrancheContinuation(
                     tranche_id=tranche.tranche_id,
@@ -1261,7 +1530,9 @@ def main() -> int:
                     parent_checkpoint_id=latest_bundle.checkpoint_id,
                     parent_optimizer_receipt_id=latest_bundle.optimization_receipt_id,
                     parent_soul_id=latest_bundle.after_soul_id,
-                    parent_global_step=latest_bundle.step,
+                    parent_global_step=_continuation_parent_global_step(
+                        latest_bundle.step, probation_sidecar
+                    ),
                     prior_tranche_id=prior_tranche_id,
                 )
                 tranche_store.write_continuation(continuation)
@@ -1295,14 +1566,67 @@ def main() -> int:
             sequential_regression
         ) == len(all_sequential_regression)
 
-        def evaluate_candidate() -> dict[str, Any]:
+        # Training and evaluation must score the same effective objective.
+        # Using the bare stage policy here made copy_alignment loss blind to
+        # payload collapse even though the v3 teaching overlay trained payload
+        # content and generated-head EOS.
+        train_component_weights = (
+            None
+            if foundation_motor_v2_training_stage is None
+            else dict(
+                foundation_motor_v2_stage_policy(foundation_motor_v2_training_stage)[
+                    "component_weights"
+                ]
+            )
+        )
+        train_position_reduction = "mean"
+        if (args.teach_multicell_copy or args.receipt_continuation) and foundation_motor_v2_training_stage is not None:
+            train_component_weights = (
+                apply_receipt_continuation_teach_weights(
+                    train_component_weights or {},
+                    training_stage=foundation_motor_v2_training_stage,
+                    receipt_teaching_profile=args.receipt_teaching_profile,
+                )
+                if args.receipt_continuation
+                else apply_copy_alignment_multicell_teach_weights(
+                    train_component_weights or {},
+                    training_stage=foundation_motor_v2_training_stage,
+                )
+            )
+            if foundation_motor_v2_training_stage == "copy_alignment":
+                train_position_reduction = str(
+                    (
+                        receipt_teach
+                        if args.receipt_continuation
+                        else COPY_ALIGNMENT_MULTICELL_TEACH
+                    )["alignment_position_reduction"]
+                )
+        report["evaluation_component_weights"] = train_component_weights
+        report["evaluation_alignment_position_reduction"] = train_position_reduction
+        payload_eos_weight = float(
+            4.0 if receipt_teach is None else receipt_teach.get("payload_eos_weight", 4.0)
+        )
+        report["payload_eos_weight"] = payload_eos_weight
+        # The v6 balanced-termination fix is profile-carried so training and
+        # evaluation score the same effective objective and the campaign
+        # identity changes exactly when the supervision semantics change.
+        termination_continue_supervision = bool(
+            receipt_teach is not None
+            and receipt_teach.get("termination_continue_supervision", False)
+        )
+        report["termination_continue_supervision"] = termination_continue_supervision
+
+        def evaluate_candidate(evaluation_soul: Any | None = None) -> dict[str, Any]:
             session.candidate_module.eval()
+            observed_soul = (
+                soul_branch.load_head() if evaluation_soul is None else evaluation_soul
+            )
             qa_rows: list[dict[str, Any]] = []
             exact_rows = [
                 evaluate_living_episode(
                     session.candidate_module,
                     episode,
-                    soul_branch.load_head(),
+                    observed_soul,
                     core_id=module_id,
                     parameter_generation=candidate_generation,
                     transcript_sink=qa_rows,
@@ -1313,7 +1637,7 @@ def main() -> int:
                 evaluate_sequential_case(
                     session.candidate_module,
                     case,
-                    soul_branch.load_head(),
+                    observed_soul,
                     core_id=module_id,
                     parameter_generation=candidate_generation,
                 )
@@ -1326,25 +1650,22 @@ def main() -> int:
                     loss, _unroll, _metrics = living_episode_objective(
                         session.candidate_module,
                         episode,
-                        soul_branch.load_head(),
+                        observed_soul,
                         core_id=module_id,
                         parameter_generation=candidate_generation,
                         component_weights=(
-                            None
-                            if foundation_motor_v2_training_stage is None
-                            else dict(
-                                foundation_motor_v2_stage_policy(
-                                    foundation_motor_v2_training_stage
-                                )["component_weights"]
-                            )
+                            train_component_weights
                         ),
+                        alignment_position_reduction=train_position_reduction,
+                        payload_eos_weight=payload_eos_weight,
+                        termination_continue_supervision=termination_continue_supervision,
                     )
                     exact_losses.append(float(loss.item()))
                 for case in sequential_heldout:
                     loss, _unrolls, _soul = sequential_living_objective(
                         session.candidate_module,
                         case,
-                        soul_branch.load_head(),
+                        observed_soul,
                         core_id=module_id,
                         parameter_generation=candidate_generation,
                     )
@@ -1359,7 +1680,7 @@ def main() -> int:
                 evaluate_living_episode(
                     session.candidate_module,
                     episode,
-                    soul_branch.load_head(),
+                    observed_soul,
                     core_id=module_id,
                     parameter_generation=candidate_generation,
                 )
@@ -1374,7 +1695,7 @@ def main() -> int:
                 evaluate_living_episode(
                     session.candidate_module,
                     episode,
-                    soul_branch.load_head(),
+                    observed_soul,
                     core_id=module_id,
                     parameter_generation=candidate_generation,
                 )
@@ -1389,7 +1710,7 @@ def main() -> int:
                 evaluate_living_episode(
                     session.candidate_module,
                     episode,
-                    soul_branch.load_head(),
+                    observed_soul,
                     core_id=module_id,
                     parameter_generation=candidate_generation,
                 )
@@ -1514,7 +1835,7 @@ def main() -> int:
             result["counterfactuals"] = living_source_counterfactuals(
                 session.candidate_module,
                 heldout_episodes[0],
-                soul_branch.load_head(),
+                observed_soul,
                 core_id=module_id,
                 parameter_generation=candidate_generation,
             )
@@ -1566,14 +1887,119 @@ def main() -> int:
                         [exact_rows[index] for index in indexes],
                         [exact_losses[index] for index in indexes],
                     )
-            result["qa_transcripts"] = qa_rows[:12]
+            # Attribute every transcript to its own curriculum and case. The
+            # aggregate `isolated_manifest_evaluations` table can collapse to a
+            # single manifest when the evaluated surface is limited, and nothing
+            # else in the live surface would reveal that.
+            qa_transcripts: list[dict[str, Any]] = []
+            for row in qa_rows[:12]:
+                row_episode_id = str(row.get("episode_id") or "")
+                qa_transcripts.append(
+                    {
+                        **row,
+                        "family": evaluation_family_by_episode.get(row_episode_id),
+                        "case_id": evaluation_case_id_by_episode.get(row_episode_id),
+                        "source_manifest_id": evaluation_train_manifest_by_episode.get(
+                            row_episode_id
+                        ),
+                        "manifest_id": evaluation_manifest_by_episode.get(row_episode_id),
+                    }
+                )
+            result["qa_transcripts"] = qa_transcripts
             return result
 
+        cached_final_evaluation: dict[str, Any] | None = None
+        accepted_parent_evaluation: dict[str, Any] | None = None
+        accepted_parent_evaluation_report_id: str | None = None
+
+        def _find_report_evaluation(
+            *, step: int, checkpoint_id: str, soul_id: str
+        ) -> tuple[dict[str, Any] | None, str | None]:
+            for prior_path in sorted(
+                campaign_report_dir.glob("segment_*.json"), reverse=True
+            ):
+                prior = json.loads(prior_path.read_text(encoding="utf-8"))
+                prior_report_id = prior.get("report_id")
+                if prior_report_id is None or canonical_sha256(
+                    {key: value for key, value in prior.items() if key != "report_id"}
+                ) != prior_report_id:
+                    raise RuntimeError(f"campaign report identity mismatch: {prior_path}")
+                if (
+                    prior.get("candidate_generation_id") == candidate_generation
+                    and prior.get("segment_end_step") == step
+                    and prior.get("final_checkpoint_id") == checkpoint_id
+                    and prior.get("complete_heldout_evaluation") is True
+                    and prior.get("complete_regression_evaluation") is True
+                    and prior.get("effective_objective_program_id")
+                    == effective_objective_program_id
+                    and prior.get("learning_policy") == policy.to_canonical_dict()
+                    and prior.get("evaluation_component_weights")
+                    == train_component_weights
+                    and prior.get("evaluation_alignment_position_reduction")
+                    == train_position_reduction
+                    and prior.get("payload_eos_weight") == payload_eos_weight
+                    and prior.get("termination_continue_supervision", False)
+                    == termination_continue_supervision
+                    and prior.get("standard_ffcs_manifest_ids")
+                    == list(item.manifest_id for item in standard_ffcs)
+                    and prior.get("architecture", {}).get("architecture_id")
+                    == config.architecture_id
+                    and prior.get("soul_promotion_plan", {}).get("candidate_soul_id")
+                    == soul_id
+                ):
+                    evaluation = prior.get("final_evaluation")
+                    if not isinstance(evaluation, dict):
+                        raise RuntimeError(
+                            f"campaign report evaluation is malformed: {prior_path}"
+                        )
+                    return evaluation, prior_report_id
+            return None, None
+
+        if latest_bundle is not None:
+            (
+                accepted_parent_evaluation,
+                accepted_parent_evaluation_report_id,
+            ) = _find_report_evaluation(
+                step=latest_bundle.step,
+                checkpoint_id=latest_bundle.checkpoint_id,
+                soul_id=latest_bundle.after_soul_id,
+            )
+        probationary_evaluation: dict[str, Any] | None = None
+        if probation_sidecar is not None:
+            probationary_record = CandidateCheckpointRecord.from_mapping(
+                probation_sidecar["probationary_checkpoint"]
+            )
+            # The probationary report describes the held state; its Soul is
+            # the confirmed parent's HEAD because probation never promotes.
+            probationary_evaluation, _ = _find_report_evaluation(
+                step=probationary_record.step,
+                checkpoint_id=probationary_record.checkpoint_id,
+                soul_id=latest_bundle.after_soul_id,
+            )
+            if probationary_evaluation is None:
+                raise RuntimeError(
+                    "probation sidecar is active but its probationary report is "
+                    "missing or fails identity checks; refusing to guess"
+                )
+        report["accepted_parent_evaluation_report_id"] = (
+            accepted_parent_evaluation_report_id
+        )
         if progress is not None:
             progress.emit(
                 "evaluating", phase="initial", global_step=(0 if latest_bundle is None else latest_bundle.step)
             )
-        initial_evaluation = evaluate_candidate()
+        initial_evaluation = (
+            probationary_evaluation
+            if probationary_evaluation is not None
+            else accepted_parent_evaluation
+            if accepted_parent_evaluation is not None
+            else evaluate_candidate()
+        )
+        if args.evaluate_only:
+            # The accepted checkpoint cannot change during a read-only run;
+            # reuse the exact result instead of paying for the full surface a
+            # second time.
+            cached_final_evaluation = initial_evaluation
         if progress is not None:
             progress.emit(
                 "evaluated",
@@ -1598,7 +2024,40 @@ def main() -> int:
             if not prior_reports
             else json.loads(prior_reports[0].read_text(encoding="utf-8"))["initial_evaluation"]
         )
-        start_step = 0 if latest_bundle is None else latest_bundle.step
+        start_step = (
+            int(probation_sidecar["probationary_step"])
+            if probation_sidecar is not None
+            else (0 if latest_bundle is None else latest_bundle.step)
+        )
+        rollback_checkpoint = (
+            (
+                CandidateCheckpointRecord.from_mapping(
+                    probation_sidecar["confirmed_checkpoint"]
+                )
+                if probation_sidecar is not None
+                else step_bundles.checkpoint_for_bundle(latest_bundle)
+                if latest_bundle is not None
+                else session.checkpoint(include_optimizer=True)
+            )
+            if args.motor_retention_guard
+            else None
+        )
+        accepted_checkpoint = (
+            step_bundles.checkpoint_for_bundle(latest_bundle)
+            if latest_bundle is not None
+            else None
+        )
+        # The guard's comparison reference is always the last CONFIRMED
+        # accepted parent; during probation that is the sidecar reference,
+        # not the probationary state's own (behaviorally identical) eval.
+        retained_evaluation = (
+            probation_sidecar["reference_evaluation"]
+            if probation_sidecar is not None
+            else initial_evaluation
+        )
+        retention_decisions: list[dict[str, Any]] = []
+        retention_guard_stop: dict[str, Any] | None = None
+        retention_probation_held = False
         sync_hook.set_base_step(start_step)
         if args.evaluate_only:
             end_step = start_step
@@ -1615,37 +2074,6 @@ def main() -> int:
         segment_receipt_ids = []
         ephemeral_soul = soul_branch.load_head()
         segment_start_soul = ephemeral_soul
-        train_component_weights = (
-            None
-            if foundation_motor_v2_training_stage is None
-            else dict(
-                foundation_motor_v2_stage_policy(foundation_motor_v2_training_stage)[
-                    "component_weights"
-                ]
-            )
-        )
-        train_position_reduction = "mean"
-        if (args.teach_multicell_copy or args.receipt_continuation) and foundation_motor_v2_training_stage is not None:
-            train_component_weights = (
-                apply_receipt_continuation_teach_weights(
-                    train_component_weights or {},
-                    training_stage=foundation_motor_v2_training_stage,
-                    receipt_teaching_profile=args.receipt_teaching_profile,
-                )
-                if args.receipt_continuation
-                else apply_copy_alignment_multicell_teach_weights(
-                    train_component_weights or {},
-                    training_stage=foundation_motor_v2_training_stage,
-                )
-            )
-            if foundation_motor_v2_training_stage == "copy_alignment":
-                train_position_reduction = str(
-                    (
-                        receipt_teach
-                        if args.receipt_continuation
-                        else COPY_ALIGNMENT_MULTICELL_TEACH
-                    )["alignment_position_reduction"]
-                )
         curriculum_lanes = _training_lanes(
             mechanism_curriculum,
             standard_ffcs,
@@ -1680,6 +2108,8 @@ def main() -> int:
                     parameter_generation=candidate_generation,
                     component_weights=train_component_weights,
                     alignment_position_reduction=train_position_reduction,
+                    payload_eos_weight=payload_eos_weight,
+                    termination_continue_supervision=termination_continue_supervision,
                 )
                 captured.update(
                     {
@@ -1707,30 +2137,145 @@ def main() -> int:
             checkpoint = None
             accepted_bundle = None
             accepted_segment_receipt_ids = []
+            retention_decision = None
+            probation_pending = False
             if checkpoint_due:
                 checkpoint = session.checkpoint(include_optimizer=True)
                 checkpoints.append(checkpoint)
-                accepted_bundle = step_bundles.accept_step(
-                    optimization_receipt=optimizer_receipt,
-                    checkpoint=checkpoint,
-                    soul_manifest=soul_manifest,
-                    transitions=tuple(segment_transitions),
-                )
-                if soul_branch.load_head().soul_id != ephemeral_soul.soul_id:
-                    raise RuntimeError("accepted checkpoint segment and ephemeral Soul disagree")
-                accepted_segment_receipt_ids = list(segment_receipt_ids)
-                segment_transitions.clear()
-                segment_receipt_ids.clear()
-                # Accepted checkpoint boundary: hand the new artifacts to the
-                # daemon sync worker; GPU compute continues immediately.
-                sync_hook.boundary(step + 1)
+                if args.motor_retention_guard:
+                    tentative_evaluation = evaluate_candidate(ephemeral_soul)
+                    if args.motor_retention_plateau_probation > 0:
+                        retention_decision = decide_foundation_motor_v2_checkpoint_retention_v2(
+                            training_stage=foundation_motor_v2_training_stage,
+                            accepted_heldout_probe=retained_evaluation.get(
+                                "foundation_motor_v2_heldout_probe"
+                            ),
+                            accepted_regression_probe=retained_evaluation.get(
+                                "foundation_motor_v2_regression_probe"
+                            ),
+                            candidate_heldout_probe=tentative_evaluation.get(
+                                "foundation_motor_v2_heldout_probe"
+                            ),
+                            candidate_regression_probe=tentative_evaluation.get(
+                                "foundation_motor_v2_regression_probe"
+                            ),
+                            complete_heldout=complete_heldout_evaluation,
+                            complete_regression=complete_regression_evaluation,
+                        )
+                        retention_action = resolve_retention_action(
+                            retention_decision,
+                            probation_count=probation_count,
+                            max_plateau_probation=args.motor_retention_plateau_probation,
+                        )
+                    else:
+                        retention_decision = decide_foundation_motor_v2_checkpoint_retention(
+                            training_stage=foundation_motor_v2_training_stage,
+                            accepted_heldout_probe=retained_evaluation.get(
+                                "foundation_motor_v2_heldout_probe"
+                            ),
+                            accepted_regression_probe=retained_evaluation.get(
+                                "foundation_motor_v2_regression_probe"
+                            ),
+                            candidate_heldout_probe=tentative_evaluation.get(
+                                "foundation_motor_v2_heldout_probe"
+                            ),
+                            candidate_regression_probe=tentative_evaluation.get(
+                                "foundation_motor_v2_regression_probe"
+                            ),
+                            complete_heldout=complete_heldout_evaluation,
+                            complete_regression=complete_regression_evaluation,
+                        )
+                        retention_action = (
+                            "accept" if retention_decision["passed"] else "rollback"
+                        )
+                    retention_decisions.append(
+                        {**retention_decision, "action": retention_action}
+                    )
+                    if retention_action == "accept":
+                        cached_final_evaluation = tentative_evaluation
+                    elif retention_action == "probate":
+                        # Hold this exact optimizer state without promotion.
+                        # The sidecar - not the accepted bundle chain - carries
+                        # the resumable probationary branch; the chain and its
+                        # Soul HEAD stay at the confirmed parent.
+                        # The tentative evaluation already measured this exact
+                        # state at the boundary and the session is unchanged;
+                        # reuse it instead of re-paying the complete surface.
+                        cached_final_evaluation = tentative_evaluation
+                        probation_pending = True
+                        retention_probation_held = True
+                        _write_probation_sidecar(
+                            sidecar_path,
+                            {
+                                "schema": PROBATION_SIDECAR_SCHEMA,
+                                "candidate_generation_id": candidate_generation,
+                                "confirmed_checkpoint": rollback_checkpoint.to_canonical_dict(),
+                                "confirmed_step": rollback_checkpoint.step,
+                                "probationary_checkpoint": checkpoint.to_canonical_dict(),
+                                "probationary_step": step + 1,
+                                "probation_count": probation_count + 1,
+                                "max_plateau_probation": args.motor_retention_plateau_probation,
+                                "reference_evaluation": retained_evaluation,
+                                "reference_report_id": accepted_parent_evaluation_report_id,
+                                "learning_policy": policy.to_canonical_dict(),
+                                "effective_objective_program_id": effective_objective_program_id,
+                                "architecture_id": config.architecture_id,
+                                "standard_ffcs_manifest_ids": [
+                                    item.manifest_id for item in standard_ffcs
+                                ],
+                            },
+                        )
+                    else:
+                        if rollback_checkpoint is None:  # pragma: no cover - guarded setup
+                            raise RuntimeError("motor retention guard has no rollback checkpoint")
+                        session.restore_checkpoint(rollback_checkpoint)
+                        ephemeral_soul = soul_branch.load_head()
+                        cached_final_evaluation = retained_evaluation
+                        _clear_probation_sidecar(sidecar_path)
+                        retention_guard_stop = {
+                            "attempted_step": step + 1,
+                            "tentative_checkpoint_id": checkpoint.checkpoint_id,
+                            "decision": retention_decision,
+                            "action": retention_action,
+                            "probation_count": probation_count,
+                        }
+                if retention_guard_stop is None and not probation_pending:
+                    accepted_bundle = step_bundles.accept_step(
+                        optimization_receipt=optimizer_receipt,
+                        checkpoint=checkpoint,
+                        soul_manifest=soul_manifest,
+                        transitions=tuple(segment_transitions),
+                    )
+                    accepted_checkpoint = checkpoint
+                    if args.motor_retention_guard:
+                        rollback_checkpoint = checkpoint
+                        retained_evaluation = tentative_evaluation
+                        if probation_sidecar is not None:
+                            # An improvement after probation confirms the branch:
+                            # the chain pointer now carries the probationary
+                            # lineage forward; the sidecar is done.
+                            _clear_probation_sidecar(sidecar_path)
+                            probation_sidecar = None
+                            probation_count = 0
+                    if soul_branch.load_head().soul_id != ephemeral_soul.soul_id:
+                        raise RuntimeError("accepted checkpoint segment and ephemeral Soul disagree")
+                    accepted_segment_receipt_ids = list(segment_receipt_ids)
+                    segment_transitions.clear()
+                    segment_receipt_ids.clear()
+                    # Accepted checkpoint boundary: hand the new artifacts to the
+                    # daemon sync worker; GPU compute continues immediately.
+                    sync_hook.boundary(step + 1)
+            material_id = material.episode_id if kind == "episode" else material.case_id
+            material_label = getattr(material, "label", None) or getattr(
+                getattr(material, "episode", None), "label", None
+            )
             steps.append(
                 {
                     "step": step + 1,
                     "material_kind": kind,
                     "curriculum_lane": lane_name,
                     "source_manifest_id": source_manifest_id,
-                    "material_id": (material.episode_id if kind == "episode" else material.case_id),
+                    "material_id": material_id,
                     "loss": captured["loss"],
                     "optimization_receipt_id": optimizer_receipt.receipt_id,
                     "accepted_step_bundle_id": (None if accepted_bundle is None else accepted_bundle.bundle_id),
@@ -1738,6 +2283,7 @@ def main() -> int:
                     "soul_receipt_ids": ([] if accepted_bundle is None else list(accepted_bundle.soul_receipt_ids)),
                     "soul_id": ephemeral_soul.soul_id,
                     "checkpoint_id": None if checkpoint is None else checkpoint.checkpoint_id,
+                    "retention_decision": retention_decision,
                     "phase_metrics": captured["phase_metrics"],
                     "wall_seconds": wall_seconds,
                     "peak_cuda_bytes": (0 if device.type != "cuda" else int(torch.cuda.max_memory_allocated(device))),
@@ -1753,18 +2299,29 @@ def main() -> int:
                     learning_rate=args.learning_rate,
                     material_kind=kind,
                     curriculum_lane=lane_name,
+                    material_id=material_id,
+                    material_label=material_label,
+                    source_manifest_id=source_manifest_id,
                     wall_seconds=wall_seconds,
                     checkpoint_id=None if checkpoint is None else checkpoint.checkpoint_id,
                     accepted_step_bundle_id=(None if accepted_bundle is None else accepted_bundle.bundle_id),
                 )
+            if retention_guard_stop is not None:
+                break
+        accepted_end_step = session.step_index
+        attempted_end_step = steps[-1]["step"] if steps else start_step
         if progress is not None:
-            progress.emit("evaluating", phase="final", global_step=end_step)
-        final_evaluation = evaluate_candidate()
+            progress.emit("evaluating", phase="final", global_step=accepted_end_step)
+        final_evaluation = (
+            cached_final_evaluation
+            if cached_final_evaluation is not None
+            else evaluate_candidate()
+        )
         if progress is not None:
             progress.emit(
                 "evaluated",
                 phase="final",
-                global_step=end_step,
+                global_step=accepted_end_step,
                 heldout_mean_loss=final_evaluation["heldout_mean_loss"],
                 typed_emission_exact_rate=final_evaluation["typed_emission_exact_rate"],
                 payload_transport_exact_rate=final_evaluation["payload_transport_exact_rate"],
@@ -1833,6 +2390,7 @@ def main() -> int:
                 receipt_continuation=bool(args.receipt_continuation),
                 receipt_teaching_profile=args.receipt_teaching_profile,
                 eos_generate_head_route=bool(args.eos_generate_head_route),
+                termination_head_route=bool(args.termination_head_route),
             )
         )
         foundation_motor_v2_program_complete = bool(
@@ -1867,11 +2425,85 @@ def main() -> int:
             complete_regression=complete_regression_evaluation,
             tournament_metric_surface_complete=metric_surface_complete,
         )
-        final_checkpoint_id = (
-            checkpoints[-1].checkpoint_id
-            if checkpoints
-            else step_bundles.latest_bundle(module_id, candidate_generation).checkpoint_id
-        )
+        if retention_probation_held:
+            # The accepted chain stays at the confirmed parent; the report
+            # describes the held probationary state so the next launch can
+            # reuse this evaluation instead of re-paying the surface.
+            final_checkpoint = CandidateCheckpointRecord.from_mapping(
+                json.loads(sidecar_path.read_text(encoding="utf-8"))[
+                    "probationary_checkpoint"
+                ]
+            )
+            if (
+                foundation_motor_v2_stage_gate is not None
+                and foundation_motor_v2_stage_gate["passed"]
+            ):
+                # A passed stage gate on a probation-held tentative is the
+                # probation design's "behavior improved" event: promote the
+                # probationary checkpoint onto the accepted chain so the
+                # landmark and the report bind to accepted state. Without
+                # this the segment cannot publish (the landmark requires an
+                # accepted boundary) and a passing metric that the retention
+                # contract does not track would plateau-loop forever.
+                if int(final_checkpoint.step) != int(attempted_end_step):
+                    raise RuntimeError(
+                        "stage-gate promotion: probationary step does not reach the segment end"
+                    )
+                promoted_bundle = step_bundles.accept_step(
+                    optimization_receipt=optimizer_receipt,
+                    checkpoint=final_checkpoint,
+                    soul_manifest=soul_manifest,
+                    transitions=tuple(segment_transitions),
+                )
+                if soul_branch.load_head().soul_id != ephemeral_soul.soul_id:
+                    raise RuntimeError(
+                        "stage-gate promotion: accepted checkpoint segment and ephemeral Soul disagree"
+                    )
+                # Stamp the final step with the promoted bundle so the
+                # tranche-consumption proof in _prior_consumed_tranche_id can
+                # bind this segment's resource tranche to the accepted chain
+                # (the acceptance happened at segment end, after the per-step
+                # records were built).
+                steps[-1]["accepted_step_bundle_id"] = promoted_bundle.bundle_id
+                steps[-1]["accepted_segment_optimizer_receipt_ids"] = list(
+                    segment_receipt_ids
+                )
+                steps[-1]["soul_receipt_ids"] = list(promoted_bundle.soul_receipt_ids)
+                accepted_checkpoint = final_checkpoint
+                rollback_checkpoint = final_checkpoint
+                retained_evaluation = final_evaluation
+                _clear_probation_sidecar(sidecar_path)
+                retention_probation_held = False
+                sync_hook.boundary(int(attempted_end_step))
+        else:
+            final_checkpoint = accepted_checkpoint or rollback_checkpoint
+        if final_checkpoint is None:
+            latest_final_bundle = step_bundles.latest_bundle(module_id, candidate_generation)
+            if latest_final_bundle is None:
+                raise RuntimeError("training segment has no recoverable final checkpoint")
+            final_checkpoint = step_bundles.checkpoint_for_bundle(latest_final_bundle)
+        final_checkpoint_id = final_checkpoint.checkpoint_id
+        foundation_motor_v2_landmark_id = None
+        if (
+            foundation_motor_v2_stage_gate is not None
+            and foundation_motor_v2_stage_gate["passed"]
+        ):
+            landmark_bundle = step_bundles.latest_bundle(module_id, candidate_generation)
+            if (
+                landmark_bundle is None
+                or landmark_bundle.checkpoint_id != final_checkpoint_id
+            ):
+                raise RuntimeError(
+                    "passed motor stage has no matching accepted checkpoint+Soul boundary"
+                )
+            foundation_motor_v2_landmark_id = step_bundles.mark_landmark(
+                landmark_bundle,
+                label=f"foundation-motor-v2:{foundation_motor_v2_training_stage}:passed",
+                evidence_ids=(
+                    foundation_motor_v2_stage_gate["decision_id"],
+                    effective_objective_program_id,
+                ),
+            )
         if curriculum_stage_complete:
             lifecycle_event = session.complete(
                 reason="complete curriculum-stage gate passed; serving activation remains separate"
@@ -1879,7 +2511,10 @@ def main() -> int:
         else:
             lifecycle_event = session.pause(
                 reason=(
-                    "execution segment ended at an exact accepted checkpoint; "
+                    "tentative checkpoint failed the motor retention contract; "
+                    "candidate restored to its prior recoverable boundary"
+                    if retention_guard_stop is not None
+                    else "execution segment ended at an exact accepted checkpoint; "
                     "curriculum stage remains open for a later renewable tranche"
                 ),
                 checkpoint_id=final_checkpoint_id,
@@ -1893,13 +2528,24 @@ def main() -> int:
                 "steps": steps,
                 "checkpoint_interval": args.checkpoint_interval,
                 "segment_start_step": (start_step if args.evaluate_only else start_step + 1),
-                "segment_end_step": end_step,
+                "segment_end_step": accepted_end_step,
+                "attempted_segment_end_step": attempted_end_step,
+                "motor_retention_decisions": retention_decisions,
+                "motor_retention_guard_stop": retention_guard_stop,
+                "motor_retention_probation_held": retention_probation_held,
+                "motor_retention_probation": (
+                    json.loads(sidecar_path.read_text(encoding="utf-8"))
+                    if sidecar_path.exists()
+                    else None
+                ),
                 "campaign_max_steps": (args.max_steps if args.legacy_plan_v1 else None),
                 "evaluation_only": bool(args.evaluate_only),
                 "campaign_complete": curriculum_stage_complete,
                 "curriculum_stage_complete": curriculum_stage_complete,
-                "legacy_plan_envelope_exhausted": (end_step >= args.max_steps if args.legacy_plan_v1 else None),
-                "resource_tranche_consumed": (tranche is not None and end_step == tranche.final_global_step),
+                "legacy_plan_envelope_exhausted": (accepted_end_step >= args.max_steps if args.legacy_plan_v1 else None),
+                "resource_tranche_consumed": (
+                    tranche is not None and attempted_end_step == tranche.final_global_step
+                ),
                 "paused_for_next_tranche": not curriculum_stage_complete,
                 "resource_tranche": (None if tranche is None else tranche.to_canonical_dict()),
                 "heldout_case_count": len(all_heldout_episodes),
@@ -1957,16 +2603,35 @@ def main() -> int:
                 "foundation_sequence_gate": foundation_sequence_gate,
                 "foundation_motor_gate": foundation_motor_gate,
                 "foundation_motor_v2_stage_gate": foundation_motor_v2_stage_gate,
+                "foundation_motor_v2_landmark_id": foundation_motor_v2_landmark_id,
                 "foundation_motor_v2_program_complete": foundation_motor_v2_program_complete,
             }
         )
 
     report["report_id"] = canonical_sha256(report)
-    report_path = (
-        campaign_report_dir / f"segment_{start_step:09d}_{end_step:09d}_eval.json"
-        if args.evaluate_only
-        else campaign_report_dir / f"segment_{start_step + 1:09d}_{end_step:09d}.json"
-    )
+    if retention_guard_stop is not None:
+        stop_action = retention_guard_stop.get("action")
+        stop_state = (retention_guard_stop.get("decision") or {}).get("state")
+        suffix = (
+            "probation_exhausted"
+            if stop_action == "rollback" and stop_state == "plateau"
+            else "retention_rejected"
+        )
+        report_path = campaign_report_dir / (
+            f"attempt_{start_step + 1:09d}_{attempted_end_step:09d}_{suffix}.json"
+        )
+    elif args.evaluate_only:
+        report_path = campaign_report_dir / (
+            f"segment_{start_step:09d}_{accepted_end_step:09d}_eval.json"
+        )
+    elif retention_probation_held:
+        report_path = campaign_report_dir / (
+            f"segment_{start_step + 1:09d}_{accepted_end_step:09d}_probation.json"
+        )
+    else:
+        report_path = campaign_report_dir / (
+            f"segment_{start_step + 1:09d}_{accepted_end_step:09d}.json"
+        )
     _write_immutable_json(report_path, report)
     if progress is not None:
         progress.emit(

@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 import torch
 
+import training.living_reasoning_curriculum as living_curriculum
 from runtime.field import D64FieldCompiler, LogicalRegion, SharedFieldSnapshot
 from runtime.soul import (
     SoulSnapshot,
@@ -115,6 +116,19 @@ def test_candidate_a_parameter_estimate_preserves_deliberate_huge_ffn() -> None:
     report = model.architecture_report()
     assert 33_000_000 < report["parameter_count"] < 35_000_000
     assert report["parameter_bytes_fp32"] == report["parameter_count"] * 4
+
+
+def test_architecture_report_explicitly_serializes_generated_head_eos_route() -> None:
+    config = candidate_a_config(
+        dropout=0.0,
+        ffn_dim=128,
+        n_layers=1,
+        receipt_continuation=True,
+        eos_generate_head_route=True,
+    )
+    report = LivingReasoningCoreD64(config).architecture_report()
+    assert report["eos_generate_head_route"] is True
+    assert report["architecture_id"] == config.architecture_id
 
 
 def test_soul_is_inhaled_before_complete_unicode_field_and_proposal_sweeps() -> None:
@@ -353,6 +367,34 @@ def test_mechanism_curriculum_backpropagates_through_field_soul_and_typed_heads(
     assert model.decoder_output.weight.grad is not None
     assert unroll.souls[-1].generation == 3
     assert len(metrics) == 3
+
+
+def test_episode_objective_propagates_balanced_payload_eos_weight(monkeypatch) -> None:
+    model = _small_model()
+    episode = build_living_reasoning_smoke_curriculum().split("train")[0]
+    observed: list[float] = []
+    original = living_curriculum.sequence_cross_entropy
+
+    def capture_weight(logits, targets, *, eos_weight=4.0, token_mask=None):
+        observed.append(float(eos_weight))
+        return original(
+            logits,
+            targets,
+            eos_weight=eos_weight,
+            token_mask=token_mask,
+        )
+
+    monkeypatch.setattr(living_curriculum, "sequence_cross_entropy", capture_weight)
+    loss, _unroll, _metrics = living_episode_objective(
+        model,
+        episode,
+        _soul(model),
+        core_id="core-a",
+        parameter_generation="g0",
+        payload_eos_weight=1.0,
+    )
+    assert torch.isfinite(loss)
+    assert observed == [1.0, 1.0]
 
 
 def test_teacher_forced_gate_uses_the_strongest_constant_category_floor() -> None:

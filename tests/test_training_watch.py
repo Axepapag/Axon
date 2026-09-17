@@ -1,5 +1,8 @@
 """Operator telemetry must distinguish new work from replay and global progress."""
 
+import re
+
+from scripts import axon_training_watch
 from scripts.axon_training_watch import Watcher
 
 
@@ -125,3 +128,172 @@ def test_runner_failure_is_visible_even_before_first_training_event():
     })
     assert watcher.status == "failed"
     assert "CUDA probe failed" in watcher.render()
+
+
+def test_events_flag_watches_a_local_journal_without_a_job_id(tmp_path, monkeypatch):
+    journal = tmp_path / "events.jsonl"
+    journal.write_text(
+        '{"schema":"axon-training-progress-event-v1","job_id":"local-9",'
+        '"status":"training","sequence":1,"details":{"global_step":1,"loss":9.0}}\n',
+        encoding="utf-8",
+    )
+    seen = {}
+
+    def fake_follow(path, watcher, poll):
+        seen["path"] = path
+        seen["job_id"] = watcher.job_id
+        return 0
+
+    monkeypatch.setattr(axon_training_watch, "_follow_local", fake_follow)
+    assert axon_training_watch.follow_job(None, events_path=journal) == 0
+    assert seen["path"] == journal
+    assert seen["job_id"] == "local-9"
+
+
+def test_events_flag_replays_a_local_journal_from_the_start(tmp_path, monkeypatch):
+    journal = tmp_path / "events.jsonl"
+    journal.write_text(
+        '{"schema":"axon-training-progress-event-v1","job_id":"local-9","status":"training",'
+        '"sequence":1,"details":{"global_step":1,"loss":9.0}}\n',
+        encoding="utf-8",
+    )
+    seen = {}
+
+    def fake_replay(path, watcher, *, follow, poll_seconds):
+        seen["path"] = path
+        return 0
+
+    monkeypatch.setattr(axon_training_watch, "_replay_local", fake_replay)
+    assert axon_training_watch.follow_job(None, events_path=journal, replay=True) == 0
+    assert seen["path"] == journal
+
+
+def test_events_flag_fails_closed_when_the_journal_never_appears(tmp_path, monkeypatch):
+    monkeypatch.setattr(axon_training_watch, "_wait_for_events", lambda path, timeout=60.0: False)
+    try:
+        axon_training_watch.follow_job(None, events_path=tmp_path / "absent.jsonl")
+    except SystemExit as exc:
+        assert "no local events at" in str(exc)
+    else:  # pragma: no cover - the assertion path is the contract
+        raise AssertionError("a local journal that never appears must fail closed")
+
+
+def test_local_flag_without_a_job_id_still_fails_closed():
+    try:
+        axon_training_watch.follow_job(None, local=True)
+    except SystemExit as exc:
+        assert "job id is required" in str(exc)
+    else:  # pragma: no cover - the assertion path is the contract
+        raise AssertionError("--local without a job id must fail closed")
+
+
+def test_two_curricula_sharing_a_lane_name_stay_attributable():
+    watcher = _watcher()
+    for index, manifest in enumerate(("1" * 64, "2" * 64), start=1):
+        watcher.consume(
+            _event(
+                f"step-{index}",
+                "training",
+                global_step=index,
+                loss=1.0,
+                curriculum_lane="ffcs-F0-copy_alignment",
+                material_kind="first_form_case",
+                material_id=f"case-{index}",
+                material_label=f"unicode-walk-train-insert-00{index}-0",
+                source_manifest_id=manifest,
+                wall_seconds=2.0,
+            )
+        )
+    rendered = watcher.render()
+    assert "ffcs-F0-copy_alignment@1111111…:1" in rendered
+    assert "ffcs-F0-copy_alignment@2222222…:1" in rendered
+    assert "unicode-walk-train-insert-001-0" in rendered
+    assert "unicode-walk-train-insert-002-0" in rendered
+
+
+def test_training_events_without_manifest_attribution_still_render():
+    """Cloud and pre-existing journals carry no manifest or case fields."""
+    watcher = _watcher()
+    watcher.consume(
+        _event(
+            "step-1",
+            "training",
+            global_step=1,
+            loss=1.0,
+            curriculum_lane="ffcs-L0",
+            material_kind="first_form_case",
+            wall_seconds=2.0,
+        )
+    )
+    rendered = watcher.render()
+    lane_line = next(line for line in rendered.splitlines() if line.startswith(" lanes:"))
+    assert lane_line == " lanes: ffcs-L0:1"
+    step_line = next(line for line in rendered.splitlines() if "first_form_case" in line)
+    assert "@" not in step_line
+
+
+def test_evaluation_transcripts_name_their_case_and_curriculum():
+    """A failing transcript must say which case it is and who taught it.
+
+    An evaluated row carries `episode_id` — a 64-character hash — and previously
+    nothing else identifying the case. A dashboard could therefore show twelve
+    failures without revealing that every one of them came from a single
+    curriculum, and no one reading the run could tell.
+    """
+    watcher = _watcher()
+    watcher.consume(
+        _event(
+            "eval-final",
+            "evaluated",
+            phase="final",
+            global_step=60,
+            heldout_mean_loss=3.4,
+            qa_transcripts=[
+                {
+                    "episode_id": "1" * 64,
+                    "episode_label": "unicode-walk-holdout-insert-000-0",
+                    "source_manifest_id": "a872278fd0e8ef926370e1712d01dcf0a277672c4a0088af44aef483d8417740",
+                    "case_id": "9a7f64f9" + "0" * 56,
+                    "family": "F0",
+                    "prompt": "Insert the current SOURCE_SYMBOL between the brackets.",
+                    "predicted_payload": "",
+                    "expected_payload": "😂",
+                    "exact_match": False,
+                },
+                {
+                    "episode_id": "2" * 64,
+                    "episode_label": "plain-holdout-insert-000-1",
+                    "source_manifest_id": "12df454776145707502363d801eda3a3ef7a3f81ab400b6578461f00ea12566b",
+                    "prompt": "Insert the current SOURCE_SYMBOL between the brackets.",
+                    "predicted_payload": "い",
+                    "expected_payload": "い",
+                    "exact_match": True,
+                },
+            ],
+        )
+    )
+    rendered = watcher.render()
+    assert "[unicode-walk-holdout-insert-000-0@a872278…]" in rendered
+    assert "[plain-holdout-insert-000-1@12df454…]" in rendered
+    assert "expected '😂'" in rendered
+
+
+def test_evaluation_transcripts_without_attribution_still_render():
+    """A cloud or pre-existing transcript has no case or manifest fields."""
+    watcher = _watcher()
+    watcher.consume(
+        _event(
+            "eval-legacy",
+            "evaluated",
+            phase="initial",
+            global_step=1,
+            heldout_mean_loss=2.0,
+            qa_transcripts=[
+                {"prompt": "Copy: 水🙂", "predicted_payload": "水🙂", "expected_payload": "水🙂"},
+            ],
+        )
+    )
+    qa_line = next(line for line in watcher.render().splitlines() if "Q:" in line)
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", qa_line)
+    assert "[" not in plain
+    assert "@" not in plain

@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
-"""Axon Training Watch — a live terminal dashboard for cloud training.
+"""Axon Training Watch — a live terminal dashboard for Axon training.
 
-Two data sources, chosen automatically:
+Three data sources, chosen automatically:
 
 * a local job's ``outputs/axon_observability/trainer/events.jsonl``
   (fast, offline, works after ``axon_kaggle.py fetch``), or
 * Kaggle's live log stream for a running job (``kaggle kernels logs -f``),
-  parsed for ``AXON_PROGRESS`` events as they happen.
+  parsed for ``AXON_PROGRESS`` events as they happen, or
+* a workstation-run journal passed with ``--events``, which is exactly what a
+  local GPU trainer writes to ``State/training/progress/<label>/events.jsonl``.
 
 Examples:
     python scripts/axon_training_watch.py <job-id>              # live follow
     python scripts/axon_training_watch.py <job-id> --local      # replay local file
     python scripts/axon_training_watch.py <job-id> --steps 50   # rolling window of 50 steps
     python scripts/axon_training_watch.py <job-id> --qa         # show Soul Q/A transcripts too
+    python scripts/axon_training_watch.py --events State/training/progress/<label>/events.jsonl --qa --replay
 """
 
 from __future__ import annotations
@@ -92,6 +95,17 @@ def _fmt_loss(value: float | None) -> str:
 def _short(value: Any, width: int = 12) -> str:
     text = str(value or "")
     return text if len(text) <= width else text[: width - 1] + "…"
+
+
+def _manifest_tag(value: Any) -> str:
+    """Attribute a step to one curriculum manifest in at most eight characters.
+
+    Two manifests can contribute the same family and training stage, so
+    ``curriculum_lane`` alone cannot say which curriculum produced a step.
+    ``_short`` returns the whole id when it fits and marks the rest with an
+    ellipsis, so a truncated id is never presented as a complete one.
+    """
+    return _short(value, 8)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -218,6 +232,8 @@ class Watcher:
                 lane = details.get("curriculum_lane")
                 wall = details.get("wall_seconds")
                 kind = details.get("material_kind")
+                manifest_tag = _manifest_tag(details.get("source_manifest_id"))
+                material_label = details.get("material_label") or details.get("material_id")
                 self.last_step = max(self.last_step, step)
                 if "segment_end_step" in details:
                     self.segment_end = int(details["segment_end_step"])
@@ -227,7 +243,9 @@ class Watcher:
                     self.losses.append(float(loss))
                     self.last_loss = float(loss)
                 if lane:
-                    self.lanes.append(str(lane))
+                    # Two curricula can share one family and stage, so the lane
+                    # name alone cannot attribute a step to a manifest.
+                    self.lanes.append(f"{lane}@{manifest_tag}" if manifest_tag else str(lane))
                     self.last_lane = str(lane)
                 if kind:
                     self.last_kind = str(kind)
@@ -242,10 +260,14 @@ class Watcher:
                     self.bundles += 1
                 loss_text = _fmt_loss(self.last_loss)
                 lane_text = str(lane or self.last_lane or "-")
+                if manifest_tag:
+                    lane_text += f"@{manifest_tag}"
                 kind_text = str(kind or self.last_kind or "-")
+                material_text = f"  {_short(str(material_label), 34)}" if material_label else ""
                 wall_text = f"{float(wall):.1f}s" if wall is not None else "-"
                 self.recent_steps.append(
-                    f"  {step:>5}  loss {loss_text}  {lane_text}  {kind_text}  {wall_text}"
+                    f"  {step:>5}  loss {loss_text}  {lane_text}  {kind_text}"
+                    f"{material_text}  {wall_text}"
                 )
             elif status == "evaluating":
                 self.status = f"evaluating({details.get('phase', '?')})"
@@ -360,10 +382,20 @@ class Watcher:
         correct = row.get("exact_match")
         mark = "?" if correct is None else ("✓" if correct else "✗")
         color = GREEN if correct else (RED if correct is False else YELLOW)
+        # A failing transcript is only actionable if it names the case and the
+        # curriculum that produced it; `episode_id` is a hash no one can read.
+        case_text = _short(row.get("episode_label"), 52)
+        manifest_tag = _manifest_tag(row.get("source_manifest_id"))
+        attribution = ""
+        if case_text or manifest_tag:
+            tag = f"@{manifest_tag}" if manifest_tag else ""
+            attribution = "  " + _color(f"[{case_text}{tag}]", DIM)
         return (
             "  "
             + _color("Q:", BOLD)
-            + f" {prompt}  "
+            + f" {prompt}"
+            + attribution
+            + "  "
             + _color("A:", BOLD)
             + f" {predicted!r}"
             + (" (expected " + repr(expected) + ")" if not correct else "")
@@ -833,8 +865,38 @@ def _job_title(job_id: str) -> str | None:
     return None
 
 
+def _first_event_job_id(path: Path) -> str | None:
+    """A local run's journal names its own job, so --events needs no job id."""
+    try:
+        with path.open("r", encoding="utf-8", errors="replace") as handle:
+            for line in handle:
+                start = line.find("{")
+                if start < 0:
+                    continue
+                try:
+                    payload = json.loads(line[start:])
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(payload, dict) and payload.get("job_id"):
+                    return str(payload["job_id"])
+    except OSError:
+        return None
+    return None
+
+
+def _wait_for_events(path: Path, timeout: float = 60.0) -> bool:
+    """A live run creates its journal a few seconds after the launcher starts."""
+    deadline = time.monotonic() + timeout
+    while not path.is_file():
+        if time.monotonic() >= deadline:
+            return False
+        print(f"waiting for {path} ...", flush=True)
+        time.sleep(0.5)
+    return True
+
+
 def follow_job(
-    job_id: str,
+    job_id: str | None = None,
     *,
     kernel: str | None = None,
     qa: bool = False,
@@ -845,21 +907,37 @@ def follow_job(
     qa_lines: int = 12,
     sync_poll: bool = True,
     sync_interval: float = 30.0,
+    events_path: Path | str | None = None,
 ) -> int:
     watcher = Watcher(
         window=max(5, steps),
         show_qa=qa,
         transcript_lines=max(1, qa_lines),
-        job_id=job_id,
-        job_title=_job_title(job_id),
+        job_id=job_id or "",
+        job_title=_job_title(job_id) if job_id else None,
     )
-    if local or replay:
+    if events_path is not None:
+        # A trainer running locally on the workstation is not a cloud job:
+        # there is nothing for the midpoint sync poller to pull.
+        local = True
+        sync_poll = False
+        path = Path(events_path)
+        if not _wait_for_events(path):
+            raise SystemExit(f"no local events at {path} (waited 60s); check the --events path")
+        if not job_id:
+            job_id = _first_event_job_id(path) or "local"
+            watcher.job_id = job_id
+            watcher.job_title = _job_title(job_id)
+    elif local or replay:
+        if not job_id:
+            raise SystemExit("a job id is required unless --events points at a local journal")
         path = _local_events_path(job_id)
         if not path.is_file():
             raise SystemExit(
                 f"no local events at {path}; run 'axon_kaggle.py fetch {job_id}' first "
                 "or drop --local to follow Kaggle live"
             )
+    if local or replay:
         if replay:
             return _replay_local(path, watcher, follow=True, poll_seconds=poll)
         return _follow_local(path, watcher, poll)
@@ -875,8 +953,19 @@ def follow_job(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("job_id", help="Axon cloud job id (or use --kernel for owner/slug)")
+    parser.add_argument(
+        "job_id", nargs="?", default=None, help="Axon cloud job id (or use --kernel for owner/slug)"
+    )
     parser.add_argument("--kernel", default=None, help="explicit kernel ref owner/slug")
+    parser.add_argument(
+        "--events",
+        default=None,
+        help=(
+            "watch a local progress journal directly, e.g. "
+            "State/training/progress/<candidate-label>/events.jsonl "
+            "(implies --local, needs no job id, and waits for the file to appear)"
+        ),
+    )
     parser.add_argument("--local", action="store_true", help="read local fetched events instead of Kaggle live log")
     parser.add_argument("--replay", action="store_true", help="replay the whole local file, then follow")
     parser.add_argument("--steps", type=int, default=60, help="rolling window size for loss sparkline (default 60)")
@@ -895,6 +984,8 @@ def main() -> int:
         help="seconds between observation-only sync pulls (default 30)",
     )
     args = parser.parse_args()
+    if not args.job_id and not args.events:
+        parser.error("a job_id or --events path is required")
     return follow_job(
         args.job_id,
         kernel=args.kernel,
@@ -906,6 +997,7 @@ def main() -> int:
         qa_lines=args.qa_lines,
         sync_poll=not args.no_sync_poll,
         sync_interval=args.sync_interval,
+        events_path=args.events,
     )
 
 

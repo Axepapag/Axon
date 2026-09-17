@@ -4,6 +4,12 @@ The core learns the smallest real movements of Axon's body before sequence or
 language work: copy one current-field scalar, insert, replace, delete, no-op,
 and abstain.  Every case traverses the real Shared Field, D64 reader, private
 Soul, typed reasoning output, exact address, and EOS contracts.
+
+The `typed_motor_v2` ladder teaches one competency per stage and teaches
+emission before termination: `copy_alignment` supervises payload content with
+`alignment_eos_gate` at exactly 0.0, so content is learned where nothing
+competes with emitting, and `transport_eos` only adds stop supervision on top of
+an already-emitting core.
 """
 
 from __future__ import annotations
@@ -88,6 +94,17 @@ FOUNDATION_MOTOR_V2_PROGRAM = {
             "name": "copy_alignment",
             "eligible_actions": ["copy", "insert", "replace"],
             "component_weights": _weights(
+                # Ratified 2026-09-17 from the emission autopsy
+                # (evt-20260917T100000Z-copilot-stuck-diagnosis-stage-cliff-and-emission-rung):
+                # this stage was silent about payload content while the retention
+                # contract already evaluated it, so copy_alignment certified cores
+                # that emit nothing and the payload weight then jumped 0.0 -> 1.0
+                # in one step at transport_eos.  Emission is taught here, where
+                # alignment_eos_gate is still exactly 0.0 and nothing competes
+                # with emitting; transport_eos keeps this table and only adds stop
+                # supervision.  No component jumps 0.0 -> 1.0 across a stage
+                # boundary any more.
+                payload=1.0,
                 alignment_position=1.0,
                 alignment_copy_gate=4.0,
             ),
@@ -160,6 +177,25 @@ FOUNDATION_MOTOR_V2_PROGRAM = {
     "complete_field_coverage_rate": 1.0,
 }
 FOUNDATION_MOTOR_V2_PROGRAM_ID = canonical_sha256(FOUNDATION_MOTOR_V2_PROGRAM)
+FOUNDATION_MOTOR_V2_RETENTION_CONTRACT = {
+    "schema": "axon-foundation-motor-v2-retention-contract-v1",
+    "scope": "checkpoint_lineage_acceptance_not_curriculum_promotion",
+    "acceptance_surface": "complete_heldout_and_regression",
+    "evaluation_loss": "effective_training_component_weights",
+    "comparison": "candidate_metrics_must_not_regress_from_accepted_parent",
+    "progress_requirement": "at_least_one_protected_behavior_must_strictly_improve",
+    "copy_alignment_metrics": [
+        "alignment_position_accuracy",
+        "alignment_copy_gate_accuracy",
+        "payload_content_accuracy",
+        "payload_eos_accuracy",
+        "payload_transport_exact_rate",
+    ],
+    "copy_alignment_pair_metrics": ["position", "copy_gate", "content"],
+}
+FOUNDATION_MOTOR_V2_RETENTION_CONTRACT_ID = canonical_sha256(
+    FOUNDATION_MOTOR_V2_RETENTION_CONTRACT
+)
 # Same exam, same gates, same architecture; this overlay changes optimizer
 # pressure and therefore MUST participate in the effective objective identity.
 COPY_ALIGNMENT_MULTICELL_TEACH = {
@@ -309,13 +345,134 @@ FOUNDATION_MOTOR_V2_RECEIPT_GENERATE_HEAD_EOS_PROGRAM_ID = canonical_sha256(
     FOUNDATION_MOTOR_V2_RECEIPT_GENERATE_HEAD_EOS_PROGRAM
 )
 
+# The v3 route fixed the inference/training distribution mismatch, but retained
+# the legacy sequence loss's 4x EOS token weight.  Complete-surface and guarded
+# runs showed that this still rewards the immediate-EOS basin.  Preserve v3 as
+# evidence and identify the balanced payload objective separately.
+RECEIPT_GENERATE_HEAD_BALANCED_TEACH = {
+    **RECEIPT_GENERATE_HEAD_EOS_TEACH,
+    "schema": "axon-foundation-motor-receipt-continuation-teach-v4",
+    "profile": "generate_head_balanced_v4",
+    "payload_eos_weight": 1.0,
+    "termination_objective": "balanced_hierarchical_generated_head_eos_probability",
+}
+RECEIPT_GENERATE_HEAD_BALANCED_TEACH_ID = canonical_sha256(
+    RECEIPT_GENERATE_HEAD_BALANCED_TEACH
+)
+FOUNDATION_MOTOR_V2_RECEIPT_GENERATE_HEAD_BALANCED_PROGRAM = {
+    "schema": "axon-foundation-motor-teaching-program-variant-v5",
+    "base_program_id": FOUNDATION_MOTOR_V2_PROGRAM_ID,
+    "teaching_overlay_ids": [RECEIPT_GENERATE_HEAD_BALANCED_TEACH_ID],
+    "layer_13_resolution": "deterministic_receipt_continuation_is_categorical_transport",
+    "termination_resolution": "generate_head_eos_is_independent_and_not_overweighted",
+}
+FOUNDATION_MOTOR_V2_RECEIPT_GENERATE_HEAD_BALANCED_PROGRAM_ID = canonical_sha256(
+    FOUNDATION_MOTOR_V2_RECEIPT_GENERATE_HEAD_BALANCED_PROGRAM
+)
+
+# The content<->EOS route swap survived every optimizer-side control (lr 3e-4
+# and 1e-4, 4x and 1x EOS weight, both gate-bias inits): content logit growth
+# mechanically depresses softmax EOS probability because both live in the one
+# generated softmax.  This profile is the controlled architecture variable: a
+# dedicated scalar termination head owns the stop decision
+# (sigmoid(termination_output(fused))) while the hierarchical content
+# distribution is otherwise unchanged.  All optimizer pressures stay exactly
+# on the v3 recipe; only the termination equation is replaced.  Preserve all
+# prior profiles and identify this objective separately.
+RECEIPT_TERMINATION_HEAD_TEACH = {
+    **RECEIPT_GENERATE_HEAD_EOS_TEACH,
+    "schema": "axon-foundation-motor-receipt-continuation-teach-v5",
+    "profile": "termination_head_v5",
+    "requires_architecture_features": [
+        "receipt_continuation",
+        "termination_head_route",
+    ],
+    "learned_decisions_retained": [
+        "payload_anchor_category",
+        "copy_generate_route",
+        "source_anchor",
+        "termination_head",
+    ],
+    "payload_eos_weight": 4.0,
+    "termination_objective": "dedicated_termination_head_sigmoid",
+}
+RECEIPT_TERMINATION_HEAD_TEACH_ID = canonical_sha256(
+    RECEIPT_TERMINATION_HEAD_TEACH
+)
+FOUNDATION_MOTOR_V2_RECEIPT_TERMINATION_HEAD_PROGRAM = {
+    "schema": "axon-foundation-motor-teaching-program-variant-v6",
+    "base_program_id": FOUNDATION_MOTOR_V2_PROGRAM_ID,
+    "teaching_overlay_ids": [RECEIPT_TERMINATION_HEAD_TEACH_ID],
+    "layer_13_resolution": "deterministic_receipt_continuation_is_categorical_transport",
+    "termination_resolution": "dedicated_termination_head_is_independent_of_content_softmax",
+}
+FOUNDATION_MOTOR_V2_RECEIPT_TERMINATION_HEAD_PROGRAM_ID = canonical_sha256(
+    FOUNDATION_MOTOR_V2_RECEIPT_TERMINATION_HEAD_PROGRAM
+)
+
+# The transport_eos probation autopsy (canonical events
+# evt-20260917T013100Z-copilot-content-signal-audit and
+# evt-20260917T013451Z-kimi-training-wrongness-audit) verified from the
+# step-48 report and the loss source that v5 supervises stop=1 twice
+# (payload CE at the restored 4x EOS weight plus the EOS-position gate BCE)
+# while stop=0 receives only the diluted implicit log(1-stop) term inside
+# payload CE, leaving a canceling-gradient fixed point where EOS wins every
+# argmax and free-running transport emits nothing.  v6 is the single
+# controlled correction, ratified by Jeff on 2026-09-17: restore the
+# v4-balanced 1x payload EOS weight and add explicit stop=0 BCE supervision
+# at every learned content anchor so the dedicated stop head is supervised
+# symmetrically at both decision classes.  Component weights are pinned
+# explicitly here because v5 inherited the v3 table silently; the executed
+# per-stage tables are now pinned by tests.
+RECEIPT_TERMINATION_HEAD_BALANCED_TEACH = {
+    **RECEIPT_TERMINATION_HEAD_TEACH,
+    "schema": "axon-foundation-motor-receipt-continuation-teach-v6",
+    "profile": "termination_head_balanced_v6",
+    "component_weight_overrides": {
+        "payload": 1.0,
+        "alignment_position": 1.0,
+        "alignment_copy_gate": 4.0,
+        "alignment_eos_gate": 1.0,
+    },
+    "payload_eos_weight": 1.0,
+    "termination_continue_supervision": True,
+    "termination_objective": (
+        "dedicated_termination_head_sigmoid_with_explicit_continue_supervision"
+    ),
+}
+RECEIPT_TERMINATION_HEAD_BALANCED_TEACH_ID = canonical_sha256(
+    RECEIPT_TERMINATION_HEAD_BALANCED_TEACH
+)
+FOUNDATION_MOTOR_V2_RECEIPT_TERMINATION_HEAD_BALANCED_PROGRAM = {
+    "schema": "axon-foundation-motor-teaching-program-variant-v7",
+    "base_program_id": FOUNDATION_MOTOR_V2_PROGRAM_ID,
+    "teaching_overlay_ids": [RECEIPT_TERMINATION_HEAD_BALANCED_TEACH_ID],
+    "layer_13_resolution": "deterministic_receipt_continuation_is_categorical_transport",
+    "termination_resolution": (
+        "dedicated_termination_head_is_supervised_symmetrically_at_anchors_and_eos"
+    ),
+}
+FOUNDATION_MOTOR_V2_RECEIPT_TERMINATION_HEAD_BALANCED_PROGRAM_ID = canonical_sha256(
+    FOUNDATION_MOTOR_V2_RECEIPT_TERMINATION_HEAD_BALANCED_PROGRAM
+)
+
 RECEIPT_TEACHING_PROFILE_CONTINUATION_V1 = "continuation_v1"
 RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2 = "route_eos_balanced_v2"
 RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_EOS_V3 = "generate_head_eos_v3"
+RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_BALANCED_V4 = "generate_head_balanced_v4"
+RECEIPT_TEACHING_PROFILE_TERMINATION_HEAD_V5 = "termination_head_v5"
+RECEIPT_TEACHING_PROFILE_TERMINATION_HEAD_BALANCED_V6 = "termination_head_balanced_v6"
+RECEIPT_TERMINATION_HEAD_PROFILES = (
+    RECEIPT_TEACHING_PROFILE_TERMINATION_HEAD_V5,
+    RECEIPT_TEACHING_PROFILE_TERMINATION_HEAD_BALANCED_V6,
+)
 RECEIPT_TEACHING_PROFILES = (
     RECEIPT_TEACHING_PROFILE_CONTINUATION_V1,
     RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2,
     RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_EOS_V3,
+    RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_BALANCED_V4,
+    RECEIPT_TEACHING_PROFILE_TERMINATION_HEAD_V5,
+    RECEIPT_TEACHING_PROFILE_TERMINATION_HEAD_BALANCED_V6,
 )
 
 
@@ -326,6 +483,12 @@ def receipt_continuation_teach_profile(profile: str) -> Mapping[str, Any]:
         return RECEIPT_ROUTE_EOS_BALANCED_TEACH
     if profile == RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_EOS_V3:
         return RECEIPT_GENERATE_HEAD_EOS_TEACH
+    if profile == RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_BALANCED_V4:
+        return RECEIPT_GENERATE_HEAD_BALANCED_TEACH
+    if profile == RECEIPT_TEACHING_PROFILE_TERMINATION_HEAD_V5:
+        return RECEIPT_TERMINATION_HEAD_TEACH
+    if profile == RECEIPT_TEACHING_PROFILE_TERMINATION_HEAD_BALANCED_V6:
+        return RECEIPT_TERMINATION_HEAD_BALANCED_TEACH
     raise ValueError(f"unknown receipt teaching profile {profile!r}")
 
 
@@ -338,6 +501,12 @@ def foundation_motor_v2_objective_program_id(
     """Return the exact optimizer objective identity for this campaign."""
 
     if receipt_continuation:
+        if receipt_teaching_profile == RECEIPT_TEACHING_PROFILE_TERMINATION_HEAD_BALANCED_V6:
+            return FOUNDATION_MOTOR_V2_RECEIPT_TERMINATION_HEAD_BALANCED_PROGRAM_ID
+        if receipt_teaching_profile == RECEIPT_TEACHING_PROFILE_TERMINATION_HEAD_V5:
+            return FOUNDATION_MOTOR_V2_RECEIPT_TERMINATION_HEAD_PROGRAM_ID
+        if receipt_teaching_profile == RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_BALANCED_V4:
+            return FOUNDATION_MOTOR_V2_RECEIPT_GENERATE_HEAD_BALANCED_PROGRAM_ID
         if receipt_teaching_profile == RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_EOS_V3:
             return FOUNDATION_MOTOR_V2_RECEIPT_GENERATE_HEAD_EOS_PROGRAM_ID
         if receipt_teaching_profile == RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2:
@@ -1245,6 +1414,9 @@ def foundation_motor_v2_probe(
         "payload_eos_accuracy": rate(
             "payload_teacher_forced_eos_correct", "payload_teacher_forced_eos_count"
         ),
+        "payload_transport_exact_rate": rate(
+            "payload_transport_exact_count", "payload_supervised_phase_count"
+        ),
         "decision_accuracy": rate("decision_correct", "supervised_phase_count"),
         "operation_accuracy": rate("operation_correct", "operation_count"),
         "region_accuracy": rate("region_correct", "region_count"),
@@ -1263,6 +1435,232 @@ def foundation_motor_v2_probe(
     }
 
 
+def decide_foundation_motor_v2_checkpoint_retention(
+    *,
+    training_stage: str,
+    accepted_heldout_probe: Mapping[str, Any] | None,
+    accepted_regression_probe: Mapping[str, Any] | None,
+    candidate_heldout_probe: Mapping[str, Any] | None,
+    candidate_regression_probe: Mapping[str, Any] | None,
+    complete_heldout: bool,
+    complete_regression: bool,
+) -> dict[str, Any]:
+    """Reject a tentative checkpoint that forgets behavior its parent retained.
+
+    This gate selects the recoverable optimizer lineage.  It does not complete
+    a homework assignment or promote a core.  Exact stage gates remain a
+    separate decision over complete heldout and regression surfaces.
+    """
+
+    if training_stage not in FOUNDATION_MOTOR_V2_STAGE_ORDER:
+        raise ValueError(f"unknown foundation motor v2 training stage {training_stage!r}")
+    failures: list[str] = []
+    improvements: list[str] = []
+    if not complete_heldout:
+        failures.append("heldout retention surface is incomplete")
+    if not complete_regression:
+        failures.append("regression retention surface is incomplete")
+    metric_names = tuple(
+        FOUNDATION_MOTOR_V2_RETENTION_CONTRACT["copy_alignment_metrics"]
+    )
+    pair_names = tuple(
+        FOUNDATION_MOTOR_V2_RETENTION_CONTRACT["copy_alignment_pair_metrics"]
+    )
+    for label, accepted, candidate in (
+        ("heldout", accepted_heldout_probe, candidate_heldout_probe),
+        ("regression", accepted_regression_probe, candidate_regression_probe),
+    ):
+        if accepted is None or candidate is None:
+            failures.append(f"{label} retention probe is missing")
+            continue
+        for metric in metric_names:
+            before = float(accepted[metric])
+            after = float(candidate[metric])
+            if after + 1e-12 < before:
+                failures.append(f"{label} {metric} regressed {before:.12g} -> {after:.12g}")
+            elif after > before + 1e-12:
+                improvements.append(
+                    f"{label} {metric} improved {before:.12g} -> {after:.12g}"
+                )
+        accepted_pairs = accepted["pair_exact_rates"]
+        candidate_pairs = candidate["pair_exact_rates"]
+        for metric in pair_names:
+            before = float(accepted_pairs[metric])
+            after = float(candidate_pairs[metric])
+            if after + 1e-12 < before:
+                failures.append(
+                    f"{label} changed-source {metric} regressed {before:.12g} -> {after:.12g}"
+                )
+            elif after > before + 1e-12:
+                improvements.append(
+                    f"{label} changed-source {metric} improved {before:.12g} -> {after:.12g}"
+                )
+    if not improvements:
+        failures.append("no protected motor behavior improved")
+    decision = {
+        "schema": "axon-foundation-motor-v2-retention-decision-v1",
+        "contract_id": FOUNDATION_MOTOR_V2_RETENTION_CONTRACT_ID,
+        "training_stage": training_stage,
+        "complete_heldout": bool(complete_heldout),
+        "complete_regression": bool(complete_regression),
+        "surface_kind": (
+            "complete" if complete_heldout and complete_regression else "bounded_debug_probe"
+        ),
+        "passed": not failures,
+        "failures": failures,
+        "improvements": improvements,
+    }
+    decision["decision_id"] = canonical_sha256(decision)
+    return decision
+
+
+# Three-state successor to the v1 contract.  v1 treated plateau as failure,
+# discarding optimizer state that may be traversing a flat region before a
+# categorical behavior flips.  v2 separates the three observable outcomes and
+# leaves the plateau policy (bounded probation) to the launcher's guard:
+#   improvement -> accept (no regression, at least one protected metric up)
+#   regression  -> reject and roll back (absolute; never loosened)
+#   plateau     -> neither regressed nor improved; probation is a launch policy
+_FOUNDATION_MOTOR_V2_RETENTION_CONTRACT_V2_BASE = {
+    key: value
+    for key, value in FOUNDATION_MOTOR_V2_RETENTION_CONTRACT.items()
+    if key != "progress_requirement"
+}
+FOUNDATION_MOTOR_V2_RETENTION_CONTRACT_V2 = {
+    **_FOUNDATION_MOTOR_V2_RETENTION_CONTRACT_V2_BASE,
+    "schema": "axon-foundation-motor-v2-retention-contract-v2",
+    "states": {
+        "improvement": (
+            "accept: no protected metric regressed and at least one "
+            "protected metric strictly improved; becomes the accepted parent"
+        ),
+        "regression": (
+            "reject_and_rollback: any protected behavioral metric fell; "
+            "restore the last confirmed accepted parent unconditionally"
+        ),
+        "plateau": (
+            "probation_candidate: no protected metric changed; the launch "
+            "policy may continue this exact optimizer state without "
+            "promotion for up to max_consecutive_plateau_tranches"
+        ),
+    },
+    "plateau_handling": "launcher_policy_bounded_probation",
+}
+FOUNDATION_MOTOR_V2_RETENTION_CONTRACT_V2_ID = canonical_sha256(
+    FOUNDATION_MOTOR_V2_RETENTION_CONTRACT_V2
+)
+
+
+def decide_foundation_motor_v2_checkpoint_retention_v2(
+    *,
+    training_stage: str,
+    accepted_heldout_probe: Mapping[str, Any] | None,
+    accepted_regression_probe: Mapping[str, Any] | None,
+    candidate_heldout_probe: Mapping[str, Any] | None,
+    candidate_regression_probe: Mapping[str, Any] | None,
+    complete_heldout: bool,
+    complete_regression: bool,
+) -> dict[str, Any]:
+    """Classify a tentative checkpoint as improvement, regression, or plateau.
+
+    Unlike the v1 contract, stasis is not a failure: plateau is its own
+    state so the caller can hold the optimizer state on probation instead
+    of destroying it.  Structural problems (incomplete surfaces, missing
+    probes) fail closed as regression.
+    """
+
+    if training_stage not in FOUNDATION_MOTOR_V2_STAGE_ORDER:
+        raise ValueError(f"unknown foundation motor v2 training stage {training_stage!r}")
+    structural: list[str] = []
+    if not complete_heldout:
+        structural.append("heldout retention surface is incomplete")
+    if not complete_regression:
+        structural.append("regression retention surface is incomplete")
+    regressions: list[str] = []
+    improvements: list[str] = []
+    for label, accepted, candidate in (
+        ("heldout", accepted_heldout_probe, candidate_heldout_probe),
+        ("regression", accepted_regression_probe, candidate_regression_probe),
+    ):
+        if accepted is None or candidate is None:
+            structural.append(f"{label} retention probe is missing")
+            continue
+        for metric in FOUNDATION_MOTOR_V2_RETENTION_CONTRACT_V2["copy_alignment_metrics"]:
+            before = float(accepted[metric])
+            after = float(candidate[metric])
+            if after + 1e-12 < before:
+                regressions.append(f"{label} {metric} regressed {before:.12g} -> {after:.12g}")
+            elif after > before + 1e-12:
+                improvements.append(
+                    f"{label} {metric} improved {before:.12g} -> {after:.12g}"
+                )
+        accepted_pairs = accepted["pair_exact_rates"]
+        candidate_pairs = candidate["pair_exact_rates"]
+        for metric in FOUNDATION_MOTOR_V2_RETENTION_CONTRACT_V2["copy_alignment_pair_metrics"]:
+            before = float(accepted_pairs[metric])
+            after = float(candidate_pairs[metric])
+            if after + 1e-12 < before:
+                regressions.append(
+                    f"{label} changed-source {metric} regressed {before:.12g} -> {after:.12g}"
+                )
+            elif after > before + 1e-12:
+                improvements.append(
+                    f"{label} changed-source {metric} improved {before:.12g} -> {after:.12g}"
+                )
+    if structural:
+        state = "regression"
+        failures = structural + regressions
+    elif regressions:
+        state = "regression"
+        failures = regressions
+    elif improvements:
+        state = "improvement"
+        failures = []
+    else:
+        state = "plateau"
+        failures = []
+    decision = {
+        "schema": "axon-foundation-motor-v2-retention-decision-v2",
+        "contract_id": FOUNDATION_MOTOR_V2_RETENTION_CONTRACT_V2_ID,
+        "training_stage": training_stage,
+        "state": state,
+        "complete_heldout": bool(complete_heldout),
+        "complete_regression": bool(complete_regression),
+        "surface_kind": (
+            "complete" if complete_heldout and complete_regression else "bounded_debug_probe"
+        ),
+        "passed": state == "improvement",
+        "failures": failures,
+        "improvements": improvements,
+    }
+    decision["decision_id"] = canonical_sha256(decision)
+    return decision
+
+
+def resolve_retention_action(
+    decision: Mapping[str, Any],
+    *,
+    probation_count: int,
+    max_plateau_probation: int,
+) -> str:
+    """Map a v2 retention decision plus the probation budget to a guard action.
+
+    Returns one of:
+      "accept"   - promote the tentative checkpoint as the confirmed parent
+      "probate"  - hold this exact optimizer state without promotion
+      "rollback" - restore the confirmed parent and stop (regression, or
+                   probation allowance exhausted, or structural failure)
+    """
+    state = str(decision.get("state", ""))
+    if state == "improvement":
+        return "accept"
+    if state == "plateau":
+        if probation_count < max_plateau_probation:
+            return "probate"
+        return "rollback"
+    return "rollback"
+
+
 def decide_foundation_motor_v2_stage(
     *,
     training_stage: str,
@@ -1273,15 +1671,24 @@ def decide_foundation_motor_v2_stage(
     receipt_continuation: bool = False,
     receipt_teaching_profile: str = RECEIPT_TEACHING_PROFILE_CONTINUATION_V1,
     eos_generate_head_route: bool = False,
+    termination_head_route: bool = False,
 ) -> dict[str, Any]:
     if training_stage not in FOUNDATION_MOTOR_V2_STAGE_ORDER:
         raise ValueError(f"unknown foundation motor v2 training stage {training_stage!r}")
-    generate_head_profile = (
-        receipt_teaching_profile == RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_EOS_V3
-    )
+    generate_head_profile = receipt_teaching_profile in {
+        RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_EOS_V3,
+        RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_BALANCED_V4,
+    }
     if eos_generate_head_route != generate_head_profile:
         raise ValueError(
             "eos_generate_head_route and generate_head_eos_v3 must be selected together"
+        )
+    if termination_head_route != (
+        receipt_teaching_profile in RECEIPT_TERMINATION_HEAD_PROFILES
+    ):
+        raise ValueError(
+            "termination_head_route and a termination-head teaching profile "
+            "must be selected together"
         )
     failures: list[str] = []
     if heldout_probe is None or regression_probe is None:
@@ -1323,8 +1730,21 @@ def decide_foundation_motor_v2_stage(
             if training_stage == "copy_alignment":
                 require("alignment_position_accuracy")
                 require("alignment_copy_gate_accuracy")
+                # Ratified 2026-09-17 with the emission rung: this stage now
+                # supervises payload content, so it must also require it.  A
+                # lineage that emits nothing scores exactly the empty-payload
+                # floor and can never satisfy these requirements, which is the
+                # only way the next stage can inherit an emitter.
+                require("payload_content_accuracy")
+                require("payload_transport_exact_rate")
                 require_pair("position")
                 require_pair("copy_gate")
+                require_pair("content")
+                if not (
+                    float(probe["payload_content_accuracy"])
+                    > float(probe["payload_content_constant_floor"])
+                ):
+                    failures.append(f"{label} payload content does not beat constant floor")
                 if receipt_continuation:
                     require("payload_eos_accuracy")
                     if not eos_generate_head_route:
@@ -1336,6 +1756,11 @@ def decide_foundation_motor_v2_stage(
                     "alignment_copy_gate_accuracy",
                     "payload_content_accuracy",
                     "payload_eos_accuracy",
+                    # Ratified 2026-09-17 after the probation autopsy: the only
+                    # metric that exposes the emit-nothing dead state.  A lineage
+                    # that stops immediately scores exactly the empty-payload
+                    # floor and can never satisfy this requirement.
+                    "payload_transport_exact_rate",
                 ]
                 required_pairs = ["position", "copy_gate", "content"]
                 if not eos_generate_head_route:
@@ -1412,32 +1837,44 @@ __all__ = [
     "FOUNDATION_MOTOR_V2_MULTICELL_PROGRAM_ID",
     "FOUNDATION_MOTOR_V2_PROGRAM",
     "FOUNDATION_MOTOR_V2_PROGRAM_ID",
+    "FOUNDATION_MOTOR_V2_RECEIPT_GENERATE_HEAD_BALANCED_PROGRAM",
+    "FOUNDATION_MOTOR_V2_RECEIPT_GENERATE_HEAD_BALANCED_PROGRAM_ID",
+    "FOUNDATION_MOTOR_V2_RECEIPT_GENERATE_HEAD_EOS_PROGRAM",
+    "FOUNDATION_MOTOR_V2_RECEIPT_GENERATE_HEAD_EOS_PROGRAM_ID",
     "FOUNDATION_MOTOR_V2_RECEIPT_PROGRAM",
     "FOUNDATION_MOTOR_V2_RECEIPT_PROGRAM_ID",
     "FOUNDATION_MOTOR_V2_RECEIPT_ROUTE_EOS_BALANCED_PROGRAM",
     "FOUNDATION_MOTOR_V2_RECEIPT_ROUTE_EOS_BALANCED_PROGRAM_ID",
-    "FOUNDATION_MOTOR_V2_RECEIPT_GENERATE_HEAD_EOS_PROGRAM",
-    "FOUNDATION_MOTOR_V2_RECEIPT_GENERATE_HEAD_EOS_PROGRAM_ID",
+    "FOUNDATION_MOTOR_V2_RETENTION_CONTRACT",
+    "FOUNDATION_MOTOR_V2_RETENTION_CONTRACT_ID",
+    "FOUNDATION_MOTOR_V2_RETENTION_CONTRACT_V2",
+    "FOUNDATION_MOTOR_V2_RETENTION_CONTRACT_V2_ID",
     "FOUNDATION_MOTOR_V2_SOURCE_ID",
     "FOUNDATION_MOTOR_V2_STAGE",
     "FOUNDATION_MOTOR_V2_STAGE_ORDER",
     "FOUNDATION_MOTOR_V2_UNICODE_WALK_SOURCE_ID",
     "RECEIPT_CONTINUATION_TEACH",
     "RECEIPT_CONTINUATION_TEACH_ID",
-    "RECEIPT_ROUTE_EOS_BALANCED_TEACH",
-    "RECEIPT_ROUTE_EOS_BALANCED_TEACH_ID",
+    "RECEIPT_GENERATE_HEAD_BALANCED_TEACH",
+    "RECEIPT_GENERATE_HEAD_BALANCED_TEACH_ID",
     "RECEIPT_GENERATE_HEAD_EOS_TEACH",
     "RECEIPT_GENERATE_HEAD_EOS_TEACH_ID",
+    "RECEIPT_ROUTE_EOS_BALANCED_TEACH",
+    "RECEIPT_ROUTE_EOS_BALANCED_TEACH_ID",
     "RECEIPT_TEACHING_PROFILES",
     "RECEIPT_TEACHING_PROFILE_CONTINUATION_V1",
-    "RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2",
+    "RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_BALANCED_V4",
     "RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_EOS_V3",
+    "RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2",
     "apply_copy_alignment_multicell_teach_weights",
     "apply_receipt_continuation_teach_weights",
     "compile_foundation_motor",
     "compile_foundation_motor_v2",
     "compile_foundation_motor_v2_unicode_walk",
     "decide_foundation_motor_mastery",
+    "decide_foundation_motor_v2_checkpoint_retention",
+    "decide_foundation_motor_v2_checkpoint_retention_v2",
+    "resolve_retention_action",
     "decide_foundation_motor_v2_stage",
     "foundation_motor_payload_transport_cells",
     "foundation_motor_probe",

@@ -92,6 +92,7 @@ class LivingReasoningCoreConfig:
     generate_gate_bias: float = 1.5
     receipt_continuation: bool = False
     eos_generate_head_route: bool = False
+    termination_head_route: bool = False
     field_schema_version: str = SCHEMA_VERSION
     architecture_id: str = field(init=False)
 
@@ -125,6 +126,17 @@ class LivingReasoningCoreConfig:
         if self.eos_generate_head_route and not self.receipt_continuation:
             raise ValueError(
                 "eos_generate_head_route requires the receipt_continuation architecture"
+            )
+        if not isinstance(self.termination_head_route, bool):
+            raise TypeError("termination_head_route must be boolean")
+        if self.termination_head_route and not self.receipt_continuation:
+            raise ValueError(
+                "termination_head_route requires the receipt_continuation architecture"
+            )
+        if self.termination_head_route and self.eos_generate_head_route:
+            raise ValueError(
+                "termination_head_route and eos_generate_head_route are distinct, "
+                "mutually exclusive termination sources"
             )
         object.__setattr__(self, "generate_gate_bias", float(self.generate_gate_bias))
         if self.receipt_continuation:
@@ -190,7 +202,12 @@ class LivingReasoningCoreConfig:
                 # EOS is a generate-head decision, not a gate vote: the copy/
                 # generate gate arbitrates content only, so a uniformly
                 # copy-biased gate no longer prevents termination.
-                emission_routes = emission_routes + ["generate_head_eos"]
+                emission_routes = [*emission_routes, "generate_head_eos"]
+            if self.termination_head_route:
+                # Termination is a dedicated scalar head, not a slot in the
+                # generated content softmax: content logits can no longer
+                # steal probability mass from the stop decision.
+                emission_routes = [*emission_routes, "termination_head"]
             value.update(
                 {
                     "receipt_continuation": True,
@@ -745,6 +762,9 @@ class CausalDecoderStep:
     generated_logits: torch.Tensor
     position_logits: torch.Tensor
     generate_gate_logits: torch.Tensor
+    # Dedicated termination head signal; only populated under
+    # ``termination_head_route`` (None for every legacy route).
+    termination_logits: torch.Tensor | None = None
 
 
 def _join_memory(items: Iterable[AddressableMemory]) -> AddressableMemory:
@@ -778,6 +798,11 @@ class LivingReasoningCoreD64(CompleteField64D):
         self.bos_index = TRANSPORT_VOCAB_SIZE + 2
         self.decoder_embedding = nn.Embedding(self.bos_index + 1, cfg.d_model)
         self.decoder_output = nn.Linear(cfg.d_model, self.eos_index + 1)
+        if cfg.termination_head_route:
+            # Dedicated scalar stop head: termination probability is a
+            # sigmoid of this logit alone, never a softmax slot shared with
+            # generated content categories.
+            self.termination_output = nn.Linear(cfg.d_model, 1)
 
         self.phase_embedding = nn.Embedding(len(_PHASE_TO_ID), cfg.d_model)
         self.soul_projection = nn.ModuleDict(
@@ -836,11 +861,50 @@ class LivingReasoningCoreD64(CompleteField64D):
         the existing mixture, renormalized over non-EOS categories, decides
         content.  This is a normalized distribution and gives content targets
         direct pressure against premature EOS.
+
+        With ``termination_head_route`` the stop decision instead comes from
+        a dedicated scalar head: stop probability is
+        ``sigmoid(termination_output(fused))`` alone, never a softmax slot
+        shared with generated content categories.  The hierarchical content
+        distribution is preserved exactly and carries the remaining
+        ``1 - stop`` mass, so generated content logits cannot steal mass from
+        the termination decision.  The same combined distribution feeds the
+        training loss and the free-running emission selector.
         """
 
         decoded = super()._decoder_logits(output, memory, return_alignment=True)
         mixed_logits, alignment = decoded
-        if self.living_config.eos_generate_head_route:
+        if self.living_config.termination_head_route:
+            fused = alignment["decoder_fused"]
+            stop_logit = self.termination_output(fused).squeeze(-1)
+            stop = torch.sigmoid(stop_logit)
+            tiny = torch.finfo(mixed_logits.dtype).tiny
+            epsilon = torch.finfo(mixed_logits.dtype).eps
+            stop = stop.clamp(min=tiny, max=1.0 - epsilon)
+            alignment["termination_logits"] = stop_logit
+            alignment["termination_stop_probability"] = stop
+            if memory is None:
+                content_log_probabilities = F.log_softmax(
+                    alignment["generated_logits"][..., : self.eos_index], dim=-1
+                )
+                mixed_logits = torch.cat(
+                    [
+                        content_log_probabilities
+                        + torch.log1p(-stop).unsqueeze(-1),
+                        torch.log(stop).unsqueeze(-1),
+                    ],
+                    dim=-1,
+                )
+            else:
+                mixed_eos = mixed_logits[..., self.eos_index].exp()
+                mixed_eos = mixed_eos.clamp(min=tiny, max=1.0 - epsilon)
+                content_scale = torch.log1p(-stop) - torch.log1p(-mixed_eos)
+                mixed_logits = mixed_logits.clone()
+                mixed_logits[..., : self.eos_index] = (
+                    mixed_logits[..., : self.eos_index] + content_scale.unsqueeze(-1)
+                )
+                mixed_logits[..., self.eos_index] = torch.log(stop)
+        elif self.living_config.eos_generate_head_route:
             generated_log_probabilities = F.log_softmax(
                 alignment["generated_logits"], dim=-1
             )
@@ -898,6 +962,7 @@ class LivingReasoningCoreD64(CompleteField64D):
             generated_logits=alignment["generated_logits"],
             position_logits=alignment["position_logits"],
             generate_gate_logits=alignment["generate_gate_logits"],
+            termination_logits=alignment.get("termination_logits"),
         )
 
     def decode_teacher(
@@ -926,6 +991,7 @@ class LivingReasoningCoreD64(CompleteField64D):
         generated_logits: list[torch.Tensor] = []
         position_logits: list[torch.Tensor] = []
         gate_logits: list[torch.Tensor] = []
+        termination_logits: list[torch.Tensor] = []
         for position in range(targets.shape[1]):
             step = self.causal_decoder_step(
                 previous_category=previous,
@@ -937,15 +1003,20 @@ class LivingReasoningCoreD64(CompleteField64D):
             generated_logits.append(step.generated_logits)
             position_logits.append(step.position_logits)
             gate_logits.append(step.generate_gate_logits)
+            if step.termination_logits is not None:
+                termination_logits.append(step.termination_logits)
             previous = int(targets[0, position].item())
         joined = torch.cat(logits, dim=1)
         if not return_alignment:
             return joined, targets
-        return joined, targets, {
+        alignment = {
             "generated_logits": torch.cat(generated_logits, dim=1),
             "position_logits": torch.cat(position_logits, dim=1),
             "generate_gate_logits": torch.cat(gate_logits, dim=1),
         }
+        if termination_logits:
+            alignment["termination_logits"] = torch.cat(termination_logits, dim=1)
+        return joined, targets, alignment
 
     def decode_scheduled(
         self,
@@ -981,6 +1052,7 @@ class LivingReasoningCoreD64(CompleteField64D):
         generated_logits: list[torch.Tensor] = []
         position_logits: list[torch.Tensor] = []
         gate_logits: list[torch.Tensor] = []
+        termination_logits: list[torch.Tensor] = []
         for position in range(targets.shape[1]):
             step = self.causal_decoder_step(
                 previous_category=previous,
@@ -992,6 +1064,8 @@ class LivingReasoningCoreD64(CompleteField64D):
             generated_logits.append(step.generated_logits)
             position_logits.append(step.position_logits)
             gate_logits.append(step.generate_gate_logits)
+            if step.termination_logits is not None:
+                termination_logits.append(step.termination_logits)
             if position + 1 < targets.shape[1]:
                 previous = (
                     int(targets[0, position].item())
@@ -1001,11 +1075,14 @@ class LivingReasoningCoreD64(CompleteField64D):
         joined = torch.cat(logits, dim=1)
         if not return_alignment:
             return joined, targets
-        return joined, targets, {
+        alignment = {
             "generated_logits": torch.cat(generated_logits, dim=1),
             "position_logits": torch.cat(position_logits, dim=1),
             "generate_gate_logits": torch.cat(gate_logits, dim=1),
         }
+        if termination_logits:
+            alignment["termination_logits"] = torch.cat(termination_logits, dim=1)
+        return joined, targets, alignment
 
     def alignment_supervision(
         self,
@@ -1015,6 +1092,7 @@ class LivingReasoningCoreD64(CompleteField64D):
         decoder_alignment: Mapping[str, torch.Tensor],
         specification: Mapping[str, Any],
         position_reduction: str = "mean",
+        supervise_termination_continue: bool = False,
     ) -> dict[str, Any]:
         """Supervise exact source positions across Unicode transport expansion.
 
@@ -1027,6 +1105,8 @@ class LivingReasoningCoreD64(CompleteField64D):
 
         if specification.get("schema") != "axon-r0-target-alignment-v1":
             raise ValueError("unsupported R0 target-alignment schema")
+        if not isinstance(supervise_termination_continue, bool):
+            raise TypeError("supervise_termination_continue must be boolean")
         segments = specification.get("segments", [])
         if not isinstance(segments, list):
             raise ValueError("alignment segments must be a list")
@@ -1049,8 +1129,10 @@ class LivingReasoningCoreD64(CompleteField64D):
         position_losses: list[torch.Tensor] = []
         copy_gate_losses: list[torch.Tensor] = []
         eos_gate_losses: list[torch.Tensor] = []
+        learned_anchor_positions: list[int] = []
         position_correct = copy_gate_correct = supervised_copy_positions = 0
         deterministic_continuation_positions = 0
+        termination_continue_correct = 0
         learned_decision_mask = torch.ones(
             (1, transport_count + 1),
             dtype=torch.bool,
@@ -1139,17 +1221,61 @@ class LivingReasoningCoreD64(CompleteField64D):
                         float(gate_logits[0, target_position].item()) < 0.0
                     )
                     supervised_copy_positions += 1
+                    learned_anchor_positions.append(target_position)
 
         eos_supervised = bool(specification.get("supervise_eos_generate", True))
         eos_gate_correct = 0
         if eos_supervised:
-            eos_target = torch.ones((1,), device=self.device, dtype=gate_logits.dtype)
-            eos_gate_losses.append(
-                F.binary_cross_entropy_with_logits(gate_logits[:, transport_count], eos_target)
-            )
-            eos_gate_correct += int(
-                float(gate_logits[0, transport_count].item()) >= 0.0
-            )
+            termination_logits = decoder_alignment.get("termination_logits")
+            if termination_logits is not None:
+                # Dedicated termination head: the stop decision is
+                # sigmoid(termination_logits) alone, so EOS supervision and
+                # accuracy score that logit (positive => stop). The
+                # copy/generate gate is content-routing machinery and is not
+                # scored at the EOS position under this route.
+                if termination_logits.shape != gate_logits.shape:
+                    raise ValueError("termination alignment length disagrees with decoder alignment")
+                eos_target = torch.ones(
+                    (1,), device=self.device, dtype=termination_logits.dtype
+                )
+                eos_gate_losses.append(
+                    F.binary_cross_entropy_with_logits(
+                        termination_logits[:, transport_count], eos_target
+                    )
+                )
+                eos_gate_correct += int(
+                    float(termination_logits[0, transport_count].item()) >= 0.0
+                )
+                if supervise_termination_continue and learned_anchor_positions:
+                    # Balanced termination supervision (the v6 fix): the stop
+                    # head is explicitly supervised toward continue at every
+                    # learned content anchor, symmetric with the EOS-position
+                    # stop=1 BCE. Without this term the only stop=0 pressure is
+                    # the diluted implicit log(1-stop) inside payload CE, which
+                    # leaves a canceling-gradient fixed point where EOS wins
+                    # every argmax and free-running transport emits nothing.
+                    continue_target = torch.zeros(
+                        (1,), device=self.device, dtype=termination_logits.dtype
+                    )
+                    for anchor_position in learned_anchor_positions:
+                        eos_gate_losses.append(
+                            F.binary_cross_entropy_with_logits(
+                                termination_logits[:, anchor_position],
+                                continue_target,
+                            )
+                        )
+                        termination_continue_correct += int(
+                            float(termination_logits[0, anchor_position].item()) < 0.0
+                        )
+                    eos_gate_correct += termination_continue_correct
+            else:
+                eos_target = torch.ones((1,), device=self.device, dtype=gate_logits.dtype)
+                eos_gate_losses.append(
+                    F.binary_cross_entropy_with_logits(gate_logits[:, transport_count], eos_target)
+                )
+                eos_gate_correct += int(
+                    float(gate_logits[0, transport_count].item()) >= 0.0
+                )
         if not position_losses:
             position_loss = zero
         elif position_reduction == "mean":
@@ -1166,7 +1292,11 @@ class LivingReasoningCoreD64(CompleteField64D):
         eos_gate_loss = torch.stack(eos_gate_losses).mean() if eos_gate_losses else zero
         gate_losses = copy_gate_losses + eos_gate_losses
         gate_loss = torch.stack(gate_losses).mean() if gate_losses else zero
-        gate_count = supervised_copy_positions + int(eos_supervised)
+        termination_continue_positions = (
+            len(learned_anchor_positions) if supervise_termination_continue else 0
+        )
+        eos_gate_supervised = int(eos_supervised) + termination_continue_positions
+        gate_count = supervised_copy_positions + eos_gate_supervised
         gate_correct = copy_gate_correct + eos_gate_correct
         return {
             "position_loss": position_loss,
@@ -1180,8 +1310,15 @@ class LivingReasoningCoreD64(CompleteField64D):
             "gate_supervised_positions": gate_count,
             "gate_correct": gate_correct,
             "copy_gate_correct": copy_gate_correct,
-            "eos_gate_supervised_positions": int(eos_supervised),
+            "eos_gate_supervised_positions": eos_gate_supervised,
             "eos_gate_correct": eos_gate_correct,
+            "termination_continue_positions": termination_continue_positions,
+            "termination_continue_correct": termination_continue_correct,
+            "termination_continue_accuracy": (
+                termination_continue_correct / termination_continue_positions
+                if termination_continue_positions
+                else 1.0
+            ),
             "position_accuracy": (
                 position_correct / supervised_copy_positions
                 if supervised_copy_positions
@@ -1193,7 +1330,7 @@ class LivingReasoningCoreD64(CompleteField64D):
                 else 1.0
             ),
             "eos_gate_accuracy": (
-                eos_gate_correct / int(eos_supervised) if eos_supervised else 1.0
+                eos_gate_correct / eos_gate_supervised if eos_gate_supervised else 1.0
             ),
             "gate_accuracy": gate_correct / gate_count if gate_count else 1.0,
         }
@@ -1600,16 +1737,26 @@ class LivingReasoningCoreD64(CompleteField64D):
         EOS is not a memory cell and cannot be copied.  Termination therefore
         does not require a per-position gate separation that the shared-bias
         gate geometry cannot learn within renewable tranches.
+
+        With ``termination_head_route`` the same single-distribution rule
+        holds, but the EOS slot carries the dedicated scalar head's
+        ``log sigmoid`` stop logit, so the gate still cannot suppress
+        termination and content logits cannot outvote the stop decision
+        except through the normalized distribution itself.
         """
 
-        if self.living_config.eos_generate_head_route:
+        hierarchical_termination = (
+            self.living_config.eos_generate_head_route
+            or self.living_config.termination_head_route
+        )
+        if hierarchical_termination:
             routed_category = int(step.mixed_logits[0, 0].argmax(dim=-1).item())
             if routed_category == self.eos_index:
                 return DecoderEmissionRoute.LEARNED_GENERATE, routed_category, None, None
         gate = float(step.generate_gate_logits[0, 0].item())
         if gate >= 0.0:
             generated_logits = step.generated_logits[0, 0]
-            if self.living_config.eos_generate_head_route:
+            if hierarchical_termination:
                 # The hierarchical distribution already decided that this is
                 # a content step. Do not let the generate branch reintroduce
                 # EOS while selecting its non-EOS category.
@@ -2036,6 +2183,20 @@ class LivingReasoningCoreD64(CompleteField64D):
         trainable = sum(parameter.numel() for parameter in self.parameters() if parameter.requires_grad)
         return {
             **self.living_config.to_canonical_dict(),
+            # Explicitly serialize this identity-affecting choice for tools
+            # that reconstruct a config from reports.  It is already bound in
+            # architecture_id through emission_routes; adding the report field
+            # does not rewrite historical architecture identities.
+            "eos_generate_head_route": bool(
+                self.living_config.eos_generate_head_route
+            ),
+            # Same explicit-report treatment as eos_generate_head_route: the
+            # flag is already bound in architecture_id through
+            # emission_routes; this field lets report-driven tools restore
+            # the exact config without re-deriving the route list.
+            "termination_head_route": bool(
+                self.living_config.termination_head_route
+            ),
             "parameter_count": parameters,
             "trainable_parameter_count": trainable,
             "parameter_bytes_fp32": parameters * 4,
