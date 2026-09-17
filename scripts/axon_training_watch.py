@@ -14,7 +14,7 @@ Examples:
     python scripts/axon_training_watch.py <job-id>              # live follow
     python scripts/axon_training_watch.py <job-id> --local      # replay local file
     python scripts/axon_training_watch.py <job-id> --steps 50   # rolling window of 50 steps
-    python scripts/axon_training_watch.py <job-id> --qa         # show Soul Q/A transcripts too
+    python scripts/axon_training_watch.py <job-id> --qa         # expand Soul Q/A transcript rows
     python scripts/axon_training_watch.py --events State/training/progress/<label>/events.jsonl --qa --replay
 """
 
@@ -156,6 +156,11 @@ class Watcher:
         self.motor_v2: dict[str, dict[str, Any]] = {}
         self.runner_lines: deque[str] = deque(maxlen=6)
         self.qa_lines: deque[str] = deque(maxlen=transcript_lines)
+        self.qa_seen: dict[str, dict[str, bool]] = {}
+        self.qa_shown = 0
+        self.qa_exact = 0
+        self.qa_phase = None
+        self.qa_step = None
         self.event_count = 0
         self.seen_event_ids: set[str] = set()
         self.error = None
@@ -318,7 +323,12 @@ class Watcher:
             range_text = ""
             if isinstance(rng, list) and len(rng) == 2:
                 range_text = f" steps {rng[0]}-{rng[1]}"
-            self.sync_kernel_note = f"{status or 'sync'}{range_text}"
+            # A bare "disabled" leaves the operator unable to tell whether sync
+            # is unconfigured, uncredentialed, or broken.  The receipt carries
+            # the reason; throw it away and the dashboard is just a shrug.
+            reason = _one_line(details.get("reason") or "", 60)
+            reason_text = f" ({reason})" if reason else ""
+            self.sync_kernel_note = f"{status or 'sync'}{range_text}{reason_text}"
 
     def _consume_evaluated(self, details: dict[str, Any]) -> None:
         """Detailed evaluation snapshot (loss/accuracy/QA) after a full pass."""
@@ -328,8 +338,11 @@ class Watcher:
             "payload_transport_exact_rate": details.get("payload_transport_exact_rate"),
             "token_accuracy": details.get("payload_teacher_forced_token_accuracy"),
             "token_accuracy_floor": details.get("constant_payload_token_accuracy_floor"),
+            "typed_floor": details.get("constant_typed_emission_exact_floor"),
+            "payload_floor": details.get("constant_payload_transport_exact_floor"),
             "evaluated_case_count": details.get("evaluated_case_count"),
             "phase": details.get("phase"),
+            "global_step": details.get("global_step"),
             "report_path": self.eval_summary.get("report_path"),
         }
         if details.get("heldout_mean_loss") is not None:
@@ -340,8 +353,23 @@ class Watcher:
                     float(details.get("payload_teacher_forced_token_accuracy") or 0.0),
                 )
             )
+        # The trainer reports each evaluation twice -- once in its progress
+        # event and once in its eval event -- so transcripts must be keyed by
+        # content, not appended blindly, or every sample doubles on screen.
+        phase = str(details.get("phase") or "?")
+        seen = self.qa_seen.setdefault(phase, {})
         for row in details.get("qa_transcripts") or []:
+            if not isinstance(row, dict):
+                continue
+            signature = json.dumps(row, sort_keys=True, default=str)
+            if signature in seen:
+                continue
+            seen[signature] = bool(row.get("exact_match"))
             self.qa_lines.append(self._format_qa(row))
+        self.qa_phase = phase
+        self.qa_shown = len(seen)
+        self.qa_exact = sum(1 for value in seen.values() if value)
+        self.qa_step = self.last_step
 
     def _consume_motor_v2(self, details: dict[str, Any]) -> None:
         phase = str(details.get("phase") or "?")
@@ -461,17 +489,36 @@ class Watcher:
         if self.eval_summary:
             heldout = self.eval_summary.get("heldout_mean_loss")
             metrics = [f"heldout_loss {_fmt_loss(heldout)}"]
-            for label, key in (
-                ("typed_exact", "typed_emission_exact_rate"),
-                ("payload_exact", "payload_transport_exact_rate"),
-                ("token_acc", "token_accuracy"),
-                ("floor", "token_accuracy_floor"),
+            for label, key, floor_key in (
+                ("typed_exact", "typed_emission_exact_rate", "typed_floor"),
+                ("payload_exact", "payload_transport_exact_rate", "payload_floor"),
+                ("token_acc", "token_accuracy", "token_accuracy_floor"),
             ):
                 value = self.eval_summary.get(key)
-                if value is not None:
-                    metrics.append(f"{label} {float(value)*100:.1f}%")
+                if value is None:
+                    continue
+                text = f"{label} {float(value)*100:.1f}%"
+                floor = self.eval_summary.get(floor_key)
+                if floor is not None:
+                    # A rate printed without its constant-answer floor reads as
+                    # progress even when the model is only matching silence.
+                    if float(value) > float(floor) + 1e-9:
+                        text += _color(f" floor {float(floor)*100:.1f}% BEATEN", GREEN)
+                    elif float(value) < float(floor) - 1e-9:
+                        text += _color(f" floor {float(floor)*100:.1f}% BELOW", RED)
+                    else:
+                        text += _color(f" floor {float(floor)*100:.1f}% AT-FLOOR", YELLOW)
+                metrics.append(text)
             phase = self.eval_summary.get("phase")
-            lines.append(" eval[" + str(phase or "?") + "]: " + "  ".join(metrics))
+            # The smoke trainer only evaluates at the start and the end of a
+            # tranche, so this block can be hundreds of steps stale.  Printing
+            # the step it was measured at stops a step-0 number from reading as
+            # the current state of training.
+            eval_step = self.eval_summary.get("global_step")
+            where = str(phase or "?")
+            if eval_step is not None:
+                where += f" @step {eval_step}"
+            lines.append(" eval[" + where + "]: " + "  ".join(metrics))
         if self.eval_history:
             history = "  ".join(
                 f"{phase}@{loss:.3f}/{acc*100:.0f}%" for phase, loss, acc in list(self.eval_history)[-4:]
@@ -501,14 +548,20 @@ class Watcher:
             if self.sync_waiting:
                 bits.append(self.sync_waiting)
             if self.sync_kernel_note:
-                bits.append(f"kernel {self.sync_kernel_note}")
+                note = self.sync_kernel_note
+                text = f"kernel {note}"
+                bits.append(
+                    _color(text, YELLOW)
+                    if any(word in note for word in ("disabled", "failed"))
+                    else text
+                )
             if self.sync_error_type:
                 bits.append(_color(self.sync_error_type, YELLOW))
             if len(bits) == 1:
                 bits.append("waiting for first checkpoint upload")
             lines.append("  ".join(bits))
         elif self.sync_kernel_note:
-            lines.append(f" sync kernel: {self.sync_kernel_note}")
+            lines.append(_color(f" sync kernel: {self.sync_kernel_note}", YELLOW))
         if self.runner_lines:
             lines.append(_color(" runner:", DIM))
             lines.extend(list(self.runner_lines)[-4:])
@@ -523,11 +576,29 @@ class Watcher:
         if self.error:
             lines.append(_color(f" ERROR: {self.error}", RED))
 
+        if self.qa_shown:
+            verdict = f"{self.qa_exact}/{self.qa_shown} exact"
+            color = (
+                GREEN
+                if self.qa_exact == self.qa_shown and self.qa_shown
+                else (RED if not self.qa_exact else YELLOW)
+            )
+            rows_hint = "" if self.show_qa else "  (--qa for rows)"
+            lines.append(
+                _color(" qa:", DIM)
+                + f" sample of {self.qa_shown} teacher-forced cases @{self.qa_phase}"
+                + f" step {self.qa_step}: "
+                + _color(verdict, color)
+                + _color("  (sample, not the full surface)", DIM)
+                + rows_hint
+            )
+
         if self.show_qa:
             lines.append(_color("-" * 74, DIM))
             lines.append(_color(" Teacher-forced payload samples (not autonomous conversation)", BOLD))
             if self.qa_lines:
-                lines.extend(list(self.qa_lines)[-self.transcript_lines:])
+                for line in _collapse_repeats(self.qa_lines)[-self.transcript_lines:]:
+                    lines.append(line)
             else:
                 lines.append(_color("  (no qa events in this stream yet)", DIM))
 
@@ -539,6 +610,23 @@ class Watcher:
 def _one_line(text: Any, width: int = 60) -> str:
     value = " ".join(str(text or "").split())
     return value if len(value) <= width else value[: width - 1] + "…"
+
+
+def _collapse_repeats(lines: Iterable[str]) -> list[str]:
+    """Collapse runs of identical transcript lines into one counted line."""
+
+    collapsed: list[str] = []
+    counts: list[int] = []
+    for line in lines:
+        if collapsed and collapsed[-1] == line:
+            counts[-1] += 1
+            continue
+        collapsed.append(line)
+        counts.append(1)
+    return [
+        line if count == 1 else f"{line}  ×{count}"
+        for line, count in zip(collapsed, counts)
+    ]
 
 
 def _rate_text(value: Any) -> str:
@@ -969,7 +1057,7 @@ def main() -> int:
     parser.add_argument("--local", action="store_true", help="read local fetched events instead of Kaggle live log")
     parser.add_argument("--replay", action="store_true", help="replay the whole local file, then follow")
     parser.add_argument("--steps", type=int, default=60, help="rolling window size for loss sparkline (default 60)")
-    parser.add_argument("--qa", action="store_true", help="show Soul Q/A transcripts when the trainer emits them")
+    parser.add_argument("--qa", action="store_true", help="expand teacher-forced payload transcript rows; a one-line verdict always prints")
     parser.add_argument("--qa-lines", type=int, default=12, help="transcript lines to keep on screen")
     parser.add_argument("--poll", type=float, default=2.0, help="local tail poll seconds")
     parser.add_argument(

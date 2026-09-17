@@ -68,6 +68,14 @@ def _arguments() -> argparse.Namespace:
         action="store_true",
         help="follow raw Kaggle kernel logs instead of the training dashboard",
     )
+    monitor.add_argument(
+        "--qa",
+        action="store_true",
+        help=(
+            "expand the teacher-forced payload transcript panel; the dashboard "
+            "always prints a one-line sample verdict"
+        ),
+    )
     fetch = commands.add_parser("fetch", help="download outputs into canonical cloud job State")
     fetch.add_argument("job_id")
     fetch.add_argument(
@@ -332,7 +340,7 @@ def main() -> int:
             print("Opening the live training dashboard.\n")
             from scripts.axon_training_watch import follow_job
 
-            return follow_job(job_id, qa=True)
+            return follow_job(job_id, qa=bool(args.qa))
         elif args.command == "jobs":
             value = adapter.job_catalog(refresh_live=False)
         elif args.command == "fetch":

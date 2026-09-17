@@ -43,6 +43,7 @@ from .first_form_curriculum import _episode_from_dict, _episode_to_dict
 from .living_reasoning_curriculum import (
     LivingReasoningEpisode,
     LivingReasoningTarget,
+    constant_baseline_floors,
     evaluate_living_episode,
     living_episode_objective,
 )
@@ -569,6 +570,18 @@ def sequential_living_objective(
 
 
 @torch.no_grad()
+def _merged_tick_histogram(
+    rows: list[dict[str, Any]], name: str
+) -> dict[str, int]:
+    """Merge per-tick answer histograms so the constant baseline is surface-wide."""
+
+    merged: dict[str, int] = {}
+    for row in rows:
+        for label, count in (row.get(name) or {}).items():
+            merged[str(label)] = merged.get(str(label), 0) + int(count)
+    return merged
+
+
 def evaluate_sequential_case(
     model: LivingReasoningCoreD64,
     case: SequentialFirstFormCase,
@@ -611,6 +624,18 @@ def evaluate_sequential_case(
         tick_loss_rows.append(float(loss.item()))
         soul = unroll.souls[-1]
     supervised = sum(row["supervised_phase_count"] for row in tick_rows)
+    constant_floors = constant_baseline_floors(
+        _merged_tick_histogram(
+            tick_rows, "constant_typed_emission_target_histogram"
+        ),
+        _merged_tick_histogram(
+            tick_rows, "constant_payload_transport_target_histogram"
+        ),
+        supervised_phase_count=supervised,
+        payload_supervised_phase_count=sum(
+            row["payload_supervised_phase_count"] for row in tick_rows
+        ),
+    )
     return {
         "supervised_phase_count": supervised,
         "typed_emission_exact_count": sum(
@@ -651,8 +676,24 @@ def evaluate_sequential_case(
                 sum(row["payload_teacher_forced_token_count"] for row in tick_rows),
             )
         ),
-        "constant_typed_emission_exact_floor": 0.0,
-        "constant_payload_transport_exact_floor": 0.0,
+        "constant_typed_emission_exact_floor": constant_floors[
+            "constant_typed_emission_exact_floor"
+        ],
+        "constant_payload_transport_exact_floor": constant_floors[
+            "constant_payload_transport_exact_floor"
+        ],
+        "constant_typed_emission_exact_count": constant_floors[
+            "constant_typed_emission_exact_count"
+        ],
+        "constant_payload_transport_exact_count": constant_floors[
+            "constant_payload_transport_exact_count"
+        ],
+        "constant_typed_emission_target_histogram": _merged_tick_histogram(
+            tick_rows, "constant_typed_emission_target_histogram"
+        ),
+        "constant_payload_transport_target_histogram": _merged_tick_histogram(
+            tick_rows, "constant_payload_transport_target_histogram"
+        ),
         "tick_typed_emission_exact": sum(
             row["typed_emission_exact_rate"] >= 1.0 for row in tick_rows
         )

@@ -85,6 +85,9 @@ def test_receipt_copy_alignment_gate_requires_same_stage_eos_retention() -> None
         "payload_content_accuracy": 1.0,
         "payload_content_constant_floor": 0.0,
         "payload_transport_exact_rate": 1.0,
+        "typed_emission_exact_rate": 1.0,
+        "constant_typed_emission_exact_floor": 1.0 / 3.0,
+        "constant_payload_transport_exact_floor": 1.0 / 3.0,
         "pair_exact_rates": {
             "position": 1.0,
             "copy_gate": 1.0,
@@ -161,6 +164,9 @@ def test_route_eos_balanced_stage_gate_reports_exact_objective_identity() -> Non
         "payload_content_accuracy": 1.0,
         "payload_content_constant_floor": 0.0,
         "payload_transport_exact_rate": 1.0,
+        "typed_emission_exact_rate": 1.0,
+        "constant_typed_emission_exact_floor": 1.0 / 3.0,
+        "constant_payload_transport_exact_floor": 1.0 / 3.0,
         "pair_exact_rates": {
             "position": 1.0,
             "copy_gate": 1.0,
@@ -211,6 +217,9 @@ def test_generate_head_eos_profile_has_distinct_objective_and_matching_gate() ->
         "payload_content_accuracy": 1.0,
         "payload_content_constant_floor": 0.0,
         "payload_transport_exact_rate": 1.0,
+        "typed_emission_exact_rate": 1.0,
+        "constant_typed_emission_exact_floor": 1.0 / 3.0,
+        "constant_payload_transport_exact_floor": 1.0 / 3.0,
         "pair_exact_rates": {
             "position": 1.0,
             "copy_gate": 1.0,
@@ -268,7 +277,9 @@ def test_copy_alignment_teaches_emission_before_termination() -> None:
         assert after["payload"] > 0.0, f"{later} must keep supervising payload"
 
     # Exactly the emit-nothing dead state: every case is "correct" only where
-    # the right answer is to emit nothing.
+    # the right answer is to emit nothing.  The floors are the real ones measured
+    # off the 72-case heldout surface, so typed exactness sitting at the floor is
+    # scored as the failure it is rather than as 33.3% of progress.
     empty_emitter = {
         "complete_field_coverage_rate": 1.0,
         "alignment_position_accuracy": 1.0,
@@ -276,6 +287,9 @@ def test_copy_alignment_teaches_emission_before_termination() -> None:
         "payload_content_accuracy": 0.0,
         "payload_content_constant_floor": 0.0,
         "payload_transport_exact_rate": 0.0,
+        "typed_emission_exact_rate": 1.0 / 3.0,
+        "constant_typed_emission_exact_floor": 1.0 / 3.0,
+        "constant_payload_transport_exact_floor": 1.0 / 3.0,
         "pair_exact_rates": {
             "position": 1.0,
             "copy_gate": 1.0,
@@ -298,6 +312,10 @@ def test_copy_alignment_teaches_emission_before_termination() -> None:
         for reason in decision["failures"]
     )
     assert any(
+        "does not beat the constant-answer floor" in reason
+        for reason in decision["failures"]
+    )
+    assert any(
         "changed-source content below" in reason for reason in decision["failures"]
     )
 
@@ -305,6 +323,7 @@ def test_copy_alignment_teaches_emission_before_termination() -> None:
         **empty_emitter,
         "payload_content_accuracy": 1.0,
         "payload_transport_exact_rate": 1.0,
+        "typed_emission_exact_rate": 1.0,
         "pair_exact_rates": {**empty_emitter["pair_exact_rates"], "content": 1.0},
     }
     assert (

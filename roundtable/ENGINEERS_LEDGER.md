@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-17T20:34:00+00:00
+Updated: 2026-09-17T21:20:00+00:00
 current_through_event_id:
-`evt-20260917T203355955734Z-copilot-constant-floor-attribution-correction`
+`evt-20260917T211900000000Z-copilot-constant-floor-and-monitor-trap-repair`
 
 Append order note: the two events carrying timestamps `19:10` and `19:30` sit
 *earlier* in the file than the `20:00` launch event, because the correction was
@@ -21,11 +21,43 @@ those revisions are superseded, not erased; canonical events remain the authorit
 
 ## Current mission and honest status
 
+**THE FALSE-PROGRESS TRAP IS FIXED — and the number we were reading as progress
+was the constant answer.** `evt-20260917T211900000000Z`. Two exactness floors
+(`constant_typed_emission_exact_floor`, `constant_payload_transport_exact_floor`)
+were literal `0.0` in three modules. They are now derived from the strongest
+fixed answer over the evaluated surface. On the real 72-case heldout FFCS
+surface the typed floor is **24/72 = 33.3%** and the transport floor is
+**8/24 = 33.3%**. The step-0 `typed_exact 33.3%` on the dashboard was therefore
+**exactly at the constant-answer floor**: an emit-nothing policy reported as a
+learned result. Full detail in *"2026-09-17 — the false-progress trap, the
+screen-hogging monitor, and a sync that never ran"* below.
+
+**Also found: mid-run checkpoint sync has never worked on any cloud job.** Every
+sync-enabled job in `State/training/cloud/jobs/*/outputs/axon_observability/**/sync_receipts.jsonl`
+records `"status": "disabled"` with `SyncCredentialsMissing` (or "mid-run sync
+environment is not set"). `sync_mid_run: true` in a recipe turns on internet and
+injects `AXON_SYNC_MID_RUN=1`, but the `AXON_KAGGLE_SYNC` Kaggle User Secret is
+never attached, so `_resolve_credentials()` fails, the failure is caught, and the
+receipt said only `SyncCredentialsMissing`. The reason is now recorded and
+rendered. **Jeff's decision:** attach the secret, or stop advertising sync.
+
+**IN FLIGHT:** Kaggle job
+`389df54d01fbda8ec6625b9019ff5fb1ec254c08360bf3d8cf4570c41ee45bd9`, revision
+`1a4bc416`, Tesla T4, 600-step emission-rung tranche, last seen at step 580/600
+(`loss: last 0.319 recent10 mean 0.781`), unaffected by local edits because its
+packet was already uploaded. The final heldout number read against the **real**
+floors is the actual verdict on the emission rung.
+
+**Prior state — the emission rung, launched on Kaggle.**
 **EMISSION RUNG IMPLEMENTED LOCALLY, THEN LAUNCHED ON KAGGLE — the rung moved
 but only partially: content now beats the constant floor and typed emission is
 exact 25% of the time, yet exact end-to-end payload transport is still 0.0.**
 (`evt-20260917T103000Z-copilot-emission-rung-implemented-and-local-gpu-tranche`;
 full detail in *"2026-09-17 — the emission rung implemented and run"* below.)
+**Caveat added 2026-09-17T21:19 (see the new section at the top of this file):
+the "25%" figure and every exactness percentage in this summary must be read
+against its constant-answer floor. 33.3% typed is the floor, so 25% is *below*
+the emit-nothing baseline.**
 
 **IN FLIGHT:** the same configuration now runs on Kaggle as a **600-step**
 tranche — job `389df54d01fbda8ec6625b9019ff5fb1ec254c08360bf3d8cf4570c41ee45bd9`,
@@ -1144,6 +1176,169 @@ disk: 40 files / 26,836 bytes / 40 `SoulLayer` records, **every
 `payload_base64` empty**, every `generation: 0`, every `parent_soul_id: null`.
 The sequencing rule stands: no Soul work ahead of or in parallel with the motor
 fix. This run is the test of whether the motor fix alone moves the rung.
+
+## 2026-09-17 — the false-progress trap, the screen-hogging monitor, and a sync that never ran
+
+`evt-20260917T211900000000Z-copilot-constant-floor-and-monitor-trap-repair`.
+Jeff: *"It sounds like a terrible mess setting us up for failure. please fix all
+hardcoded traps and build the trainer to be successful. also please the terrible
+monitor."* Plus: the Teacher-forced payload panel *"serves no purpose other than
+to take up most of the screen and spit in my face"*, and *"maybe you can find
+some insights here `D:\AxonGliksbot`"*.
+
+### What was hardcoded
+
+Two exactness floors were literal `0.0`:
+
+| file | symbol |
+|---|---|
+| `training/living_reasoning_curriculum.py` | `constant_typed_emission_exact_floor`, `constant_payload_transport_exact_floor` |
+| `training/sequential_first_form.py` | same two |
+| `scripts/train_living_reasoning_smoke.py` | same two |
+| `tests/test_living_reasoning_smoke_gates.py` | the fixture that certified them |
+
+A floor of `0.0` means *"any non-negative number beats the constant answer"* —
+including `0.0`. It is the strongest possible way to make a gate unfalsifiable.
+
+**Measured, with no model in the loop,** against the two live recipe manifests
+`State/training/curricula/ffcs_v1/a872278f…/manifest.json` and `12df4547…/manifest.json`:
+
+```
+episodes 288  splits {'train': 144, 'heldout': 72, 'regression': 72}
+heldout: supervised=72 delta=24
+  constant_typed_emission_exact_count 24.0  floor 0.3333
+  constant_payload_transport_exact_count 8.0 floor 0.3333
+  top typed keys  no_op 24, abstain 24, delete|response_draft|1|2| 8, then 16 singletons
+  top payloads    '' x8, then 16 singletons ('Q', ']', 'Z', 'l', …)
+train:   supervised=144 delta=48, floors 0.3333 / 0.3333
+```
+
+- `constant_typed_emission_exact_floor = 24/72 = 33.3%`. The observed step-0
+  `typed_exact 33.3%` is **exactly at the floor** — zero learned typed behaviour
+  displayed as a result.
+- `constant_payload_transport_exact_floor = 8/24 = 33.3%`. The observed
+  transport `0.0%` is **below** the emit-nothing baseline.
+- **56 of 72 = 77.8% of the surface is satisfied by silence.** `copy_alignment`
+  weights `decision/operation/region/start/end/alignment_eos_gate = 0.0`, so the
+  48 `no_op` + `abstain` targets contribute **zero gradient** while scoring
+  `typed_exact` for free. Only **16 of 72** cases demand emitting a character.
+- This is why the training loss fell 2.2 → 0.78 while heldout emission stayed
+  empty: the objective is consistent with **learning to be silent**.
+
+### What changed
+
+- `constant_baseline_target_key(target)` — non-DELTA keys on
+  `decision.value`; DELTA keys on the full `decision|operation|region|start|end|payload`
+  tuple (different tuple lengths make collision impossible).
+- `constant_baseline_floors(typed_histogram, payload_histogram, …)` returns
+  `max(histogram, default=0) / max(1, denominator)`. Histograms are **merged
+  across rows** (`_merge_row_histogram`, `_merged_tick_histogram`, `merged_histogram`
+  in `aggregate`): the real surface has ~1 supervised phase per row, so per-row
+  maxima would sum to 1.0 and no floor would ever be beatable.
+- `beat_floor(rate_metric, floor_metric, *, …)` in
+  `training/foundation_motor_curriculum.py` replaces direct probe indexing in the
+  `copy_alignment` and `transport_eos` gate branches. **Fail-closed, never
+  raises:** a missing metric appends *"cannot attest `<rate>` against `<floor>`:
+  the probe does not carry it"*. This also fixed 5 real `KeyError` test failures.
+- Both floors now travel on the `evaluated` progress event. Previously only
+  `constant_payload_token_accuracy_floor` reached the wire, so **no dashboard
+  could ever have shown them** even with correct rendering.
+
+### The monitor
+
+Jeff's screen pain had a call site: `scripts/axon_kaggle.py`'s `monitor` forced
+`follow_job(job_id, qa=True)`. It is now `qa=bool(args.qa)` with a `--qa` flag.
+
+- The QA panel is **opt-in**; by default there is one line:
+  `qa: sample of N teacher-forced cases @phase step S: E/N exact  (sample, not the full surface)`.
+  The wording is deliberate: `qa_transcripts` are capped `[:12]` then `[:8]` before
+  going on the wire, so the panel was never the full surface.
+- Transcripts are **de-duplicated by content** — the trainer reports each
+  evaluation twice (progress event + eval event), which is why 4 unique cases
+  rendered as 8 rows.
+- Every exactness rate now renders **beside its floor** with a verdict:
+  `typed_exact 33.3% floor 33.3% AT-FLOOR` (GREEN = BEATEN, YELLOW = AT-FLOOR,
+  RED = BELOW). A bare percentage is no longer possible.
+- The eval block is labelled `eval[{phase} @step {n}]`. The trainer evaluates
+  **only at a tranche's start and end**, so a step-0 number sat under a
+  step-554 banner for 554 steps. Labelling fixed; periodic evaluation not
+  implemented.
+- Sync receipts now surface their `reason`, and a `kernel disabled` note renders
+  in YELLOW instead of reading as a shrug.
+
+### Mid-run sync has never worked
+
+`sync_mid_run: true` → `kaggle_adapter.py` sets `enable_internet: true` and
+injects `AXON_SYNC_MID_RUN=1` + `AXON_SYNC_DATASET=…-sync`. But
+`cloud_bundle.py:_resolve_credentials()` needs `KAGGLE_USERNAME`/`KAGGLE_KEY`
+**or** the `AXON_KAGGLE_SYNC` Kaggle User Secret, and raises
+`SyncCredentialsMissing`. Every receipt in
+`State/training/cloud/jobs/*/outputs/axon_observability/**/sync_receipts.jsonl`
+says `"status": "disabled"`. `note_disabled` recorded only
+`type(exc).__name__`, so all four distinct failure conditions looked identical;
+it now records the exception message (built from the secret label, never a
+value). **No launcher preflight warns that a sync-enabled recipe has no secret.**
+
+### `D:\AxonGliksbot` — prior art worth keeping
+
+Delegated mining pass. Five load-bearing findings:
+
+1. **Its only measured non-empty emitter supervises a known slot.** `fill_acc=0.967 n=60`,
+   peaks `1.000`; `[CF_PROBE] step=100000 orig=23/24 swap=24/24 zero=24/24 SOUL_IS_READ`;
+   `core d=64 h=1 l=2 ffn=16384 params=6,605,188`. `fill_acc` is **exact whole-entity
+   match**. AdamW `lr=1e-3, betas=(0.9,0.999)`, `clip_grad_norm_(…,1.0)`, batch=1, 100k steps.
+2. **The recipe:** discrete per-slot CE over the codebook through a
+   **gradient-carrying egress** (`field_recall.py:56-63`, `# (..., 16) grad ON`); entity
+   chars weighted `1.0` vs pad `PAD_W=0.1` (`:38-41`, `:137-147`), because *at full weight
+   the cheap minimum is "predict space everywhere" (CE floor ≈1.1, exact-acc 0)*. It had
+   already been burned once by `RailEncoder.project_out` being wrapped in `no_grad()` —
+   **no gradient ever reached the core**.
+3. **That lab has no autoregressive emission and no stop token.** Every proven lane is
+   *fill-in-place at a masked draft region*. Closest termination supervision is a
+   `length_head`. Our termination-head problem is not solved anywhere in that repo.
+4. **The direct analog of our trap, already burned there:**
+   *"`capsule_core_v2` collapsed to a padded-MSE constant-output solution and was caught
+   at 8,000 steps"* (`docs/SOURCE_OF_TRUTH.md:1285-1287`) → *continuous reconstruction
+   losses cannot be the primary objective for discrete substrate content*;
+   *"losses must make constant-output collapse unprofitable"* (`:970`); *"the task metric
+   climbs above the constant-output floor BEFORE any long run is launched"* (`:962`).
+   Anti-constant mechanism to clone: frozen substrate prototypes + CE, plus an
+   identity-swap contrastive margin.
+5. **Readiness-gated ramp beats a clock ramp.** *"Clock-based ramping piled md=3 on a core
+   that hadn't learned md=1 and pinned acc at 0"*; the fix gates on
+   `md_acc >= 0.5` with `ramp_min_steps=4000`, visible as
+   `[RAMP] md -> 2 (level 1 mastered @ 0.583, step 22000)`.
+
+Also: that lab's Soul is **d_model thought vectors** (`soul_v2.py`), never 16D and never
+through the rail; `exhale()` returns `thought.detach()`; hot→warm/warm→cold run under
+`no_grad()`; its field contract has **10 regions** and **predates** our 11-region
+`shared-field-v3` — do not treat its schema as newer. Latent bug to avoid copying:
+`return exact / total if total else 1.0` — empty text scores a perfect roundtrip gate.
+That lab never had a training dashboard at all.
+
+### Verification
+
+- `py_compile` on all edited modules → exit 0.
+- Focused 9-suite run → **120 passed, exit 0**;
+  `tests/test_constant_baseline_floors.py` → **3 passed** (including the real-`State`
+  measurement); `tests/test_training_watch.py` → **20 passed**;
+  `tests/test_foundation_motor_objective_identity.py` + `tests/test_termination_head_route.py` → **40 passed**.
+- `scan_active_capacity_poison(Path("."))` → 147 files, `violations: []`, `passed: True`.
+- `tests/test_living_reasoning_smoke_gates.py` previously asserted that
+  `typed=1/3, payload=1/3` **counts as progress**. Under the real floors that is
+  exactly AT the floor. Split into
+  `test_matching_the_constant_answer_is_not_progress` (must be False) and
+  `test_nonzero_exact_output_is_progress_not_serving_readiness` (True at 2/3).
+
+### Open for Jeff
+
+(a) Should the 48 zero-weight `no_op` + `abstain` phases leave the
+`typed_emission_exact_rate` denominator, or should the Stage-0 surface be
+rebalanced toward emission? Only 16/72 cases currently demand a character.
+(b) Attach `AXON_KAGGLE_SYNC`, or stop advertising sync on recipes that cannot use it?
+(c) Adopt the readiness-gated difficulty ramp and the grad-carrying-egress +
+pad-weighted-CE recipe from `D:\AxonGliksbot`?
+(d) Should `evaluation` run periodically inside a tranche instead of only at its ends?
 
 ## Paused lineages (preserved as diagnostic evidence, untouched)
 

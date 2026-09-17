@@ -58,6 +58,7 @@ from training import (
     build_living_reasoning_preflight,
     build_living_reasoning_smoke_curriculum,
     candidate_a_config,
+    constant_baseline_floors,
     d64_tournament_metric_computation,
     decide_foundation_motor_mastery,
     decide_foundation_motor_v2_checkpoint_retention,
@@ -1741,6 +1742,39 @@ def main() -> int:
                 def total(name: str) -> float:
                     return sum(float(row.get(name, 0.0)) for row in rows)
 
+                def merged_histogram(name: str) -> dict[str, int]:
+                    """Merge per-case answer histograms into one surface histogram.
+
+                    Per-case rates cannot be averaged into a constant-emitter
+                    baseline: the strongest fixed answer must be found across the
+                    whole surface, not inside each evaluated case.
+                    """
+
+                    merged: dict[str, int] = {}
+                    for row in rows:
+                        for item in row.get(name) or ():
+                            if isinstance(item, (list, tuple)) and len(item) == 2:
+                                label, count = str(item[0]), int(item[1])
+                            elif isinstance(item, dict):
+                                label, count = str(item["key"]), int(item["count"])
+                            else:
+                                continue
+                            merged[label] = merged.get(label, 0) + count
+                    return merged
+
+                typed_target_histogram = merged_histogram(
+                    "constant_typed_emission_target_histogram"
+                )
+                payload_target_histogram = merged_histogram(
+                    "constant_payload_transport_target_histogram"
+                )
+                constant_floors = constant_baseline_floors(
+                    typed_target_histogram,
+                    payload_target_histogram,
+                    supervised_phase_count=supervised_phase_count,
+                    payload_supervised_phase_count=payload_supervised_phase_count,
+                )
+
                 payload_content_count = total("payload_teacher_forced_content_count")
                 payload_content_correct = total("payload_teacher_forced_content_correct")
                 payload_eos_count = total("payload_teacher_forced_eos_count")
@@ -1782,8 +1816,13 @@ def main() -> int:
                     "supervised_phase_count": supervised_phase_count,
                     "payload_supervised_phase_count": payload_supervised_phase_count,
                     "phase_output_count": phase_output_count,
-                    "constant_typed_emission_exact_floor": 0.0,
-                    "constant_payload_transport_exact_floor": 0.0,
+                    "constant_typed_emission_target_histogram": dict(
+                        sorted(typed_target_histogram.items())
+                    ),
+                    "constant_payload_transport_target_histogram": dict(
+                        sorted(payload_target_histogram.items())
+                    ),
+                    **constant_floors,
                     "payload_teacher_forced_token_accuracy": (
                         payload_token_correct / max(1, payload_token_count)
                     ),
@@ -2013,6 +2052,12 @@ def main() -> int:
                 ],
                 constant_payload_token_accuracy_floor=initial_evaluation[
                     "constant_payload_token_accuracy_floor"
+                ],
+                constant_typed_emission_exact_floor=initial_evaluation[
+                    "constant_typed_emission_exact_floor"
+                ],
+                constant_payload_transport_exact_floor=initial_evaluation[
+                    "constant_payload_transport_exact_floor"
                 ],
                 evaluated_case_count=initial_evaluation["evaluated_case_count"],
                 qa_transcripts=initial_evaluation.get("qa_transcripts", [])[:8],
@@ -2330,6 +2375,12 @@ def main() -> int:
                 ],
                 constant_payload_token_accuracy_floor=final_evaluation[
                     "constant_payload_token_accuracy_floor"
+                ],
+                constant_typed_emission_exact_floor=final_evaluation[
+                    "constant_typed_emission_exact_floor"
+                ],
+                constant_payload_transport_exact_floor=final_evaluation[
+                    "constant_payload_transport_exact_floor"
                 ],
                 evaluated_case_count=final_evaluation["evaluated_case_count"],
                 qa_transcripts=final_evaluation.get("qa_transcripts", [])[:8],

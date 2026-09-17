@@ -411,6 +411,17 @@ def test_teacher_forced_gate_uses_the_strongest_constant_category_floor() -> Non
     assert result["payload_teacher_forced_token_count"] == sum(counts)
     assert result["constant_payload_token_accuracy_floor"] == pytest.approx(max(counts) / sum(counts))
     assert result["constant_payload_token_accuracy_floor"] > 1.0 / (model.eos_index + 1)
+    # These two floors were literal 0.0 until 2026-09-17, which let the
+    # emit-nothing answer be reported as progress.  They must stay derived from
+    # the strongest fixed answer over the whole evaluated surface.
+    typed_histogram = result["constant_typed_emission_target_histogram"]
+    payload_histogram = result["constant_payload_transport_target_histogram"]
+    assert result["constant_typed_emission_exact_floor"] == pytest.approx(
+        max(typed_histogram.values()) / result["supervised_phase_count"]
+    )
+    assert result["constant_payload_transport_exact_floor"] == pytest.approx(
+        max(payload_histogram.values()) / result["payload_supervised_phase_count"]
+    )
 
 
 def test_living_reasoning_preflight_binds_all_launch_evidence(tmp_path: Path) -> None:

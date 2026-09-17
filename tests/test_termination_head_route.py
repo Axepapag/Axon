@@ -728,6 +728,11 @@ def _transport_probe(*, transport_exact: float) -> dict:
         "payload_eos_accuracy": 1.0,
         "payload_transport_exact_rate": transport_exact,
         "payload_content_constant_floor": 0.125,
+        # Real floors measured over the 72-case heldout surface: 24/72 typed and
+        # 8/24 transport.  A probe that carries no floor cannot attest anything.
+        "typed_emission_exact_rate": 1.0,
+        "constant_typed_emission_exact_floor": 1.0 / 3.0,
+        "constant_payload_transport_exact_floor": 1.0 / 3.0,
         "pair_exact_rates": {
             "position": 1.0,
             "copy_gate": 1.0,

@@ -23,7 +23,11 @@ from runtime.heart import ProposalPass, ReasoningDecision, ReasoningOperationKin
 from substrate import encode_unicode_text
 
 from .first_form_curriculum import FirstFormCase, FirstFormCurriculum, TeachingEligibility, _workspace
-from .living_reasoning_curriculum import LivingReasoningEpisode, LivingReasoningTarget
+from .living_reasoning_curriculum import (
+    LivingReasoningEpisode,
+    LivingReasoningTarget,
+    constant_baseline_floors,
+)
 
 FOUNDATION_MOTOR_STAGE = "typed_motor_v1"
 FOUNDATION_MOTOR_SOURCE_ID = canonical_sha256(
@@ -867,6 +871,18 @@ def verify_foundation_motor_curriculum(curriculum: FirstFormCurriculum) -> None:
         raise ValueError("every foundation motor pair requires variants zero and one")
 
 
+def _merge_row_histogram(
+    selected: list[Any], name: str
+) -> dict[str, int]:
+    """Merge per-case answer histograms into the whole-probe surface histogram."""
+
+    merged: dict[str, int] = {}
+    for _episode, row, _diagnostic in selected:
+        for label, count in (row.get(name) or {}).items():
+            merged[str(label)] = merged.get(str(label), 0) + int(count)
+    return merged
+
+
 def foundation_motor_probe(
     episodes: Sequence[LivingReasoningEpisode], rows: Sequence[Mapping[str, Any]]
 ) -> dict[str, Any] | None:
@@ -1389,6 +1405,16 @@ def foundation_motor_v2_probe(
     content_count = sum(
         int(row["payload_teacher_forced_content_count"]) for _e, row, _d in selected
     )
+    merged_floors = constant_baseline_floors(
+        _merge_row_histogram(selected, "constant_typed_emission_target_histogram"),
+        _merge_row_histogram(selected, "constant_payload_transport_target_histogram"),
+        supervised_phase_count=sum(
+            float(row["supervised_phase_count"]) for _e, row, _d in selected
+        ),
+        payload_supervised_phase_count=sum(
+            float(row["payload_supervised_phase_count"]) for _e, row, _d in selected
+        ),
+    )
     return {
         "schema": "axon-foundation-motor-v2-probe-v1",
         "stage": FOUNDATION_MOTOR_V2_STAGE,
@@ -1411,6 +1437,15 @@ def foundation_motor_v2_probe(
             "payload_teacher_forced_content_count",
         ),
         "payload_content_constant_floor": max(target_counts) / max(1, content_count),
+        "typed_emission_exact_rate": rate(
+            "typed_emission_exact_count", "supervised_phase_count"
+        ),
+        "constant_typed_emission_exact_floor": merged_floors[
+            "constant_typed_emission_exact_floor"
+        ],
+        "constant_payload_transport_exact_floor": merged_floors[
+            "constant_payload_transport_exact_floor"
+        ],
         "payload_eos_accuracy": rate(
             "payload_teacher_forced_eos_correct", "payload_teacher_forced_eos_count"
         ),
@@ -1727,6 +1762,30 @@ def decide_foundation_motor_v2_stage(
                         f"{observed_threshold}"
                     )
 
+            def beat_floor(
+                rate_metric: str,
+                floor_metric: str,
+                *,
+                observed_probe: Mapping[str, Any] = probe,
+                observed_label: str = label,
+            ) -> None:
+                # An absent metric must never read as a pass.  Failing closed
+                # with a message keeps the verdict honest; raising KeyError here
+                # would turn a gate decision into a crash.
+                if rate_metric not in observed_probe or floor_metric not in observed_probe:
+                    failures.append(
+                        f"{observed_label} cannot attest {rate_metric} against "
+                        f"{floor_metric}: the probe does not carry it"
+                    )
+                    return
+                if not (
+                    float(observed_probe[rate_metric]) > float(observed_probe[floor_metric])
+                ):
+                    failures.append(
+                        f"{observed_label} {rate_metric} does not beat the "
+                        f"constant-answer floor {floor_metric}"
+                    )
+
             if training_stage == "copy_alignment":
                 require("alignment_position_accuracy")
                 require("alignment_copy_gate_accuracy")
@@ -1745,6 +1804,14 @@ def decide_foundation_motor_v2_stage(
                     > float(probe["payload_content_constant_floor"])
                 ):
                     failures.append(f"{label} payload content does not beat constant floor")
+                # A constant-answer lineage collects every no-op case for free,
+                # so typed exactness must be compared against the strongest
+                # fixed answer rather than against an assumed zero.
+                beat_floor("typed_emission_exact_rate", "constant_typed_emission_exact_floor")
+                beat_floor(
+                    "payload_transport_exact_rate",
+                    "constant_payload_transport_exact_floor",
+                )
                 if receipt_continuation:
                     require("payload_eos_accuracy")
                     if not eos_generate_head_route:
@@ -1775,6 +1842,11 @@ def decide_foundation_motor_v2_stage(
                     > float(probe["payload_content_constant_floor"])
                 ):
                     failures.append(f"{label} payload content does not beat constant floor")
+                beat_floor("typed_emission_exact_rate", "constant_typed_emission_exact_floor")
+                beat_floor(
+                    "payload_transport_exact_rate",
+                    "constant_payload_transport_exact_floor",
+                )
             elif training_stage == "decision":
                 if any(float(value) < threshold for value in probe["per_decision_accuracy"].values()):
                     failures.append(f"{label} per-decision accuracy below {threshold}")

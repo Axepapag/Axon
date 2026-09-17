@@ -569,6 +569,61 @@ def living_episode_objective(
     return total, unroll, tuple(item[1] for item in phase_results)
 
 
+def constant_baseline_target_key(target: LivingReasoningTarget) -> str:
+    """Name the constant answer a zero-skill emitter would have to give.
+
+    A constant emitter repeats one answer for every phase, so its exact score is
+    the frequency of the most common target answer.  A non-delta phase is
+    scored on its decision alone, which is why an always-``no_op`` lineage
+    already collects every no-op case without emitting anything; a delta phase
+    is scored on the whole tuple, so its key carries the full address.
+    """
+
+    if target.decision is not ReasoningDecision.DELTA:
+        return str(target.decision.value)
+    return "|".join(
+        (
+            str(target.decision.value),
+            str(target.operation.value),
+            str(target.region.value),
+            str(target.start),
+            str(target.end),
+            target.payload,
+        )
+    )
+
+
+def constant_baseline_floors(
+    typed_target_histogram: Mapping[str, int],
+    payload_target_histogram: Mapping[str, int],
+    *,
+    supervised_phase_count: float,
+    payload_supervised_phase_count: float,
+) -> dict[str, float]:
+    """Return the strongest constant-emitter score for each exact metric.
+
+    These are baselines, not thresholds: a lineage at or below them has learned
+    nothing that a fixed answer could not already produce.
+    """
+
+    return {
+        "constant_typed_emission_exact_count": float(
+            max(typed_target_histogram.values(), default=0)
+        ),
+        "constant_typed_emission_exact_floor": max(
+            typed_target_histogram.values(), default=0
+        )
+        / max(1.0, supervised_phase_count),
+        "constant_payload_transport_exact_count": float(
+            max(payload_target_histogram.values(), default=0)
+        ),
+        "constant_payload_transport_exact_floor": max(
+            payload_target_histogram.values(), default=0
+        )
+        / max(1.0, payload_supervised_phase_count),
+    }
+
+
 @torch.no_grad()
 def evaluate_living_episode(
     model: LivingReasoningCoreD64,
@@ -632,10 +687,14 @@ def evaluate_living_episode(
         dtype=torch.long,
         device=model.device,
     )
+    typed_target_histogram: dict[str, int] = {}
+    payload_target_histogram: dict[str, int] = {}
     for output, target in zip(unroll.outputs, episode.targets, strict=True):
         if target.supervision_weight <= 0:
             continue
         supervised += 1
+        typed_key = constant_baseline_target_key(target)
+        typed_target_histogram[typed_key] = typed_target_histogram.get(typed_key, 0) + 1
         decision = tuple(ReasoningDecision)[
             int(output.decision_logits.argmax(dim=-1).item())
         ]
@@ -651,6 +710,10 @@ def evaluate_living_episode(
         }
         if target.decision is ReasoningDecision.DELTA:
             payload_count += 1
+            payload_key = target.payload
+            payload_target_histogram[payload_key] = (
+                payload_target_histogram.get(payload_key, 0) + 1
+            )
             operation = tuple(ReasoningOperationKind)[
                 int(output.operation_logits.argmax(dim=-1).item())
             ]
@@ -846,6 +909,12 @@ def evaluate_living_episode(
         unroll.outputs
     )
     constant_token_correct = int(payload_target_counts.max().item())
+    floors = constant_baseline_floors(
+        typed_target_histogram,
+        payload_target_histogram,
+        supervised_phase_count=float(supervised),
+        payload_supervised_phase_count=float(payload_count),
+    )
     return {
         "supervised_phase_count": float(supervised),
         "typed_emission_exact_count": float(typed_exact),
@@ -906,8 +975,13 @@ def evaluate_living_episode(
         "end_correct": end_correct,
         "phase_diagnostics": phase_diagnostics,
         "complete_field_coverage_rate": coverage,
-        "constant_typed_emission_exact_floor": 0.0,
-        "constant_payload_transport_exact_floor": 0.0,
+        "constant_typed_emission_target_histogram": dict(
+            sorted(typed_target_histogram.items())
+        ),
+        "constant_payload_transport_target_histogram": dict(
+            sorted(payload_target_histogram.items())
+        ),
+        **floors,
         "constant_payload_token_accuracy_floor": constant_token_correct
         / max(1, payload_token_count),
         "constant_payload_content_accuracy_floor": (

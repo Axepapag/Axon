@@ -297,3 +297,168 @@ def test_evaluation_transcripts_without_attribution_still_render():
     plain = re.sub(r"\x1b\[[0-9;]*m", "", qa_line)
     assert "[" not in plain
     assert "@" not in plain
+
+
+def _plain(text: str) -> str:
+    return re.sub(r"\x1b\[[0-9;]*m", "", text)
+
+
+def test_a_rate_at_its_constant_floor_is_not_rendered_as_progress():
+    """A bare percentage reads as progress even when nothing was learned.
+
+    The emit-nothing policy scores every no-op and delete case for free, so its
+    typed exactness sits exactly at the constant-answer floor.  The dashboard
+    must say so rather than print 33.3% and let the operator infer progress.
+    """
+    watcher = _watcher()
+    watcher.consume(
+        _event(
+            "eval-initial",
+            "evaluated",
+            phase="initial",
+            global_step=0,
+            heldout_mean_loss=5.206,
+            typed_emission_exact_rate=1.0 / 3.0,
+            payload_transport_exact_rate=0.0,
+            payload_teacher_forced_token_accuracy=0.0,
+            constant_typed_emission_exact_floor=1.0 / 3.0,
+            constant_payload_transport_exact_floor=1.0 / 3.0,
+            constant_payload_token_accuracy_floor=0.436,
+        )
+    )
+    line = next(line for line in watcher.render().splitlines() if "eval[" in line)
+    plain = _plain(line)
+    assert "typed_exact 33.3% floor 33.3% AT-FLOOR" in plain
+    assert "payload_exact 0.0% floor 33.3% BELOW" in plain
+
+
+def test_a_rate_above_its_floor_is_rendered_as_beaten():
+    watcher = _watcher()
+    watcher.consume(
+        _event(
+            "eval-final",
+            "evaluated",
+            phase="final",
+            global_step=600,
+            heldout_mean_loss=1.1,
+            typed_emission_exact_rate=0.9,
+            payload_transport_exact_rate=0.8,
+            payload_teacher_forced_token_accuracy=0.95,
+            constant_typed_emission_exact_floor=1.0 / 3.0,
+            constant_payload_transport_exact_floor=1.0 / 3.0,
+            constant_payload_token_accuracy_floor=0.436,
+        )
+    )
+    plain = _plain(next(line for line in watcher.render().splitlines() if "eval[" in line))
+    assert "typed_exact 90.0% floor 33.3% BEATEN" in plain
+    assert "payload_exact 80.0% floor 33.3% BEATEN" in plain
+    assert "token_acc 95.0% floor 43.6% BEATEN" in plain
+    assert plain.count("BEATEN") == 3
+
+
+def test_a_stale_evaluation_names_the_step_it_was_measured_at():
+    """The smoke trainer only evaluates at a tranche's start and end."""
+    watcher = _watcher()
+    watcher.consume(_event("eval", "evaluated", phase="initial", global_step=0, heldout_mean_loss=5.2))
+    for step in (300, 554):
+        watcher.consume(
+            _event(f"step-{step}", "training", global_step=step, loss=1.0, wall_seconds=7.2)
+        )
+    plain = _plain(next(line for line in watcher.render().splitlines() if "eval[" in line))
+    assert "eval[initial @step 0]" in plain
+
+
+def test_a_disabled_sync_receipt_states_why_it_is_disabled():
+    """`kernel disabled` alone cannot be acted on; the receipt carries a reason."""
+    watcher = _watcher()
+    watcher.consume(
+        {
+            "schema": "axon-mid-run-sync-receipt-v1",
+            "status": "disabled",
+            "details": {"reason": "sync credentials unavailable: SyncCredentialsMissing"},
+        }
+    )
+    rendered = watcher.render()
+    assert "disabled (sync credentials unavailable: SyncCredentialsMissing)" in rendered
+
+
+def test_the_teacher_forced_panel_is_opt_in_with_a_one_line_verdict():
+    """The transcript panel used to consume most of the screen by default."""
+    watcher = Watcher(window=60, show_qa=False, transcript_lines=12)
+    watcher.consume(
+        _event(
+            "eval-initial",
+            "evaluated",
+            phase="initial",
+            global_step=0,
+            heldout_mean_loss=5.206,
+            qa_transcripts=[
+                {
+                    "episode_id": "1" * 64,
+                    "prompt": "Insert the current SOURCE_SYMBOL between the brackets.",
+                    "predicted_payload": "",
+                    "expected_payload": "Α",
+                    "exact_match": False,
+                },
+                {
+                    "episode_id": "1" * 64,
+                    "prompt": "Insert the current SOURCE_SYMBOL between the brackets.",
+                    "predicted_payload": "",
+                    "expected_payload": "Α",
+                    "exact_match": False,
+                },
+            ],
+        )
+    )
+    rendered = watcher.render()
+    assert "not autonomous conversation" not in rendered
+    assert "Q:" not in rendered
+    verdict = next(line for line in rendered.splitlines() if "qa:" in line)
+    plain = _plain(verdict)
+    assert "sample of 1 teacher-forced cases" in plain
+    assert "0/1 exact" in plain
+    assert "--qa for rows" in plain
+
+
+def test_expanded_transcript_panel_collapses_repeated_cases():
+    watcher = _watcher()
+    watcher.consume(
+        _event(
+            "eval-initial",
+            "evaluated",
+            phase="initial",
+            global_step=0,
+            heldout_mean_loss=5.206,
+            qa_transcripts=[
+                {
+                    "episode_id": "9" * 64,
+                    "prompt": "Delete exactly response position 1; emit no replacement.",
+                    "predicted_payload": "",
+                    "expected_payload": "",
+                    "exact_match": False,
+                }
+            ],
+        )
+    )
+    # The trainer reports each evaluation twice; content keying must dedupe it.
+    watcher.consume(
+        _event(
+            "eval-mirror",
+            "evaluated",
+            phase="initial",
+            global_step=0,
+            heldout_mean_loss=5.206,
+            qa_transcripts=[
+                {
+                    "episode_id": "9" * 64,
+                    "prompt": "Delete exactly response position 1; emit no replacement.",
+                    "predicted_payload": "",
+                    "expected_payload": "",
+                    "exact_match": False,
+                }
+            ],
+        )
+    )
+    rendered = watcher.render()
+    assert rendered.count("Delete exactly response position 1") == 1
+    assert watcher.qa_shown == 1

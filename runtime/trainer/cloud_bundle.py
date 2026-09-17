@@ -594,7 +594,12 @@ class MidRunSyncHook:
                 # Permanent for this kernel: disable with one journal note and
                 # let training continue exactly as if sync were never enabled.
                 self._enabled = False
-                self.note_disabled(f"sync credentials unavailable: {type(exc).__name__}")
+                # The exception message names which credential condition failed
+                # (no client / secret not attached / malformed / empty).  Keeping
+                # only the exception *type* made every disabled sync look
+                # identical, which hid the fact that this path never once ran.
+                # The message is built from the secret label and never a value.
+                self.note_disabled(f"sync credentials unavailable: {exc}")
             except Exception as exc:
                 # Transient provider/network failure: receipt only, retried at
                 # the next boundary with an extended range.  Never raises.
