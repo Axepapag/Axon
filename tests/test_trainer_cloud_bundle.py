@@ -597,6 +597,21 @@ def test_fetch_falls_back_to_legacy_per_file_when_no_bundle(tmp_path) -> None:
     assert sum(call[:3] == ("kaggle", "kernels", "output") for call in runner.calls) == 2
 
 
+def test_fetch_rejects_an_empty_download_instead_of_reporting_success(tmp_path) -> None:
+    """A still-running kernel downloads an empty tree without raising."""
+    state = tmp_path / "State"
+    _job(state)
+    runner = _FakeKaggle()
+    adapter = _adapter(tmp_path, state, runner)
+    with pytest.raises(CloudPacketError, match="no outputs were downloaded"):
+        adapter.fetch(JOB_ID)
+
+    record = json.loads(
+        (state / "training" / "cloud" / "jobs" / JOB_ID / "job.json").read_text(encoding="utf-8")
+    )
+    assert record["phase"] == "submitted"
+
+
 def test_fetch_rejects_a_bundle_receipt_belonging_to_another_job(tmp_path) -> None:
     state = tmp_path / "State"
     _job(state)

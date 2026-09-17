@@ -805,6 +805,14 @@ class KaggleTrainerAdapter:
         shutil.rmtree(temp_target, ignore_errors=True)
         return True
 
+    def _kernel_status(self, kernel_ref: str) -> str:
+        """Best-effort provider status, used only to explain a failed fetch."""
+        try:
+            completed = self._run(("kaggle", "kernels", "status", kernel_ref))
+        except Exception as exc:  # noqa: BLE001 - a status probe must never mask the fetch error
+            return f"status unavailable: {exc}"
+        return completed.stdout.strip() or "status unknown"
+
     def fetch(self, job_id: str, *, bundle: bool = True) -> dict[str, Any]:
         record = read_job_record(self.state_root, job_id)
         kernel_ref = record.get("kernel_ref")
@@ -826,6 +834,15 @@ class KaggleTrainerAdapter:
             self._run(("kaggle", "kernels", "output", str(kernel_ref), "-p", str(temp_target), "-o"))
             self._move_into_place(temp_target, destination)
             shutil.rmtree(temp_target, ignore_errors=True)
+        # A kernel that is still running (or that produced nothing) downloads as
+        # an empty tree without an error, so the fetch would otherwise report
+        # success and stamp the job as outputs_fetched while holding no outputs.
+        if not any(path.is_file() for path in destination.rglob("*")):
+            status = self._kernel_status(str(kernel_ref))
+            raise CloudPacketError(
+                f"no outputs were downloaded for job {job_id} "
+                f"({kernel_ref} reports {status}); the kernel is probably still running"
+            )
         result_path = destination / "axon_job_result.json"
         result = None
         if result_path.is_file():
