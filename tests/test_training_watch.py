@@ -299,6 +299,92 @@ def test_evaluation_transcripts_without_attribution_still_render():
     assert "@" not in plain
 
 
+def test_transcript_failure_names_the_binding_condition_and_tallies_it():
+    """A row can reproduce the expected payload and still fail on the stop token.
+
+    ``exact_match`` is ``terminated and payload == target.payload``
+    (living_reasoning_curriculum.py:789), so an empty expected payload answered
+    with nothing renders as ``A: '' (expected '') x`` and reads as a broken
+    display.  The failure must name why, and the verdict line must tally the
+    reasons so a run's binding constraint is visible without expanding rows.
+    """
+    watcher = _watcher()
+    watcher.consume(
+        _event(
+            "eval-final",
+            "evaluated",
+            phase="final",
+            global_step=600,
+            heldout_mean_loss=1.056,
+            qa_transcripts=[
+                {
+                    "prompt": "Delete exactly response position 1; emit no replacement.",
+                    "predicted_payload": "",
+                    "expected_payload": "",
+                    "exact_match": False,
+                    "terminated": False,
+                    "decision": "DELTA",
+                    "operation": "REPLACE",
+                    "region": "TOOL_RESULTS",
+                },
+                {
+                    "prompt": "Insert the current SOURCE_SYMBOL between the brackets.",
+                    "predicted_payload": "",
+                    "expected_payload": "Α",
+                    "exact_match": False,
+                    "terminated": False,
+                    "decision": "DELTA",
+                    "operation": "REPLACE",
+                    "region": "TOOL_RESULTS",
+                },
+                {
+                    "prompt": "Insert the current SOURCE_SYMBOL between the brackets.",
+                    "predicted_payload": "Α",
+                    "expected_payload": "Α",
+                    "exact_match": False,
+                    "terminated": False,
+                    "decision": "DELTA",
+                },
+            ],
+        )
+    )
+    rendered = watcher.render()
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", rendered)
+    # The empty-expected row that matches character for character is the stop
+    # token and nothing else.
+    assert "A: '' ✗ stop" in plain
+    assert "A: '' (expected 'Α') ✗ payload+stop" in plain
+    # A row that reproduces its expected payload carries no redundant echo of it.
+    assert "A: 'Α' ✗ stop" in plain
+    # The predicted typed fields are what expose a constant answer.
+    assert "DELTA/REPLACE/TOOL_RESULTS" in plain
+    # One line tallies the binding constraint for the whole sample.
+    qa_line = next(line for line in plain.splitlines() if line.startswith(" qa:"))
+    assert "0/3 exact" in qa_line
+    assert "payload+stop 1" in qa_line
+    assert "stop 2" in qa_line
+
+
+def test_transcript_without_a_verdict_names_no_reason():
+    """A pre-existing transcript carries no ``exact_match``; inventing a reason
+    for it would claim a failure the monitor never observed."""
+    watcher = _watcher()
+    watcher.consume(
+        _event(
+            "eval-old",
+            "evaluated",
+            phase="initial",
+            global_step=1,
+            qa_transcripts=[{"prompt": "Copy: x", "predicted_payload": "x"}],
+        )
+    )
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", watcher.render())
+    qa_line = next(line for line in plain.splitlines() if "Q:" in line)
+    assert "typed" not in qa_line
+    verdict = next(line for line in plain.splitlines() if line.startswith(" qa:"))
+    assert "0/1 exact" in verdict
+
+
 def _plain(text: str) -> str:
     return re.sub(r"\x1b\[[0-9;]*m", "", text)
 

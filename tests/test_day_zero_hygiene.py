@@ -114,6 +114,7 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "local_worker.py",
         "supervisory_gates.py",
         "training_session.py",
+        "attempt_workspace.py",
     }
 
     soul_files = {path.name for path in (ROOT / "runtime" / "soul").glob("*.py")}

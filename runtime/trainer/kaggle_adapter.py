@@ -89,6 +89,8 @@ def _entrypoint_details(argv: Sequence[str]) -> dict[str, Any]:
         "teach_multicell_copy": False,
         "receipt_continuation": False,
         "receipt_teaching_profile": None,
+        "termination_head_route": False,
+        "eos_generate_head_route": False,
     }
     items = [str(item) for item in argv]
     index = 0
@@ -105,6 +107,10 @@ def _entrypoint_details(argv: Sequence[str]) -> dict[str, Any]:
             values["teach_multicell_copy"] = True
         elif item == "--receipt-continuation":
             values["receipt_continuation"] = True
+        elif item == "--termination-head-route":
+            values["termination_head_route"] = True
+        elif item == "--eos-generate-head-route":
+            values["eos_generate_head_route"] = True
         index += 1
     return values
 
@@ -1134,6 +1140,10 @@ class KaggleTrainerAdapter:
                     "receipt_teaching_profile": details[
                         "receipt_teaching_profile"
                     ],
+                    "termination_head_route": bool(details["termination_head_route"]),
+                    "eos_generate_head_route": bool(
+                        details["eos_generate_head_route"]
+                    ),
                     "mtime": mtime,
                     "provider_status": None,
                     "live_status": live_status,

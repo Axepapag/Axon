@@ -486,7 +486,8 @@ def _arguments() -> argparse.Namespace:
         action="store_true",
         help=(
             "use a dedicated scalar termination head; requires receipt "
-            "continuation and the termination_head_v5 objective profile; "
+            "continuation and a termination-head objective profile "
+            "(termination_head_v5 or the ratified termination_head_balanced_v6); "
             "mutually exclusive with --eos-generate-head-route"
         ),
     )

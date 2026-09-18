@@ -108,6 +108,37 @@ def _manifest_tag(value: Any) -> str:
     return _short(value, 8)
 
 
+def _qa_failure_reason(row: dict[str, Any]) -> str | None:
+    """Name why a teacher-forced row is not exact, in short terms.
+
+    A transcript row's ``exact_match`` is ``terminated and payload ==
+    target.payload`` (living_reasoning_curriculum.py:789).  The stop token is
+    the decoder's own EOS, so a row that reproduces the expected payload
+    character for character still fails when the decoder never emits it -- and
+    the plain rendered form then reads ``A: '' (expected '') x``, which looks
+    like a broken display rather than the termination failure it is.  Naming
+    the binding condition makes the failure legible and countable.
+
+    Returns ``""`` when the row is exact and ``None`` when the row carries no
+    verdict at all, so an unobserved row is never reported as a healthy one.
+    """
+    if row.get("exact_match") is None:
+        return None
+    if row.get("exact_match"):
+        return ""
+    conditions: list[str] = []
+    if str(row.get("predicted_payload") or "") != str(row.get("expected_payload") or ""):
+        conditions.append("payload")
+    if row.get("terminated") is False:
+        conditions.append("stop")
+    if not conditions:
+        # Exactness is a conjunction over decision/operation/region/start/end
+        # and transport, so a row can fail on a component the row does not
+        # carry.  Never silently imply the row was fine.
+        conditions.append("typed")
+    return "+".join(conditions)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Event model
 # ─────────────────────────────────────────────────────────────────────────────
@@ -156,9 +187,10 @@ class Watcher:
         self.motor_v2: dict[str, dict[str, Any]] = {}
         self.runner_lines: deque[str] = deque(maxlen=6)
         self.qa_lines: deque[str] = deque(maxlen=transcript_lines)
-        self.qa_seen: dict[str, dict[str, bool]] = {}
+        self.qa_seen: dict[str, dict[str, str | None]] = {}
         self.qa_shown = 0
         self.qa_exact = 0
+        self.qa_reasons: dict[str, int] = {}
         self.qa_phase = None
         self.qa_step = None
         self.event_count = 0
@@ -364,11 +396,17 @@ class Watcher:
             signature = json.dumps(row, sort_keys=True, default=str)
             if signature in seen:
                 continue
-            seen[signature] = bool(row.get("exact_match"))
+            seen[signature] = _qa_failure_reason(row)
             self.qa_lines.append(self._format_qa(row))
         self.qa_phase = phase
         self.qa_shown = len(seen)
-        self.qa_exact = sum(1 for value in seen.values() if value)
+        # A row without a verdict is counted in the denominator and never as a
+        # success, exactly as before reasons were reported.
+        self.qa_exact = sum(1 for reason in seen.values() if reason == "")
+        self.qa_reasons = {}
+        for reason in seen.values():
+            if reason:
+                self.qa_reasons[reason] = self.qa_reasons.get(reason, 0) + 1
         self.qa_step = self.last_step
 
     def _consume_motor_v2(self, details: dict[str, Any]) -> None:
@@ -410,6 +448,10 @@ class Watcher:
         correct = row.get("exact_match")
         mark = "?" if correct is None else ("✓" if correct else "✗")
         color = GREEN if correct else (RED if correct is False else YELLOW)
+        reason = _qa_failure_reason(row) or ""
+        payload_differs = str(row.get("predicted_payload") or "") != str(
+            row.get("expected_payload") or ""
+        )
         # A failing transcript is only actionable if it names the case and the
         # curriculum that produced it; `episode_id` is a hash no one can read.
         case_text = _short(row.get("episode_label"), 52)
@@ -418,6 +460,14 @@ class Watcher:
         if case_text or manifest_tag:
             tag = f"@{manifest_tag}" if manifest_tag else ""
             attribution = "  " + _color(f"[{case_text}{tag}]", DIM)
+        # The predicted decision/operation/region are what actually reveal a
+        # degenerate constant answer, so a failing row carries them.
+        typed = "/".join(
+            str(row.get(key))
+            for key in ("decision", "operation", "region")
+            if row.get(key)
+        )
+        typed_text = _color(f"  {typed}", DIM) if typed and reason else ""
         return (
             "  "
             + _color("Q:", BOLD)
@@ -426,9 +476,11 @@ class Watcher:
             + "  "
             + _color("A:", BOLD)
             + f" {predicted!r}"
-            + (" (expected " + repr(expected) + ")" if not correct else "")
+            + (" (expected " + repr(expected) + ")" if payload_differs else "")
             + " "
             + _color(mark, color)
+            + (_color(f" {reason}", RED) if reason else "")
+            + typed_text
         )
 
     # -- rendering ------------------------------------------------------------
@@ -584,11 +636,19 @@ class Watcher:
                 else (RED if not self.qa_exact else YELLOW)
             )
             rows_hint = "" if self.show_qa else "  (--qa for rows)"
+            reasons = "  ".join(
+                _color(f"{reason} {count}", RED if "stop" in reason else YELLOW)
+                for reason, count in sorted(
+                    self.qa_reasons.items(), key=lambda item: (-item[1], item[0])
+                )
+            )
+            reason_text = f"   {reasons}" if reasons else ""
             lines.append(
                 _color(" qa:", DIM)
                 + f" sample of {self.qa_shown} teacher-forced cases @{self.qa_phase}"
                 + f" step {self.qa_step}: "
                 + _color(verdict, color)
+                + reason_text
                 + _color("  (sample, not the full surface)", DIM)
                 + rows_hint
             )

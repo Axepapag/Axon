@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-17T22:45:00+00:00
+Updated: 2026-09-18T01:28:00+00:00
 current_through_event_id:
-`evt-20260917T224500000000Z-copilot-unwinnable-gate-audit-and-reachability-contract`
+`evt-20260918T012800000000Z-copilot-ratified-v6-repair-was-never-executed`
 
 Append order note: the two events carrying timestamps `19:10` and `19:30` sit
 *earlier* in the file than the `20:00` launch event, because the correction was
@@ -14,12 +14,142 @@ Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
-Identity stamp: GitHub Copilot CLI / deepseek-v4.1-flash:cloud / 2026-09-17
+Identity stamp: GitHub Copilot CLI / deepseek-v4.1-flash:cloud / 2026-09-18
 (previous revision: Kimi / Kimi K2 Code / 2026-09-17,
 and before that GitHub Copilot CLI / deepseek-v4.1-flash:cloud / 2026-09-16 —
 those revisions are superseded, not erased; canonical events remain the authority)
 
 ## Current mission and honest status
+
+**WE RATIFIED THE v6 TERMINATION REPAIR AND NEVER RAN IT. THAT IS WHAT WE ARE
+DOING WRONG.** `evt-20260918T012800000000Z`. I read the completed tranche's
+**authoritative** segment report
+(`…/jobs/389df54d…/outputs/axon_job/State/training/reasoning/r64v3-5cab79da3c43f00d/segment_000000001_000000600.json`)
+instead of the monitor's rendering, and the run's own verdict is not a
+construction defect: `foundation_motor_v2_stage_gate` **passed false with 12
+failures, every one of them a reachable metric.** This is a genuine learning
+failure — and its numbers reproduce the v5 autopsy's prediction exactly.
+
+| the prediction | the run's own number |
+|---|---|
+| content is learned | `payload_content_accuracy` **0.8710** |
+| transport is blocked by the stop token | `payload_transport_exact_rate` **0.1667** |
+| the stop head never learns | `payload_teacher_forced_eos_accuracy` **0.2917**, `alignment_eos_gate_accuracy` **0.3125** |
+| the continue class is unsupervised | `termination_continue_positions` **0.0 for all 600 steps** while `termination_continue_accuracy` read a **vacuous 1.0** |
+
+`termination_continue_loss` was **never computed at all**. The route that
+produced this is the **legacy** one: `receipt_continuation false`,
+`receipt_teaching_profile null`, `payload_eos_weight 4.0`,
+`alignment_eos_gate` weight **0.0**, `effective_objective_program_id
+3b41008e…` (the base program).
+
+**The repair exists, is ratified, is documented as the fix, and was selected by
+zero launchers.** `RECEIPT_TERMINATION_HEAD_BALANCED_TEACH` — profile
+`termination_head_balanced_v6`, overlay `c7712969…`, program `d0092331…` — sits
+at `training/foundation_motor_curriculum.py:410-425`. Its own header names the
+defect it corrects: *"a canceling-gradient fixed point where EOS wins every
+argmax and free-running transport emits nothing."* Kimi's canonical event calls
+it *"exactly the equilibrium-breaking fix."* A scan of all 18
+`configs/kaggle/*.json` launchers found **zero** selecting
+`--termination-head-route` and **zero** naming `termination_head_balanced_v6`.
+The emission rung re-tested the known-broken fixed point for the ninth time.
+
+> **A ratified objective repair must be reachable from a launcher. Defining,
+> documenting and unit-testing a repair while no config selects it means every
+> later tranche re-tests the configuration the autopsy already rejected, and the
+> plateau it produces must be read as an execution defect — not as evidence
+> about the core.**
+
+**Fixed, and made unrepresentable.** A launcher now executes it:
+`configs/kaggle/axon_d64_emission_rung_v6_termination_balanced.json` (fresh
+candidate label — an objective change invalidates the optimizer state, so v6 is
+never a resume). Same geometry, seed, gate bias, page size, manifests,
+checkpoint interval and 600-step budget as the emission rung, so the comparison
+is controlled and exactly one variable group changed:
+`--receipt-continuation --receipt-teaching-profile termination_head_balanced_v6
+--termination-head-route`. A guard holds it in place
+(`tests/test_termination_repair_is_launched.py`, 2 tests): one requires a config
+to select v6 with that exact triple **and** to cite the v6 program id in its
+`notes`; the other enforces the launcher's own profile/route pairing rules
+across every config, so no config can claim an objective profile it cannot
+execute. The same define-but-do-not-wire pattern appeared a second time —
+`FOUNDATION_MOTOR_V2_RECEIPT_TERMINATION_HEAD_BALANCED_PROGRAM_ID` was the one
+variant program id **not** exported from `training/__init__.py`; it is now.
+
+**And I executed it rather than only reading it.** Local proof run
+`axon-d64-v6-proof-local` (lineage `r64v3-0e99ec81e79b7bfb`), 12 steps on the
+GTX 1650, `EXIT=0`:
+
+- `effective_objective_program_id` **`d0092331…`** against the emission rung's
+  `3b41008e…` — the change is real, not claimed.
+- **`termination_continue_positions` = 1.0 on every one of the 12 steps**,
+  against **0.0 on all 600** of the emission rung. The 1.0 accuracy is now
+  backed by real supervised anchors instead of a divide-by-zero.
+- `payload_eos_weight` **1.0** (was 4.0), `alignment_eos_gate` weight **1.0**
+  (was 0.0).
+- `alignment_eos_gate_accuracy` moved **0.5 → 1.0** over 12 steps, so the
+  symmetric stop supervision is not inert.
+- The v6 gate raises **20** failures where the legacy gate raises **12**, and
+  the 8 additions are exactly the `eos_gate` and `position` requirements that
+  receipt continuation makes reachable. **Zero** legacy failures are absent from
+  the v6 list.
+
+**The monitor no longer spits in Jeff's face.** The panel was correct and mute:
+`exact_match` is `terminated and payload == target.payload`
+(`living_reasoning_curriculum.py:789`), so a row that matches its expected
+payload character-for-character still fails when the core never learned to stop
+— and the display never said why. `_qa_failure_reason(row)` now names the
+binding condition from the row's own fields (`payload` / `stop` / `typed`,
+joined with `+`), the verdict line tallies the reasons, failing rows show the
+**predicted** `decision/operation/region`, and the redundant `(expected …)` echo
+is suppressed when the payload already matches. `--qa` remains **opt-in**, so
+the panel no longer occupies the screen by default. Verified by replaying all
+**606 real events** through the renderer, not a fixture:
+
+```
+ qa: sample of 8 teacher-forced cases @final step 600: 0/8 exact   payload 4  payload+stop 4
+  Q: Insert the current SOURCE_SYMBOL between the …  A: '' (expected 'Α') ✗ payload+stop  DELTA/REPLACE/TOOL_RESULTS
+  Q: Delete exactly response position 1; emit no r…  A: 'i' (expected '') ✗ payload  DELTA/REPLACE/TOOL_RESULTS
+```
+
+`DELTA/REPLACE/TOOL_RESULTS` on every failing row is the constant-answer
+degeneracy made visible in one line. 22 tests in
+`tests/test_training_watch.py` pass.
+
+**Corrected.** `evt-20260917T224500000000Z` described the emission rung's gate
+as reporting `stage: copy_alignment`. The gate dict has no `stage` key; the
+fields are `foundation_stage` (`typed_motor_v2`) and `training_stage`
+(`copy_alignment`). Both runs carry identical gate key sets — my key name, not a
+defect.
+
+**Also repaired, and disclosed: a pre-existing red test that was not mine.**
+`runtime/trainer/attempt_workspace.py` was added by Jeff's own `0a51bc8` without
+adding it to the day-zero trainer-surface allowlist, so
+`test_day_zero_active_python_surface_is_narrow` **failed on a clean checkout** and
+the governance suite could never be green. One allowlist line added; a
+permanently failing test hides future regressions.
+
+**Still open and still Jeff's:** whether `decision` should carry weight at
+`copy_alignment`; whether the 48 zero-weight `no_op`/`abstain` phases belong in
+the typed-exact denominator; Stage-0 emission balance; the **cold start on five
+heads** at the `address` boundary (0.0 weight in one stage, then required ≥0.95
+in the next); whether `termination_continue_accuracy` should be **rejected**
+when positions are zero (the vacuous-pass guard, same class as the floor traps);
+whether `termination_continue_loss` should be emitted so the stop head is
+observable rather than inferable; and `AXON_KAGGLE_SYNC` — attach it or stop
+advertising `sync_mid_run`, since mid-run sync has still never run on any job.
+
+**`D:\AxonGliksbot` cannot help our binding constraint.** Its proven lanes
+(`fill_acc 0.967`, `[CF_PROBE] orig=23/24 swap=24/24 zero=24/24 SOUL_IS_READ`)
+all **fill-in-place at a masked draft region** with **no autoregressive emission
+and no stop token**; its closest termination supervision is a `length_head`. What
+does transfer: the **grad-carrying egress** (a `no_grad()` wrapper once made the
+fill loss reach nothing), **pad-weighted CE** (entity `1.0` vs pad `0.1`, because
+at full weight the cheap minimum is *predict space everywhere*), the burnt trap
+that *"continuous reconstruction losses cannot be the primary objective"*
+(`capsule_core_v2` collapsed to a padded-MSE constant at 8,000 steps), and
+**readiness-gated rather than clock-gated** difficulty ramping (`md=3` piled onto
+a core that had not learned `md=1` pinned accuracy at 0).
 
 **THE EMISSION RUNG'S VERDICT, READ AGAINST THE REAL FLOORS: content learned,
 exactness went backwards into noise.** `evt-20260917T220500000000Z`. The
@@ -102,10 +232,10 @@ rendered. **Jeff's decision:** attach the secret, or stop advertising sync.
 
 **IN FLIGHT:** Kaggle job
 `389df54d01fbda8ec6625b9019ff5fb1ec254c08360bf3d8cf4570c41ee45bd9`, revision
-`1a4bc416`, Tesla T4, 600-step emission-rung tranche — **the loop and the final
-evaluation are both done** (final numbers above); the kernel has not left
-`RUNNING`, so the outputs bundle is still unfetched. Unaffected by local edits
-because its packet was already uploaded.
+`1a4bc416`, Tesla T4, 600-step emission-rung tranche — **completed and fetched**;
+its authoritative verdict, the legacy route it ran, and the ratified repair it
+never executed are recorded at the top of this file.
+`evt-20260918T012800000000Z`.
 
 **Prior state — the emission rung, launched on Kaggle.**
 **EMISSION RUNG IMPLEMENTED LOCALLY, THEN LAUNCHED ON KAGGLE — the rung moved
@@ -2010,10 +2140,54 @@ of a frozen-looking dashboard). Should the trainer emit progress during evaluati
 
 ## Next actions
 
-**PRIORITY 0 — the three moves that come before anything else
-(`evt-20260917T100000Z`):**
+**PRIORITY 0 — launch the ratified repair, so the next tranche tests a
+hypothesis instead of re-testing a known-broken fixed point
+(`evt-20260918T012800000000Z`):**
 
-- **IN FLIGHT — the 600-step cloud tranche is running.**
+- **LAUNCH `configs/kaggle/axon_d64_emission_rung_v6_termination_balanced.json`.**
+  This is the first launcher that executes the ratified v6 termination repair
+  (`--receipt-continuation --receipt-teaching-profile termination_head_balanced_v6
+  --termination-head-route`, program `d0092331…`). Until it runs, every tranche is
+  a ninth re-test of the route the v5 autopsy already rejected. Read its
+  `alignment_eos_gate_accuracy` and `payload_transport_exact_rate` against the
+  legacy route's **0.3125** and **0.1667**, and confirm
+  `termination_continue_positions > 0` instead of the legacy vacuous 0.0.
+- **The proof run already exists locally** (`axon-d64-v6-proof-local`, lineage
+  `r64v3-0e99ec81e79b7bfb`, 12 steps, `EXIT=0`): `effective_objective_program_id`
+  `d0092331…`, `termination_continue_positions` **1.0 on every step**,
+  `alignment_eos_gate_accuracy` **0.5 → 1.0**. It is evidence, not a serving
+  candidate — 12 steps, never promoted, no Soul claim.
+- **Make the objective repair observable.** `termination_continue_loss` is still
+  absent from `phase_metrics` even with supervision enabled, so the monitor can
+  show *that* stop supervision happens but not *how well* it is learning. Emit it.
+- **Attach `AXON_KAGGLE_SYNC` or stop advertising `sync_mid_run`.** Mid-run
+  checkpoint sync has still never executed on any job
+  (`SyncCredentialsMissing`); `configs/kaggle/axon_d64_emission_rung_v6_termination_balanced.json`
+  currently carries `sync_mid_run: true`.
+- **Evaluate periodically inside a tranche and emit progress events during
+  evaluation.** Today the trainer evaluates only at a tranche's start and end, so
+  the eval block can be hundreds of steps stale.
+- **The design calls that remain Jeff's** (the invariant only forbids gating on a
+  metric a stage cannot move): decision weight at `copy_alignment`; the 48
+  zero-weight `no_op`/`abstain` phases in the typed-exact denominator; Stage-0
+  emission balance; the **cold start on five heads** at the `address` boundary
+  (`decision`/`operation`/`region`/`start`/`end` are 0.0 weight at
+  `copy_alignment`/`transport_eos`, then required ≥0.95 at `address`); whether
+  `termination_continue_accuracy` should be **rejected** when
+  `termination_continue_positions == 0` (vacuous-pass guard, same class as the
+  floor traps); and whether the receipt overlay's `alignment_eos_gate: 2.0`
+  should be re-ratified.
+- **Two unexplained measurements**, possibly defects: counts differ across metrics
+  on one evaluation surface (`alignment_position_count 31` vs
+  `alignment_eos_gate_count 16` vs `payload_teacher_forced_eos_count 24`), and
+  `payload_content_accuracy` equals `payload_teacher_forced_content_accuracy` at
+  exactly `0.8709677419354839`.
+
+**Superseded below (kept as the historical record).**
+
+- **CLOSED — the 600-step cloud tranche has completed and been fetched; its
+  authoritative verdict is at the top of this file
+  (`evt-20260918T012800000000Z`).**
   `evt-20260917T200034380158Z-copilot-kaggle-emission-rung-launch`: job
   `389df54d01fbda8ec6625b9019ff5fb1ec254c08360bf3d8cf4570c41ee45bd9`, committed
   revision `1a4bc416`, packet 7.5 MiB / 459 files with the four load-bearing
