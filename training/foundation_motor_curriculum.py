@@ -452,6 +452,10 @@ RECEIPT_TERMINATION_HEAD_PROFILES = (
     RECEIPT_TEACHING_PROFILE_TERMINATION_HEAD_V5,
     RECEIPT_TEACHING_PROFILE_TERMINATION_HEAD_BALANCED_V6,
 )
+RECEIPT_GENERATE_HEAD_PROFILES = (
+    RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_EOS_V3,
+    RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_BALANCED_V4,
+)
 RECEIPT_TEACHING_PROFILES = (
     RECEIPT_TEACHING_PROFILE_CONTINUATION_V1,
     RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2,
@@ -460,6 +464,123 @@ RECEIPT_TEACHING_PROFILES = (
     RECEIPT_TEACHING_PROFILE_TERMINATION_HEAD_V5,
     RECEIPT_TEACHING_PROFILE_TERMINATION_HEAD_BALANCED_V6,
 )
+
+
+def receipt_teaching_profile_route_flag(profile: str) -> str | None:
+    """The route flag a launcher must pass alongside this receipt profile.
+
+    The trainer requires the route flag and the profile to be selected together
+    (scripts/train_living_reasoning_smoke.py flag validation), so every launcher
+    that emits --receipt-teaching-profile must also emit the matching flag.
+    Deriving it here keeps launchers from drifting away from the trainer's own
+    contract.
+    """
+
+    if profile in RECEIPT_TERMINATION_HEAD_PROFILES:
+        return "--termination-head-route"
+    if profile in RECEIPT_GENERATE_HEAD_PROFILES:
+        return "--eos-generate-head-route"
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Rejected termination routes (fail-closed).
+#
+# Nine motor-v2 tranches spent their allowance on a termination objective that
+# the transport_eos probation autopsy had already rejected from the loss source
+# (canonical events evt-20260917T013100Z-copilot-content-signal-audit and
+# evt-20260917T013451Z-kimi-training-wrongness-audit): on those routes stop=1 is
+# pushed up twice -- once by the payload CE at the EOS position and once by the
+# EOS-position gate -- while stop=0 is never supervised directly.  The two
+# pressures cancel at sigma* = (n+8)/(2n+8) ~ 0.8-0.9, so EOS wins every argmax
+# and free-running transport emits nothing.  The 600-step emission rung (job
+# 389df54d, revision 1a4bc416) re-tested that route a ninth time and reported
+# exactly the plateau it was predicted to report.
+#
+# The property that separates a repaired objective from a rejected one is
+# explicit symmetric continue supervision, which the objective declares itself
+# as `termination_continue_supervision`.  Membership of the rejected set is
+# therefore DERIVED from each objective's own declaration rather than kept in a
+# hand-maintained list of profile names, so an objective that does not declare
+# the symmetry is refused by default until it is ratified.  Defining a repair is
+# not shipping it; this is the mechanism that makes the rejected route
+# unlaunchable instead of merely documented.
+FOUNDATION_MOTOR_V2_CONTINUE_SUPERVISION_KEY = "termination_continue_supervision"
+
+
+def foundation_motor_v2_termination_objective_declares_continue_supervision(
+    profile: str,
+) -> bool:
+    """Whether this receipt profile supervises the continue class explicitly."""
+
+    return (
+        receipt_continuation_teach_profile(profile).get(
+            FOUNDATION_MOTOR_V2_CONTINUE_SUPERVISION_KEY
+        )
+        is True
+    )
+
+
+def foundation_motor_v2_ratified_termination_profiles() -> tuple[str, ...]:
+    """The receipt profiles that carry explicit symmetric stop supervision."""
+
+    return tuple(
+        profile
+        for profile in RECEIPT_TEACHING_PROFILES
+        if foundation_motor_v2_termination_objective_declares_continue_supervision(
+            profile
+        )
+    )
+
+
+def foundation_motor_v2_termination_route_rejection(
+    *,
+    teach_multicell_copy: bool,
+    receipt_continuation: bool = False,
+    receipt_teaching_profile: str = RECEIPT_TEACHING_PROFILE_CONTINUATION_V1,
+) -> str | None:
+    """Why this motor-v2 run must not execute, or None when the route is ratified.
+
+    Returning a reason is a refusal to train, not a warning: the rejected routes
+    are known-broken objectives whose plateaus are already measured, so a
+    tranche that runs one cannot produce information and only spends allowance.
+    """
+
+    program_id = foundation_motor_v2_objective_program_id(
+        teach_multicell_copy=teach_multicell_copy,
+        receipt_continuation=receipt_continuation,
+        receipt_teaching_profile=receipt_teaching_profile,
+    )
+    if not receipt_continuation:
+        return (
+            f"refusing to train the pre-receipt-continuation motor-v2 termination "
+            f"route (objective program {program_id}): the stop decision shares one "
+            f"softmax with content, so content-logit growth mechanically depresses "
+            f"EOS probability, and stop=1 is supervised twice while stop=0 is never "
+            f"supervised directly, leaving a canceling-gradient fixed point where "
+            f"EOS wins every argmax and free-running transport emits nothing "
+            f"(the emission rung reported payload_content_accuracy 0.8710 with "
+            f"payload_transport_exact_rate 0.1667). Rejected by the transport_eos "
+            f"probation autopsy evt-20260917T013451Z-kimi-training-wrongness-audit. "
+            f"Train the ratified route instead: --receipt-continuation "
+            f"--receipt-teaching-profile "
+            f"{RECEIPT_TEACHING_PROFILE_TERMINATION_HEAD_BALANCED_V6} "
+            f"--termination-head-route"
+        )
+    if not foundation_motor_v2_termination_objective_declares_continue_supervision(
+        receipt_teaching_profile
+    ):
+        return (
+            f"refusing to train receipt objective profile "
+            f"{receipt_teaching_profile!r} (objective program {program_id}): it does "
+            f"not declare {FOUNDATION_MOTOR_V2_CONTINUE_SUPERVISION_KEY}, so the "
+            f"continue class receives no direct supervision and the objective keeps "
+            f"the asymmetric stop=1/stop=0 fixed point the autopsy rejected "
+            f"(evt-20260917T013451Z-kimi-training-wrongness-audit). Ratified "
+            f"termination profiles with explicit continue supervision: "
+            f"{', '.join(foundation_motor_v2_ratified_termination_profiles()) or 'none'}"
+        )
+    return None
 
 
 # ---------------------------------------------------------------------------

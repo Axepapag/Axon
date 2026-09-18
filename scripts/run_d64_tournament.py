@@ -26,6 +26,8 @@ from training import (
 from training.foundation_motor_curriculum import (
     RECEIPT_TEACHING_PROFILES,
     RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2,
+    foundation_motor_v2_termination_route_rejection,
+    receipt_teaching_profile_route_flag,
 )
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -126,6 +128,21 @@ def _atomic_json(path: Path, value: dict[str, Any]) -> None:
 
 
 def _command(args: argparse.Namespace, *, candidate: Any) -> list[str]:
+    if not args.legacy_plan_v1 and not args.evaluate_only:
+        # Fail closed before the candidate process is spawned.  The screening
+        # default (route_eos_balanced_v2) is one of the routes the transport_eos
+        # autopsy rejected, so a tournament launched without an explicit
+        # ratified profile would spend allowance re-measuring a known plateau.
+        # Read-only evaluation of an existing bundle stays permitted, and the
+        # legacy v1 plan is a different campaign whose objectives are not the
+        # rejected motor-v2 termination route.
+        termination_route_rejection = foundation_motor_v2_termination_route_rejection(
+            teach_multicell_copy=False,
+            receipt_continuation=bool(candidate.config.receipt_continuation),
+            receipt_teaching_profile=str(args.receipt_teaching_profile),
+        )
+        if termination_route_rejection is not None:
+            raise ValueError(termination_route_rejection)
     command = [
         sys.executable,
         str(ROOT / "scripts" / "train_living_reasoning_smoke.py"),
@@ -160,6 +177,14 @@ def _command(args: argparse.Namespace, *, candidate: Any) -> list[str]:
                 str(args.receipt_teaching_profile),
             )
         )
+        # The trainer selects the route flag and the profile together; deriving
+        # the flag from the profile keeps this launcher from drifting back to a
+        # route the trainer refuses.
+        route_flag = receipt_teaching_profile_route_flag(
+            str(args.receipt_teaching_profile)
+        )
+        if route_flag is not None:
+            command.append(route_flag)
     if args.generate_gate_bias is not None:
         command.extend(
             (

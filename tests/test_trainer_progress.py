@@ -120,6 +120,11 @@ def test_local_events_attribute_each_step_and_transcript_to_its_curriculum(tmp_p
             "--layers", "1",
             "--seed", "20260906",
             "--progress-dir", str(progress_dir),
+            # Motor-v2 training must select the ratified termination route; the
+            # pre-receipt-continuation route is refused before any compute.
+            "--receipt-continuation",
+            "--receipt-teaching-profile", "termination_head_balanced_v6",
+            "--termination-head-route",
         ],
         cwd=ROOT,
         capture_output=True,

@@ -97,6 +97,54 @@ def test_receipt_candidate_receives_profile_and_optional_gate_bias() -> None:
     import argparse
 
     from training.foundation_motor_curriculum import (
+        RECEIPT_TEACHING_PROFILE_TERMINATION_HEAD_BALANCED_V6,
+    )
+
+    candidate = next(
+        item for item in d64_architecture_search_space() if item.config.receipt_continuation
+    )
+    args = argparse.Namespace(
+        state_root=Path("State"),
+        device="cuda",
+        evaluation_case_limit=4,
+        learning_rate=1e-4,
+        seed=20260912,
+        checkpoint_interval=16,
+        legacy_plan_v1=False,
+        run_steps=None,
+        tranche_steps=32,
+        evaluate_only=False,
+        curriculum_manifest=[Path("manifest.json")],
+        preflight_only=False,
+        resume=False,
+        progress_dir=None,
+        external_job_id=None,
+        # Only the ratified objective is trainable; the route flag is derived
+        # from the profile so a launcher cannot select one without the other.
+        receipt_teaching_profile=RECEIPT_TEACHING_PROFILE_TERMINATION_HEAD_BALANCED_V6,
+        generate_gate_bias=None,
+    )
+    command = _command(args, candidate=candidate)
+    profile_index = command.index("--receipt-teaching-profile")
+    assert (
+        command[profile_index + 1] == RECEIPT_TEACHING_PROFILE_TERMINATION_HEAD_BALANCED_V6
+    )
+    assert "--termination-head-route" in command
+    assert "--eos-generate-head-route" not in command
+    assert "--generate-gate-bias" not in command
+
+    args.generate_gate_bias = 0.0
+    command = _command(args, candidate=candidate)
+    bias_index = command.index("--generate-gate-bias")
+    assert float(command[bias_index + 1]) == 0.0
+
+
+def test_a_rejected_termination_route_cannot_build_a_candidate_command() -> None:
+    """The tournament refuses a rejected route before spawning a candidate."""
+
+    import argparse
+
+    from training.foundation_motor_curriculum import (
         RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2,
     )
 
@@ -122,12 +170,9 @@ def test_receipt_candidate_receives_profile_and_optional_gate_bias() -> None:
         receipt_teaching_profile=RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2,
         generate_gate_bias=None,
     )
-    command = _command(args, candidate=candidate)
-    profile_index = command.index("--receipt-teaching-profile")
-    assert command[profile_index + 1] == RECEIPT_TEACHING_PROFILE_ROUTE_EOS_BALANCED_V2
-    assert "--generate-gate-bias" not in command
+    with pytest.raises(ValueError, match="refusing to train"):
+        _command(args, candidate=candidate)
 
-    args.generate_gate_bias = 0.0
-    command = _command(args, candidate=candidate)
-    bias_index = command.index("--generate-gate-bias")
-    assert float(command[bias_index + 1]) == 0.0
+    # Read-only evaluation of an existing bundle stays permitted.
+    args.evaluate_only = True
+    assert "--receipt-teaching-profile" in _command(args, candidate=candidate)

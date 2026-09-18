@@ -79,6 +79,34 @@ candidate has passed its serving gates. Large campaigns still require explicit
 target-quality review and exact held-out gates; repetition alone is not
 evidence of intelligence.
 
+## Enforced motor-v2 termination route
+
+Motor-v2 training must select the ratified termination objective. The trainer
+refuses to start any other motor-v2 route before it does any compute:
+
+```
+python scripts/train_living_reasoning_smoke.py \
+  --receipt-continuation \
+  --receipt-teaching-profile termination_head_balanced_v6 \
+  --termination-head-route
+```
+
+The rejected routes are the pre-receipt-continuation objectives, where the stop
+decision shares one softmax with content: content-logit growth mechanically
+depresses EOS probability, stop=1 is supervised twice, and stop=0 is never
+supervised directly. The two pressures cancel, so EOS wins every argmax and
+free-running transport emits nothing. That fixed point is already measured, so a
+tranche that runs it cannot produce information; refusing to start is the only
+outcome that does not spend allowance.
+
+The refusal is fail-closed and derived, not a hand-maintained list of profile
+names: membership of the ratified set is computed from each objective's own
+`termination_continue_supervision` declaration, so a newly added profile that
+does not declare explicit symmetric stop supervision is refused by default. The
+same gate runs in `scripts/run_d64_tournament.py` before a candidate is spawned
+and in `scripts/axon_kaggle.py` before a packet is built or uploaded. Read-only
+`--evaluate-only` reproduction of an existing bundle is always permitted.
+
 The private Kaggle adapter and independent observable launchers are now
 implemented. Double-click `AXON_KAGGLE.bat`; see
 `docs/KAGGLE_TRAINING_GUIDE.md`. Colab/SimplePod adapters, mid-segment

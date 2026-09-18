@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-18T02:25:00+00:00
+Updated: 2026-09-18T03:39:34+00:00
 current_through_event_id:
-`evt-20260918T022500000000Z-copilot-full-suite-stale-floor-assertion-fixed`
+`evt-20260918T033934Z-copilot-legacy-termination-route-unlaunchable`
 
 Append order note: the two events carrying timestamps `19:10` and `19:30` sit
 *earlier* in the file than the `20:00` launch event, because the correction was
@@ -68,11 +68,14 @@ checkpoint interval and 600-step budget as the emission rung, so the comparison
 is controlled and exactly one variable group changed:
 `--receipt-continuation --receipt-teaching-profile termination_head_balanced_v6
 --termination-head-route`. A guard holds it in place
-(`tests/test_termination_repair_is_launched.py`, 2 tests): one requires a config
-to select v6 with that exact triple **and** to cite the v6 program id in its
-`notes`; the other enforces the launcher's own profile/route pairing rules
-across every config, so no config can claim an objective profile it cannot
-execute. The same define-but-do-not-wire pattern appeared a second time —
+(`tests/test_termination_repair_is_launched.py`, originally 2 tests, now 8): one
+requires a config to select v6 with that exact triple **and** to cite the v6
+program id in its `notes`; the other enforces the launcher's own profile/route
+pairing rules across every config, so no config can claim an objective profile
+it cannot execute. **That guard was itself insufficient** — auditing checked-in
+configs cannot stop a hand-written `argv`, and omitting every flag silently
+restored the legacy route. The route is now refused at runtime in three layers;
+see *"the legacy route is now unlaunchable, not merely rejected"* above. The same define-but-do-not-wire pattern appeared a second time —
 `FOUNDATION_MOTOR_V2_RECEIPT_TERMINATION_HEAD_BALANCED_PROGRAM_ID` was the one
 variant program id **not** exported from `training/__init__.py`; it is now.
 
@@ -388,6 +391,75 @@ synthesis shows this is one instance of a recurring objective class failure —
 loss-down-behavior-wrong, teacher/free-running divergence, constant-prior
 collapse, route-weight seesaw — while the process class (guard, probation,
 lease) is now sound.
+
+## 2026-09-18 — the legacy route is now unlaunchable, not merely rejected
+
+`evt-20260918T033934Z`. Jeff's instruction was *"first make sure that it is
+impossible to run a legacy route again, then explain to me what the repair does
+and the objective of the next tranche."* This is the enforcement half.
+
+**The hole was not the launchers. It was the defaults.** A guard test that
+audits `configs/kaggle/*.json` proves no *checked-in* config selects the legacy
+route. It cannot stop a Kaggle notebook cell, a tournament run, a test, or a
+hand-written `argv`. And `--receipt-continuation` defaults to **absent** while
+`--receipt-teaching-profile` defaults to `continuation_v1`, so **omitting every
+flag silently reproduces the rejected objective** — the route is reachable
+*because* it is never named. That is why nine tranches re-tested it. The guard I
+wrote last turn was the same class of artifact as the repair itself: correct,
+committed, and not load-bearing.
+
+**The enforcement is derived, not a list.** Membership of the rejected set is
+computed from each objective's **own**
+`termination_continue_supervision` declaration
+(`foundation_motor_v2_ratified_termination_profiles()`), so the ratified set is
+`('termination_head_balanced_v6',)` *because v6 is the only profile that
+declares the mechanism* — not because I enumerated it. A newly added profile is
+therefore **refused by default**. `foundation_motor_v2_termination_route_rejection()`
+returns two distinct refusals, each naming the objective program id and, for the
+pre-receipt base, the rung's own numbers plus the exact ratified invocation. A
+hand-maintained allowlist would have been the tenth version of the same mistake.
+
+**Three layers, innermost decisive.** (1)
+`scripts/train_living_reasoning_smoke.py` raises `RuntimeError` **before any
+compute** — this is the choke point every path funnels through, including a
+notebook run by hand, so the refusal is unconditional. (2)
+`scripts/run_d64_tournament.py:_command` raises before spawning a candidate
+subprocess, and now derives the route flag *from the profile*, so the ratified
+route is expressible at all. (3) `scripts/axon_kaggle.py` audits on **prepare**
+(before a packet is built) and on **launch** (reading the recorded argv out of
+`packet_manifest.json`, so a packet prepared before the gate existed is still
+refused at upload) — no provider quota is ever contacted. Scoped to motor-v2:
+probing showed v6 flags on a motor-v1 curriculum fail for an unrelated reason,
+so motor-v1/sequential/organism campaigns are different objectives, not the
+rejected route. `--evaluate-only` always passes — historical runs stay
+reproducible.
+
+**Proven by execution, on the real trainer.** Real published motor-v2 campaign,
+real subprocess:
+
+```
+legacy base           rc=1  refusing to train the pre-receipt-continuation motor-v2
+                            termination route (objective program 3b41008e394…)
+termination_head_v5   rc=1  refusing … profile 'termination_head_v5' (76d1ae00…)
+route_eos_balanced_v2 rc=1  refusing … profile 'route_eos_balanced_v2' (8c269847…)
+ratified v6           rc=0  trains
+```
+
+`3b41008e…` is not an arbitrary id — it is **the exact program the 600-step
+emission rung ran**. The refusal quotes the receipt of what actually ran. Config
+audit over all 18 launchers: **9 refused** (the emission rung + the 8 motor-v2
+mixer variants — kept in the repo as receipts), **9 allowed**. Affected suites:
+**144 passed, EXIT=0**.
+
+**One caveat I did *not* silently fix, because it is a doctrine call.**
+`termination_continue_accuracy` still returns `1.0` when
+`termination_continue_positions == 0` (`living_reasoning_d64.py:1317-1319`) —
+the same vacuous-pass shape as the floor traps. I checked whether it is a gate:
+it is in **none** of `FOUNDATION_MOTOR_V2_STAGE_GATE_METRICS`, so nothing passes
+through it, and `tests/test_termination_head_route.py:877` **deliberately pins**
+that off-path value to v5 semantics. So it is a reporting trap, not an unwinnable
+one. Closing it means changing a deliberately pinned number, so I flagged it
+rather than editing it.
 
 ## 2026-09-18 — the full suite, and the last artifact of the hardcoded-zero era
 
@@ -2195,10 +2267,19 @@ of a frozen-looking dashboard). Should the trainer emit progress during evaluati
 
 ## Next actions
 
-**PRIORITY 0 — launch the ratified repair, so the next tranche tests a
-hypothesis instead of re-testing a known-broken fixed point
-(`evt-20260918T012800000000Z`):**
+**PRIORITY 0 — the legacy route is now unlaunchable; the ratified repair is the
+only trainable motor-v2 termination objective (`evt-20260918T033934Z`,
+`evt-20260918T012800000000Z`):**
 
+- **DONE — it is impossible to run a legacy route again.** The rejected set is
+  derived from each objective's own `termination_continue_supervision`
+  declaration, so a new profile is refused by default. Refused with
+  `RuntimeError` before any compute in `scripts/train_living_reasoning_smoke.py`,
+  before spawning a candidate in `scripts/run_d64_tournament.py`, and before a
+  packet is built or uploaded in `scripts/axon_kaggle.py`. `--evaluate-only`
+  always passes. Proven by subprocess: legacy base / `termination_head_v5` /
+  `route_eos_balanced_v2` → rc=1 naming program `3b41008e…`; v6 → rc=0. Config
+  audit 9 refused / 9 allowed. Affected suites **144 passed, EXIT=0**.
 - **LAUNCH `configs/kaggle/axon_d64_emission_rung_v6_termination_balanced.json`.**
   This is the first launcher that executes the ratified v6 termination repair
   (`--receipt-continuation --receipt-teaching-profile termination_head_balanced_v6
@@ -2230,8 +2311,9 @@ hypothesis instead of re-testing a known-broken fixed point
   `copy_alignment`/`transport_eos`, then required ≥0.95 at `address`); whether
   `termination_continue_accuracy` should be **rejected** when
   `termination_continue_positions == 0` (vacuous-pass guard, same class as the
-  floor traps); and whether the receipt overlay's `alignment_eos_gate: 2.0`
-  should be re-ratified.
+  floor traps); whether v1–v4 receipt profiles should **stay** refused (today
+  the gate refuses everything but v6); and whether the receipt overlay's
+  `alignment_eos_gate: 2.0` should be re-ratified.
 - **Two unexplained measurements**, possibly defects: counts differ across metrics
   on one evaluation surface (`alignment_position_count 31` vs
   `alignment_eos_gate_count 16` vs `payload_teacher_forced_eos_count 24`), and

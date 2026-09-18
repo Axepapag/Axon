@@ -46,8 +46,6 @@ from training import (
     FOUNDATION_MOTOR_V2_STAGE_ORDER,
     FOUNDATION_SEQUENCE_GATE_POLICY_ID,
     RECEIPT_TEACHING_PROFILE_CONTINUATION_V1,
-    RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_BALANCED_V4,
-    RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_EOS_V3,
     RECEIPT_TERMINATION_HEAD_PROFILES,
     RECEIPT_TEACHING_PROFILES,
     LivingReasoningCoreD64,
@@ -73,6 +71,8 @@ from training import (
     foundation_motor_v2_objective_program_id,
     foundation_motor_v2_probe,
     foundation_motor_v2_stage_policy,
+    foundation_motor_v2_termination_route_rejection,
+    RECEIPT_GENERATE_HEAD_PROFILES,
     foundation_sequence_probe,
     is_foundation_motor_episode,
     is_foundation_motor_v2_episode,
@@ -815,11 +815,7 @@ def main() -> int:
             "a non-default --receipt-teaching-profile requires --receipt-continuation"
         )
     if args.eos_generate_head_route != (
-        args.receipt_teaching_profile
-        in {
-            RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_EOS_V3,
-            RECEIPT_TEACHING_PROFILE_GENERATE_HEAD_BALANCED_V4,
-        }
+        args.receipt_teaching_profile in RECEIPT_GENERATE_HEAD_PROFILES
     ):
         raise ValueError(
             "--eos-generate-head-route and --receipt-teaching-profile "
@@ -966,6 +962,21 @@ def main() -> int:
         if foundation_motor_v2_enabled
         else None
     )
+    if foundation_motor_v2_enabled and not args.evaluate_only:
+        # Fail closed before any compute: nine tranches were spent re-testing a
+        # termination objective the autopsy had already rejected, because the
+        # rejected route was reachable by simply omitting flags.  A rejected
+        # route cannot produce information, so refusing to start is the only
+        # outcome that does not waste allowance.  Read-only evaluation of an
+        # existing bundle stays permitted, which is how a historical run is
+        # still reproduced and judged.
+        termination_route_rejection = foundation_motor_v2_termination_route_rejection(
+            teach_multicell_copy=bool(args.teach_multicell_copy),
+            receipt_continuation=bool(args.receipt_continuation),
+            receipt_teaching_profile=args.receipt_teaching_profile,
+        )
+        if termination_route_rejection is not None:
+            raise RuntimeError(termination_route_rejection)
     if all_ffcs:
         active = CanonicalStateBranch.active_runtime(state_root=args.state_root).load_head()
         active_identity = active.region(LogicalRegion.IDENTITY).text

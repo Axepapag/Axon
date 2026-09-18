@@ -18,8 +18,77 @@ from runtime.trainer import (  # noqa: E402
     TrainerOrgan,
     TrainerOrganCommand,
 )
-from runtime.trainer.cloud_jobs import CloudPacketError  # noqa: E402
+from runtime.trainer.cloud_jobs import CloudJobConfig, CloudPacketError  # noqa: E402
 from runtime.trainer.kaggle_adapter import KaggleTrainerAdapter  # noqa: E402
+from training import (  # noqa: E402
+    is_foundation_motor_v2_episode,
+    load_first_form_curriculum,
+)
+from training.foundation_motor_curriculum import (  # noqa: E402
+    RECEIPT_TEACHING_PROFILE_CONTINUATION_V1,
+    foundation_motor_v2_termination_route_rejection,
+)
+
+
+def _argv_option(entrypoint_argv: list[str], flag: str) -> str | None:
+    for index, item in enumerate(entrypoint_argv):
+        if item == flag and index + 1 < len(entrypoint_argv):
+            return str(entrypoint_argv[index + 1])
+    return None
+
+
+def _curriculum_manifest_paths(entrypoint_argv: list[str], state_root: Path) -> list[Path]:
+    paths: list[Path] = []
+    for index, item in enumerate(entrypoint_argv):
+        if item != "--curriculum-manifest" or index + 1 >= len(entrypoint_argv):
+            continue
+        raw = Path(str(entrypoint_argv[index + 1]))
+        if raw.is_absolute():
+            paths.append(raw)
+            continue
+        rooted = ROOT / raw
+        paths.append(rooted if rooted.exists() else state_root / raw)
+    return paths
+
+
+def _entrypoint_is_motor_v2(entrypoint_argv: list[str], state_root: Path) -> bool:
+    for path in _curriculum_manifest_paths(entrypoint_argv, state_root):
+        if not path.exists():
+            continue
+        for item in load_first_form_curriculum(path).teaching_cases:
+            if is_foundation_motor_v2_episode(item.episode):
+                return True
+    return False
+
+
+def audit_termination_route(
+    entrypoint_argv: list[str],
+    *,
+    state_root: Path,
+    source: str,
+) -> None:
+    """Refuse to prepare or upload a packet on a rejected termination route.
+
+    The rejected routes are known-broken objectives whose plateaus are already
+    measured, so uploading one cannot produce information and only spends
+    allowance and provider quota.  This runs before the packet is built or sent
+    so a legacy tranche is never even packed.  Read-only evaluation of an
+    existing bundle stays permitted.
+    """
+
+    argv = [str(item) for item in entrypoint_argv]
+    if "--evaluate-only" in argv:
+        return
+    if not _entrypoint_is_motor_v2(argv, state_root):
+        return
+    rejection = foundation_motor_v2_termination_route_rejection(
+        teach_multicell_copy="--teach-multicell-copy" in argv,
+        receipt_continuation="--receipt-continuation" in argv,
+        receipt_teaching_profile=_argv_option(argv, "--receipt-teaching-profile")
+        or RECEIPT_TEACHING_PROFILE_CONTINUATION_V1,
+    )
+    if rejection is not None:
+        raise CloudPacketError(f"{source} would upload a rejected route: {rejection}")
 
 
 def _arguments() -> argparse.Namespace:
@@ -302,6 +371,14 @@ def main() -> int:
         if args.command == "doctor":
             value = adapter.doctor()
         elif args.command == "prepare":
+            config_path = args.config.resolve()
+            # Fail closed before the packet exists: a rejected route cannot
+            # produce information, so it must never reach provider quota.
+            audit_termination_route(
+                CloudJobConfig.read(config_path).entrypoint_argv,
+                state_root=args.state_root.resolve(),
+                source=f"config {config_path}",
+            )
             result = organ.dispatch(
                 TrainerOrganCommand(
                     kind="export_cloud_packet",
@@ -313,6 +390,23 @@ def main() -> int:
                 raise CloudPacketError(result.error or "packet export failed")
             value = dict(result.payload)
         elif args.command == "launch":
+            # A packet prepared before this gate existed is still refused at
+            # upload time; the packet manifest records the exact argv.
+            manifest_path = (
+                args.state_root.resolve()
+                / "training"
+                / "cloud"
+                / "jobs"
+                / args.job_id
+                / "packet_manifest.json"
+            )
+            if manifest_path.exists():
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                audit_termination_route(
+                    list(manifest.get("config", {}).get("entrypoint_argv", [])),
+                    state_root=args.state_root.resolve(),
+                    source=f"job {args.job_id}",
+                )
             result = organ.dispatch(
                 TrainerOrganCommand(
                     kind="start",
