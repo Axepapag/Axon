@@ -57,6 +57,7 @@ def test_motor_v2_copy_metrics_and_recent_steps_are_visible():
                 "case_count": 8,
                 "alignment_copy_gate_accuracy": 1.0,
                 "alignment_position_accuracy": 1.0,
+                "alignment_eos_gate_accuracy": 0.625,
                 "pair_copy_gate": 1.0,
                 "pair_position": 1.0,
             },
@@ -85,6 +86,8 @@ def test_motor_v2_copy_metrics_and_recent_steps_are_visible():
     assert "motor v2 initial/heldout" in rendered
     assert "copy-gate 1.000" in rendered
     assert "position 0.667" in rendered
+    # The termination repair is graded on this heldout rate (legacy 0.3125).
+    assert "eos-gate 0.625" in rendered
     assert "121" in rendered and "0.420" in rendered
     assert "copy_alignment" in rendered
     assert "sync:" not in rendered
@@ -387,6 +390,47 @@ def test_transcript_without_a_verdict_names_no_reason():
 
 def _plain(text: str) -> str:
     return re.sub(r"\x1b\[[0-9;]*m", "", text)
+
+
+def test_termination_continuation_telemetry_is_visible_and_fails_closed():
+    watcher = _watcher()
+    watcher.consume(_event("start", "starting", tranche_steps=600))
+    for step, loss in ((1, 0.69), (2, 0.61), (3, 0.55)):
+        watcher.consume(
+            _event(
+                f"step-{step}",
+                "training",
+                global_step=step,
+                loss=2.0,
+                wall_seconds=7.0,
+                termination_continue_positions=3,
+                termination_continue_loss=loss,
+                training_alignment_eos_gate_accuracy=0.4 + 0.1 * step,
+            )
+        )
+    rendered = watcher.render()
+    assert "termination:" in rendered
+    assert "continue positions 3 (min 3 of 3 steps)" in rendered
+    assert "cont-loss 0.550" in rendered
+    assert "train eos-gate 70%" in rendered
+    assert "UNSUPERVISED" not in rendered
+
+    # A step that supervised no anchor is the exact dead state the legacy route
+    # reported as a vacuous 1.0; on the dashboard it must be impossible to miss.
+    watcher.consume(
+        _event(
+            "step-4",
+            "training",
+            global_step=4,
+            loss=2.0,
+            wall_seconds=7.0,
+            termination_continue_positions=0,
+            termination_continue_loss=None,
+        )
+    )
+    rendered = watcher.render()
+    assert "1 UNSUPERVISED STEP(S)" in rendered
+    assert "cont-loss 0.550" in rendered  # last *available* loss, not a zero
 
 
 def test_a_rate_at_its_constant_floor_is_not_rendered_as_progress():

@@ -376,7 +376,7 @@ def living_phase_objective(
     alignment_position_reduction: str = "mean",
     payload_eos_weight: float = 4.0,
     termination_continue_supervision: bool = False,
-) -> tuple[torch.Tensor, dict[str, float]]:
+) -> tuple[torch.Tensor, dict[str, float | None]]:
     payload_eos_weight = float(payload_eos_weight)
     if not math.isfinite(payload_eos_weight) or payload_eos_weight <= 0.0:
         raise ValueError("payload_eos_weight must be finite and positive")
@@ -512,8 +512,21 @@ def living_phase_objective(
                 "termination_continue_positions": float(
                     alignment_supervision["termination_continue_positions"]
                 ),
-                "termination_continue_accuracy": float(
-                    alignment_supervision["termination_continue_accuracy"]
+                # Unavailable stays unavailable: an accuracy over zero supervised
+                # positions must not be reported as a rate, and the continuation
+                # loss must not be reported as a number when no stop=0 term was
+                # evaluated. Both are instrumented only; neither is optimized.
+                "termination_continue_accuracy": (
+                    None
+                    if alignment_supervision["termination_continue_accuracy"] is None
+                    else float(alignment_supervision["termination_continue_accuracy"])
+                ),
+                "termination_continue_loss": (
+                    None
+                    if alignment_supervision["termination_continue_loss"] is None
+                    else float(
+                        alignment_supervision["termination_continue_loss"].detach().item()
+                    )
                 ),
                 "alignment_gate_accuracy": float(alignment_supervision["gate_accuracy"]),
             }

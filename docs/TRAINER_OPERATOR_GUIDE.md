@@ -107,6 +107,31 @@ same gate runs in `scripts/run_d64_tournament.py` before a candidate is spawned
 and in `scripts/axon_kaggle.py` before a packet is built or uploaded. Read-only
 `--evaluate-only` reproduction of an existing bundle is always permitted.
 
+### Reading the termination objective from the dashboard
+
+The rejected route reported `termination_continue_accuracy` as a vacuous `1.0`
+for all 600 steps of the emission rung because it supervised zero anchors. The
+metric now fails closed instead: with no supervised anchor the rate is
+unavailable (`null`), not a perfect score, and a route that *declares* explicit
+continuation supervision while supervising no content anchor raises rather than
+reporting numbers for an objective it never exercised.
+
+`scripts/axon_training_watch.py` shows the objective per step:
+
+```
+ termination: continue positions 3 (min 3 of 12 steps)  cont-loss 0.551 ▆▄▃  train eos-gate 62% ▂▃▅
+```
+
+- `continue positions` — stop=0 anchors supervised this step; the ratified route
+  requires more than zero from its first applicable step, and any step that
+  supervised none is called out as `UNSUPERVISED STEP(S)` in red.
+- `cont-loss` — the mean of the explicit stop=0 BCE terms that are already part
+  of the objective. Instrumentation only: the trainer optimizes exactly the same
+  tensors it did before the metric existed.
+- `train eos-gate` — teacher-forced alignment EOS-gate accuracy for the step.
+  The graded rate is the heldout probe's `eos-gate`, printed on the
+  `motor v2` lines (the rejected route never moved it off `0.3125`).
+
 The private Kaggle adapter and independent observable launchers are now
 implemented. Double-click `AXON_KAGGLE.bat`; see
 `docs/KAGGLE_TRAINING_GUIDE.md`. Colab/SimplePod adapters, mid-segment

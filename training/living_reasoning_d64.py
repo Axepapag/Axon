@@ -1129,6 +1129,10 @@ class LivingReasoningCoreD64(CompleteField64D):
         position_losses: list[torch.Tensor] = []
         copy_gate_losses: list[torch.Tensor] = []
         eos_gate_losses: list[torch.Tensor] = []
+        # Bookkeeping only: the explicit stop=0 terms are appended here as well
+        # as to eos_gate_losses, so the continuation objective becomes observable
+        # without altering eos_gate_loss/gate_loss or the optimized objective.
+        termination_continue_losses: list[torch.Tensor] = []
         learned_anchor_positions: list[int] = []
         position_correct = copy_gate_correct = supervised_copy_positions = 0
         deterministic_continuation_positions = 0
@@ -1258,12 +1262,12 @@ class LivingReasoningCoreD64(CompleteField64D):
                         (1,), device=self.device, dtype=termination_logits.dtype
                     )
                     for anchor_position in learned_anchor_positions:
-                        eos_gate_losses.append(
-                            F.binary_cross_entropy_with_logits(
-                                termination_logits[:, anchor_position],
-                                continue_target,
-                            )
+                        continue_bce = F.binary_cross_entropy_with_logits(
+                            termination_logits[:, anchor_position],
+                            continue_target,
                         )
+                        eos_gate_losses.append(continue_bce)
+                        termination_continue_losses.append(continue_bce)
                         termination_continue_correct += int(
                             float(termination_logits[0, anchor_position].item()) < 0.0
                         )
@@ -1295,6 +1299,17 @@ class LivingReasoningCoreD64(CompleteField64D):
         termination_continue_positions = (
             len(learned_anchor_positions) if supervise_termination_continue else 0
         )
+        if supervise_termination_continue and not termination_continue_positions:
+            # The ratified termination objective is *defined* by symmetric stop
+            # supervision at content anchors. A route that declares it while
+            # supervising no anchor has not exercised the mechanism, so its
+            # continuation metrics would be numbers with nothing behind them.
+            # Fail closed instead of reporting them.
+            raise RuntimeError(
+                "termination continue supervision was selected but no content "
+                "anchor was supervised; refusing to report continuation metrics "
+                "for a route that never exercised them"
+            )
         eos_gate_supervised = int(eos_supervised) + termination_continue_positions
         gate_count = supervised_copy_positions + eos_gate_supervised
         gate_correct = copy_gate_correct + eos_gate_correct
@@ -1314,10 +1329,18 @@ class LivingReasoningCoreD64(CompleteField64D):
             "eos_gate_correct": eos_gate_correct,
             "termination_continue_positions": termination_continue_positions,
             "termination_continue_correct": termination_continue_correct,
+            # A rate with no supervised positions is not evidence, so the
+            # unsupervised state reports unavailable rather than a vacuous 1.0.
+            # The ratified termination route requires positions > 0.
             "termination_continue_accuracy": (
                 termination_continue_correct / termination_continue_positions
                 if termination_continue_positions
-                else 1.0
+                else None
+            ),
+            "termination_continue_loss": (
+                torch.stack(termination_continue_losses).mean()
+                if termination_continue_losses
+                else None
             ),
             "position_accuracy": (
                 position_correct / supervised_copy_positions

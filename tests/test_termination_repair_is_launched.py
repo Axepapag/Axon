@@ -341,10 +341,15 @@ def test_the_trainer_still_runs_the_ratified_route(motor_v2_manifest) -> None:
     """A refusal that also blocked the repair would leave nothing launchable."""
 
     state_root, manifest = motor_v2_manifest
+    progress_dir = state_root.parent / "termination-telemetry"
     completed = subprocess.run(
         _trainer_argv(
             state_root,
             manifest,
+            "--progress-dir",
+            str(progress_dir),
+            "--external-job-id",
+            "termination-route-telemetry",
             "--receipt-continuation",
             "--receipt-teaching-profile",
             RECEIPT_TEACHING_PROFILE_TERMINATION_HEAD_BALANCED_V6,
@@ -358,3 +363,20 @@ def test_the_trainer_still_runs_the_ratified_route(motor_v2_manifest) -> None:
         check=False,
     )
     assert completed.returncode == 0, f"{completed.stdout[-2000:]}\n{completed.stderr[-4000:]}"
+
+    # And the route it ran must be observable: the legacy objective reported a
+    # vacuous termination_continue_accuracy of 1.0 over zero supervised positions
+    # for all 600 steps, so an operator could not see that nothing was exercised.
+    events = [
+        json.loads(line[line.find("{") :])
+        for line in completed.stdout.splitlines()
+        if "AXON_PROGRESS" in line
+    ]
+    training = [event for event in events if event.get("status") == "training"]
+    assert training, "the ratified route emitted no training progress event"
+    for event in training:
+        details = event["details"]
+        assert details["termination_continue_positions"] > 0, details
+        assert details["termination_continue_loss"] is not None, details
+        assert details["termination_continue_loss"] > 0.0, details
+        assert details["training_alignment_eos_gate_accuracy"] is not None, details

@@ -867,7 +867,8 @@ def test_termination_continue_supervision_is_opt_in_and_symmetric() -> None:
     memory = _AnchorMemory(model, token=encode_unicode_text("a")[0])
 
     # Default (and explicit False) stay byte-identical to the v5 semantics:
-    # only the EOS position is supervised and scored.
+    # only the EOS position is supervised and scored, and the continuation rate
+    # is explicitly unavailable rather than a vacuous 1.0 over zero positions.
     base = _anchor_supervision(model, memory, (-8.0, 8.0))
     explicit_off = _anchor_supervision(model, memory, (-8.0, 8.0), supervise_continue=False)
     for supervision in (base, explicit_off):
@@ -875,7 +876,8 @@ def test_termination_continue_supervision_is_opt_in_and_symmetric() -> None:
         assert supervision["eos_gate_correct"] == 1
         assert supervision["eos_gate_accuracy"] == 1.0
         assert supervision["termination_continue_positions"] == 0
-        assert supervision["termination_continue_accuracy"] == 1.0
+        assert supervision["termination_continue_accuracy"] is None
+        assert supervision["termination_continue_loss"] is None
     assert explicit_off["eos_gate_loss"].item() == base["eos_gate_loss"].item()
 
     # Flag on: the content anchor is supervised toward stop=0 and folded into
@@ -887,6 +889,14 @@ def test_termination_continue_supervision_is_opt_in_and_symmetric() -> None:
     assert good["eos_gate_supervised_positions"] == 2
     assert good["eos_gate_correct"] == 2
     assert good["eos_gate_accuracy"] == 1.0
+
+    # The continuation loss is instrumented from the stop=0 BCE terms that were
+    # already being optimized, so it is exactly the term the flag adds to the
+    # termination gate loss -- the objective itself is unchanged.
+    assert good["termination_continue_loss"] is not None
+    assert good["eos_gate_loss"].item() == pytest.approx(
+        (base["eos_gate_loss"].item() + good["termination_continue_loss"].item()) / 2
+    )
 
     # A saturated stop logit at the anchor is now scored wrong even though the
     # EOS position is still perfect: the emit-everything dead state is visible.
@@ -913,3 +923,39 @@ def test_termination_continue_supervision_is_opt_in_and_symmetric() -> None:
             },
             supervise_termination_continue="yes",
         )
+
+
+def test_continuation_metrics_fail_closed_without_a_supervised_anchor() -> None:
+    model = _term_model()
+    memory = _AnchorMemory(model, token=encode_unicode_text("a")[0])
+
+    def supervise(*, supervise_continue: bool) -> dict:
+        return model.alignment_supervision(
+            target_text="a",
+            memory=memory,
+            decoder_alignment={
+                "position_logits": torch.zeros(1, 2, memory.states.shape[1]),
+                "generate_gate_logits": torch.zeros(1, 2),
+                "termination_logits": torch.zeros(1, 2),
+            },
+            specification={
+                "schema": "axon-r0-target-alignment-v1",
+                "segments": [],
+                "supervise_eos_generate": True,
+            },
+            supervise_termination_continue=supervise_continue,
+        )
+
+    # With no alignment segment there is no content anchor to supervise toward
+    # stop=0, so the continuation rate is unavailable -- never a vacuous 1.0 that
+    # would let an unsupervised route look perfect at the termination objective.
+    unavailable = supervise(supervise_continue=False)
+    assert unavailable["termination_continue_positions"] == 0
+    assert unavailable["termination_continue_accuracy"] is None
+    assert unavailable["termination_continue_loss"] is None
+
+    # A route that declares continuation supervision while supervising no anchor
+    # has not exercised the mechanism at all, so it must fail closed instead of
+    # reporting numbers for an objective it never ran.
+    with pytest.raises(RuntimeError, match="no content anchor was supervised"):
+        supervise(supervise_continue=True)

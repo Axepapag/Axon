@@ -165,6 +165,16 @@ class Watcher:
         self.lanes: deque[str] = deque(maxlen=window)
         self.wall: deque[float] = deque(maxlen=window)
         self.step_numbers: deque[int] = deque(maxlen=window)
+        # Termination-objective instrumentation: the ratified route must report
+        # a supervised anchor on every applicable step, so an unsupervised step
+        # is counted as a fail-closed event rather than silently folded in.
+        self.termination_positions: deque[int] = deque(maxlen=window)
+        self.termination_losses: deque[float] = deque(maxlen=window)
+        self.training_eos_gate: deque[float] = deque(maxlen=window)
+        self.termination_unavailable_steps = 0
+        self.termination_last_positions: int | None = None
+        self.termination_last_loss: float | None = None
+        self.training_eos_gate_last: float | None = None
         self.recent_steps: deque[str] = deque(maxlen=8)
         self.last_step = 0
         self.segment_start = 0
@@ -289,6 +299,20 @@ class Watcher:
                 if wall is not None:
                     self.wall.append(float(wall))
                 self.step_numbers.append(step)
+                if "termination_continue_positions" in details:
+                    counted = int(details.get("termination_continue_positions") or 0)
+                    self.termination_last_positions = counted
+                    self.termination_positions.append(counted)
+                    if counted <= 0:
+                        self.termination_unavailable_steps += 1
+                    continue_loss = details.get("termination_continue_loss")
+                    if continue_loss is not None:
+                        self.termination_last_loss = float(continue_loss)
+                        self.termination_losses.append(float(continue_loss))
+                    training_eos = details.get("training_alignment_eos_gate_accuracy")
+                    if training_eos is not None:
+                        self.training_eos_gate_last = float(training_eos)
+                        self.training_eos_gate.append(float(training_eos))
                 checkpoint_id = details.get("checkpoint_id")
                 if checkpoint_id:
                     self.checkpoints += 1
@@ -538,6 +562,30 @@ class Watcher:
                 remaining = max(0, self.segment_end - self.last_step) * avg_wall
             eta = f"  ETA ~{remaining/60:.0f}m" if remaining else ""
             lines.append(f" pace: {avg_wall:.1f}s/step  checkpoints:{self.checkpoints}  bundles:{self.bundles}{eta}")
+        if self.termination_positions:
+            counted = list(self.termination_positions)
+            unsupervised = sum(1 for value in counted if value <= 0)
+            positions_text = (
+                f"continue positions {self.termination_last_positions}"
+                f" (min {min(counted)} of {len(counted)} steps)"
+            )
+            if unsupervised:
+                positions_text += f"  {unsupervised} UNSUPERVISED STEP(S)"
+                positions_text = _color(positions_text, RED)
+            parts = [f" termination: {positions_text}"]
+            if self.termination_losses:
+                parts.append(
+                    f"cont-loss {_fmt_loss(self.termination_last_loss)}"
+                    f" {_spark(list(self.termination_losses))}"
+                )
+            else:
+                parts.append(_color("cont-loss N/A", RED))
+            if self.training_eos_gate:
+                parts.append(
+                    f"train eos-gate {self.training_eos_gate_last*100:.0f}%"
+                    f" {_spark(list(self.training_eos_gate))}"
+                )
+            lines.append("  ".join(parts))
         if self.eval_summary:
             heldout = self.eval_summary.get("heldout_mean_loss")
             metrics = [f"heldout_loss {_fmt_loss(heldout)}"]
@@ -700,7 +748,8 @@ def _motor_v2_line(label: str, probe: dict[str, Any] | None) -> str | None:
         return None
     gate = probe.get("alignment_copy_gate_accuracy")
     position = probe.get("alignment_position_accuracy")
-    if gate is None and position is None:
+    eos_gate = probe.get("alignment_eos_gate_accuracy")
+    if gate is None and position is None and eos_gate is None:
         return None
     pair_gate = probe.get("pair_copy_gate")
     pair_position = probe.get("pair_position")
@@ -711,6 +760,10 @@ def _motor_v2_line(label: str, probe: dict[str, Any] | None) -> str | None:
         f"copy-gate {_rate_text(gate)}",
         _color(f"position {_rate_text(position)}", position_color),
     ]
+    if eos_gate is not None:
+        # This is the rate the termination repair is graded on; the legacy route
+        # never moved it off 0.3125.
+        parts.append(f"eos-gate {_rate_text(eos_gate)}")
     if pair_gate is not None or pair_position is not None:
         parts.append(f"pair-gate {_rate_text(pair_gate)}  pair-pos {_rate_text(pair_position)}")
     if cases is not None:

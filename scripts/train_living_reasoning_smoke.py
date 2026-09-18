@@ -10,7 +10,7 @@ import random
 import re
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 import numpy as np
 import torch
@@ -103,10 +103,47 @@ def _compact_motor_v2_probes(evaluation: dict[str, Any]) -> dict[str, Any]:
             "case_count": probe.get("case_count"),
             "alignment_copy_gate_accuracy": probe.get("alignment_copy_gate_accuracy"),
             "alignment_position_accuracy": probe.get("alignment_position_accuracy"),
+            # The termination repair is judged on exactly this rate: the legacy
+            # route held it at 0.3125 because EOS won every argmax.
+            "alignment_eos_gate_accuracy": probe.get("alignment_eos_gate_accuracy"),
             "pair_copy_gate": pair.get("copy_gate") if isinstance(pair, dict) else None,
             "pair_position": pair.get("position") if isinstance(pair, dict) else None,
         }
     return compact
+
+
+def _continuation_step_telemetry(phase_metrics: Any) -> dict[str, Any]:
+    """Per-step view of the termination objective, for the monitor only.
+
+    Nothing here feeds the loss: positions are summed and the continuation loss
+    is averaged over the phases that actually evaluated a stop=0 term, so a step
+    with no supervised anchor reports unavailable instead of a fabricated value.
+    """
+
+    positions = 0
+    losses: list[float] = []
+    eos_gate_accuracies: list[float] = []
+    for phase in phase_metrics or ():
+        if not isinstance(phase, Mapping):
+            continue
+        counted = phase.get("termination_continue_positions")
+        if counted is not None:
+            positions += int(counted)
+        loss = phase.get("termination_continue_loss")
+        if loss is not None:
+            losses.append(float(loss))
+        accuracy = phase.get("alignment_eos_gate_accuracy")
+        if accuracy is not None:
+            eos_gate_accuracies.append(float(accuracy))
+    return {
+        "termination_continue_positions": positions,
+        "termination_continue_loss": (sum(losses) / len(losses)) if losses else None,
+        "training_alignment_eos_gate_accuracy": (
+            sum(eos_gate_accuracies) / len(eos_gate_accuracies)
+            if eos_gate_accuracies
+            else None
+        ),
+    }
 
 
 def nonzero_exact_output_observed(evaluation: dict[str, Any]) -> bool:
@@ -2362,6 +2399,7 @@ def main() -> int:
                     wall_seconds=wall_seconds,
                     checkpoint_id=None if checkpoint is None else checkpoint.checkpoint_id,
                     accepted_step_bundle_id=(None if accepted_bundle is None else accepted_bundle.bundle_id),
+                    **_continuation_step_telemetry(captured["phase_metrics"]),
                 )
             if retention_guard_stop is not None:
                 break
