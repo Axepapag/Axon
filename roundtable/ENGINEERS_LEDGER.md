@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-18T04:57:00+00:00
+Updated: 2026-09-18T06:45:00+00:00
 current_through_event_id:
-`evt-20260918T045700Z-copilot-continuation-margin-erosion-observed`
+`evt-20260918T064500Z-copilot-v6-tranche-verdict-and-stage0-gate`
 
 Append order note: the two events carrying timestamps `19:10` and `19:30` sit
 *earlier* in the file than the `20:00` launch event, because the correction was
@@ -21,7 +21,26 @@ those revisions are superseded, not erased; canonical events remain the authorit
 
 ## Current mission and honest status
 
-**WE RATIFIED THE v6 TERMINATION REPAIR AND NEVER RAN IT. THAT IS WHAT WE ARE
+**THE v6 REPAIR HAS NOW BEEN RUN, AND IT BROKE THE FIXED POINT.** `9655abb` →
+job `2a9f934e…` → `600/600` → paused for renewal. All four acceptance conditions
+PASS; content accuracy went **0.0 → 1.000**, transport **0.1667 → 0.6667**,
+heldout loss **4.3974 → 0.5882**, `alignment_eos_gate_accuracy` **0.3125 → 1.000**.
+**The sole remaining Stage-0 blocker is EOS precision: `payload_eos_accuracy`
+0.6667 and `payload_transport_exact_rate` 0.6667 against a required 0.95.** The
+stage gate is well-formed; Stage 0 is *not* mastered and nothing is promoted or
+served. `evt-20260918T064500Z`.
+
+**And my own floor repair was still hollow.** `81dd8a3`. The surface merge
+iterated a `dict` row directly, so it merged to `{}` and both constant-emitter
+floors collapsed to `0.0` — the same vacuous-floor trap `ee7d859` removed, one
+shape down — which made every *AT-FLOOR* / *BEATEN* verdict in that run a
+comparison against nothing. Raised rather than returned now, and pinned against
+the other two copies of the merge.
+
+<details>
+<summary>The pre-v6 status this supersedes: ratified-but-never-run</summary>
+
+**WE RATIFIED THE v6 TERMINATION REPAIR AND NEVER RAN IT. THAT IS WHAT WE WERE
 DOING WRONG.** `evt-20260918T012800000000Z`. I read the completed tranche's
 **authoritative** segment report
 (`…/jobs/389df54d…/outputs/axon_job/State/training/reasoning/r64v3-5cab79da3c43f00d/segment_000000001_000000600.json`)
@@ -392,8 +411,118 @@ loss-down-behavior-wrong, teacher/free-running divergence, constant-prior
 collapse, route-weight seesaw — while the process class (guard, probation,
 lease) is now sound.
 
-## 2026-09-18 — the observability hole is closed, and v6 is running with live proof of it
+</details>
 
+## 2026-09-18 — v6 at step 600: the fixed point is broken, and my own floor repair was still hollow
+`evt-20260918T064500Z-copilot-v6-tranche-verdict-and-stage0-gate`
+
+Job `2a9f934e878642bb3dd965c367c89658853418dc8c040246e85d2d67070c66af`,
+revision `9655abb`, candidate `axon-d64-emission-rung-v6-term-cloud`,
+lineage `r64v3-e28a4842607db328`,
+`effective_objective_program_id d0092331a509646b1c75081629558ddefeb0eca99d92e763afeaeb51cd09c979`.
+It ran, it reached `600/600`, and it paused for renewal.
+
+### Jeff's four acceptance conditions — all four PASS
+
+| # | Condition | Legacy | v6 final | Verdict |
+|---|---|---|---|---|
+| 1 | `termination_continue_positions > 0` from the first applicable step | `0.0` on all 600 steps | **`1` on all 1,200 rows** | PASS |
+| 2 | new continuation-loss trend is visible | never computed | deciles **0.5004 → 0.0057** | PASS |
+| 3 | `alignment_eos_gate_accuracy > 0.3125` | 0.3125 (5/16) | **1.000** (16/16) heldout **and** regression | PASS |
+| 4 | `payload_transport_exact_rate > 0.1667` | 0.1667 (12/72) | **0.6667** (48/72) heldout **and** regression | PASS |
+
+### The margin erosion I flagged mid-run was real and resolved favourably
+
+Over the complete 1,200-row run the continuation loss deciles are
+`[0.5004, 0.3975, 0.4113, 0.5068, 0.3180, 0.0605, 0.0178, 0.0104, 0.0075, 0.0057]`.
+It rose **back to decile-1 level at decile 4** (0.5068) and then collapsed. So the
+eroding anchor margin was a genuine regression mid-run, the fixed point briefly
+re-formed, and then it broke through. The alarm was correct when it was raised.
+
+### The headline: the canceling-gradient fixed point is broken
+
+| metric | v6 initial @0 | v6 final @600 | legacy final |
+|---|---|---|---|
+| `heldout_mean_loss` | 4.3974 | **0.5882** | — |
+| `payload_teacher_forced_content_accuracy` | 0.0 | **1.000** | 0.8710 |
+| `payload_transport_exact_rate` | 0.3333 | **0.6667** | 0.1667 |
+| `payload_teacher_forced_eos_accuracy` | 1.0 | **0.6667** | 0.2917 |
+| `alignment_eos_gate_accuracy` | 0.125 | **1.000** | 0.3125 |
+| `alignment_copy_gate_accuracy` | 0.0 | **1.000** | — |
+| `alignment_position_accuracy` | 0.0 | **1.000** | — |
+| `payload_teacher_forced_token_accuracy` | 0.600 | **0.800** | 0.6182 |
+| `typed_emission_exact_rate` | 0.3333 | **0.0** ← regressed | 0.0 |
+
+Content is now **perfect**; the **only** remaining defect is the stop token.
+Legacy was blocked by eos 0.2917 with content 0.8710. v6 has content 1.000 with eos
+0.6667. The blockade moved from fatal to partial. `pair_exact_rates` — content,
+copy_gate, eos_gate, position — are all **1.0**, i.e. exactly the four things
+Stage 0 trains; `address`, `decision`, `operation`, `joint` sit at chance, i.e.
+exactly the things Stage 0 assigns weight `0.0`.
+
+### Why it paused — four reachable failures, not a construction defect
+
+```
+heldout    payload_transport_exact_rate  0.6667 < 0.95
+heldout    payload_eos_accuracy          0.6667 < 0.95
+regression payload_transport_exact_rate  0.6667 < 0.95
+regression payload_eos_accuracy          0.6667 < 0.95
+```
+
+The gate is well-formed and the metrics are on trained heads. This is a genuine
+learning shortfall, so the tranche correctly refused to advance to `transport_eos`.
+`task_gate_passed` is **true** (heldout loss below baseline, token accuracy 0.800
+above floor, all counterfactuals > 1e-8).
+
+### `typed_emission_exact_rate == 0.0` — a stage-scoping defect, not the cause
+
+`evaluation_component_weights` gives `decision`, `operation`, `region`, `start` and
+`end` all **0.0** at `copy_alignment`. A DELTA phase is only exact when all five are
+right, and `region_accuracy` is **0.0** — so `typed_exact ≡ 0` **by construction** at
+Stage 0, and `nonzero_exact_output_observed` `(typed > floor)` cannot be true there.
+The decision head is a constant DELTA predictor (`decision_correct_by_target [24, 0, 0]`):
+its weights are frozen at 0.0 but its input `summary` moved as the body trained, so its
+argmax flipped from init-luck to a constant. **This did not cause the pause** — the pause
+is driven by `campaign_complete` semantics (`foundation_motor_v2_program_complete` requires
+the *final* stage, so it is false for any non-final stage) plus the four real failures.
+
+### The defect I found in my own repair — the floors were still vacuous
+
+`constant_typed_emission_target_histogram` and
+`constant_payload_transport_target_histogram` are **both `{}`** in the report, and both
+constant floors are **`0.0`**, while the motor-v2 probe on the *same run* reports the
+correct **0.3333**. Cause, proven in isolation: the 72-case surface assembler iterated
+`row.get(name)` directly, but `evaluate_living_episode`
+(`living_reasoning_curriculum.py:991`) returns `dict(sorted(hist.items()))`. **Iterating a
+mapping yields its keys**, which match neither branch, so every entry was skipped, the
+merge returned `{}`, and both floors collapsed to `0.0`.
+
+That is the **same vacuous-floor trap `ee7d859` was supposed to remove, one shape down**:
+the literal `0.0` became a computed floor that silently returned `0.0` again. The report
+still rendered `typed 0.0% vs floor 0.0%` as *AT-FLOOR* and `payload 66.7% vs floor 0.0%`
+as *BEATEN* — both comparisons against nothing. Three copies of this merge existed;
+`foundation_motor_curriculum._merge_row_histogram` and
+`sequential_first_form._merged_tick_histogram` both unwrap the mapping correctly, which is
+exactly why the probe was right and the tranche report was wrong.
+
+**Fixed fail-closed in `81dd8a3`**: `merge_surface_histogram` is now module-scope, unwraps
+`Mapping` rows, keeps the list-of-pairs and keyed-dict forms, and **raises** rather than
+returning an empty merge when there were cases to merge. Two tests added, including one
+that pins all three copies of the merge to the same output. **69 tests pass, exit 0;
+`git diff --cached --check` exit 0.** Instrumentation only — no objective, weight,
+geometry, data, or seed moved. The training result stands; the *floor verdicts* in that
+report do not.
+
+### Do not overclaim
+
+Stage 0 is **not** mastered. Nothing is promoted and nothing is served:
+`exact_serving_gate_passed` requires both exact rates `== 1.0` and we are at `0.6667`.
+The overfitting signal is real — training loss **0.009** against `heldout_mean_loss`
+**0.5882**, a ~65× gap — so more steps of the *identical* recipe may not close
+0.6667 → 0.95. The scales differ (weighted objective sum versus plain CE), so that is a
+signal, not a proof.
+
+## 2026-09-18 — the observability hole is closed, and v6 is running with live proof  of it
 `evt-20260918T043735Z`. Jeff's instruction: keep every pre-v6 route refused,
 close the hole where `termination_continue_accuracy` reported a vacuous `1.0`
 while `termination_continue_positions == 0`, emit a separate
@@ -2389,9 +2518,10 @@ of a frozen-looking dashboard). Should the trainer emit progress during evaluati
 
 ## Next actions
 
-**PRIORITY 0 — the legacy route is now unlaunchable; the ratified repair is the
-only trainable motor-v2 termination objective (`evt-20260918T033934Z`,
-`evt-20260918T012800000000Z`):**
+**PRIORITY 0 — the legacy route is unlaunchable, the ratified v6 objective has now
+actually run, and the only remaining Stage-0 blocker is EOS precision**
+(`evt-20260918T033934Z`, `evt-20260918T012800000000Z`,
+`evt-20260918T064500Z`):
 
 - **DONE — it is impossible to run a legacy route again.** The rejected set is
   derived from each objective's own `termination_continue_supervision`
@@ -2402,23 +2532,39 @@ only trainable motor-v2 termination objective (`evt-20260918T033934Z`,
   always passes. Proven by subprocess: legacy base / `termination_head_v5` /
   `route_eos_balanced_v2` → rc=1 naming program `3b41008e…`; v6 → rc=0. Config
   audit 9 refused / 9 allowed. Affected suites **144 passed, EXIT=0**.
-- **LAUNCHED — `configs/kaggle/axon_d64_emission_rung_v6_termination_balanced.json`
-  is running as job `2a9f934e…` at revision `9655abb`** (`evt-20260918T043735Z`,
-  `evt-20260918T045700Z`). It is the first launcher that executes the ratified v6
-  termination repair (`--receipt-continuation --receipt-teaching-profile
-  termination_head_balanced_v6 --termination-head-route`, program `d0092331…`).
-  Verified on the live run: `termination_continue_positions` is **exactly 1 on all
-  386 observed steps** against the legacy vacuous 0.0. **Still to read** — the
-  heldout `alignment_eos_gate_accuracy` against the legacy **0.3125** and
-  `payload_transport_exact_rate` against the legacy **0.1667**; both are
-  FINAL-evaluation numbers and the tranche evaluates only at its end.
-- **WATCH THIS — the anchor margin is eroding.** The new
-  `termination_continue_loss` fell 37% to decile 7 (implied anchor stop-logit
-  ≈ −0.85) and has risen across the last three deciles back to ≈ −0.47. If the
-  implied logit reaches 0 the head calls stop at content anchors and free-running
-  transport emits nothing — the v6 failure mode returning. `train eos-gate
-  accuracy` reads a flat 1.0 and would not show it. Do not read the monitor's
-  min-max-normalized `cont-loss` sparkline as a rate of change.
+- **DONE — job `2a9f934e…` at revision `9655abb` ran the ratified v6 termination
+  repair to `600/600` and paused for renewal**
+  (`evt-20260918T043735Z`, `evt-20260918T045700Z`,
+  `evt-20260918T064500Z`). All **four** of Jeff's acceptance conditions PASS:
+  `termination_continue_positions` is **1 on all 1,200 rows** (legacy 0.0 on all
+  600); the new continuation loss runs **0.5004 → 0.0057**; heldout and
+  regression `alignment_eos_gate_accuracy` are **1.000** against legacy **0.3125**;
+  heldout and regression `payload_transport_exact_rate` are **0.6667** against
+  legacy **0.1667**. Content accuracy went **0.0 → 1.000** and `heldout_mean_loss`
+  **4.3974 → 0.5882** — the canceling-gradient fixed point is broken.
+- **IT PAUSED — Stage 0 is not mastered, and the blocker is now only EOS
+  precision.** `foundation_motor_v2_stage_gate.passed` is `false` on exactly four
+  **reachable** metrics, on trained heads: heldout and regression
+  `payload_transport_exact_rate` and `payload_eos_accuracy`, all **0.6667** against
+  a required **0.95**. `task_gate_passed` is `true`. This is a genuine learning
+  shortfall, not a construction defect, and the tranche correctly refused to
+  advance to `transport_eos`.
+- **RESOLVED — the anchor-margin erosion alarm.** Over the complete 1,200-row run
+  the deciles are
+  `[0.5004, 0.3975, 0.4113, 0.5068, 0.3180, 0.0605, 0.0178, 0.0104, 0.0075, 0.0057]`
+  — the margin re-formed at decile 4 and then **broke through**. The alarm was a
+  correct observation of a real mid-run regression, not a false one. Do not read
+  the monitor's min-max-normalized `cont-loss` sparkline as a rate of change.
+- **FIXED — my own floor repair was still hollow (`81dd8a3`).** The 72-case
+  surface assembler iterated `row.get(name)` directly while
+  `evaluate_living_episode` returns a `dict`, and iterating a mapping yields its
+  keys — so every entry was skipped, the merged histogram returned `{}`, and both
+  constant-emitter floors collapsed to **`0.0`** (both are `{}` in the v6 report,
+  while the motor-v2 probe on the same run reports the correct **0.3333**). Every
+  *AT-FLOOR* / *BEATEN* verdict in that run compared against nothing. The merge is
+  now module-scope, unwraps `Mapping` rows, and **raises** rather than returning an
+  empty merge. Three copies of that merge existed and only the smoke script's was
+  wrong; a test now pins all three together.
 - **MID-RUN SYNC IS DISABLED** (`Kaggle User Secret AXON_KAGGL…` missing), so the
   final evaluation can only be read by downloading the kernel output after the
   job completes. This is the standing `AXON_KAGGLE_SYNC` item.
@@ -2427,9 +2573,21 @@ only trainable motor-v2 termination objective (`evt-20260918T033934Z`,
   `d0092331…`, `termination_continue_positions` **1.0 on every step**,
   `alignment_eos_gate_accuracy` **0.5 → 1.0**. It is evidence, not a serving
   candidate — 12 steps, never promoted, no Soul claim.
-- **Make the objective repair observable.** `termination_continue_loss` is still
-  absent from `phase_metrics` even with supervision enabled, so the monitor can
-  show *that* stop supervision happens but not *how well* it is learning. Emit it.
+- **DONE — the objective repair is observable.** `termination_continue_loss` is
+  emitted from the already-existing stop=0 BCE terms and renders on the monitor,
+  and `termination_continue_accuracy` now reads `None` instead of a vacuous `1.0`
+  when `termination_continue_positions == 0`.
+- **Scope `nonzero_exact_output_observed` to in-stage components.** At Stage 0 it
+  evaluates `decision`/`operation`/`region`/`start`/`end`, all of which carry weight
+  `0.0` there, and `region_accuracy` is `0.0`, so `typed_exact ≡ 0` **by
+  construction** and the flag can never be true. It is a labelling defect that
+  **did not** cause the pause (`curriculum_stage_complete` also requires the
+  *final* stage via `foundation_motor_v2_program_complete`).
+- **Renew Stage 0 or target the EOS margin directly.** The stage policy is
+  `advance_only_after_complete_heldout_and_regression_gate`, so advancing is
+  forbidden. Note the **generalization gap**: training loss **0.009** against
+  `heldout_mean_loss` **0.5882** (~65×, different scales — a signal, not a proof),
+  so more steps of the *identical* recipe may not close 0.6667 → 0.95.
 - **Attach `AXON_KAGGLE_SYNC` or stop advertising `sync_mid_run`.** Mid-run
   checkpoint sync has still never executed on any job
   (`SyncCredentialsMissing`); `configs/kaggle/axon_d64_emission_rung_v6_termination_balanced.json`
