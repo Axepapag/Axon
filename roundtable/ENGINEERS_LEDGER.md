@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-18T06:45:00+00:00
+Updated: 2026-09-18T07:15:00+00:00
 current_through_event_id:
-`evt-20260918T064500Z-copilot-v6-tranche-verdict-and-stage0-gate`
+`evt-20260918T071500Z-copilot-v6-observability-journal-and-sync-receipt`
 
 Append order note: the two events carrying timestamps `19:10` and `19:30` sit
 *earlier* in the file than the `20:00` launch event, because the correction was
@@ -2565,9 +2565,27 @@ actually run, and the only remaining Stage-0 blocker is EOS precision**
   now module-scope, unwraps `Mapping` rows, and **raises** rather than returning an
   empty merge. Three copies of that merge existed and only the smoke script's was
   wrong; a test now pins all three together.
-- **MID-RUN SYNC IS DISABLED** (`Kaggle User Secret AXON_KAGGL…` missing), so the
-  final evaluation can only be read by downloading the kernel output after the
-  job completes. This is the standing `AXON_KAGGLE_SYNC` item.
+- **MID-RUN SYNC IS DISABLED — now confirmed from the inside, not inferred.**
+  The output carries `axon_observability/trainer/sync_receipts.jsonl`, whose single
+  receipt reads `status: disabled`, reason *"sync credentials unavailable: Kaggle
+  User Secret AXON_KAGGLE_SYNC is not attached to this kernel"*. So the final
+  evaluation can only be read by downloading the kernel output after the job
+  completes. This is the standing `AXON_KAGGLE_SYNC` item.
+- **DONE — read the progress journal, not the log capture.**
+  `axon_observability/trainer/events.jsonl` (619,613 bytes, **606 events**: 600
+  `training`, 2 `evaluating`, 2 `evaluated`, 1 `starting`, 1 `paused`) ships
+  inside the kernel output and is the complete authoritative per-step record.
+  The streamed `kaggle kernels logs -f` capture is redundant and was truncated
+  once already. `current.json` is the final snapshot (`sequence 606`, `paused`,
+  `global_step 600`, `monotonic_seconds 5941.277`, `heldout_mean_loss 0.588238`,
+  `task_gate_passed true`, `curriculum_stage_complete false`,
+  `nonzero_exact_output_observed false`, `exact_serving_gate_passed false`).
+- **`typed_emission_exact_rate` REGRESSED `0.3333 → 0.0`** across the tranche —
+  from at-floor to *below* the true `0.3333` floor, driven by the decision head
+  collapsing to a constant DELTA (`per_decision_accuracy` `{abstain 1.0}` →
+  `{delta 1.0}`, `per_action_joint_exact_rate` `{abstain 1.0}` → all `0.0`). It is
+  out-of-stage at `copy_alignment`, so **do not gate a renewed Stage 0 on typed
+  exactness**; the in-stage surface is payload transport and EOS precision.
 - **The proof run already exists locally** (`axon-d64-v6-proof-local`, lineage
   `r64v3-0e99ec81e79b7bfb`, 12 steps, `EXIT=0`): `effective_objective_program_id`
   `d0092331…`, `termination_continue_positions` **1.0 on every step**,
