@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-18T03:39:34+00:00
+Updated: 2026-09-18T04:37:35+00:00
 current_through_event_id:
-`evt-20260918T033934Z-copilot-legacy-termination-route-unlaunchable`
+`evt-20260918T043735Z-copilot-continuation-observability-closed`
 
 Append order note: the two events carrying timestamps `19:10` and `19:30` sit
 *earlier* in the file than the `20:00` launch event, because the correction was
@@ -391,6 +391,71 @@ synthesis shows this is one instance of a recurring objective class failure —
 loss-down-behavior-wrong, teacher/free-running divergence, constant-prior
 collapse, route-weight seesaw — while the process class (guard, probation,
 lease) is now sound.
+
+## 2026-09-18 — the observability hole is closed, and v6 is running with live proof of it
+
+`evt-20260918T043735Z`. Jeff's instruction: keep every pre-v6 route refused,
+close the hole where `termination_continue_accuracy` reported a vacuous `1.0`
+while `termination_continue_positions == 0`, emit a separate
+`termination_continue_loss` from the **already-existing** stop=0 BCE terms with
+instrumentation only, run the regression and `git diff --check`, commit
+cleanly, then launch exactly the existing v6 tranche and verify four conditions.
+
+**What the hole was.** The legacy 600-step tranche reported
+`termination_continue_positions 0.0` on every single step *and*
+`termination_continue_accuracy 1.0`. Zero supervised anchors was being scored as
+perfection. That is the same class of defect as the hardcoded `0.0` floors: an
+unavailable measurement masquerading as a good one.
+
+**The fix (instrumentation only).** `termination_continue_accuracy` now returns
+`None` when no anchor was supervised, and `alignment_supervision` raises
+`RuntimeError("…no content anchor was supervised…")` if continue supervision was
+selected but nothing was supervised — the state is fail-closed, never flattering.
+The new `termination_continue_loss` is emitted by appending **the very same BCE
+tensor object** that `eos_gate_losses` already receives (bound once as
+`continue_bce`), so the gradient, the weights, the geometry, the data, the seed
+and every other training behavior are bit-identical. Pinned by the invariant
+`eos_gate_loss == (base + continuation_loss) / 2`.
+
+**Reachability, honestly stated.** The raise can only fire when
+`target.payload_alignment is not None` produced zero anchors — which requires
+`segments: []`. Both emission-rung manifests have **32 alignment targets, all
+exactly 1 segment**, so the raise cannot fire on this campaign's data, and
+evaluation never passes `supervise_termination_continue` at all. The fail-closed
+path is therefore a guard against a future curriculum, not a live risk.
+
+**Committed `9655abb`** — 7 files (+259/−20 plus the operator-guide subsection),
+8 tests added/updated. Target suites **25 + 23 + 8 passed**, combined re-run
+**33 passed**, regression Groups A and B `EXIT=0`, `git diff --check` clean after
+normalizing the added lines in the two mixed/CRLF test files to LF. An
+end-to-end CPU run of the ratified route via `--progress-dir` printed
+`positions 1 | cont-loss 0.7189…` on steps 1–3 and exited 0.
+
+**The tranche is running, unchanged.** Job `2a9f934e…`, revision `9655abb175d1…`,
+Tesla T4, 600 steps, ETA ~59m, `--receipt-continuation --receipt-teaching-profile
+termination_head_balanced_v6 --termination-head-route`. Monitor in async shell
+`v6watch`.
+
+**Acceptance — 2 of 4 verified live, 2 still open:**
+
+- **1 SATISFIED** — `termination: continue positions 1 (min 1 of 13 steps)` on
+  every observed step, no `UNSUPERVISED STEP(S)` marker. The legacy route was 0
+  for all 600 steps.
+- **2 SATISFIED** — the new `cont-loss 0.609 → 0.607` trend with a sparkline is
+  rendered per step, next to `train eos-gate 50–100%`.
+- **3 OPEN** — accepted only against an end-of-tranche evaluation. The legacy
+  **0.3125** is a *final*-eval number (5/16), confirmed by reading
+  `segment_000000001_000000600.json` directly; the v6 step-0 baseline is
+  `eos-gate 0.125` heldout / `0.062` regression (2/16, 1/16). Comparing a step-0
+  baseline to a legacy final would be dishonest.
+- **4 OPEN** — same reasoning for `payload_transport_exact_rate > 0.1667`.
+
+**Corrections to my own record.** I had earlier described a local probe's
+`eos-gate 1.000/0.500` without noting it used `--evaluation-case-limit 2`; that
+is not the authoritative 72-case surface and must not be conflated with 0.3125.
+I also record that the monitor's `payload_exact` line is **not yet confirmed** to
+be the same field as `payload_transport_exact_rate`; that must be checked against
+the final segment report before claiming condition 4.
 
 ## 2026-09-18 — the legacy route is now unlaunchable, not merely rejected
 
