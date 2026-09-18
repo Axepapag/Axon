@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-18T04:37:35+00:00
+Updated: 2026-09-18T04:57:00+00:00
 current_through_event_id:
-`evt-20260918T043735Z-copilot-continuation-observability-closed`
+`evt-20260918T045700Z-copilot-continuation-margin-erosion-observed`
 
 Append order note: the two events carrying timestamps `19:10` and `19:30` sit
 *earlier* in the file than the `20:00` launch event, because the correction was
@@ -453,9 +453,66 @@ termination_head_balanced_v6 --termination-head-route`. Monitor in async shell
 **Corrections to my own record.** I had earlier described a local probe's
 `eos-gate 1.000/0.500` without noting it used `--evaluation-case-limit 2`; that
 is not the authoritative 72-case surface and must not be conflated with 0.3125.
-I also record that the monitor's `payload_exact` line is **not yet confirmed** to
-be the same field as `payload_transport_exact_rate`; that must be checked against
-the final segment report before claiming condition 4.
+I also record that the monitor's `payload_exact` line **is** the same field as
+`payload_transport_exact_rate` (`axon_training_watch.py:394` and `:594`), so the
+label is not a second measurement — but the *step* at which it is read still has
+to match.
+
+### The first real reading of the new instrument — and it is an alarm, not a trophy
+
+`evt-20260918T045700Z`. The monitor's `cont-loss` sparkline is min-max
+normalized inside a 60-step window, so a 0.05 wobble renders as a full-scale
+ramp. I stopped reading the picture and parsed the raw `AXON_PROGRESS` events
+(`kaggle kernels logs -f`, 392 events, 386 training rows). The real series:
+
+| decile | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| mean cont-loss | .569 | .519 | .428 | .435 | .392 | .375 | **.357** | .385 | .454 | .481 |
+| implied anchor stop-logit | −.27 | −.38 | −.62 | −.60 | −.71 | −.76 | **−.85** | −.74 | −.54 | −.47 |
+
+`termination_continue_positions` is **exactly 1 on all 386 steps** — condition 1
+is proven, not merely displayed. The new loss exists on every step. But its
+trend is **not monotone**: it fell 37% over the first seven deciles and has
+**risen over the last three**, giving back more than half the margin it earned.
+
+Because the term is a BCE with target 0 at a content anchor, the loss maps onto
+the anchor's stop-logit as `log(1+exp(x))`. So the head drove the anchor margin
+to ≈ −0.85 by decile 7 and has since retreated to ≈ −0.47. **If it reaches 0 the
+head calls stop at content anchors and free-running payload transport emits
+nothing — the exact failure v6 was built to correct.**
+
+What makes this the strongest argument yet for the instrumentation: on 89.6% of
+steps `training_alignment_eos_gate_accuracy` reads a flat **1.0** (minimum
+0.500). Accuracy alone reports unqualified success while the margin that
+produces it decays. The accuracy field would have hidden this; the loss field
+did not.
+
+I did **not** treat this as condition 2 satisfied. It is visible, measured, and
+currently regressing.
+
+**Safety check before waiting 40 minutes:** I enumerated every consumer of the
+two new keys by ripgrep — the D64 supervision, the curriculum metrics
+passthrough, `_continuation_step_telemetry`, the watcher, and two tests. The
+**evaluation report contains no `termination_continue` keys at all**, and
+`phase_metrics` is never numerically aggregated, so the fail-closed `None`
+cannot crash the run at step 600.
+
+**Two other corrections.** (a) The v6 step-0 eval is **not** comparable to the
+legacy step-0 eval: v6 adds a dedicated scalar termination head, so its
+untrained heldout `eos-gate` reads `0.125` while the legacy untrained gate read
+`1.0` — different parameter sets, not a regression. (b) `ee7d859` replaced the
+legacy report's hardcoded `constant_typed_emission_exact_floor 0.0` and
+`constant_payload_transport_exact_floor 0.0` with histogram-derived floors, so
+the legacy **0.0 floors are not trustworthy baselines** — though the two exact
+*rates* themselves (`payload_exact / max(1, payload_count)`) are computed
+identically, so the 0.3125/0.1667 comparison still stands.
+
+**Still open.** Mid-run sync is disabled
+(`sync credentials unavailable: Kaggle User Secret AXON_KAGGL…`), so no
+checkpoint comes home mid-run and the final evaluation is only readable by
+downloading the kernel output after completion. The tranche evaluates once, at
+its end. At step 193/600 the ETA was ~43 minutes and **conditions 3 and 4 were
+still unread**.
 
 ## 2026-09-18 — the legacy route is now unlaunchable, not merely rejected
 
@@ -2345,14 +2402,26 @@ only trainable motor-v2 termination objective (`evt-20260918T033934Z`,
   always passes. Proven by subprocess: legacy base / `termination_head_v5` /
   `route_eos_balanced_v2` → rc=1 naming program `3b41008e…`; v6 → rc=0. Config
   audit 9 refused / 9 allowed. Affected suites **144 passed, EXIT=0**.
-- **LAUNCH `configs/kaggle/axon_d64_emission_rung_v6_termination_balanced.json`.**
-  This is the first launcher that executes the ratified v6 termination repair
-  (`--receipt-continuation --receipt-teaching-profile termination_head_balanced_v6
-  --termination-head-route`, program `d0092331…`). Until it runs, every tranche is
-  a ninth re-test of the route the v5 autopsy already rejected. Read its
-  `alignment_eos_gate_accuracy` and `payload_transport_exact_rate` against the
-  legacy route's **0.3125** and **0.1667**, and confirm
-  `termination_continue_positions > 0` instead of the legacy vacuous 0.0.
+- **LAUNCHED — `configs/kaggle/axon_d64_emission_rung_v6_termination_balanced.json`
+  is running as job `2a9f934e…` at revision `9655abb`** (`evt-20260918T043735Z`,
+  `evt-20260918T045700Z`). It is the first launcher that executes the ratified v6
+  termination repair (`--receipt-continuation --receipt-teaching-profile
+  termination_head_balanced_v6 --termination-head-route`, program `d0092331…`).
+  Verified on the live run: `termination_continue_positions` is **exactly 1 on all
+  386 observed steps** against the legacy vacuous 0.0. **Still to read** — the
+  heldout `alignment_eos_gate_accuracy` against the legacy **0.3125** and
+  `payload_transport_exact_rate` against the legacy **0.1667**; both are
+  FINAL-evaluation numbers and the tranche evaluates only at its end.
+- **WATCH THIS — the anchor margin is eroding.** The new
+  `termination_continue_loss` fell 37% to decile 7 (implied anchor stop-logit
+  ≈ −0.85) and has risen across the last three deciles back to ≈ −0.47. If the
+  implied logit reaches 0 the head calls stop at content anchors and free-running
+  transport emits nothing — the v6 failure mode returning. `train eos-gate
+  accuracy` reads a flat 1.0 and would not show it. Do not read the monitor's
+  min-max-normalized `cont-loss` sparkline as a rate of change.
+- **MID-RUN SYNC IS DISABLED** (`Kaggle User Secret AXON_KAGGL…` missing), so the
+  final evaluation can only be read by downloading the kernel output after the
+  job completes. This is the standing `AXON_KAGGLE_SYNC` item.
 - **The proof run already exists locally** (`axon-d64-v6-proof-local`, lineage
   `r64v3-0e99ec81e79b7bfb`, 12 steps, `EXIT=0`): `effective_objective_program_id`
   `d0092331…`, `termination_continue_positions` **1.0 on every step**,
