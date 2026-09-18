@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-18T07:15:00+00:00
+Updated: 2026-09-18T14:00:00+00:00
 current_through_event_id:
-`evt-20260918T071500Z-copilot-v6-observability-journal-and-sync-receipt`
+`evt-20260918T140000Z-copilot-v6-checkpoint-preserved-and-stage0-gate-unreachable`
 
 Append order note: the two events carrying timestamps `19:10` and `19:30` sit
 *earlier* in the file than the `20:00` launch event, because the correction was
@@ -2516,10 +2516,118 @@ of a frozen-looking dashboard). Should the trainer emit progress during evaluati
   set remain untracked/uncommitted.
 - Pre-existing day-zero hygiene failure (above) needs Jeff/the table's ruling.
 
+## 2026-09-18 — the Stage-0 gate is UN-WINNABLE: it grades 8 delete phases the stage refuses to teach
+
+`evt-20260918T140000Z-copilot-v6-checkpoint-preserved-and-stage0-gate-unreachable`
+
+Jeff pasted ChatGPT's next-step plan (freeze the v6 checkpoint, re-evaluate it with
+zero optimization, build a per-case forensic table for `payload_eos_accuracy = 0.6667`
+/ `payload_transport_exact_rate = 0.6667`, then recommend exactly one intervention)
+and asked what we should do next. **The plan is aimed at the wrong target.** Verifying
+its load-bearing assumption produced the real diagnosis.
+
+**1. The checkpoint DID come home and IS preserved.** `latest_checkpoint.json` records
+step 600 / micro_step 600, `artifact_sha256 33174bb6bb732901…`, 4,026,981 bytes,
+`optimizer_included true`, `gradient_state_included true`, `scaler_included false`,
+lineage `r64v3-e28a4842607db328`. Ten `checkpoint_records` (interval 60) map to
+**four surviving artefacts — steps 420, 480, 540, 600**, each exactly 4,026,981 bytes.
+The `.pt` mtimes (03:25:49–03:25:54, a five-second burst) **cannot** be run times: the
+run's own `paused` event is `06:01:08Z` with `monotonic_seconds 5941.277` at 7.2 s/step.
+They are local extraction times and carry **no ordering information**. So the final
+parent is a genuine optimizer-carrying state, **and** a three-point trajectory of the
+last third of the run is available for diagnosis at zero training cost.
+
+**2. The failing third is ONE family, not six problems.** Censusing the two `ffcs_v1`
+manifests gives the heldout DELTA payload phases exactly: **24**, being delete 8
+(`payload ''`), insert 8, replace 8, copy 4 — matching the report's
+`payload_supervised_phase_count 24.0`. `payload_teacher_forced_content_count` is **16**,
+so content is only counted where a payload is non-empty. Therefore
+`payload_transport_exact_rate = 0.6667` **is exactly 16/24**, and
+`payload_eos_accuracy = 0.6667` is the same 16/24: **every taught payload phase is
+exact; every untought delete payload phase fails.**
+
+**3. Stage 0 REFUSES to teach delete.**
+`foundation_motor_v2_stage_policy("copy_alignment")["eligible_actions"]` is
+`["copy","insert","replace"]` (`foundation_motor_curriculum.py:99`); `transport_eos`
+declares the identical set (`:118`). Delete joins only at `operation` (`:139`) and
+`address` (`:151`). `_training_lanes` **enforces** that contract at
+`scripts/train_living_reasoning_smoke.py:649-668` by filtering teaching cases to
+`foundation_motor_v2_action(case.episode) in eligible`, so the 16 train delete cases
+never enter the Stage-0 stream. The run's own lanes confirm it: only
+`ffcs-F0-copy_alignment` appear. **Delete first becomes teachable at Stage 3.**
+
+**4. The gate ignores that contract.** `decide_foundation_motor_v2_stage`
+(`training/foundation_motor_curriculum.py:1951+`) for `copy_alignment` **requires**
+`payload_transport_exact_rate` (`:2050`) and, when `receipt_continuation`,
+`payload_eos_accuracy` (`:2072`) — both at `gate_threshold 0.95`, both computed over
+**all 24** payload phases. The ratified comment at `:2082-2086` shows the authors
+reasoned explicitly about the 24-vs-16 split ("sixteen of the 24 heldout transport
+cases require a non-empty payload") but **did not notice that the eight empty-payload
+cases are delete-family cases the stage excludes from teaching.**
+
+**5. THE ARITHMETIC CEILING.** 16 taught phases exact + 8 untought phases ⇒ at most
+**16/24 = 0.6667 < 0.95**. The model is exactly there. `transport_eos` has the same
+eligible set and the same requirements, and delete is not taught until `operation`,
+which is unreachable. **The campaign is blocked at Stage 0 permanently.** No amount of
+further identical training and **no EOS-mechanism change** can move 0.6667 to 0.95.
+
+**6. The constant floor corroborates it.** The motor-v2 probe reports
+`constant_payload_transport_exact_floor 0.3333` = **8/24** — the score of a constant
+emit-nothing-and-terminate answer, exact on the eight empty-payload delete cases and
+wrong on all sixteen taught ones. The **trained** model scores **0/8** on that same
+family: perfect on what it was taught, below the trivial baseline on what it was not.
+That is the signature of *graded on material never taught*, not of undertraining.
+
+**7. Correction to my own reading.** I had called the four failures *"a genuine learning
+shortfall, not a construction defect"* and treated the ~0.009 training loss as an
+overfitting signal. **Both were wrong.** `0.009` is mastery of **100%** of the taught
+material, and the shortfall is a **gate construction defect**. ChatGPT's overfitting
+worry misreads the same evidence.
+
+**8. ChatGPT's case-level table does not exist yet.** The segment report has **110
+top-level keys and no `qa` / `samples` / `transcript` / per-case surface**; the progress
+journal's two `evaluated` events carry only `global_step`, `monotonic_seconds`, `phase`.
+So the forensic table must be **produced**, not fetched.
+
+**9. The single recommended intervention (awaiting ratification).** Make
+`decide_foundation_motor_v2_stage` **honour the stage's declared `eligible_actions`** —
+restrict the payload/EOS gate denominators to in-stage-eligible action families. This is
+a **coherence fix to a contract already declared in the stage table**, not an objective,
+weight, geometry, data, or seed change. Expected effect on the existing v6 step-600
+state: **16/16 = 1.0 ≥ 0.95 ⇒ Stage 0 passes and the campaign advances for the first
+time.** The alternative — teach delete at Stage 0 — contradicts the ratified stage
+design that deliberately isolates emission. **This is the THIRD instance of the
+un-winnable-gate class**; `845bf8b` fixed the *vacuous-denominator* form
+(`termination_continue_positions == 0` reading `1.0`). This is the
+*family-excluded-from-teaching* form. `tests/test_foundation_motor_gate_reachability.py`
+should be extended to cover it.
+
 ## Next actions
 
-**PRIORITY 0 — the legacy route is unlaunchable, the ratified v6 objective has now
-actually run, and the only remaining Stage-0 blocker is EOS precision**
+**PRIORITY 0 — the Stage-0 gate is un-winnable; scope it to `eligible_actions` before
+any further training** (`evt-20260918T140000Z`):
+
+- **DO NOT launch another training tranche and DO NOT change the EOS mechanism.**
+  `0.6667` is the maximum reachable value at `copy_alignment`; neither of ChatGPT's two
+  options can move it to `0.95`.
+- **Ratify ONE intervention:** make `decide_foundation_motor_v2_stage` honour the
+  stage's declared `eligible_actions`, restricting the payload/EOS gate denominators to
+  in-stage-eligible action families. Contract/coherence only — no objective, weight,
+  geometry, data, or seed change. Expected reading on the existing step-600 state:
+  **16/16 = 1.0 ≥ 0.95 ⇒ Stage 0 passes.**
+- **Then** extend `tests/test_foundation_motor_gate_reachability.py` to pin the
+  *family-excluded-from-teaching* reachability form, run the legacy-route regression
+  suite and `git diff --check`, and commit.
+- **Then** produce the per-case forensic table with a **local zero-optimization
+  `--evaluate-only`** pass over step 600 — and optionally over steps 420/480 to show the
+  taught families converging while the untought delete family never moves. Lift the
+  `payload_count <= 3` `transcript_sink` cap and record the emitted symbol count, since
+  no per-case surface exists in the artefact set.
+- **Do not** promote, serve, or advance stages, and do not modify the objective,
+  weights, geometry, data, or seed without the convener's word.
+
+**PRIORITY 0b — the legacy route is unlaunchable, and the ratified v6 objective has now
+actually run**
 (`evt-20260918T033934Z`, `evt-20260918T012800000000Z`,
 `evt-20260918T064500Z`):
 
@@ -2542,13 +2650,16 @@ actually run, and the only remaining Stage-0 blocker is EOS precision**
   heldout and regression `payload_transport_exact_rate` are **0.6667** against
   legacy **0.1667**. Content accuracy went **0.0 → 1.000** and `heldout_mean_loss`
   **4.3974 → 0.5882** — the canceling-gradient fixed point is broken.
-- **IT PAUSED — Stage 0 is not mastered, and the blocker is now only EOS
-  precision.** `foundation_motor_v2_stage_gate.passed` is `false` on exactly four
-  **reachable** metrics, on trained heads: heldout and regression
+- **IT PAUSED — and the Stage-0 blocker is a CONSTRUCTION DEFECT, not a learning
+  shortfall.** (Corrected this turn —
+  `evt-20260918T140000Z`. My earlier reading of the four failures as *"a genuine
+  learning shortfall"* was **wrong** and is superseded.) The gate's requirement is
+  **unreachable in principle**: see the headline section below.
+  `foundation_motor_v2_stage_gate.passed` is `false` on exactly four metrics, on
+  trained heads and trained families — heldout and regression
   `payload_transport_exact_rate` and `payload_eos_accuracy`, all **0.6667** against
-  a required **0.95**. `task_gate_passed` is `true`. This is a genuine learning
-  shortfall, not a construction defect, and the tranche correctly refused to
-  advance to `transport_eos`.
+  a required **0.95** — but **`0.6667` is the arithmetic ceiling at this stage**, so
+  the tranche could not have advanced no matter how well it trained.
 - **RESOLVED — the anchor-margin erosion alarm.** Over the complete 1,200-row run
   the deciles are
   `[0.5004, 0.3975, 0.4113, 0.5068, 0.3180, 0.0605, 0.0178, 0.0104, 0.0075, 0.0057]`
