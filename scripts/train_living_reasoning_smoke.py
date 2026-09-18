@@ -10,7 +10,7 @@ import random
 import re
 import time
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 import numpy as np
 import torch
@@ -213,6 +213,43 @@ def nonzero_exact_output_observed(evaluation: dict[str, Any]) -> bool:
 
 
 PROBATION_SIDECAR_SCHEMA = "axon-motor-retention-probation-v1"
+
+
+def select_qa_transcript_rows(
+    rows: Sequence[dict[str, Any]],
+    *,
+    limit: int,
+) -> list[dict[str, Any]]:
+    """Pick a deterministic, family-balanced transcript sample.
+
+    The panel used to take the first rows of a sink that stopped after the third
+    payload phase of each episode, so every sample came from the same few early
+    cases and the panel read as a wall of identical failures with no successes
+    to compare against.  Sample across action families instead, taking failures
+    before exact matches inside each family, so one screen shows what is wrong
+    and what is right.  Selection is display-only; it changes no metric.
+    """
+
+    if limit < 1:
+        raise ValueError("qa transcript limit must be positive")
+    buckets: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        key = str(row.get("family") or "unknown")
+        buckets.setdefault(key, []).append(row)
+    order = sorted(buckets)
+    for key in order:
+        # Stable partition: a failing row is the actionable row, so it leads.
+        buckets[key].sort(key=lambda item: bool(item.get("exact_match")))
+    selected: list[dict[str, Any]] = []
+    index = 0
+    while len(selected) < limit and any(index < len(buckets[key]) for key in order):
+        for key in order:
+            if len(selected) >= limit:
+                break
+            if index < len(buckets[key]):
+                selected.append(buckets[key][index])
+        index += 1
+    return selected
 
 
 def _probation_sidecar_path(campaign_report_dir: Path) -> Path:
@@ -1735,6 +1772,7 @@ def main() -> int:
                     core_id=module_id,
                     parameter_generation=candidate_generation,
                     transcript_sink=qa_rows,
+                    transcript_sink_cap=None,
                 )
                 for episode in heldout_episodes
             ]
@@ -2027,9 +2065,10 @@ def main() -> int:
             # single manifest when the evaluated surface is limited, and nothing
             # else in the live surface would reveal that.
             qa_transcripts: list[dict[str, Any]] = []
-            for row in qa_rows[:12]:
+            qa_enriched: list[dict[str, Any]] = []
+            for row in qa_rows:
                 row_episode_id = str(row.get("episode_id") or "")
-                qa_transcripts.append(
+                qa_enriched.append(
                     {
                         **row,
                         "family": evaluation_family_by_episode.get(row_episode_id),
@@ -2040,7 +2079,15 @@ def main() -> int:
                         "manifest_id": evaluation_manifest_by_episode.get(row_episode_id),
                     }
                 )
+            qa_transcripts = select_qa_transcript_rows(qa_enriched, limit=6)
             result["qa_transcripts"] = qa_transcripts
+            result["qa_transcript_coverage"] = {
+                "payload_phase_count": len(qa_enriched),
+                "selected_count": len(qa_transcripts),
+                "families": sorted(
+                    {str(row.get("family") or "unknown") for row in qa_transcripts}
+                ),
+            }
             return result
 
         cached_final_evaluation: dict[str, Any] | None = None
@@ -2156,7 +2203,8 @@ def main() -> int:
                     "constant_payload_transport_exact_floor"
                 ],
                 evaluated_case_count=initial_evaluation["evaluated_case_count"],
-                qa_transcripts=initial_evaluation.get("qa_transcripts", [])[:8],
+                qa_transcripts=initial_evaluation.get("qa_transcripts", [])[:6],
+                qa_transcript_coverage=initial_evaluation.get("qa_transcript_coverage"),
                 **_compact_motor_v2_probes(initial_evaluation),
             )
         prior_reports = sorted(campaign_report_dir.glob("segment_*.json"))
@@ -2480,7 +2528,8 @@ def main() -> int:
                     "constant_payload_transport_exact_floor"
                 ],
                 evaluated_case_count=final_evaluation["evaluated_case_count"],
-                qa_transcripts=final_evaluation.get("qa_transcripts", [])[:8],
+                qa_transcripts=final_evaluation.get("qa_transcripts", [])[:6],
+                qa_transcript_coverage=final_evaluation.get("qa_transcript_coverage"),
                 **_compact_motor_v2_probes(final_evaluation),
             )
         counterfactuals_passed = all(value > 1e-8 for value in final_evaluation["counterfactuals"].values())

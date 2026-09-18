@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-18T16:50:00+00:00
+Updated: 2026-09-18T18:30:00+00:00
 current_through_event_id:
-`evt-20260918T165000Z-copilot-stage-gate-scoped-to-eligible-actions-and-guard-fixes`
+`evt-20260918T183000Z-copilot-step600-forensic-table-and-monitor-qa-repair`
 
 Append order note: the two events carrying timestamps `19:10` and `19:30` sit
 *earlier* in the file than the `20:00` launch event, because the correction was
@@ -2732,14 +2732,60 @@ verdict are untouched.
   over-claim ("unrepresentable") was corrected to two axes.
 - **NEXT — a SHORT REAL renewal, not `--evaluate-only`.** `_foundation_motor_v2_stage_from_reports`
   **skips `evaluation_only` reports**, so an evaluation pass can never carry a stage-advancing
-  gate. Resume the preserved step-600 parent with `--resume`, `--tranche-steps` ~60–120,
-  `--device cuda`, and confirm the derived stage reaches `transport_eos` before launching
-  that tranche.
-- **STILL OPEN — the per-case forensic table.** No local zero-optimization pass has been run;
-  the mechanism of the 8 delete failures (stray extra symbol with `terminated=True` vs never
-  terminating) remains **provisional**. Only the count is proven: **16/16 taught exact, 0/8
-  untaught**. Lift the `payload_count <= 3` `transcript_sink` cap and record the emitted
-  symbol count.
+  gate. Note the two-step consequence, now measured: derivation reads the **stored** `passed`
+  flag, and the stored v6 gate says `passed: false` (four whole-surface failures), so the
+  **next** run is still `copy_alignment`; that run re-emits the gate under the repaired
+  contract, it passes, and the run **after** it becomes `transport_eos`. Resume the preserved
+  step-600 parent with `--resume`, `--tranche-steps` ~60–120, `--device cuda`.
+- **RECOMMENDED, NOT LAUNCHED — exactly one intervention: a governed continuation of the
+  current v6 lineage through the stage ladder** (start with the short `copy_alignment`
+  renewal above). Rejected for now: changing Stage-0/1 curriculum breadth to admit
+  empty-payload termination earlier — that is the change that would fix the 8, but it is a
+  breadth change and must be *ratified*, not performed.
+- **FLAGGED — the largest measured defect is not EOS at all.** `typed_emission_exact_rate`
+  is `0.0`, `region_accuracy` `0.0`, `pair_exact_rates.address`/`joint` `0.0`, `decision`/
+  `operation` `0.3333`. The core produces payload content correctly but **cannot yet emit a
+  typed delta**. That is `address`/`joint` territory and is the real target for "attend and
+  produce deltas".
+- **DONE — the "stupid payload samples" panel was a real defect, not cosmetics.**
+  `evaluate_living_episode` capped the sink at `payload_count <= 3`, so only the first three
+  payload phases per episode were ever recorded, and the event slice took the first 8 rows;
+  the panel could *only* ever show a wall of identical early failures. Fixed: uncapped sink
+  (`transcript_sink_cap=None`), deterministic **family-balanced, failures-first** sampling
+  (`select_qa_transcript_rows`), `[family case@manifest]` attribution per row, an explicit
+  "across N families … (balanced sample, not the full surface)" line, and a `[:6]` slice.
+  Pinned by 5 new tests.
+- **DONE — the per-case forensic table exists, and it corrected my own claim.**
+  `evt-20260918T183000Z`. A local zero-optimization pass over the preserved step-600
+  checkpoint (2 manifests × {heldout, regression}, no case limit, no optimizer step)
+  produced a content-addressed artifact. **The failing third is exactly the 8
+  empty-payload `delete` phases** — target payload is empty *by construction* for
+  `DELETE` (`living_reasoning_curriculum` rejects a `DELETE` with a non-empty payload).
+  On each of them the model emits **exactly one** learned copy-anchor symbol
+  (`transport_categories: [8]`/`[14]`/`[47]`/`[50]` heldout, `[59]`/`[41]`/`[9]`/`[10]`
+  regression; `trace[0]` says `route: "learned_copy_anchor"`, `memory_index: 93`,
+  `work_units_completed: 1`) and **never terminates**; the diagnostic halts it with
+  `irreversible_category_mismatch` and records
+  `termination_after_mismatch: "not_measured"`.
+  **Teacher-forced EOS is *also* 8/12 per split**, so this is a supervision defect in the
+  empty-payload regime, not a free-running decode artefact. Where content exists it is
+  perfect (`payload_teacher_forced_content_correct 8/8`, `payload_content_accuracy 1.0`).
+  **Correction to `bc30bbf`:** I claimed the failing third was delete being "untaught with
+  an arithmetic ceiling". Half right, half wrong — the cases *are* outside Stage 0's
+  eligible lanes, but the mechanism is a **measured termination defect**, not a case with
+  nothing to learn. The scoping repair itself stands.
+- **DONE — the root cause is exact and lives in the ratified stage policy, not a bug.**
+  `copy_alignment` weights `alignment_eos_gate` at **`0.0`**, so Stage 0 applies *no*
+  stopping gradient at all. `delete`/`no_op`/`abstain` are first *eligible* at `decision`
+  (Stage 2) and `delete` is first *weighted* at `operation` (Stage 3). **No number of
+  additional Stage-0 or Stage-1 steps can move those 8 phases** — their objective weight
+  is `0.0` and their cases are excluded from the lanes by `_training_lanes`.
+- **DONE — the repaired Stage-0 gate decides `passed=true` on the preserved checkpoint.**
+  `decide_foundation_motor_v2_stage(training_stage="copy_alignment", <scoped probes>,
+  receipt_continuation=True, termination_head_route=True)` → `passed true, failures []`.
+  The scoped probe reports `whole_surface_*` alongside the scoped values, so the narrowing
+  is visible rather than hidden. **This upgrades the earlier "expected, not yet observed"
+  to *observed*.**
 - **Do not** promote, serve, or advance stages, and do not modify the objective,
   weights, geometry, data, or seed without the convener's word.
 

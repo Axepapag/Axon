@@ -647,8 +647,14 @@ def evaluate_living_episode(
     parameter_generation: str,
     ablate_temperatures: tuple[SoulTemperature, ...] = (),
     transcript_sink: list[dict[str, Any]] | None = None,
+    transcript_sink_cap: int | None = 3,
 ) -> dict[str, Any]:
-    """Measure free-running exact typed emissions on one complete episode."""
+    """Measure free-running exact typed emissions on one complete episode.
+
+    ``transcript_sink_cap`` bounds how many DELTA payload phases per episode are
+    recorded for display; ``None`` records every one.  Capping only ever removed
+    rows from an unrepresentative sample, so an unlimited sink changes no metric.
+    """
 
     compiled = D64FieldCompiler().compile(episode.snapshot)
     unroll = model.unroll_runtime_phases(
@@ -795,7 +801,9 @@ def evaluate_living_episode(
                 payload, terminated = model.decode_transport_greedy(output)
             payload_match = terminated and payload == target.payload
             payload_exact += int(payload_match)
-            if transcript_sink is not None and payload_count <= 3:
+            if transcript_sink is not None and (
+                transcript_sink_cap is None or payload_count <= transcript_sink_cap
+            ):
                 transcript_sink.append(
                     {
                         "episode_id": episode.episode_id,

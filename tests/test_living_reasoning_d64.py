@@ -8,6 +8,7 @@ import torch
 
 import training.living_reasoning_curriculum as living_curriculum
 from runtime.field import D64FieldCompiler, LogicalRegion, SharedFieldSnapshot
+from runtime.heart.reasoning_output import ReasoningDecision
 from runtime.soul import (
     SoulSnapshot,
     SoulTemperature,
@@ -422,6 +423,53 @@ def test_teacher_forced_gate_uses_the_strongest_constant_category_floor() -> Non
     assert result["constant_payload_transport_exact_floor"] == pytest.approx(
         max(payload_histogram.values()) / result["payload_supervised_phase_count"]
     )
+
+
+def test_the_transcript_sink_cap_is_display_only() -> None:
+    """Capping the sink removes display rows and nothing else.
+
+    The smoke script's QA panel was unreadable because the sink stopped after the
+    third DELTA payload phase of each episode, so every sample came from the same
+    few short cases.  Lifting the cap must be instrumentation only: the measured
+    metrics have to be byte-identical whether the sink records none, some, or all
+    of an episode's payload phases.
+    """
+
+    model = _small_model()
+    episode = build_living_reasoning_smoke_curriculum().split("heldout")[0]
+    payload_phases = sum(
+        1
+        for target in episode.targets
+        if target.supervision_weight > 0 and target.decision is ReasoningDecision.DELTA
+    )
+    assert payload_phases > 1, "the fixture must have more than one payload phase"
+
+    def measure(cap: int | None) -> tuple[dict, list[dict]]:
+        sink: list[dict] = []
+        result = evaluate_living_episode(
+            model,
+            episode,
+            _soul(model),
+            core_id="core-a",
+            parameter_generation="g0",
+            transcript_sink=sink,
+            transcript_sink_cap=cap,
+        )
+        return result, sink
+
+    baseline, capped_default = measure(3)
+    unlimited, everything = measure(None)
+    nothing_metric, nothing = measure(0)
+
+    assert unlimited == baseline == nothing_metric
+    assert len(nothing) == 0
+    assert len(capped_default) == min(3, payload_phases)
+    assert len(everything) == payload_phases
+    assert [row["expected_payload"] for row in everything] == [
+        target.payload
+        for target in episode.targets
+        if target.supervision_weight > 0 and target.decision is ReasoningDecision.DELTA
+    ]
 
 
 def test_living_reasoning_preflight_binds_all_launch_evidence(tmp_path: Path) -> None:

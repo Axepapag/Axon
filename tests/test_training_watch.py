@@ -276,9 +276,49 @@ def test_evaluation_transcripts_name_their_case_and_curriculum():
         )
     )
     rendered = watcher.render()
-    assert "[unicode-walk-holdout-insert-000-0@a872278…]" in rendered
+    assert "[F0 unicode-walk-holdout-insert-000-0@a872278…]" in rendered
+    # A row without a family still renders, with no blank family slot.
     assert "[plain-holdout-insert-000-1@12df454…]" in rendered
     assert "expected '😂'" in rendered
+
+
+def test_the_qa_panel_says_how_many_families_it_spans():
+    """A sample from one family is a wall of the same failure; say so."""
+    watcher = _watcher()
+    watcher.consume(
+        _event(
+            "eval-balanced",
+            "evaluated",
+            phase="final",
+            global_step=60,
+            heldout_mean_loss=3.4,
+            qa_transcripts=[
+                {
+                    "episode_label": f"copy-{index}",
+                    "family": "F0",
+                    "prompt": "Copy the payload.",
+                    "predicted_payload": "",
+                    "expected_payload": "い",
+                    "exact_match": False,
+                }
+                for index in range(3)
+            ]
+            + [
+                {
+                    "episode_label": "plain-insert-0",
+                    "family": "F1",
+                    "prompt": "Insert the symbol.",
+                    "predicted_payload": "α",
+                    "expected_payload": "α",
+                    "exact_match": True,
+                }
+            ],
+        )
+    )
+    qa_line = next(line for line in watcher.render().splitlines() if "sample of" in line)
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", qa_line)
+    assert "across 2 families" in plain
+    assert "balanced sample, not the full surface" in plain
 
 
 def test_evaluation_transcripts_without_attribution_still_render():

@@ -102,6 +102,73 @@ def stop_at_exact_failure(model, episode):
             model.advance_decoder_execution = saved_override
 
 
+TRANSCRIPT_FAILURE_MODES = (
+    "exact",
+    "failed_to_stop",
+    "stopped_early",
+    "wrong_symbol",
+    "emitted_nothing",
+)
+
+
+def classify_transcript_failure(row: dict[str, Any]) -> str:
+    """Name how a payload phase failed without guessing at model internals.
+
+    Read the classification through the diagnostic's stop policy: the decoder is
+    halted at the first irreversible category mismatch, so `terminated` is the
+    model's own verdict only when the payload matched. A phase that emitted the
+    whole expected content and then kept going is recorded as an over-long
+    payload with `terminated` False, which is exactly the "failed to stop" case.
+    """
+
+    predicted = str(row.get("predicted_payload") or "")
+    expected = str(row.get("expected_payload") or "")
+    terminated = bool(row.get("terminated"))
+    if predicted == expected:
+        return "exact" if terminated else "failed_to_stop"
+    if expected.startswith(predicted):
+        return "stopped_early" if terminated else "wrong_symbol"
+    if predicted.startswith(expected):
+        return "failed_to_stop"
+    if not predicted:
+        # Unreachable while `expected` is non-empty: the empty string is a prefix
+        # of every payload.  Kept because an empty target would land here.
+        return "emitted_nothing"
+    return "wrong_symbol"
+
+
+def enrich_case_transcripts(
+    transcripts: list[dict[str, Any]],
+    *,
+    family_by_episode: dict[str, str],
+    case_id_by_episode: dict[str, str],
+) -> list[dict[str, Any]]:
+    """Attribute each transcript to its family and case, and name its failure.
+
+    The transcript sink records only what the decoder did; `episode_id` is a
+    hash.  Without this step a forensic table can prove a rate but not which
+    action family produced it.
+    """
+
+    return [
+        {
+            **row,
+            "family": family_by_episode.get(str(row.get("episode_id") or "")),
+            "case_id": case_id_by_episode.get(str(row.get("episode_id") or "")),
+            "failure_mode": classify_transcript_failure(row),
+        }
+        for row in transcripts
+    ]
+
+
+def count_failure_modes(transcripts: list[dict[str, Any]]) -> dict[str, int]:
+    counts = {mode: 0 for mode in TRANSCRIPT_FAILURE_MODES}
+    for row in transcripts:
+        mode = str(row.get("failure_mode") or classify_transcript_failure(row))
+        counts[mode] = counts.get(mode, 0) + 1
+    return counts
+
+
 @contextmanager
 def reuse_frozen_unroll(model):
     """Reuse one exact read/Soul trajectory across decoder-only probes.
@@ -315,38 +382,61 @@ def diagnose(args) -> Path:
         "soul_id": soul.soul_id, "architecture_id": model.architecture_id,
         "run_report_sha256": hashlib.sha256(args.run_report.read_bytes()).hexdigest(),
         "device": str(args.device), "variants": {}, "training_performed": False,
+        "training_stage": args.training_stage,
         "serving_promotion_claimed": False,
         "free_running_policy": "Stop on exact termination, malformed output, or first irreversible category mismatch; preserve decoder state. Eventual termination after a mismatch is unmeasured. No target guides neural emissions.",
     }
     artifact["variants"] = {variant: [] for variant in ("baseline", "zero_bias")}
     for curriculum in curricula:
+        # The transcript sink records the decoder's behaviour only; the family
+        # and case identity live on the teaching cases, not on the decode.
+        family_by_episode = {
+            case.episode.episode_id: case.family for case in curriculum.teaching_cases
+        }
+        case_id_by_episode = {
+            case.episode.episode_id: case.case_id for case in curriculum.teaching_cases
+        }
         for split in ("heldout", "regression"):
             episodes = curriculum.teaching_living_curriculum.split(split)
-            collected = {variant: ([], []) for variant in artifact["variants"]}
+            collected = {variant: ([], [], []) for variant in artifact["variants"]}
             for ordinal, episode in enumerate(episodes, 1):
                 with reuse_frozen_unroll(model):
-                    for variant, (all_positions, metric_rows) in collected.items():
+                    for variant, (all_positions, metric_rows, transcripts) in collected.items():
                         with gate_bias_counterfactual(model, variant == "zero_bias"):
                             all_positions.extend(position_rows(model, episode, soul))
                             with stop_at_exact_failure(model, episode) as stops:
                                 metrics = evaluate_living_episode(
                                     model, episode, soul, core_id=soul.core_id,
                                     parameter_generation=soul.parameter_generation,
+                                    transcript_sink=transcripts,
+                                    transcript_sink_cap=None,
                                 )
                             metrics["diagnostic_stops"] = stops
                             metric_rows.append(metrics)
                 print(json.dumps({"manifest": curriculum.manifest_id,
                                   "split": split, "case": ordinal, "total": len(episodes)}), flush=True)
-            for variant, (all_positions, metric_rows) in collected.items():
-                artifact["variants"][variant].append({
+            for variant, (all_positions, metric_rows, transcripts) in collected.items():
+                enriched = enrich_case_transcripts(
+                    transcripts,
+                    family_by_episode=family_by_episode,
+                    case_id_by_episode=case_id_by_episode,
+                )
+                entry = {
                         "manifest_id": curriculum.manifest_id, "split": split,
                         "complete": len(metric_rows) == len(episodes),
                         "metrics": aggregate_metrics(metric_rows),
                         "motor_probe": foundation_motor_v2_probe(episodes, metric_rows),
                         "position_summary": summarize_positions(all_positions),
+                        "case_transcripts": enriched,
+                        "case_transcript_failure_modes": count_failure_modes(enriched),
                         "positions": all_positions,
                         "episode_metrics": metric_rows,
-                })
+                }
+                if args.training_stage is not None:
+                    entry["motor_probe_stage_scoped"] = foundation_motor_v2_probe(
+                        episodes, metric_rows, training_stage=args.training_stage
+                    )
+                artifact["variants"][variant].append(entry)
                 print(json.dumps({"variant": variant, "split": split,
                                   "summary": summarize_positions(all_positions)}), flush=True)
             if tensor_fingerprint(model) != fingerprint:
@@ -373,6 +463,15 @@ def main() -> None:
     parser.add_argument("--output-root", type=Path, required=True)
     parser.add_argument("--device", choices=("cpu", "cuda"), default="cpu")
     parser.add_argument("--threads", type=int, default=2)
+    parser.add_argument(
+        "--training-stage",
+        default=None,
+        help=(
+            "additionally report the stage gate surface with the payload/EOS rates "
+            "narrowed to this stage's eligible_actions; the whole-surface probe "
+            "is still recorded unchanged"
+        ),
+    )
     args = parser.parse_args()
     if args.threads < 1:
         parser.error("--threads must be positive")

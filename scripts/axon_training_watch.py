@@ -199,6 +199,7 @@ class Watcher:
         self.qa_lines: deque[str] = deque(maxlen=transcript_lines)
         self.qa_seen: dict[str, dict[str, str | None]] = {}
         self.qa_shown = 0
+        self.qa_families: set[str] = set()
         self.qa_exact = 0
         self.qa_reasons: dict[str, int] = {}
         self.qa_phase = None
@@ -424,6 +425,9 @@ class Watcher:
             self.qa_lines.append(self._format_qa(row))
         self.qa_phase = phase
         self.qa_shown = len(seen)
+        for row in details.get("qa_transcripts") or []:
+            if isinstance(row, dict) and row.get("family"):
+                self.qa_families.add(str(row["family"]))
         # A row without a verdict is counted in the denominator and never as a
         # success, exactly as before reasons were reported.
         self.qa_exact = sum(1 for reason in seen.values() if reason == "")
@@ -480,10 +484,12 @@ class Watcher:
         # curriculum that produced it; `episode_id` is a hash no one can read.
         case_text = _short(row.get("episode_label"), 52)
         manifest_tag = _manifest_tag(row.get("source_manifest_id"))
+        family_text = _short(row.get("family"), 24)
         attribution = ""
-        if case_text or manifest_tag:
+        if family_text or case_text or manifest_tag:
             tag = f"@{manifest_tag}" if manifest_tag else ""
-            attribution = "  " + _color(f"[{case_text}{tag}]", DIM)
+            named = " ".join(part for part in (family_text, case_text) if part)
+            attribution = "  " + _color(f"[{named}{tag}]", DIM)
         # The predicted decision/operation/region are what actually reveal a
         # degenerate constant answer, so a failing row carries them.
         typed = "/".join(
@@ -691,13 +697,18 @@ class Watcher:
                 )
             )
             reason_text = f"   {reasons}" if reasons else ""
+            family_text = (
+                f"  across {len(self.qa_families)} families"
+                if len(self.qa_families) > 1
+                else ""
+            )
             lines.append(
                 _color(" qa:", DIM)
                 + f" sample of {self.qa_shown} teacher-forced cases @{self.qa_phase}"
                 + f" step {self.qa_step}: "
                 + _color(verdict, color)
                 + reason_text
-                + _color("  (sample, not the full surface)", DIM)
+                + _color(f"{family_text}  (balanced sample, not the full surface)", DIM)
                 + rows_hint
             )
 
@@ -1105,7 +1116,7 @@ def follow_job(
     local: bool = False,
     replay: bool = False,
     poll: float = 2.0,
-    qa_lines: int = 12,
+    qa_lines: int = 6,
     sync_poll: bool = True,
     sync_interval: float = 30.0,
     events_path: Path | str | None = None,
@@ -1171,7 +1182,7 @@ def main() -> int:
     parser.add_argument("--replay", action="store_true", help="replay the whole local file, then follow")
     parser.add_argument("--steps", type=int, default=60, help="rolling window size for loss sparkline (default 60)")
     parser.add_argument("--qa", action="store_true", help="expand teacher-forced payload transcript rows; a one-line verdict always prints")
-    parser.add_argument("--qa-lines", type=int, default=12, help="transcript lines to keep on screen")
+    parser.add_argument("--qa-lines", type=int, default=6, help="transcript lines to keep on screen")
     parser.add_argument("--poll", type=float, default=2.0, help="local tail poll seconds")
     parser.add_argument(
         "--no-sync-poll",
