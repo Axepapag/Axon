@@ -70,6 +70,39 @@ Continuation repeats the exact architecture, seed, curriculum, and learning
 policy and adds `--resume --tranche-steps <allowance>`. These commands are an
 engineering surface, not yet the promised clickable Trainer UI.
 
+## Base identity is persisted, not rebuilt
+
+The untrained base module is rebuilt from code and seed on every run, but it is
+`ParameterInventory`-hashed by raw tensor bytes. Different BLAS builds therefore
+produced different `base_inventory_id`s, different `plan_id`s, and a lineage
+that could only be resumed from the machine that first built its base —
+`TrainerExecutionError: checkpoint plan lineage mismatch` before a single step.
+Measured on the step-600 `axon-d64-emission-rung-v6-term-cloud` lineage: 15 of
+95 base records differ between two machines at roughly one ULP.
+
+`runtime/trainer/base_artifact.py` removes the lock-in the same way
+`substrate/substrate.py` Rule 0 already does. The first run of a base generation
+persists its exact bytes to `State/training/trainer/base_artifacts/<key>.pt`
+(keyed by module and generation only). Every later run rebuilds the base from
+code, verifies the rebuild against the stored bytes at `atol=1e-5, rtol=0.0`,
+and adopts the stored bytes, so base identity is a property of the lineage
+rather than of the machine. The run reports what happened in its
+`base_module_identity` block: `adopted`, `created`, or `created-verified`.
+
+It still fails closed, and the failure names the records, when:
+
+* the rebuild leaves the doctrine tolerance (a real initialisation edit — the
+  base generation must be re-versioned);
+* no artifact exists here, the lineage has a recorded base inventory, and this
+  machine's rebuild is not bit-identical to it (resume on the environment that
+  produced that base, or re-version);
+* a stored artifact was captured before the lineage recorded its base inventory
+  and disagrees with it hash-for-hash.
+
+So the one run that must happen where a pre-repair lineage's base was produced
+is the first run after this repair; it persists the artifact and frees the
+lineage everywhere afterwards.
+
 ## Current curriculum warning
 
 Recovered user/assistant adjacency is observable evidence, not automatic

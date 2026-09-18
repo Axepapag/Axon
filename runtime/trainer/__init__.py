@@ -45,6 +45,13 @@ from .attempt_workspace import (
     AttemptWorkspaceRecord,
     AttemptWorkspaceStore,
 )
+from .base_artifact import (
+    BASE_ARTIFACT_ATOL,
+    BASE_ARTIFACT_SCHEMA,
+    BaseArtifactDisposition,
+    BaseArtifactError,
+    resolve_base_module,
+)
 from .contracts import (
     PARAMETER_GRANT_SCHEMA,
     PARAMETER_INVENTORY_SCHEMA,
@@ -221,6 +228,8 @@ __all__ = [
     "ATTEMPT_WORKSPACE_HEAD_SCHEMA",
     "ATTEMPT_WORKSPACE_SCHEMA",
     "AUTHORIZED_MUTATION_SCHEMA",
+    "BASE_ARTIFACT_ATOL",
+    "BASE_ARTIFACT_SCHEMA",
     "CANDIDATE_CHECKPOINT_SCHEMA",
     "CANDIDATE_LIFECYCLE_SCHEMA",
     "CRITIQUE_SCHEMA",
@@ -287,6 +296,8 @@ __all__ = [
     "AttemptWorkspaceRecord",
     "AttemptWorkspaceStore",
     "AuthorizedParameterMutation",
+    "BaseArtifactDisposition",
+    "BaseArtifactError",
     "CandidateCheckpointRecord",
     "CandidateLifecycleEvent",
     "CandidateOptimizationSession",
@@ -381,5 +392,6 @@ __all__ = [
     "inspect_trainer_state",
     "is_parameter_mutation_plan",
     "parameter_value_sha256",
+    "resolve_base_module",
     "whole_episode_split",
 ]

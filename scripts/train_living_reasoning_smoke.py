@@ -35,6 +35,7 @@ from runtime.trainer import (
     TrancheContinuation,
     TrancheStore,
     cloud_bundle,
+    resolve_base_module,
 )
 from training import (
     COPY_ALIGNMENT_MULTICELL_TEACH,
@@ -1261,6 +1262,20 @@ def main() -> int:
         else:
             candidate_generation = candidate_generation_v3
             candidate_identity_version = "v3"
+    descriptor = ParameterModuleDescriptor(
+        module_id=module_id,
+        organ_kind=OrganKind.REASONING_CORE,
+        generation_id=base_generation,
+        architecture=config.architecture_id,
+        d_model=64,
+        tags=("living", "private-soul", "complete-field", candidate_label),
+    )
+    base_identity = resolve_base_module(
+        model,
+        state_root=args.state_root,
+        descriptor=descriptor,
+        candidate_generation_id=candidate_generation,
+    )
     if progress is not None:
         progress.emit(
             "starting",
@@ -1271,15 +1286,8 @@ def main() -> int:
             tranche_steps=args.tranche_steps,
             evaluate_only=bool(args.evaluate_only),
             curriculum_manifest_count=len(all_ffcs),
+            base_module_identity=base_identity.to_canonical_dict(),
         )
-    descriptor = ParameterModuleDescriptor(
-        module_id=module_id,
-        organ_kind=OrganKind.REASONING_CORE,
-        generation_id=base_generation,
-        architecture=config.architecture_id,
-        d_model=64,
-        tags=("living", "private-soul", "complete-field", candidate_label),
-    )
 
     report: dict[str, Any] = {
         "schema": "axon-living-reasoning-smoke-report-v1",
@@ -1301,6 +1309,7 @@ def main() -> int:
         "candidate_identity_version": (
             "legacy-v1" if args.legacy_plan_v1 else candidate_identity_version
         ),
+        "base_module_identity": base_identity.to_canonical_dict(),
         "candidate_initialization": (
             None
             if args.legacy_plan_v1
