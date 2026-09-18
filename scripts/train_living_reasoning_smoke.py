@@ -146,6 +146,61 @@ def _continuation_step_telemetry(phase_metrics: Any) -> dict[str, Any]:
     }
 
 
+def _histogram_items(value: Any) -> Any:
+    """Yield ``(label, count)`` candidates from one serialised histogram value.
+
+    All three surface assemblers store ``constant_*_target_histogram`` as a
+    ``dict[label, count]``; list-of-pairs and ``{"key": ..., "count": ...}`` stay
+    supported because they are what a serialised/reloaded report round-trips to.
+    """
+
+    if isinstance(value, Mapping):
+        candidate = {str(key) for key in value}
+        if candidate == {"key", "count"}:
+            yield value
+            return
+        yield from value.items()
+        return
+    yield from value or ()
+
+
+def merge_surface_histogram(rows: Any, name: str) -> dict[str, int]:
+    """Merge per-case answer histograms into one surface histogram.
+
+    Per-case rates cannot be averaged into a constant-emitter baseline: the
+    strongest fixed answer has to be found across the whole surface, not inside
+    each evaluated case.
+
+    Iterating a mapping yields its *keys*, so a ``dict`` row must be unwrapped
+    before the generic iteration.  The smoke script previously iterated
+    ``row.get(name)`` directly, which matched neither branch for the shape
+    ``evaluate_living_episode`` actually returns, skipped every entry, merged to
+    ``{}``, and collapsed both constant-emitter floors to ``0.0`` -- the same
+    vacuous-floor trap the constant-baseline work removed, one shape down.  It is
+    invisible in the report because ``typed > 0.0`` still renders as "beat the
+    floor", so an empty merge is raised rather than returned.
+    """
+
+    merged: dict[str, int] = {}
+    for row in rows or ():
+        for item in _histogram_items(row.get(name)):
+            if isinstance(item, Mapping):
+                label, count = str(item["key"]), int(item["count"])
+            elif isinstance(item, (list, tuple)) and len(item) == 2:
+                label, count = str(item[0]), int(item[1])
+            else:
+                continue
+            merged[label] = merged.get(label, 0) + count
+    if not merged and rows:
+        raise RuntimeError(
+            "constant-emitter baseline histogram merged to empty for "
+            f"{name} over {len(rows)} evaluated cases; the constant floors would "
+            "be vacuous zeroes and every beat-the-floor verdict would be a "
+            "comparison against nothing"
+        )
+    return merged
+
+
 def nonzero_exact_output_observed(evaluation: dict[str, Any]) -> bool:
     """Report weak behavioral progress without implying serving readiness."""
 
@@ -1799,17 +1854,7 @@ def main() -> int:
                     whole surface, not inside each evaluated case.
                     """
 
-                    merged: dict[str, int] = {}
-                    for row in rows:
-                        for item in row.get(name) or ():
-                            if isinstance(item, (list, tuple)) and len(item) == 2:
-                                label, count = str(item[0]), int(item[1])
-                            elif isinstance(item, dict):
-                                label, count = str(item["key"]), int(item["count"])
-                            else:
-                                continue
-                            merged[label] = merged.get(label, 0) + count
-                    return merged
+                    return merge_surface_histogram(rows, name)
 
                 typed_target_histogram = merged_histogram(
                     "constant_typed_emission_target_histogram"

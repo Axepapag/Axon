@@ -22,6 +22,8 @@ from training.living_reasoning_curriculum import (
     constant_baseline_target_key,
 )
 
+from scripts.train_living_reasoning_smoke import merge_surface_histogram
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FFCS_ROOT = REPO_ROOT / "State" / "training" / "curricula" / "ffcs_v1"
 
@@ -127,3 +129,71 @@ def test_real_ffcs_surface_floors_match_the_measured_baseline() -> None:
     # The degenerate answer must look degenerate, which is only true because
     # these floors are non-zero.
     assert heldout_floors["constant_typed_emission_exact_floor"] >= 1.0 / 3.0
+
+
+def test_surface_merge_reads_the_shape_the_evaluator_returns() -> None:
+    """`typed_emission_exact_rate == 0.0` at a 0.0 floor is not a defeat.
+
+    The surface assembler merges the per-case histograms before deriving the
+    floors.  `evaluate_living_episode` returns them as ``dict[label, count]``,
+    and iterating a mapping yields its keys -- so a merge that only understood
+    lists of pairs skipped every entry, returned ``{}``, and collapsed both
+    floors to ``0.0`` while the report still rendered
+    ``typed > 0.0`` as "beat the floor".  That is the same vacuous-floor trap
+    the constant-baseline work removed, one shape down.
+    """
+
+    as_returned = {
+        "constant_typed_emission_target_histogram": {"no_op": 24, "delta|X": 48},
+        "constant_payload_transport_target_histogram": {"X": 16, "Y": 8},
+    }
+    merged = merge_surface_histogram([as_returned], "constant_typed_emission_target_histogram")
+    assert merged == {"no_op": 24, "delta|X": 48}
+    payload = merge_surface_histogram(
+        [as_returned], "constant_payload_transport_target_histogram"
+    )
+    assert payload == {"X": 16, "Y": 8}
+
+    list_form = {"constant_typed_emission_target_histogram": [["no_op", 24]]}
+    assert merge_surface_histogram(
+        [list_form], "constant_typed_emission_target_histogram"
+    ) == {"no_op": 24}
+    keyed_form = {
+        "constant_typed_emission_target_histogram": [{"key": "no_op", "count": 24}]
+    }
+    assert merge_surface_histogram(
+        [keyed_form], "constant_typed_emission_target_histogram"
+    ) == {"no_op": 24}
+
+    # A silent empty merge must fail closed: it is the only way the floors can
+    # go vacuous without the surface being genuinely empty.
+    with pytest.raises(RuntimeError, match="merged to empty"):
+        merge_surface_histogram(
+            [{"constant_typed_emission_target_histogram": ["unparseable"]}],
+            "constant_typed_emission_target_histogram",
+        )
+    assert merge_surface_histogram([], "constant_typed_emission_target_histogram") == {}
+
+
+def test_all_surface_histogram_merges_agree_on_the_evaluator_shape() -> None:
+    """Three copies of this merge existed; only one understood the real shape.
+
+    ``foundation_motor_curriculum._merge_row_histogram`` and
+    ``sequential_first_form._merged_tick_histogram`` both unwrap the mapping,
+    which is why the motor-v2 probe reported a non-zero ``1/3`` floor while the
+    tranche report's own ``final_evaluation`` sat at ``0.0`` over an empty
+    histogram.  Pinning them together makes the next divergence loud.
+    """
+
+    from training.foundation_motor_curriculum import _merge_row_histogram
+    from training.sequential_first_form import _merged_tick_histogram
+
+    name = "constant_typed_emission_target_histogram"
+    rows = [{name: {"no_op": 24, "delta|X": 48}}, {name: {"delta|X": 1}}]
+
+    expected = {"no_op": 24, "delta|X": 49}
+    assert merge_surface_histogram(rows, name) == expected
+    assert _merge_row_histogram([(None, row, None) for row in rows], name) == expected
+
+    tick_rows = [dict(row, ticks=1) for row in rows]
+    assert _merged_tick_histogram(tick_rows, name) == expected
