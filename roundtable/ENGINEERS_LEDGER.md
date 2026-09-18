@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-18T01:28:00+00:00
+Updated: 2026-09-18T02:25:00+00:00
 current_through_event_id:
-`evt-20260918T012800000000Z-copilot-ratified-v6-repair-was-never-executed`
+`evt-20260918T022500000000Z-copilot-full-suite-stale-floor-assertion-fixed`
 
 Append order note: the two events carrying timestamps `19:10` and `19:30` sit
 *earlier* in the file than the `20:00` launch event, because the correction was
@@ -388,6 +388,61 @@ synthesis shows this is one instance of a recurring objective class failure —
 loss-down-behavior-wrong, teacher/free-running divergence, constant-prior
 collapse, route-weight seesaw — while the process class (guard, probation,
 lease) is now sound.
+
+## 2026-09-18 — the full suite, and the last artifact of the hardcoded-zero era
+
+`evt-20260918T022500000000Z`. The full suite
+(`python -m pytest -q -p no:cacheprovider`, ~55 min) ran **to completion** and
+reported **exactly one failure**:
+
+```
+FAILED tests/test_tournament_metrics.py::test_evaluate_sequential_case_measures_real_tick_chain
+E   assert 0.3333333333333333 == 0.0
+    assert row["constant_typed_emission_exact_floor"] == 0.0
+```
+
+**That failure was mine, and I verified it against disk before touching
+anything.** `git show ee7d859^:training/living_reasoning_curriculum.py` shows
+the literal `"constant_typed_emission_exact_floor": 0.0`; commit `ee7d859`
+("Remove the hardcoded floors and the monitor traps") replaced it with the
+**measured** quantity at `living_reasoning_curriculum.py:613`:
+
+```python
+"constant_typed_emission_exact_floor": max(
+    typed_target_histogram.values(), default=0
+) / max(1.0, supervised_phase_count),
+```
+
+So the metric is right and the **test** was stale: it was the last assertion in
+the repository still encoding the retired hardcoded zero. Every sibling already
+expects the measured floor —
+`test_foundation_motor_objective_identity.py`, `test_termination_head_route.py`
+and `test_training_watch.py` all assert `1.0 / 3.0`;
+`test_constant_baseline_floors.py` asserts `> 0.0` and `>= 1.0/3.0`.
+
+**I fixed the assertion, not the metric.** The replacement states the property
+that actually matters and cannot go stale with the fixture:
+
+```python
+# The floor is measured, not hardcoded: it is the strongest constant
+# emitter's score over this case's own supervised phases. A floor pinned to
+# 0.0 would let a lineage that only ever emits the majority answer look like
+# progress.
+assert row["constant_typed_emission_exact_floor"] > 0.0
+assert row["constant_typed_emission_exact_floor"] == pytest.approx(
+    row["constant_typed_emission_exact_count"] / row["supervised_phase_count"]
+)
+```
+
+Targeted run `test_tournament_metrics.py` + `test_constant_baseline_floors.py` +
+`test_sequential_first_form.py` → **exit 0**. LF preserved (0 CRLF, 252 LF).
+
+**Why the trap survived:** the earlier segment ran a wide set of *targeted*
+suites and never named `test_tournament_metrics.py`. A fix that changes a
+metric's **value** must be followed by every suite that asserts that value; the
+full suite is what closes that class of gap, and it has now been run to
+completion with a known-good result. Recorded as a new canonical event rather
+than an edit to `ee7d859`'s event, per the append-only rule.
 
 ## Open proposal — Soul completion + Dormant trainer (reviewed 2026-09-17)
 
@@ -2182,6 +2237,12 @@ hypothesis instead of re-testing a known-broken fixed point
   `alignment_eos_gate_count 16` vs `payload_teacher_forced_eos_count 24`), and
   `payload_content_accuracy` equals `payload_teacher_forced_content_accuracy` at
   exactly `0.8709677419354839`.
+- **CLOSED — the full suite has been run to completion.** `pytest -q -p
+  no:cacheprovider`, ~55 min, exit 1 with exactly one failure — the stale
+  hardcoded-zero floor assertion above, now fixed and re-verified green. No
+  other regressions. Any future change to a metric's **value** must be followed
+  by every suite that asserts that value; targeted suites alone leave this class
+  of trap behind.
 
 **Superseded below (kept as the historical record).**
 

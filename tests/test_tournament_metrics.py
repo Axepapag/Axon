@@ -81,7 +81,14 @@ def test_evaluate_sequential_case_measures_real_tick_chain(sequential_case) -> N
     assert 0.0 <= row["typed_emission_exact_rate"] <= 1.0
     assert 0.0 <= row["payload_transport_exact_rate"] <= 1.0
     assert row["complete_field_coverage_rate"] == 1.0
-    assert row["constant_typed_emission_exact_floor"] == 0.0
+    # The floor is measured, not hardcoded: it is the strongest constant
+    # emitter's score over this case's own supervised phases. A floor pinned to
+    # 0.0 would let a lineage that only ever emits the majority answer look like
+    # progress.
+    assert row["constant_typed_emission_exact_floor"] > 0.0
+    assert row["constant_typed_emission_exact_floor"] == pytest.approx(
+        row["constant_typed_emission_exact_count"] / row["supervised_phase_count"]
+    )
     assert row["payload_teacher_forced_token_count"] >= 1
 
 
