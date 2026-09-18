@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-18T15:20:00+00:00
+Updated: 2026-09-18T16:50:00+00:00
 current_through_event_id:
-`evt-20260918T152000Z-copilot-guard-doctrine-audit-why-the-gates-block-us`
+`evt-20260918T165000Z-copilot-stage-gate-scoped-to-eligible-actions-and-guard-fixes`
 
 Append order note: the two events carrying timestamps `19:10` and `19:30` sit
 *earlier* in the file than the `20:00` launch event, because the correction was
@@ -20,6 +20,37 @@ and before that GitHub Copilot CLI / deepseek-v4.1-flash:cloud / 2026-09-16 —
 those revisions are superseded, not erased; canonical events remain the authority)
 
 ## Current mission and honest status
+
+**THE UN-WINNABLE STAGE-0 GATE IS REPAIRED — BY SCOPING THE PROBE, NOT BY RENAMING
+THE METRICS.** `evt-20260918T165000Z`. `foundation_motor_v2_probe` now takes
+`training_stage=` and narrows **only** `payload_transport_exact_rate` and
+`payload_eos_accuracy` to the stage's declared `eligible_actions`; the gate's metric
+names are unchanged, so every hand-built test probe and the recorded v6 verdict (which
+reads `final_evaluation`/`tournament_metrics`, a different field) stay valid. The
+declaration was **already drifting** from the body — it omitted three requirements the
+body enforced — so `FOUNDATION_MOTOR_V2_STAGE_GATE_PLAN` is now the single source of
+truth for both. A **data-reachability axis** was added beside the gradient axis, and the
+verdict is now explicit and **fail-closed** (`passed = not failures and not unreachable`).
+
+**Proved instrumentation-only, not asserted.** The change is pinned against the
+authoritative v6 segment report: `foundation_motor_v2_objective_program_id` recomputes to
+`d0092331a509646b1c75081629558ddefeb0eca99d92e763afeaeb51cd09c979` — the recorded value,
+byte for byte — and the recorded `foundation_motor_v2_stage_policy` for `copy_alignment`
+is byte-identical to the current table. The recorded v6 `payload_transport_exact_rate`
+was `0.6666666666666666` with `constant_payload_transport_exact_floor`
+`0.3333333333333333`, matching the proven 16/24 and 8/24 counts. **141 tests across 9
+suites pass**; `git diff --check` and `py_compile` both exit 0.
+
+**Two more real defects were found and fixed while implementing it.** (1) My own
+regression: the rewritten gate body applied `copy_alignment`'s eos-head overlay
+**unconditionally**, dropping its `receipt_continuation` condition —
+`test_foundation_motor_objective_identity.py` caught it with a bare
+`KeyError: 'alignment_eos_gate_accuracy'`; fixed structurally by extracting
+`foundation_motor_v2_stage_eos_head_active()`, which both the declaration and the body
+now read. (2) A **fail-closed gap**: an `unreachable` gate with no threshold failure
+still reported `passed: True`, and `_foundation_motor_v2_stage_from_reports` advances a
+stage on exactly `bool(gate.get("passed"))` — so the defect would have advanced the
+campaign while reporting success.
 
 **THE v6 REPAIR HAS NOW BEEN RUN, AND IT BROKE THE FIXED POINT.** `9655abb` →
 job `2a9f934e…` → `600/600` → paused for renewal. All four acceptance conditions
@@ -2658,8 +2689,8 @@ top-level keys and no `qa` / `samples` / `transcript` / per-case surface**; the 
 journal's two `evaluated` events carry only `global_step`, `monotonic_seconds`, `phase`.
 So the forensic table must be **produced**, not fetched.
 
-**9. The single recommended intervention (awaiting ratification).** Make
-`decide_foundation_motor_v2_stage` **honour the stage's declared `eligible_actions`** —
+**9. The single recommended intervention (RATIFIED AND IMPLEMENTED, `evt-20260918T165000Z`).** `decide_foundation_motor_v2_stage`
+now **honours the stage's declared `eligible_actions`** —
 restrict the payload/EOS gate denominators to in-stage-eligible action families. This is
 a **coherence fix to a contract already declared in the stage table**, not an objective,
 weight, geometry, data, or seed change. Expected effect on the existing v6 step-600
@@ -2668,30 +2699,47 @@ time.** The alternative — teach delete at Stage 0 — contradicts the ratified
 design that deliberately isolates emission. **This is the THIRD instance of the
 un-winnable-gate class**; `845bf8b` fixed the *vacuous-denominator* form
 (`termination_continue_positions == 0` reading `1.0`). This is the
-*family-excluded-from-teaching* form. `tests/test_foundation_motor_gate_reachability.py`
-should be extended to cover it.
+*family-excluded-from-teaching* form — **now pinned by 16 tests** in
+`tests/test_foundation_motor_gate_reachability.py`, up from 7. The fix shipped as
+**probe scoping rather than metric renaming**, so the metric names and every recorded
+verdict are untouched.
 
 ## Next actions
 
-**PRIORITY 0 — the Stage-0 gate is un-winnable; scope it to `eligible_actions` before
-any further training** (`evt-20260918T140000Z`):
+**PRIORITY 0 — DONE: the un-winnable Stage-0 gate was scoped to `eligible_actions`**
+(`evt-20260918T165000Z`):
 
-- **DO NOT launch another training tranche and DO NOT change the EOS mechanism.**
-  `0.6667` is the maximum reachable value at `copy_alignment`; neither of ChatGPT's two
-  options can move it to `0.95`.
-- **Ratify ONE intervention:** make `decide_foundation_motor_v2_stage` honour the
-  stage's declared `eligible_actions`, restricting the payload/EOS gate denominators to
-  in-stage-eligible action families. Contract/coherence only — no objective, weight,
-  geometry, data, or seed change. Expected reading on the existing step-600 state:
-  **16/16 = 1.0 ≥ 0.95 ⇒ Stage 0 passes.**
-- **Then** extend `tests/test_foundation_motor_gate_reachability.py` to pin the
-  *family-excluded-from-teaching* reachability form, run the legacy-route regression
-  suite and `git diff --check`, and commit.
-- **Then** produce the per-case forensic table with a **local zero-optimization
-  `--evaluate-only`** pass over step 600 — and optionally over steps 420/480 to show the
-  taught families converging while the untought delete family never moves. Lift the
-  `payload_count <= 3` `transcript_sink` cap and record the emitted symbol count, since
-  no per-case surface exists in the artefact set.
+- **DONE — the repair is implemented as probe scoping.** `foundation_motor_v2_probe(...,
+  training_stage=...)` narrows `payload_transport_exact_rate` and `payload_eos_accuracy`
+  to the stage's declared `eligible_actions`; `payload_scope` records the basis, the
+  eligible/excluded case counts and the excluded families, and the whole-surface values
+  are kept alongside (`whole_surface_payload_transport_exact_rate`) so nothing is hidden.
+  `--evaluate-only` and `scripts/diagnose_d64_routes.py` pass no stage and keep
+  whole-surface behaviour. **Expected reading on the existing step-600 state: 16/16 = 1.0
+  ≥ 0.95 ⇒ Stage 0 passes.** (Expected, not yet observed — no run has consumed it yet.)
+- **DONE — the three guard fixes.** (a) `FOUNDATION_MOTOR_V2_STAGE_GATE_PLAN` is the
+  single source of truth for the declaration *and* the body, so they cannot drift again.
+  (b) A data-reachability axis sits beside the gradient axis in
+  `foundation_motor_v2_unreachable_gate_findings()`, covering `metrics`, `pairs`,
+  `any_checks`, `continuation_*` and `floor_beats`; verified `[]` for defaults,
+  `teach_multicell_copy=True` and the v6 route, and it still catches `termination_head_v5`
+  (`copy_alignment` gates on `alignment_eos_gate_accuracy` while weighting
+  `alignment_eos_gate` at `0.0`). (c) The verdict is explicit
+  (`passed|below_threshold|unreachable`) and fail-closed.
+- **DONE — the reachability suite was extended**, 7 → 16 tests, pinning the
+  *family-excluded-from-teaching* form with data-axis negative controls, a probe-scoping
+  proof, a per-stage eos-head overlay pin, and a fail-closed verdict proof. The earlier
+  over-claim ("unrepresentable") was corrected to two axes.
+- **NEXT — a SHORT REAL renewal, not `--evaluate-only`.** `_foundation_motor_v2_stage_from_reports`
+  **skips `evaluation_only` reports**, so an evaluation pass can never carry a stage-advancing
+  gate. Resume the preserved step-600 parent with `--resume`, `--tranche-steps` ~60–120,
+  `--device cuda`, and confirm the derived stage reaches `transport_eos` before launching
+  that tranche.
+- **STILL OPEN — the per-case forensic table.** No local zero-optimization pass has been run;
+  the mechanism of the 8 delete failures (stray extra symbol with `terminated=True` vs never
+  terminating) remains **provisional**. Only the count is proven: **16/16 taught exact, 0/8
+  untaught**. Lift the `payload_count <= 3` `transcript_sink` cap and record the emitted
+  symbol count.
 - **Do not** promote, serve, or advance stages, and do not modify the objective,
   weights, geometry, data, or seed without the convener's word.
 

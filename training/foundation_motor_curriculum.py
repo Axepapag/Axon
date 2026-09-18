@@ -611,6 +611,16 @@ FOUNDATION_MOTOR_V2_METRIC_COMPONENTS: dict[str, tuple[str, ...]] = {
     "payload_content_accuracy": ("payload",),
     "payload_eos_accuracy": ("payload",),
     "payload_transport_exact_rate": ("payload",),
+    "per_decision_accuracy": ("decision",),
+    "per_operation_accuracy": ("operation",),
+    "per_action_joint_exact_rate": (
+        "decision",
+        "operation",
+        "region",
+        "start",
+        "end",
+        "payload",
+    ),
     "typed_emission_exact_rate": (
         "decision",
         "operation",
@@ -621,28 +631,243 @@ FOUNDATION_MOTOR_V2_METRIC_COMPONENTS: dict[str, tuple[str, ...]] = {
     ),
 }
 
-# The metric requirements each stage's gate actually enforces.  Kept beside the
-# component map so the invariant in
-# foundation_motor_v2_unreachable_gate_requirements() can be checked in a test
-# instead of being re-derived by reading the gate body.
+# A metric can be unsatisfiable for two independent reasons, and until
+# 2026-09-18 only the first was modelled.
+#
+#   (1) GRADIENT reachability -- the metric's components carry weight 0.0 in this
+#       stage, so no optimizer step can move it.  Modelled by the component map
+#       above.
+#   (2) DATA reachability -- the metric's DENOMINATOR spans action families the
+#       stage deliberately excludes from teaching via its eligible_actions
+#       contract.  Modelled by the denominator map below.
+#
+# Ignoring (2) is what blocked the campaign: copy_alignment teaches
+# copy/insert/replace, its gate required payload_transport_exact_rate at 0.95,
+# and that rate was computed over all four DELTA families including the eight
+# delete phases the stage never teaches.  The arithmetic ceiling was 16/24 and
+# the gate could never pass.  See
+# evt-20260918T140000Z-copilot-v6-checkpoint-preserved-and-stage0-gate-unreachable.
+#
+# "stage_eligible" means the denominator is exactly the stage's own
+# eligible_actions, which makes the metric satisfiable by construction.  For the
+# two transport rates that narrowing is performed by
+# foundation_motor_v2_probe() when it is built for a stage; the pairing is pinned
+# to the probe by tests/test_foundation_motor_gate_reachability.py.
+FOUNDATION_MOTOR_V2_DELTA_ACTIONS = frozenset(("copy", "insert", "replace", "delete"))
+FOUNDATION_MOTOR_V2_PROBE_STAGE_SCOPED_METRICS = frozenset(
+    ("payload_transport_exact_rate", "payload_eos_accuracy")
+)
+FOUNDATION_MOTOR_V2_METRIC_DENOMINATOR_ACTIONS: dict[
+    str, frozenset[str] | str
+] = {
+    "alignment_position_accuracy": "stage_eligible",
+    "alignment_copy_gate_accuracy": "stage_eligible",
+    "alignment_eos_gate_accuracy": "stage_eligible",
+    "region_accuracy": "stage_eligible",
+    "start_accuracy": "stage_eligible",
+    "end_accuracy": "stage_eligible",
+    "payload_content_accuracy": "stage_eligible",
+    "payload_eos_accuracy": "stage_eligible",
+    "payload_transport_exact_rate": "stage_eligible",
+    "per_decision_accuracy": "stage_eligible",
+    "per_operation_accuracy": "stage_eligible",
+    # The two conjunction metrics are decided phase by phase over every DELTA
+    # phase, so they demand the complete DELTA action set no matter which stage
+    # is running.  They are asserted at joint, the only stage whose
+    # eligible_actions covers it.
+    "per_action_joint_exact_rate": FOUNDATION_MOTOR_V2_DELTA_ACTIONS,
+    "typed_emission_exact_rate": FOUNDATION_MOTOR_V2_DELTA_ACTIONS,
+}
+
+# The metric requirements each stage's gate actually enforces.  The gate body
+# reads this plan instead of enumerating metrics inline, so the declaration and
+# the gate cannot drift apart.
+#
+#   metrics / pairs                   required unconditionally
+#   continuation_metrics / _pairs     required additionally under the ratified
+#                                     receipt continuation overlay
+#   eos_head_metrics / _pairs         required additionally when the route does
+#                                     not generate its own eos head
+#   any_checks                        every value of a probe mapping must reach
+#                                     the threshold
+#   floor_beats                       (rate, floor, message template) triples
+FOUNDATION_MOTOR_V2_STAGE_GATE_ANY_CHECK_LABELS = {
+    "per_decision_accuracy": "per-decision accuracy",
+    "per_operation_accuracy": "per-operation accuracy",
+    "per_action_joint_exact_rate": "per-action joint exact rate",
+}
+FOUNDATION_MOTOR_V2_JUST_BEAT_THE_FLOOR_MESSAGE = (
+    "{rate} does not beat the constant-answer floor {floor}"
+)
+FOUNDATION_MOTOR_V2_STAGE_GATE_PLAN: dict[str, dict[str, Any]] = {
+    "copy_alignment": {
+        "metrics": (
+            "alignment_position_accuracy",
+            "alignment_copy_gate_accuracy",
+            "payload_content_accuracy",
+            "payload_transport_exact_rate",
+        ),
+        "pairs": ("position", "copy_gate", "content"),
+        "continuation_metrics": ("payload_eos_accuracy",),
+        "continuation_pairs": (),
+        "eos_head_metrics": ("alignment_eos_gate_accuracy",),
+        "eos_head_pairs": ("eos_gate",),
+        # copy_alignment applies its eos-head overlay only inside the receipt
+        # continuation branch; transport_eos applies it whenever the route does
+        # not generate its own head.  The distinction is load-bearing: it is why
+        # a plain copy_alignment run weights alignment_eos_gate at 0.0.
+        "eos_head_needs_continuation": True,
+        "any_checks": (),
+        "floor_beats": (
+            (
+                "payload_content_accuracy",
+                "payload_content_constant_floor",
+                "payload content does not beat constant floor",
+            ),
+        ),
+    },
+    "transport_eos": {
+        "metrics": (
+            "alignment_position_accuracy",
+            "alignment_copy_gate_accuracy",
+            "payload_content_accuracy",
+            "payload_eos_accuracy",
+            "payload_transport_exact_rate",
+        ),
+        "pairs": ("position", "copy_gate", "content"),
+        "continuation_metrics": (),
+        "continuation_pairs": (),
+        "eos_head_metrics": ("alignment_eos_gate_accuracy",),
+        "eos_head_pairs": ("eos_gate",),
+        "eos_head_needs_continuation": False,
+        "any_checks": (),
+        "floor_beats": (
+            (
+                "payload_content_accuracy",
+                "payload_content_constant_floor",
+                "payload content does not beat constant floor",
+            ),
+        ),
+    },
+    "decision": {
+        "metrics": (),
+        "pairs": ("decision",),
+        "continuation_metrics": (),
+        "continuation_pairs": (),
+        "eos_head_metrics": (),
+        "eos_head_pairs": (),
+        "eos_head_needs_continuation": False,
+        "any_checks": ("per_decision_accuracy",),
+        "floor_beats": (),
+    },
+    "operation": {
+        "metrics": (),
+        "pairs": ("operation",),
+        "continuation_metrics": (),
+        "continuation_pairs": (),
+        "eos_head_metrics": (),
+        "eos_head_pairs": (),
+        "eos_head_needs_continuation": False,
+        "any_checks": ("per_operation_accuracy",),
+        "floor_beats": (),
+    },
+    "address": {
+        "metrics": ("region_accuracy", "start_accuracy", "end_accuracy"),
+        "pairs": ("address",),
+        "continuation_metrics": (),
+        "continuation_pairs": (),
+        "eos_head_metrics": (),
+        "eos_head_pairs": (),
+        "eos_head_needs_continuation": False,
+        "any_checks": (),
+        "floor_beats": (),
+    },
+    "joint": {
+        "metrics": (),
+        "pairs": ("joint", "content"),
+        "continuation_metrics": (),
+        "continuation_pairs": (),
+        "eos_head_metrics": (),
+        "eos_head_pairs": (),
+        "eos_head_needs_continuation": False,
+        "any_checks": ("per_action_joint_exact_rate",),
+        "floor_beats": (
+            (
+                "typed_emission_exact_rate",
+                "constant_typed_emission_exact_floor",
+                FOUNDATION_MOTOR_V2_JUST_BEAT_THE_FLOOR_MESSAGE,
+            ),
+            (
+                "payload_transport_exact_rate",
+                "constant_payload_transport_exact_floor",
+                FOUNDATION_MOTOR_V2_JUST_BEAT_THE_FLOOR_MESSAGE,
+            ),
+        ),
+    },
+}
+
+
+def foundation_motor_v2_stage_eos_head_active(
+    training_stage: str,
+    *,
+    receipt_continuation: bool,
+    eos_generate_head_route: bool,
+) -> bool:
+    """Whether this stage applies its eos-head overlay under these route flags.
+
+    copy_alignment applies the overlay only inside its receipt-continuation
+    branch (historic body: ``if receipt_continuation: ... if not
+    eos_generate_head_route: require(alignment_eos_gate_accuracy)``), whereas
+    transport_eos applies it whenever the route does not generate its own head.
+    The distinction is load-bearing -- it is why a plain copy_alignment run
+    weights ``alignment_eos_gate`` at 0.0 -- so both the gate body and the
+    reachability declaration read it from here rather than re-deriving it.
+    """
+
+    if eos_generate_head_route:
+        return False
+    return bool(
+        receipt_continuation
+        or not FOUNDATION_MOTOR_V2_STAGE_GATE_PLAN[training_stage][
+            "eos_head_needs_continuation"
+        ]
+    )
+
+
+def foundation_motor_v2_stage_gate_metrics(
+    training_stage: str,
+    *,
+    receipt_continuation: bool = False,
+    eos_generate_head_route: bool = False,
+) -> tuple[str, ...]:
+    """Every probe metric this stage's gate can fail on under these route flags.
+
+    The unconditional requirements are always included; the two overlays add
+    theirs only when they are active, because a requirement that is not applied
+    cannot be unreachable.
+    """
+
+    plan = FOUNDATION_MOTOR_V2_STAGE_GATE_PLAN[training_stage]
+    ordered = [
+        *plan["metrics"],
+        *plan["any_checks"],
+        *(rate for rate, _floor, _message in plan["floor_beats"]),
+    ]
+    if receipt_continuation:
+        ordered.extend(plan["continuation_metrics"])
+    eos_head_active = foundation_motor_v2_stage_eos_head_active(
+        training_stage,
+        receipt_continuation=receipt_continuation,
+        eos_generate_head_route=eos_generate_head_route,
+    )
+    if eos_head_active:
+        ordered.extend(plan["eos_head_metrics"])
+    return tuple(dict.fromkeys(ordered))
+
+
 FOUNDATION_MOTOR_V2_STAGE_GATE_METRICS: dict[str, tuple[str, ...]] = {
-    "copy_alignment": (
-        "alignment_position_accuracy",
-        "alignment_copy_gate_accuracy",
-        "payload_content_accuracy",
-        "payload_transport_exact_rate",
-    ),
-    "transport_eos": (
-        "alignment_position_accuracy",
-        "alignment_copy_gate_accuracy",
-        "payload_content_accuracy",
-        "payload_eos_accuracy",
-        "payload_transport_exact_rate",
-    ),
-    "decision": (),
-    "operation": (),
-    "address": ("region_accuracy", "start_accuracy", "end_accuracy"),
-    "joint": ("typed_emission_exact_rate", "payload_transport_exact_rate"),
+    stage: foundation_motor_v2_stage_gate_metrics(stage)
+    for stage in FOUNDATION_MOTOR_V2_STAGE_ORDER
 }
 
 
@@ -686,15 +911,30 @@ def foundation_motor_v2_first_reachable_stage(metric: str) -> str | None:
     return None
 
 
-def foundation_motor_v2_unreachable_gate_requirements(
+def foundation_motor_v2_unreachable_gate_findings(
     *,
     receipt_continuation: bool = False,
     receipt_teaching_profile: str = RECEIPT_TEACHING_PROFILE_CONTINUATION_V1,
     teach_multicell_copy: bool = False,
-) -> list[str]:
-    """Stage/metric pairs that are unmet-able by construction; empty when healthy."""
+    eos_generate_head_route: bool = False,
+) -> list[dict[str, str]]:
+    """Structured unmet-able stage/metric pairs; empty when healthy.
 
-    violations: list[str] = []
+    Two independent axes are checked, because either one alone can make a stage
+    gate impossible to satisfy:
+
+    ``gradient`` -- the metric's components carry weight 0.0 at this stage, so
+    no optimizer step can move it.
+
+    ``data`` -- the metric's denominator spans action families this stage
+    excludes from teaching via its eligible_actions contract, so the taught
+    stream cannot supply the missing phases.  ``copy_alignment`` gating on the
+    whole-surface ``payload_transport_exact_rate`` was exactly this defect and
+    it ceilinged the campaign at 16/24.  See
+    evt-20260918T140000Z-copilot-v6-checkpoint-preserved-and-stage0-gate-unreachable.
+    """
+
+    findings: list[dict[str, str]] = []
     for stage in FOUNDATION_MOTOR_V2_STAGE_ORDER:
         weights = foundation_motor_v2_component_weights(
             stage,
@@ -702,16 +942,96 @@ def foundation_motor_v2_unreachable_gate_requirements(
             receipt_teaching_profile=receipt_teaching_profile,
             teach_multicell_copy=teach_multicell_copy,
         )
-        for metric in FOUNDATION_MOTOR_V2_STAGE_GATE_METRICS.get(stage, ()):
+        eligible = frozenset(foundation_motor_v2_stage_policy(stage)["eligible_actions"])
+        gate_metrics = (
+            *foundation_motor_v2_stage_gate_metrics(
+                stage,
+                receipt_continuation=receipt_continuation,
+                eos_generate_head_route=eos_generate_head_route,
+            ),
+            # the any-of requirement groups and the beat-the-floor comparisons
+            # are requirements too, and a floor comparison over an untaught
+            # denominator is the same defect wearing a different hat
+            *FOUNDATION_MOTOR_V2_STAGE_GATE_PLAN[stage]["any_checks"],
+            *(
+                metric
+                for metric, _floor, _message in FOUNDATION_MOTOR_V2_STAGE_GATE_PLAN[stage][
+                    "floor_beats"
+                ]
+            ),
+        )
+        for metric in dict.fromkeys(gate_metrics):
             components = FOUNDATION_MOTOR_V2_METRIC_COMPONENTS.get(metric)
             if components is None:
+                findings.append(
+                    {
+                        "stage": stage,
+                        "metric": metric,
+                        "axis": "declaration",
+                        "detail": f"{stage} gates on {metric} with no declared components",
+                    }
+                )
                 continue
             dead = [name for name in components if weights.get(name, 0.0) == 0.0]
             if dead:
-                violations.append(
-                    f"{stage} gates on {metric} while weighting {dead} at 0.0"
+                findings.append(
+                    {
+                        "stage": stage,
+                        "metric": metric,
+                        "axis": "gradient",
+                        "detail": f"{stage} gates on {metric} while weighting {dead} at 0.0",
+                    }
                 )
-    return violations
+            demand = FOUNDATION_MOTOR_V2_METRIC_DENOMINATOR_ACTIONS.get(metric)
+            if demand is None:
+                findings.append(
+                    {
+                        "stage": stage,
+                        "metric": metric,
+                        "axis": "declaration",
+                        "detail": (
+                            f"{stage} gates on {metric} with no declared action denominator"
+                        ),
+                    }
+                )
+                continue
+            if demand == "stage_eligible":
+                continue
+            missing = sorted(set(demand) - eligible)
+            if missing:
+                findings.append(
+                    {
+                        "stage": stage,
+                        "metric": metric,
+                        "axis": "data",
+                        "detail": (
+                            f"{stage} gates on {metric} over actions {missing} "
+                            f"it does not teach"
+                        ),
+                    }
+                )
+    return findings
+
+
+def foundation_motor_v2_unreachable_gate_requirements(
+    *,
+    receipt_continuation: bool = False,
+    receipt_teaching_profile: str = RECEIPT_TEACHING_PROFILE_CONTINUATION_V1,
+    teach_multicell_copy: bool = False,
+    eos_generate_head_route: bool = False,
+) -> list[str]:
+    """Stage/metric pairs that are unmet-able by construction; empty when healthy."""
+
+    return [
+        finding["detail"]
+        for finding in foundation_motor_v2_unreachable_gate_findings(
+            receipt_continuation=receipt_continuation,
+            receipt_teaching_profile=receipt_teaching_profile,
+            teach_multicell_copy=teach_multicell_copy,
+            eos_generate_head_route=eos_generate_head_route,
+        )
+    ]
+
 
 FOUNDATION_MOTOR_V2_RETENTION_CONTRACT = {
     "schema": "axon-foundation-motor-v2-retention-contract-v1",
@@ -1566,10 +1886,27 @@ def verify_foundation_motor_v2_unicode_walk_curriculum(
 
 
 def foundation_motor_v2_probe(
-    episodes: Sequence[LivingReasoningEpisode], rows: Sequence[Mapping[str, Any]]
+    episodes: Sequence[LivingReasoningEpisode],
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    training_stage: str | None = None,
 ) -> dict[str, Any] | None:
+    """Aggregate one evaluation surface into the motor-v2 probe record.
+
+    ``training_stage`` narrows the two transport rates to the cases whose action
+    the stage actually teaches (its eligible_actions contract).  Without it the
+    rates are computed over every DELTA family, which is the right thing for a
+    forensic tool and the wrong thing for a gate: copy_alignment teaches
+    copy/insert/replace and excludes delete, so an all-family transport rate
+    ceilinged it at 16/24 and made its 0.95 requirement impossible.  The
+    whole-surface numbers are preserved alongside under ``whole_surface_*`` so
+    nothing is hidden by the narrowing.
+    """
+
     if len(episodes) != len(rows):
         raise ValueError("foundation motor v2 probe episodes and rows must align")
+    if training_stage is not None and training_stage not in FOUNDATION_MOTOR_V2_STAGE_ORDER:
+        raise ValueError(f"unknown foundation motor v2 training stage {training_stage!r}")
     selected: list[tuple[LivingReasoningEpisode, Mapping[str, Any], Mapping[str, Any]]] = []
     for episode, row in zip(episodes, rows, strict=True):
         if not is_foundation_motor_v2_episode(episode):
@@ -1581,9 +1918,31 @@ def foundation_motor_v2_probe(
     if not selected:
         return None
 
-    def rate(correct_key: str, count_key: str) -> float:
-        count = sum(int(row[count_key]) for _episode, row, _diag in selected)
-        return sum(int(row[correct_key]) for _episode, row, _diag in selected) / max(1, count)
+    eligible_actions = (
+        None
+        if training_stage is None
+        else frozenset(foundation_motor_v2_stage_policy(training_stage)["eligible_actions"])
+    )
+    scoped = (
+        selected
+        if eligible_actions is None
+        else [
+            item
+            for item in selected
+            if foundation_motor_v2_action(item[0]) in eligible_actions
+        ]
+    )
+
+    def rate(
+        correct_key: str,
+        count_key: str,
+        *,
+        surface: Sequence[tuple[LivingReasoningEpisode, Mapping[str, Any], Mapping[str, Any]]]
+        | None = None,
+    ) -> float:
+        items = selected if surface is None else surface
+        count = sum(int(row[count_key]) for _episode, row, _diag in items)
+        return sum(int(row[correct_key]) for _episode, row, _diag in items) / max(1, count)
 
     pair_components: dict[str, dict[str, list[bool]]] = defaultdict(
         lambda: defaultdict(list)
@@ -1657,20 +2016,51 @@ def foundation_motor_v2_probe(
     content_count = sum(
         int(row["payload_teacher_forced_content_count"]) for _e, row, _d in selected
     )
-    merged_floors = constant_baseline_floors(
-        _merge_row_histogram(selected, "constant_typed_emission_target_histogram"),
-        _merge_row_histogram(selected, "constant_payload_transport_target_histogram"),
-        supervised_phase_count=sum(
-            float(row["supervised_phase_count"]) for _e, row, _d in selected
-        ),
-        payload_supervised_phase_count=sum(
-            float(row["payload_supervised_phase_count"]) for _e, row, _d in selected
-        ),
+    def floors_for(
+        items: Sequence[tuple[LivingReasoningEpisode, Mapping[str, Any], Mapping[str, Any]]],
+    ) -> dict[str, float]:
+        return constant_baseline_floors(
+            _merge_row_histogram(items, "constant_typed_emission_target_histogram"),
+            _merge_row_histogram(items, "constant_payload_transport_target_histogram"),
+            supervised_phase_count=sum(
+                float(row["supervised_phase_count"]) for _e, row, _d in items
+            ),
+            payload_supervised_phase_count=sum(
+                float(row["payload_supervised_phase_count"]) for _e, row, _d in items
+            ),
+        )
+
+    merged_floors = floors_for(selected)
+    scoped_floors = merged_floors if scoped is selected else floors_for(scoped)
+    excluded_actions = sorted(
+        {
+            str(foundation_motor_v2_action(episode))
+            for episode, _row, _diag in selected
+            if eligible_actions is not None
+            and foundation_motor_v2_action(episode) not in eligible_actions
+        }
+        - {"None"}
     )
     return {
         "schema": "axon-foundation-motor-v2-probe-v1",
         "stage": FOUNDATION_MOTOR_V2_STAGE,
         "case_count": len(selected),
+        "payload_scope": {
+            "schema": "axon-foundation-motor-v2-probe-scope-v1",
+            "basis": (
+                "whole_surface" if eligible_actions is None else "stage_eligible_actions"
+            ),
+            "training_stage": training_stage,
+            "eligible_actions": (
+                None if eligible_actions is None else sorted(eligible_actions)
+            ),
+            "scope_metrics": (
+                [] if eligible_actions is None else sorted(FOUNDATION_MOTOR_V2_PROBE_STAGE_SCOPED_METRICS)
+            ),
+            "eligible_case_count": len(scoped),
+            "excluded_case_count": len(selected) - len(scoped),
+            "excluded_actions": excluded_actions,
+        },
         "complete_field_coverage_rate": sum(
             float(row["complete_field_coverage_count"]) for _e, row, _d in selected
         )
@@ -1698,10 +2088,23 @@ def foundation_motor_v2_probe(
         "constant_payload_transport_exact_floor": merged_floors[
             "constant_payload_transport_exact_floor"
         ],
+        "scoped_constant_payload_transport_exact_floor": scoped_floors[
+            "constant_payload_transport_exact_floor"
+        ],
         "payload_eos_accuracy": rate(
-            "payload_teacher_forced_eos_correct", "payload_teacher_forced_eos_count"
+            "payload_teacher_forced_eos_correct",
+            "payload_teacher_forced_eos_count",
+            surface=scoped,
         ),
         "payload_transport_exact_rate": rate(
+            "payload_transport_exact_count",
+            "payload_supervised_phase_count",
+            surface=scoped,
+        ),
+        "whole_surface_payload_eos_accuracy": rate(
+            "payload_teacher_forced_eos_correct", "payload_teacher_forced_eos_count"
+        ),
+        "whole_surface_payload_transport_exact_rate": rate(
             "payload_transport_exact_count", "payload_supervised_phase_count"
         ),
         "decision_accuracy": rate("decision_correct", "supervised_phase_count"),
@@ -1978,6 +2381,17 @@ def decide_foundation_motor_v2_stage(
             "must be selected together"
         )
     failures: list[str] = []
+    unreachable = [
+        finding
+        for finding in foundation_motor_v2_unreachable_gate_findings(
+            receipt_continuation=receipt_continuation,
+            receipt_teaching_profile=receipt_teaching_profile,
+            teach_multicell_copy=receipt_continuation,
+            eos_generate_head_route=eos_generate_head_route,
+        )
+        if finding["stage"] == training_stage
+    ]
+    plan = FOUNDATION_MOTOR_V2_STAGE_GATE_PLAN[training_stage]
     if heldout_probe is None or regression_probe is None:
         failures.append("missing heldout or regression motor-v2 probe")
     else:
@@ -2017,6 +2431,7 @@ def decide_foundation_motor_v2_stage(
             def beat_floor(
                 rate_metric: str,
                 floor_metric: str,
+                message: str,
                 *,
                 observed_probe: Mapping[str, Any] = probe,
                 observed_label: str = label,
@@ -2034,116 +2449,69 @@ def decide_foundation_motor_v2_stage(
                     float(observed_probe[rate_metric]) > float(observed_probe[floor_metric])
                 ):
                     failures.append(
-                        f"{observed_label} {rate_metric} does not beat the "
-                        f"constant-answer floor {floor_metric}"
+                        f"{observed_label} "
+                        + message.format(rate=rate_metric, floor=floor_metric)
                     )
 
-            if training_stage == "copy_alignment":
-                require("alignment_position_accuracy")
-                require("alignment_copy_gate_accuracy")
-                # Ratified 2026-09-17 with the emission rung: this stage now
-                # supervises payload content, so it must also require it.  A
-                # lineage that emits nothing scores exactly the empty-payload
-                # floor and can never satisfy these requirements, which is the
-                # only way the next stage can inherit an emitter.
-                require("payload_content_accuracy")
-                require("payload_transport_exact_rate")
-                require_pair("position")
-                require_pair("copy_gate")
-                require_pair("content")
-                if not (
-                    float(probe["payload_content_accuracy"])
-                    > float(probe["payload_content_constant_floor"])
-                ):
-                    failures.append(f"{label} payload content does not beat constant floor")
-                # The two exactness rates are deliberately NOT blockers here.
-                # This stage weights decision/operation/region/start/end at 0.0
-                # and alignment_eos_gate at 0.0, while typed_emission_exact_rate
-                # demands a DELTA-phase conjunction over decision, operation,
-                # region, start, end and exact free-running payload transport
-                # (living_reasoning_curriculum.py:897).  Requiring it here would
-                # be a gate no lineage can ever pass: the maximum reachable
-                # value is 0.  The emission rung is proven non-vacuous by
-                # payload_content_accuracy above, which an emit-nothing core
-                # scores 0.0 on.  The floors are asserted at the stages that do
-                # carry those weights (joint) and by
-                # tests/test_foundation_motor_gate_reachability.py.
-                if receipt_continuation:
-                    require("payload_eos_accuracy")
-                    if not eos_generate_head_route:
-                        require("alignment_eos_gate_accuracy")
-                        require_pair("eos_gate")
-            elif training_stage == "transport_eos":
-                required_metrics = [
-                    "alignment_position_accuracy",
-                    "alignment_copy_gate_accuracy",
-                    "payload_content_accuracy",
-                    "payload_eos_accuracy",
-                    # Ratified 2026-09-17 with the emission rung: the metric that
-                    # exposes the emit-nothing dead state.  Sixteen of the 24
-                    # heldout transport cases require a non-empty payload, so a
-                    # lineage that always stops immediately cannot reach 0.95.
-                    "payload_transport_exact_rate",
-                ]
-                required_pairs = ["position", "copy_gate", "content"]
-                if not eos_generate_head_route:
-                    required_metrics.append("alignment_eos_gate_accuracy")
-                    required_pairs.append("eos_gate")
-                for metric in required_metrics:
-                    require(metric)
-                for component in required_pairs:
-                    require_pair(component)
-                if not (
-                    float(probe["payload_content_accuracy"])
-                    > float(probe["payload_content_constant_floor"])
-                ):
-                    failures.append(f"{label} payload content does not beat constant floor")
-                # typed_emission_exact_rate is unreachable in this stage for the
-                # same reason as at copy_alignment: decision, operation, region,
-                # start and end all carry weight 0.0 here, and the typed
-                # conjunction demands them for every DELTA phase.  It is
-                # asserted at joint, the only stage that weights all of them.
-            elif training_stage == "decision":
-                if any(float(value) < threshold for value in probe["per_decision_accuracy"].values()):
-                    failures.append(f"{label} per-decision accuracy below {threshold}")
-                require_pair("decision")
-            elif training_stage == "operation":
-                if any(float(value) < threshold for value in probe["per_operation_accuracy"].values()):
-                    failures.append(f"{label} per-operation accuracy below {threshold}")
-                require_pair("operation")
-            elif training_stage == "address":
-                for metric in ("region_accuracy", "start_accuracy", "end_accuracy"):
-                    require(metric)
-                require_pair("address")
-            else:
+            # The requirement lists below come from
+            # FOUNDATION_MOTOR_V2_STAGE_GATE_PLAN, which the reachability
+            # invariant in foundation_motor_v2_unreachable_gate_findings() also
+            # reads.  Enumerating them inline here is what let the declaration
+            # drift away from the gate body and let a data-unreachable
+            # requirement survive review.
+            for metric in plan["metrics"]:
+                require(metric)
+            for component in plan["pairs"]:
+                require_pair(component)
+            for metric in plan["any_checks"]:
+                label_text = FOUNDATION_MOTOR_V2_STAGE_GATE_ANY_CHECK_LABELS[metric]
                 if any(
-                    float(value) < threshold
-                    for value in probe["per_action_joint_exact_rate"].values()
+                    float(value) < threshold for value in probe[metric].values()
                 ):
-                    failures.append(f"{label} per-action joint exact rate below {threshold}")
-                require_pair("joint")
-                require_pair("content")
-                # joint is the only stage that weights decision, operation,
-                # region, start and end (all 1.0), so it is the first stage at
-                # which typed exactness is reachable at all.  Compare against
-                # the strongest constant answer rather than an assumed zero.
-                beat_floor(
-                    "typed_emission_exact_rate", "constant_typed_emission_exact_floor"
-                )
-                beat_floor(
-                    "payload_transport_exact_rate",
-                    "constant_payload_transport_exact_floor",
-                )
+                    failures.append(f"{label} {label_text} below {threshold}")
+            for rate_metric, floor_metric, message in plan["floor_beats"]:
+                beat_floor(rate_metric, floor_metric, message)
+            if receipt_continuation:
+                for metric in plan["continuation_metrics"]:
+                    require(metric)
+                for component in plan["continuation_pairs"]:
+                    require_pair(component)
+            if foundation_motor_v2_stage_eos_head_active(
+                training_stage,
+                receipt_continuation=receipt_continuation,
+                eos_generate_head_route=eos_generate_head_route,
+            ):
+                for metric in plan["eos_head_metrics"]:
+                    require(metric)
+                for component in plan["eos_head_pairs"]:
+                    require_pair(component)
+            # typed_emission_exact_rate is deliberately not a requirement at
+            # copy_alignment or transport_eos.  Those stages weight decision,
+            # operation, region, start and end at 0.0 while the typed
+            # conjunction demands all of them for every DELTA phase
+            # (living_reasoning_curriculum.py), so the maximum reachable value
+            # there is 0.  The emission rung is proven non-vacuous by
+            # payload_content_accuracy, which an emit-nothing core scores 0.0
+            # on.  The floor comparison is asserted at joint, the only stage
+            # that carries those weights, and by
+            # tests/test_foundation_motor_gate_reachability.py.
     if not complete_heldout:
         failures.append("heldout surface is incomplete")
     if not complete_regression:
         failures.append("regression surface is incomplete")
+    verdict = (
+        "unreachable"
+        if unreachable
+        else ("below_threshold" if failures else "passed")
+    )
     body = {
         "schema": "axon-foundation-motor-v2-stage-gate-v1",
         "foundation_stage": FOUNDATION_MOTOR_V2_STAGE,
         "training_stage": training_stage,
         "scope": "curriculum_advancement_only_not_serving_or_promotion",
-        "passed": not failures,
+        "passed": not failures and not unreachable,
+        "verdict": verdict,
+        "unreachable_requirements": [finding["detail"] for finding in unreachable],
         "failures": failures,
         "heldout_probe": None if heldout_probe is None else dict(heldout_probe),
         "regression_probe": None if regression_probe is None else dict(regression_probe),
@@ -2173,6 +2541,13 @@ __all__ = [
     "FOUNDATION_MOTOR_SOURCE_ID",
     "FOUNDATION_MOTOR_STAGE",
     "FOUNDATION_MOTOR_V2_METRIC_COMPONENTS",
+    "FOUNDATION_MOTOR_V2_METRIC_DENOMINATOR_ACTIONS",
+    "FOUNDATION_MOTOR_V2_DELTA_ACTIONS",
+    "FOUNDATION_MOTOR_V2_PROBE_STAGE_SCOPED_METRICS",
+    "FOUNDATION_MOTOR_V2_STAGE_GATE_ANY_CHECK_LABELS",
+    "FOUNDATION_MOTOR_V2_STAGE_GATE_PLAN",
+    "foundation_motor_v2_stage_gate_metrics",
+    "foundation_motor_v2_stage_eos_head_active",
     "FOUNDATION_MOTOR_V2_MULTICELL_PROGRAM",
     "FOUNDATION_MOTOR_V2_MULTICELL_PROGRAM_ID",
     "FOUNDATION_MOTOR_V2_PROGRAM",
@@ -2222,6 +2597,7 @@ __all__ = [
     "foundation_motor_v2_action",
     "foundation_motor_v2_component_weights",
     "foundation_motor_v2_first_reachable_stage",
+    "foundation_motor_v2_unreachable_gate_findings",
     "foundation_motor_v2_objective_program_id",
     "foundation_motor_v2_probe",
     "foundation_motor_v2_stage_policy",

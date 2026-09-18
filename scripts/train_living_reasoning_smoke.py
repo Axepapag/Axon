@@ -1991,10 +1991,12 @@ def main() -> int:
             result["foundation_motor_v2_heldout_probe"] = foundation_motor_v2_probe(
                 heldout_episodes,
                 exact_rows,
+                training_stage=foundation_motor_v2_training_stage,
             )
             result["foundation_motor_v2_regression_probe"] = foundation_motor_v2_probe(
                 motor_v2_regression_episodes,
                 motor_v2_regression_rows,
+                training_stage=foundation_motor_v2_training_stage,
             )
             result["isolated_family_evaluations"] = {}
             for family in sorted(set(evaluation_family_by_episode.values())):
