@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-18T14:00:00+00:00
+Updated: 2026-09-18T15:20:00+00:00
 current_through_event_id:
-`evt-20260918T140000Z-copilot-v6-checkpoint-preserved-and-stage0-gate-unreachable`
+`evt-20260918T152000Z-copilot-guard-doctrine-audit-why-the-gates-block-us`
 
 Append order note: the two events carrying timestamps `19:10` and `19:30` sit
 *earlier* in the file than the `20:00` launch event, because the correction was
@@ -2515,6 +2515,75 @@ of a frozen-looking dashboard). Should the trainer emit progress during evaluati
   `tests/test_d64_route_diagnostic.py`, and now the termination-head change
   set remain untracked/uncommitted.
 - Pre-existing day-zero hygiene failure (above) needs Jeff/the table's ruling.
+
+## 2026-09-18 — why the guards block us: they are correct guards with a blind spot, not traps
+
+`evt-20260918T152000Z-copilot-guard-doctrine-audit-why-the-gates-block-us`
+
+Jeff asked *why* the previous engineer installed all these guards that seem buried in
+code and block progress at every turn. Audited rather than assumed.
+
+**Every blocking guard is a response to a real observed false PASS**, each a genuine
+self-deception that was caught: hardcoded `0.0` constant-emitter floors making every
+*BEATEN* label meaningless (`ee7d859`); `termination_continue_accuracy = 1.0` while
+`termination_continue_positions = 0`, a **fabricated perfect score** (`9655abb`);
+`copy_alignment` gating on `typed_emission_exact_rate` while its components were all
+weighted `0.0`, so the "plateau" was a **mathematical impossibility** (`845bf8b`); and
+the ratified `termination_head_balanced_v6` objective running in **zero of 18
+launchers** because omitting the flags silently selected the legacy route (`24bd44b`).
+Plus `_committed_source` refusing a modified tracked tree so the run must match the
+commit, and refusal of any unratified receipt profile.
+
+**The doctrine is defensible on the repo's own terms.** The ledger is the authority for
+load-bearing claims, so a false PASS corrupts the authority of everything built on it,
+while a false BLOCK is merely expensive. **Prefer a false block over a false pass** is
+the right bias — and its cost is exactly what Jeff is feeling: false blocks are silent
+and arrive after an expensive run.
+
+**Three findings, one of them about my own work:**
+
+1. **The blind spot has a shape.** `FOUNDATION_MOTOR_V2_METRIC_COMPONENTS` maps
+   `payload_transport_exact_rate → ("payload",)` and `copy_alignment` weights `payload`
+   at `1.0`, so `foundation_motor_v2_unreachable_gate_requirements()` **passes**. It is
+   correct on its own terms: the metric is reachable **by gradient**. It never reads
+   `eligible_actions`, so it is blind to the second axis — whether the metric's
+   **denominator cases** are in the teaching stream. **The invariant models weight
+   reachability; this defect is data reachability.**
+2. **The invariant checks a hand-maintained COPY of the gate, and the copy has already
+   drifted.** `FOUNDATION_MOTOR_V2_STAGE_GATE_METRICS["copy_alignment"]` omits
+   `payload_eos_accuracy` and `alignment_eos_gate_accuracy`, yet the gate body
+   **requires both** under `receipt_continuation` (`:2071-2075`) — and those are the two
+   metrics that actually failed. **Nothing pins the declaration to the body**: it is read
+   only by the invariant and its own tests. Any invariant built on it is only as complete
+   as the last incident that updated it.
+3. **I over-claimed in my own docstring.** `tests/test_foundation_motor_gate_reachability.py`
+   (mine, `845bf8b`) says these tests make *the class* unrepresentable, and its negative
+   control is literally `test_the_invariant_catches_the_defect_it_was_written_for`. It
+   pins **one axis, from the shape of one incident**, and names it the class — the same
+   error pattern as the guards themselves. **The docstring should be corrected.**
+
+**Also read the prior engineer fairly:** `foundation_motor_curriculum.py:2059-2070`
+explicitly refuses to gate a stage on a metric it cannot move, reasoning that requiring
+`typed_emission_exact_rate` at `copy_alignment` "would be a gate no lineage can ever
+pass". **The reachability doctrine was deliberate — it was applied on the weight axis
+and missed on the data axis two lines later.**
+
+**Why they FEEL buried and hostile:** a fail-closed gate **cannot distinguish
+*unsatisfiable* from *failed*** — it prints `below 0.95` and never `unsatisfiable`, so a
+construction defect and a learning failure are **indistinguishable from outside**. That
+ambiguity is exactly what made me misrecord the v6 pause as a genuine learning
+shortfall. Second, absolute literals (`0.95`) are applied to surfaces whose **meaning
+changes with the stage design** (`1a4bc41` gave `copy_alignment` payload supervision,
+silently re-scoping the metric). Third, the stage contract has two consumers that are
+**not joined**: `_training_lanes` enforces `eligible_actions`; the gate never reads it.
+Fourth, guards, invariant, tests and their reliance were **all authored in a single pass
+with no second reader** to ask what the *other* way to be unreachable is.
+
+**Recommended three-part remedy (keeps the doctrine, removes the blind spot):**
+derive the gate-metric declaration **from the gate body** instead of hand-maintaining it;
+extend the invariant with the **`eligible_actions` / data-reachability axis**; and emit
+**`unreachable` as a verdict distinct from `below threshold`** so the monitor can tell a
+construction defect from a learning failure.
 
 ## 2026-09-18 — the Stage-0 gate is UN-WINNABLE: it grades 8 delete phases the stage refuses to teach
 
