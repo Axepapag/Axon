@@ -58,6 +58,17 @@ from .d64_codec import (
     D64HeartModelBatch,
 )
 from .durable_ingress import DurableIngressSpool, IngressRecord
+from .english_reasoning import (
+    ENGLISH_PROPOSAL_SCHEMA,
+    FINAL_VERDICT_FOOTER,
+    FINAL_VERDICT_HEADER,
+    TECHNICAL_FINAL_VERDICT_SCHEMA,
+    EnglishProposal,
+    EnglishReasoningContractError,
+    TechnicalFinalVerdict,
+    parse_final_verdict,
+    render_final_verdict,
+)
 from .errors import (
     AuthorityViolationError,
     BarrierClosedError,
@@ -210,7 +221,10 @@ __all__ = [
     "DEFAULT_CORE_GOVERNED_REGIONS",
     "DERIVED_VIEW_SCHEMA",
     "DORMANT_VALVE_GOVERNED_REGIONS",
+    "ENGLISH_PROPOSAL_SCHEMA",
     "EMPTY_CATEGORY_ID",
+    "FINAL_VERDICT_FOOTER",
+    "FINAL_VERDICT_HEADER",
     "EOS_CATEGORY_ID",
     "HEART_ENSEMBLE_POLICY_SCHEMA",
     "HEART_FIDELITY_EVIDENCE_SCHEMA",
@@ -237,6 +251,7 @@ __all__ = [
     "REASONING_TEXT_FRAME_SCHEMA",
     "TICK_IDENTITY_SCHEMA",
     "TICK_IMAGE_SCHEMA",
+    "TECHNICAL_FINAL_VERDICT_SCHEMA",
     "TRAINER_GOVERNED_REGIONS",
     "TRAINER_LIFECYCLE_RECORD_TYPES",
     "TURN_FINALIZATION_SCHEMA",
@@ -265,6 +280,8 @@ __all__ = [
     "DuplicateCoreError",
     "DuplicateProposalError",
     "DurableIngressSpool",
+    "EnglishProposal",
+    "EnglishReasoningContractError",
     "ExactProposalWorkspaceRenderer",
     "FinalCommitAlreadyMadeError",
     "FrozenTickImage",
@@ -344,6 +361,7 @@ __all__ = [
     "StaleBaseProposalError",
     "StaleRailBindingError",
     "TickBindingError",
+    "TechnicalFinalVerdict",
     "TickIdentity",
     "TurnFinalizationError",
     "TurnFinalizationReceipt",
@@ -368,5 +386,7 @@ __all__ = [
     "evaluate_heart_translator_promotion",
     "frame_completed_turn",
     "materialize_completed_turn",
+    "parse_final_verdict",
     "primitive_valve_registry",
+    "render_final_verdict",
 ]

@@ -65,6 +65,7 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "coordinator.py",
         "circulation.py",
         "durable_ingress.py",
+        "english_reasoning.py",
         "health.py",
         "host.py",
         "identity.py",
