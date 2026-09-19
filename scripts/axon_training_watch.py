@@ -400,6 +400,7 @@ class Watcher:
             "evaluated_case_count": details.get("evaluated_case_count"),
             "phase": details.get("phase"),
             "global_step": details.get("global_step"),
+            "initial_evaluation_source": details.get("initial_evaluation_source"),
             "report_path": self.eval_summary.get("report_path"),
         }
         if details.get("heldout_mean_loss") is not None:
@@ -624,6 +625,13 @@ class Watcher:
             where = str(phase or "?")
             if eval_step is not None:
                 where += f" @step {eval_step}"
+            source = self.eval_summary.get("initial_evaluation_source")
+            if source and source != "measured_in_run":
+                # This row was not measured here.  Its floors are the ones the
+                # writing revision computed; a later revision reports different
+                # floors for the same data, and printing both as measurements
+                # invents a change nobody made.
+                where += " · adopted stored report, not re-measured"
             lines.append(" eval[" + where + "]: " + "  ".join(metrics))
         if self.eval_history:
             history = "  ".join(
@@ -777,6 +785,20 @@ def _motor_v2_line(label: str, probe: dict[str, Any] | None) -> str | None:
         parts.append(f"eos-gate {_rate_text(eos_gate)}")
     if pair_gate is not None or pair_position is not None:
         parts.append(f"pair-gate {_rate_text(pair_gate)}  pair-pos {_rate_text(pair_position)}")
+    scope = probe.get("payload_scope")
+    if isinstance(scope, dict) and scope.get("basis") == "stage_eligible_actions":
+        # The stage gate grades this rate over the stages's own eligible actions
+        # only.  The whole-surface rate is larger than the stage can ever teach,
+        # so printing only that one makes a saturated stage read as a failure --
+        # which is exactly how the 2026-09-18 v6 plateau was misread for two
+        # turns.  Both numbers belong on the same line.
+        scoped = probe.get("payload_transport_exact_rate")
+        if scoped is not None:
+            text = f"payload[stage] {_rate_text(scoped)} over {scope.get('eligible_case_count')} eligible"
+            excluded = scope.get("excluded_actions") or []
+            if excluded:
+                text += " excl " + ",".join(str(item) for item in excluded)
+            parts.append(_color(text, GREEN if float(scoped) == 1.0 else YELLOW))
     if cases is not None:
         parts.append(f"n={cases}")
     return "  ".join(parts)
@@ -1107,6 +1129,27 @@ def _wait_for_events(path: Path, timeout: float = 60.0) -> bool:
     return True
 
 
+def _make_output_unicode_safe() -> None:
+    """A payload character must never kill the watcher mid-render.
+
+    On Windows a redirected stdout is wrapped in the ANSI code page, so printing a
+    heldout payload symbol such as U+0391 raises UnicodeEncodeError and ends the
+    watch. A terminal handle is already lossless; a pipe gets UTF-8 so the
+    transcript survives a redirect into a log file.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        try:
+            if stream.isatty():
+                reconfigure(errors="replace")
+            else:
+                reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            continue
+
+
 def follow_job(
     job_id: str | None = None,
     *,
@@ -1121,6 +1164,7 @@ def follow_job(
     sync_interval: float = 30.0,
     events_path: Path | str | None = None,
 ) -> int:
+    _make_output_unicode_safe()
     watcher = Watcher(
         window=max(5, steps),
         show_qa=qa,

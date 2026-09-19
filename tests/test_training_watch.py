@@ -2,6 +2,8 @@
 
 import re
 
+import pytest
+
 from scripts import axon_training_watch
 from scripts.axon_training_watch import Watcher
 
@@ -538,6 +540,49 @@ def test_a_stale_evaluation_names_the_step_it_was_measured_at():
     assert "eval[initial @step 0]" in plain
 
 
+def test_an_adopted_evaluation_row_is_not_printed_as_a_measurement():
+    """A resumed run adopts the parent's stored report instead of re-evaluating.
+
+    The stored row carries the constant-answer floors its writing revision
+    computed.  Rendering it identically to a freshly measured row showed
+    `floor 0.0%` at step 600 and `floor 33.3%` at step 660 for the *same*
+    heldout data, which reads as a change in the data or as a regression the
+    renewal introduced.  Neither happened.
+    """
+    watcher = _watcher()
+    watcher.consume(
+        _event(
+            "eval-adopted",
+            "evaluated",
+            phase="initial",
+            global_step=600,
+            heldout_mean_loss=0.588,
+            constant_typed_emission_exact_floor=0.0,
+            constant_payload_transport_exact_floor=0.0,
+            initial_evaluation_source="adopted_parent_report",
+        )
+    )
+    adopted = _plain(next(line for line in watcher.render().splitlines() if "eval[" in line))
+    assert "adopted stored report, not re-measured" in adopted
+
+    measured = _watcher()
+    measured.consume(
+        _event(
+            "eval-final",
+            "evaluated",
+            phase="final",
+            global_step=660,
+            heldout_mean_loss=0.608,
+            constant_typed_emission_exact_floor=1.0 / 3.0,
+            constant_payload_transport_exact_floor=1.0 / 3.0,
+            initial_evaluation_source="measured_in_run",
+        )
+    )
+    fresh = _plain(next(line for line in measured.render().splitlines() if "eval[" in line))
+    assert "adopted" not in fresh
+    assert "eval[final @step 660]" in fresh
+
+
 def test_a_disabled_sync_receipt_states_why_it_is_disabled():
     """`kernel disabled` alone cannot be acted on; the receipt carries a reason."""
     watcher = _watcher()
@@ -632,3 +677,110 @@ def test_expanded_transcript_panel_collapses_repeated_cases():
     rendered = watcher.render()
     assert rendered.count("Delete exactly response position 1") == 1
     assert watcher.qa_shown == 1
+
+
+def _unicode_payload_watcher():
+    watcher = _watcher()
+    watcher.consume(
+        _event(
+            "eval-unicode",
+            "evaluated",
+            phase="final",
+            global_step=60,
+            heldout_mean_loss=3.4,
+            qa_transcripts=[
+                {
+                    "episode_label": "unicode-walk-holdout-insert-000-0",
+                    "family": "F0",
+                    "prompt": "Insert the current SOURCE_SYMBOL between the brackets.",
+                    "predicted_payload": "",
+                    "expected_payload": "\u0391",
+                    "exact_match": False,
+                }
+            ],
+        )
+    )
+    return watcher
+
+
+def test_a_payload_symbol_cannot_kill_the_watch_on_a_redirected_stdout(monkeypatch):
+    """A heldout payload character ended the operator's live watch.
+
+    On Windows a redirected stdout is wrapped in the ANSI code page, so rendering
+    a Greek-capital-alpha payload raised UnicodeEncodeError and the dashboard
+    exited with a traceback while the cloud job kept running — the operator lost
+    the panel and had no way to know the run was still healthy.
+    """
+    import io
+    import sys
+
+    buffer = io.BytesIO()
+    narrow = io.TextIOWrapper(buffer, encoding="cp1252", newline="")
+    monkeypatch.setattr(sys, "stdout", narrow)
+    monkeypatch.setattr(sys, "stderr", io.TextIOWrapper(io.BytesIO(), encoding="cp1252", newline=""))
+
+    rendered = _unicode_payload_watcher().render()
+    with pytest.raises(UnicodeEncodeError):
+        narrow.write(rendered)
+
+    axon_training_watch._make_output_unicode_safe()
+    narrow.write(rendered)
+    narrow.flush()
+    assert "expected '\u0391'" in buffer.getvalue().decode("utf-8")
+
+
+def test_a_saturated_stage_is_not_printed_as_a_sixty_six_percent_failure():
+    """The whole-surface payload rate is larger than the stage can ever teach.
+
+    On 2026-09-18 the v6 renewal showed ``payload_exact 66.7%`` for the whole
+    tranche.  The stage gate grades the same probe over the stage's own eligible
+    actions only, where it read 1.000.  The plateau was read as a failure for two
+    turns because only the unscoped rate was ever on screen.
+    """
+    watcher = _watcher()
+    watcher.consume(
+        _event(
+            "eval-scoped",
+            "evaluated",
+            phase="final",
+            global_step=660,
+            foundation_motor_v2_heldout_probe={
+                "case_count": 72,
+                "alignment_copy_gate_accuracy": 1.0,
+                "alignment_position_accuracy": 1.0,
+                "payload_transport_exact_rate": 1.0,
+                "whole_surface_payload_transport_exact_rate": 0.6667,
+                "payload_scope": {
+                    "basis": "stage_eligible_actions",
+                    "training_stage": "copy_alignment",
+                    "eligible_actions": ["copy", "insert", "replace"],
+                    "eligible_case_count": 16,
+                    "excluded_actions": ["abstain", "delete", "no_op"],
+                    "excluded_case_count": 56,
+                },
+            },
+        )
+    )
+    assert "payload[stage] 1.000 over 16 eligible excl abstain,delete,no_op" in watcher.render()
+
+
+def test_an_unscoped_probe_gains_no_stage_payload_claim():
+    """A probe that carries no scope has no stage rate, so none may be invented."""
+    watcher = _watcher()
+    watcher.consume(
+        _event(
+            "eval-unscoped",
+            "evaluated",
+            phase="final",
+            global_step=600,
+            foundation_motor_v2_heldout_probe={
+                "case_count": 72,
+                "alignment_copy_gate_accuracy": 1.0,
+                "alignment_position_accuracy": 1.0,
+                "payload_transport_exact_rate": 0.6667,
+            },
+        )
+    )
+    rendered = watcher.render()
+    assert "motor v2 final/heldout" in rendered
+    assert "payload[stage]" not in rendered

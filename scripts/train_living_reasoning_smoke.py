@@ -2175,6 +2175,19 @@ def main() -> int:
         report["accepted_parent_evaluation_report_id"] = (
             accepted_parent_evaluation_report_id
         )
+        # A resumed run adopts the parent's STORED evaluation instead of paying
+        # for the same 72-case surface twice.  That row was written by whichever
+        # revision wrote the report, so its constant-answer floors -- and every
+        # other metric definition -- are that revision's, not this one's.  The
+        # provenance travels with the row; without it a reader compares an
+        # adopted floor against a freshly measured one and sees a change in the
+        # data that never happened.
+        initial_evaluation_source = "measured_in_run"
+        if probationary_evaluation is not None:
+            initial_evaluation_source = "adopted_probationary_report"
+        elif accepted_parent_evaluation is not None:
+            initial_evaluation_source = "adopted_parent_report"
+        report["initial_evaluation_source"] = initial_evaluation_source
         if progress is not None:
             progress.emit(
                 "evaluating", phase="initial", global_step=(0 if latest_bundle is None else latest_bundle.step)
@@ -2214,6 +2227,7 @@ def main() -> int:
                 evaluated_case_count=initial_evaluation["evaluated_case_count"],
                 qa_transcripts=initial_evaluation.get("qa_transcripts", [])[:6],
                 qa_transcript_coverage=initial_evaluation.get("qa_transcript_coverage"),
+                initial_evaluation_source=initial_evaluation_source,
                 **_compact_motor_v2_probes(initial_evaluation),
             )
         prior_reports = sorted(campaign_report_dir.glob("segment_*.json"))
