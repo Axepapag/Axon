@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-19T16:23:06+00:00
+Updated: 2026-09-19T17:05:56+00:00
 current_through_event_id:
-`evt-20260919T162306192419Z-chatgpt-english-proposal-doctrine`
+`evt-20260919T170556838610Z-chatgpt-english-contract-phase1`
 
 Append order note: several events sit *earlier* in the file than events carrying
 later timestamps, because corrections are appended **after** the verdicts they
@@ -30,6 +30,8 @@ The rotating consolidator still reasons as a Core but its FINAL output is differ
 **TRAINING BOUNDARY:** `copy_alignment` and `transport_eos` remain valid learned transport evidence through accepted step **720**. The 720->780 `decision` tranche trained an interface that is now doctrinally obsolete; step **780 is diagnostic evidence only and must not parent English-proposal training**. Step 720 is the last semantically aligned trained state, but adding the English proposal/verdict output anatomy may require a governed donor/new-generation transition rather than exact checkpoint resume. No further optimizer steps are authorized on the old `decision/operation/address/joint` ladder. Before training resumes, runtime/proposal-board/parser/curriculum/evaluation/gate code must implement and prove the new English interface.
 
 The older decision-head forensic result remains useful architectural evidence: its near-constant recurrent summary does **not** need to be repaired as a classifier, but the measured richer memory channels may inform the later English decoder/readout design. The private Soul has not yet been proven to perform useful autobiographical reasoning merely from that probe.
+
+**ENGLISH MIGRATION PHASE 1 IS COMMITTED.** Commit `729d55d` adds `runtime/heart/english_reasoning.py`: `EnglishProposal` requires a nonempty FIRST/REFINED exact-Unicode contribution and repacks the same text byte-for-byte onto D64/D128/D256/etc. via the already-proven `CategoricalTextFrame`. `TechnicalFinalVerdict` defines the consolidator's constrained technical-English envelope and a strict parser that converts its canonical JSON mutation clauses into the existing internal `FieldDelta` boundary with zero semantic inference. Insert/delete/replace, exact Unicode, provenance, evidence, container/edge refs, base field/tick and author all round-trip. The adjacent reasoning-output/circulation/hygiene suites plus the new contract suite pass 28/28 under an explicit writable pytest basetemp; ruff, py_compile and `git diff --check` are clean. **No training was launched.** ProposalBoard/Workspace and ReasoningCirculation still use the superseded learned decision/delta interface and are the next bounded migration slice.
 
 ## Current mission and honest status
 
