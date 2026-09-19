@@ -2881,6 +2881,17 @@ def main() -> int:
             task_gate_passed=report["task_gate_passed"],
             nonzero_exact_output_observed=report["nonzero_exact_output_observed"],
             exact_serving_gate_passed=report["exact_serving_gate_passed"],
+            # The rung gate is the number that decides whether the next tranche
+            # runs, and curriculum_stage_complete deliberately does not carry it:
+            # that flag is true only at the last rung of the six-stage program.
+            # Emitted separately so a passing rung cannot read as a failed run.
+            foundation_motor_v2_training_stage=foundation_motor_v2_training_stage,
+            foundation_motor_v2_stage_gate_passed=(
+                None
+                if report["foundation_motor_v2_stage_gate"] is None
+                else bool(report["foundation_motor_v2_stage_gate"]["passed"])
+            ),
+            paused_for_next_tranche=report["paused_for_next_tranche"],
             heldout_mean_loss=report["final_evaluation"]["heldout_mean_loss"],
             report_path=str(report_path),
             report_id=report["report_id"],

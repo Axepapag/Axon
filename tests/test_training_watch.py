@@ -790,6 +790,35 @@ def test_an_unscoped_probe_gains_no_stage_payload_claim():
     assert "(no stage scope on this probe)" in rendered
 
 
+def test_the_ladder_gate_is_shown_beside_the_program_flag():
+    """A passing rung must not read as a failed run.
+
+    ``curriculum_stage_complete`` is true only at the last rung of the
+    six-stage program, so a run that passed its rung and paused for the next
+    tranche prints ``curriculum_stage_complete=FAIL`` while
+    ``foundation_motor_v2_stage_gate_passed`` is true.  Both belong on screen,
+    named.
+    """
+    watcher = _watcher()
+    watcher.consume(
+        _event(
+            "paused-rung-passed",
+            "paused",
+            global_step=720,
+            curriculum_stage_complete=False,
+            task_gate_passed=True,
+            foundation_motor_v2_stage_gate_passed=True,
+            foundation_motor_v2_training_stage="transport_eos",
+            paused_for_next_tranche=True,
+        )
+    )
+    rendered = _plain(watcher.render())
+    assert "foundation_motor_v2_stage_gate_passed=PASS" in rendered
+    assert "curriculum_stage_complete=FAIL" in rendered
+    assert "ladder: stage transport_eos" in rendered
+    assert "next tranche PAUSED" in rendered
+
+
 def test_the_scoped_rate_is_shown_beside_the_whole_surface_rate():
     """Both readings together, or the reader cannot tell which one is gated."""
     watcher = _watcher()

@@ -192,6 +192,8 @@ class Watcher:
         self.candidate = None
         self.tranche_steps = None
         self.gates: dict[str, Any] = {}
+        self.stage: str | None = None
+        self.paused_for_next_tranche: bool | None = None
         self.eval_summary: dict[str, Any] = {}
         self.eval_history: deque[tuple[str, float, float]] = deque(maxlen=8)
         self.motor_v2: dict[str, dict[str, Any]] = {}
@@ -348,7 +350,18 @@ class Watcher:
                     ),
                     "exact_serving_gate_passed": details.get("exact_serving_gate_passed"),
                     "curriculum_stage_complete": details.get("curriculum_stage_complete"),
+                    "foundation_motor_v2_stage_gate_passed": details.get(
+                        "foundation_motor_v2_stage_gate_passed"
+                    ),
                 }
+                # The ladder gate, not curriculum_stage_complete, is what decides
+                # whether the next tranche runs.  They disagree by design: the
+                # stage flag means the CURRENT rung passed, while
+                # curriculum_stage_complete means the whole six-rung program is
+                # done.  Printing only the latter made a passing rung read as a
+                # failure.
+                self.stage = details.get("foundation_motor_v2_training_stage")
+                self.paused_for_next_tranche = details.get("paused_for_next_tranche")
                 if details.get("heldout_mean_loss") is not None:
                     self.eval_summary["heldout_mean_loss"] = details["heldout_mean_loss"]
                 if details.get("report_path"):
@@ -686,6 +699,25 @@ class Watcher:
                 if value is not None
             )
             lines.append(f" gates: {gate_text}")
+            if self.stage or self.paused_for_next_tranche is not None:
+                # curriculum_stage_complete=FAIL beside a passing rung is not a
+                # contradiction, but it reads as one unless the rung and the
+                # ladder are named separately.
+                ladder = []
+                if self.stage:
+                    ladder.append(f"stage {self.stage}")
+                if self.paused_for_next_tranche is not None:
+                    ladder.append(
+                        _color(
+                            "next tranche PAUSED"
+                            if self.paused_for_next_tranche
+                            else "next tranche RUNNABLE",
+                            YELLOW if self.paused_for_next_tranche else GREEN,
+                        )
+                        + " (curriculum_stage_complete means the whole six-rung "
+                        "program, not this rung)"
+                    )
+                lines.append(" ladder: " + "  ".join(ladder))
         lines.append(f" events: {self.event_count}  last: {self.last_event_at or '-'}")
         if self.error:
             lines.append(_color(f" ERROR: {self.error}", RED))
