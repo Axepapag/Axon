@@ -27,7 +27,7 @@ from .transaction import HeartCommit
 
 REASONING_RECOVERY_PREPARATION_SCHEMA = "axon-reasoning-recovery-preparation-v1"
 REASONING_RECOVERY_COMPLETION_SCHEMA = "axon-reasoning-recovery-completion-v1"
-_REASONING_CIRCULATION_SCHEMA = "axon-reasoning-circulation-v2"
+_REASONING_CIRCULATION_SCHEMA = "axon-reasoning-circulation-v3"
 
 
 def _atomic_json(path: Path, value: Mapping[str, Any]) -> None:
@@ -272,12 +272,12 @@ class ReasoningAutobiographyRecoveryStore:
             "refined_records": body["refined_records"],
             "first_workspace": body["first_workspace"],
             "refined_workspace": body["refined_workspace"],
-            "first_emissions": body["first_emissions"],
-            "refined_emissions": body["refined_emissions"],
+            "first_proposals": body["first_proposals"],
+            "refined_proposals": body["refined_proposals"],
             "soul_transition_receipts": [item.to_canonical_dict() for item in receipts],
             "soul_lineages": lineages,
             "consolidator_core_id": body["consolidator_core_id"],
-            "consolidator_emission": body["consolidator_emission"],
+            "consolidator_verdict": body["consolidator_verdict"],
             "source_delta": body["source_delta"],
             "materialized_delta": body["materialized_delta"],
             "finalization_receipt": body["finalization_receipt"],

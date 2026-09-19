@@ -1,24 +1,24 @@
-"""Derived, width-generic proposal-board rail workspaces.
+"""Derived, width-generic English proposal-board rail workspaces.
 
-The proposal workspace is deliberately noncanonical.  It renders exact board
-accounting and typed deltas beside a frozen tick image so every destination
-rail can inspect the same grounded decisions without pairwise neural
-translation.  D64 is the first physical consumer; the renderer itself works for
-every positive ``d_model`` divisible by the permanent 16D substrate width.
+The proposal workspace is deliberately noncanonical.  It carries exact English
+FIRST/REFINED proposals plus runtime participant accounting beside a frozen tick
+image.  Every destination rail receives the same text through deterministic 16D
+transport repacking; no pairwise neural translation and no typed-delta proposal
+language is involved.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Iterable
 
-from runtime.field import canonical_json_bytes, canonical_sha256
+from runtime.field import canonical_sha256
 
-from .board import ParticipantRecord, ProposalPass
+from .board import ParticipantRecord, ParticipantState, ProposalPass
 from .reasoning_output import CategoricalTextFrame
 from .tick import FrozenTickImage
 
-PROPOSAL_WORKSPACE_SCHEMA = "axon-heart-proposal-workspace-v1"
-PROPOSAL_RAIL_SCHEMA = "axon-heart-proposal-rail-v1"
+PROPOSAL_WORKSPACE_SCHEMA = "axon-heart-english-proposal-workspace-v2"
+PROPOSAL_RAIL_SCHEMA = "axon-heart-english-proposal-rail-v2"
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,8 +27,9 @@ class ProposalWorkspaceEntry:
     d_model: int
     state: str
     detail: str
-    emission_id: str | None
-    delta: dict[str, Any] | None
+    proposal_id: str | None
+    text: str | None
+    evidence: tuple[str, ...] = ()
 
     @classmethod
     def from_record(cls, record: ParticipantRecord) -> "ProposalWorkspaceEntry":
@@ -38,8 +39,9 @@ class ProposalWorkspaceEntry:
             d_model=record.d_model,
             state=record.state.value,
             detail=record.detail,
-            emission_id=None if proposal is None else proposal.emission_id,
-            delta=None if proposal is None else proposal.delta.to_canonical_dict(),
+            proposal_id=None if proposal is None else proposal.proposal_id,
+            text=None if proposal is None else proposal.text,
+            evidence=() if proposal is None else proposal.evidence,
         )
 
     def to_canonical_dict(self) -> dict[str, Any]:
@@ -48,9 +50,16 @@ class ProposalWorkspaceEntry:
             "d_model": self.d_model,
             "state": self.state,
             "detail": self.detail,
-            "emission_id": self.emission_id,
-            "delta": self.delta,
+            "proposal_id": self.proposal_id,
+            "text": self.text,
+            "evidence": list(self.evidence),
         }
+
+    def readable_text(self) -> str:
+        if self.state == ParticipantState.RETURNED.value:
+            return f"[{self.core_id}]\n{self.text}"
+        detail = f": {self.detail}" if self.detail else ""
+        return f"[{self.core_id} — {self.state.upper()}{detail}]"
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,7 +116,16 @@ class ProposalWorkspace:
             raise ValueError("proposal workspace requires participant accounting")
         if len({item.core_id for item in entries}) != len(entries):
             raise ValueError("proposal workspace entries must have unique core ids")
-        object.__setattr__(self, "workspace_id", canonical_sha256(self.to_canonical_dict(include_id=False, include_rails=False)))
+        for entry in entries:
+            if entry.state == ParticipantState.RETURNED.value and (not entry.proposal_id or entry.text is None):
+                raise ValueError("returned proposal workspace entry must carry exact English text")
+            if entry.state != ParticipantState.RETURNED.value and (entry.proposal_id is not None or entry.text is not None):
+                raise ValueError("failed/timed-out proposal workspace entries cannot carry proposal text")
+        object.__setattr__(
+            self,
+            "workspace_id",
+            canonical_sha256(self.to_canonical_dict(include_id=False, include_rails=False)),
+        )
         rails = tuple(self.rendered_rails)
         if rails and any(item.source_workspace_id != self.workspace_id for item in rails):
             raise ValueError("rendered proposal rail is not bound to this workspace")
@@ -123,8 +141,8 @@ class ProposalWorkspace:
         return rail
 
     def readable_text(self) -> str:
-        value = self.to_canonical_dict(include_id=True, include_rails=False)
-        return canonical_json_bytes(value).decode("utf-8")
+        heading = f"{self.pass_kind.value.upper()} PROPOSALS"
+        return "\n\n".join((heading, *(item.readable_text() for item in self.entries)))
 
     def to_canonical_dict(
         self,
@@ -138,6 +156,7 @@ class ProposalWorkspace:
             "tick_uid": self.tick_uid,
             "pass_kind": self.pass_kind.value,
             "entries": [item.to_canonical_dict() for item in self.entries],
+            "readable_text": self.readable_text(),
         }
         if include_id:
             value["workspace_id"] = self.workspace_id
@@ -147,7 +166,7 @@ class ProposalWorkspace:
 
 
 class ExactProposalWorkspaceRenderer:
-    """Render one exact board identically into every registered rail width."""
+    """Render one exact English board identically into every registered rail width."""
 
     def render(
         self,

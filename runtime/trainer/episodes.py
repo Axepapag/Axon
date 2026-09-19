@@ -31,7 +31,9 @@ from runtime.field import (
 from runtime.heart import (
     AuthorityGrant,
     CategoricalTextFrame,
+    EnglishProposal,
     ReasoningEmission,
+    TechnicalFinalVerdict,
     frame_completed_turn,
 )
 from runtime.soul import SoulCommitReceipt, SoulStore
@@ -478,28 +480,33 @@ class RuntimeEpisodeLoader:
         tick_uid: str,
     ) -> None:
         workspace = dict(value)
+        schema = workspace.get("schema")
+        legacy = schema == "axon-heart-proposal-workspace-v1"
+        english = schema == "axon-heart-english-proposal-workspace-v2"
+        if not (legacy or english):
+            raise ValueError("runtime proposal workspace schema is invalid")
         required = {
-            "schema",
-            "image_id",
-            "tick_uid",
-            "pass_kind",
-            "entries",
-            "workspace_id",
-            "rendered_rails",
+            "schema", "image_id", "tick_uid", "pass_kind", "entries",
+            "workspace_id", "rendered_rails",
         }
+        if english:
+            required.add("readable_text")
         if set(workspace) != required:
             raise ValueError("runtime proposal workspace fields are invalid")
         if workspace["image_id"] != image_id or workspace["tick_uid"] != tick_uid:
             raise ValueError("runtime proposal workspace is stale for its tick image")
-        identity_body = {
-            key: workspace[key]
-            for key in ("schema", "image_id", "tick_uid", "pass_kind", "entries")
-        }
+        identity_keys = ["schema", "image_id", "tick_uid", "pass_kind", "entries"]
+        if english:
+            identity_keys.append("readable_text")
+        identity_body = {key: workspace[key] for key in identity_keys}
         if canonical_sha256(identity_body) != workspace["workspace_id"]:
             raise ValueError("runtime proposal workspace identity mismatch")
-        readable = canonical_json_bytes(
-            {**identity_body, "workspace_id": workspace["workspace_id"]}
-        ).decode("utf-8")
+        if english:
+            readable = str(workspace["readable_text"])
+        else:
+            readable = canonical_json_bytes(
+                {**identity_body, "workspace_id": workspace["workspace_id"]}
+            ).decode("utf-8")
         rails = tuple(workspace["rendered_rails"])
         if not rails:
             raise ValueError("runtime proposal workspace has no rendered rails")
@@ -602,36 +609,60 @@ class RuntimeEpisodeLoader:
                 image_id=image_id,
                 tick_uid=tick_uid,
             )
-            first_emissions = tuple(
-                ReasoningEmission.from_mapping(item) for item in circulation["first_emissions"]
-            )
-            refined_emissions = tuple(
-                ReasoningEmission.from_mapping(item) for item in circulation["refined_emissions"]
-            )
-            for emission, expected_pass in (
-                *((item, "first") for item in first_emissions),
-                *((item, "refined") for item in refined_emissions),
-            ):
-                if (
-                    emission.base_field_id != pre_action.field_id
-                    or emission.base_tick_id != pre_action.tick_id
-                    or emission.pass_id != expected_pass
+            if circulation.get("schema") == "axon-reasoning-circulation-v3":
+                first_proposals = tuple(
+                    EnglishProposal.from_mapping(item) for item in circulation["first_proposals"]
+                )
+                refined_proposals = tuple(
+                    EnglishProposal.from_mapping(item) for item in circulation["refined_proposals"]
+                )
+                for proposal, expected_pass in (
+                    *((item, "first") for item in first_proposals),
+                    *((item, "refined") for item in refined_proposals),
                 ):
-                    raise ValueError("runtime core emission is stale or names the wrong pass")
-            source_delta = field_delta_from_canonical_dict(dict(circulation["source_delta"]))
-            materialized_delta = field_delta_from_canonical_dict(dict(circulation["materialized_delta"]))
+                    if (
+                        proposal.base_field_id != pre_action.field_id
+                        or proposal.base_tick_id != pre_action.tick_id
+                        or proposal.pass_id != expected_pass
+                    ):
+                        raise ValueError("runtime English proposal is stale or names the wrong pass")
+                source_delta = field_delta_from_canonical_dict(dict(circulation["source_delta"]))
+                materialized_delta = field_delta_from_canonical_dict(dict(circulation["materialized_delta"]))
+                verdict = TechnicalFinalVerdict.from_mapping(dict(circulation["consolidator_verdict"]))
+                decoded_source = verdict.materialize(pre_action)
+                if decoded_source.delta_id != source_delta.delta_id:
+                    raise ValueError("runtime tagged FINAL verdict does not reproduce its source delta")
+            else:
+                first_emissions = tuple(
+                    ReasoningEmission.from_mapping(item) for item in circulation["first_emissions"]
+                )
+                refined_emissions = tuple(
+                    ReasoningEmission.from_mapping(item) for item in circulation["refined_emissions"]
+                )
+                for emission, expected_pass in (
+                    *((item, "first") for item in first_emissions),
+                    *((item, "refined") for item in refined_emissions),
+                ):
+                    if (
+                        emission.base_field_id != pre_action.field_id
+                        or emission.base_tick_id != pre_action.tick_id
+                        or emission.pass_id != expected_pass
+                    ):
+                        raise ValueError("runtime core emission is stale or names the wrong pass")
+                source_delta = field_delta_from_canonical_dict(dict(circulation["source_delta"]))
+                materialized_delta = field_delta_from_canonical_dict(dict(circulation["materialized_delta"]))
+                consolidator_emission = ReasoningEmission.from_mapping(
+                    dict(circulation["consolidator_emission"])
+                )
+                decoded_source = consolidator_emission.decode_delta(
+                    pre_action,
+                    AuthorityGrant.consolidator(),
+                    attended_surface=exact_surface,
+                )
+                if decoded_source is None or decoded_source.delta_id != source_delta.delta_id:
+                    raise ValueError("runtime consolidator emission does not reproduce its source delta")
             if source_delta.base_field_id != pre_action.field_id or materialized_delta.base_field_id != pre_action.field_id:
                 raise ValueError("runtime episode deltas are stale for the reconstructed base")
-            consolidator_emission = ReasoningEmission.from_mapping(
-                dict(circulation["consolidator_emission"])
-            )
-            decoded_source = consolidator_emission.decode_delta(
-                pre_action,
-                AuthorityGrant.consolidator(),
-                attended_surface=exact_surface,
-            )
-            if decoded_source is None or decoded_source.delta_id != source_delta.delta_id:
-                raise ValueError("runtime consolidator emission does not reproduce its source delta")
             successor = apply_delta(
                 pre_action,
                 materialized_delta,

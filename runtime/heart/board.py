@@ -1,17 +1,9 @@
-"""The per-tick proposal board: a NONCANONICAL shared reasoning workspace.
+"""The per-tick proposal board: a NONCANONICAL English reasoning workspace.
 
-The board holds sparse proposals (typed ``FieldDelta`` payloads with
-author/rail/pass provenance, each bound to the frozen base field) for one
-tick.  It enforces the stage barriers:
-
-- the first pass closes only when every declared participant has returned,
-  failed, or timed out under governed policy;
-- refinement then exposes the complete first-pass board;
-- consolidation is reachable only after the refinement barrier closes.
-
-The board never writes canonical state.  It stores proposals and accounting
-only; only the heart transaction boundary may convert a proposal into a
-successor canonical field.
+The board stores exact FIRST/REFINED English proposals bound to one frozen tick.
+It has no learned no-op or abstain success state.  A successful participant
+returns a nonempty English proposal; failure and timeout remain runtime control
+states.  The board never writes canonical state.
 """
 from __future__ import annotations
 
@@ -19,8 +11,7 @@ from dataclasses import dataclass, replace
 from enum import Enum
 from typing import Iterable
 
-from runtime.field import FieldDelta
-
+from .english_reasoning import EnglishProposal
 from .errors import (
     BarrierClosedError,
     BarrierNotReadyError,
@@ -35,68 +26,24 @@ from .tick import FrozenTickImage
 
 
 class ProposalPass(str, Enum):
-    """The two core deliberation passes of a tick."""
+    """The two deliberation passes before consolidation."""
 
     FIRST = "first"
     REFINED = "refined"
 
 
 class ParticipantState(str, Enum):
-    """Accounting state of one declared participant in one pass."""
+    """Runtime accounting for one participant in one pass."""
 
     PENDING = "pending"
     RETURNED = "returned"
-    NO_OP = "no_op"
-    ABSTAINED = "abstained"
     FAILED = "failed"
     TIMED_OUT = "timed_out"
 
 
-@dataclass(frozen=True, slots=True)
-class Proposal:
-    """One sparse proposal on the board; never canonical state."""
-
-    delta: FieldDelta
-    rail_d_model: int
-    pass_kind: ProposalPass
-    emission_id: str | None = None
-
-    def __post_init__(self) -> None:
-        if not isinstance(self.delta, FieldDelta):
-            raise TypeError("Proposal.delta must be a FieldDelta")
-        pass_kind = (
-            self.pass_kind
-            if isinstance(self.pass_kind, ProposalPass)
-            else ProposalPass(self.pass_kind)
-        )
-        object.__setattr__(self, "pass_kind", pass_kind)
-        if isinstance(self.rail_d_model, bool) or not isinstance(
-            self.rail_d_model, int
-        ):
-            raise TypeError("Proposal.rail_d_model must be an integer")
-        if self.rail_d_model <= 0:
-            raise ValueError("Proposal.rail_d_model must be positive")
-        if self.emission_id is not None and (
-            not isinstance(self.emission_id, str) or not self.emission_id
-        ):
-            raise ValueError("Proposal.emission_id must be None or non-empty")
-        if str(self.delta.pass_id) != pass_kind.value:
-            raise ProposalBoardError(
-                f"proposal pass_id {self.delta.pass_id!r} does not match "
-                f"pass kind {pass_kind.value!r}"
-            )
-
-    @property
-    def author_core_id(self) -> str:
-        return self.delta.author_core_id
-
-    @property
-    def base_field_id(self) -> str:
-        return self.delta.base_field_id
-
-    @property
-    def base_tick_id(self) -> int:
-        return self.delta.base_tick_id
+# Compatibility name for older imports.  The active proposal type is explicitly
+# EnglishProposal; there is no separate typed-delta Proposal object anymore.
+Proposal = EnglishProposal
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,34 +54,22 @@ class ParticipantRecord:
     d_model: int
     state: ParticipantState
     detail: str = ""
-    proposal: Proposal | None = None
+    proposal: EnglishProposal | None = None
 
     def __post_init__(self) -> None:
-        state = (
-            self.state
-            if isinstance(self.state, ParticipantState)
-            else ParticipantState(self.state)
-        )
+        state = self.state if isinstance(self.state, ParticipantState) else ParticipantState(self.state)
         object.__setattr__(self, "state", state)
         if state is ParticipantState.RETURNED:
-            if self.proposal is None:
-                raise ProposalBoardError(
-                    "a returned participant record must carry its proposal"
-                )
+            if not isinstance(self.proposal, EnglishProposal):
+                raise ProposalBoardError("a returned participant record must carry an EnglishProposal")
         elif self.proposal is not None:
-            raise ProposalBoardError(
-                "only a returned participant record may carry a proposal"
-            )
+            raise ProposalBoardError("only a returned participant record may carry a proposal")
 
 
 class ProposalBoard:
-    """NONCANONICAL per-tick workspace with enforced stage barriers."""
+    """NONCANONICAL per-tick English workspace with enforced stage barriers."""
 
-    def __init__(
-        self,
-        image: FrozenTickImage,
-        participants: Iterable[CoreDescriptor],
-    ) -> None:
+    def __init__(self, image: FrozenTickImage, participants: Iterable[CoreDescriptor]) -> None:
         if not isinstance(image, FrozenTickImage):
             raise TypeError("ProposalBoard requires a FrozenTickImage")
         self._image = image
@@ -143,13 +78,9 @@ class ProposalBoard:
             if not isinstance(descriptor, CoreDescriptor):
                 raise TypeError("participants must be CoreDescriptor values")
             if descriptor.status is not CoreStatus.ACTIVE:
-                raise ProposalBoardError(
-                    f"participant {descriptor.core_id!r} is not active"
-                )
+                raise ProposalBoardError(f"participant {descriptor.core_id!r} is not active")
             if descriptor.core_id in roster:
-                raise ProposalBoardError(
-                    f"duplicate participant {descriptor.core_id!r}"
-                )
+                raise ProposalBoardError(f"duplicate participant {descriptor.core_id!r}")
             if image.rail_for(descriptor.d_model) is None:
                 raise RailMembershipError(
                     f"participant {descriptor.core_id!r} rides d_model rail "
@@ -191,39 +122,34 @@ class ProposalBoard:
         return self._refinement_closed
 
     def _stage_records(self, pass_kind: ProposalPass) -> dict[str, ParticipantRecord]:
+        pass_kind = pass_kind if isinstance(pass_kind, ProposalPass) else ProposalPass(pass_kind)
         if pass_kind is ProposalPass.FIRST:
             if self._first_pass_closed:
                 raise BarrierClosedError("the first pass is already closed")
             return self._first_pass
         if self._refinement is None:
-            raise BarrierNotReadyError(
-                "refinement has not begun; the first-pass barrier must close first"
-            )
+            raise BarrierNotReadyError("refinement has not begun; the first-pass barrier must close first")
         if self._refinement_closed:
             raise BarrierClosedError("the refinement pass is already closed")
         return self._refinement
 
-    def submit(self, proposal: Proposal) -> ParticipantRecord:
-        """Record one sparse proposal; returns the updated accounting record."""
+    def submit(self, proposal: EnglishProposal) -> ParticipantRecord:
+        """Record one mandatory nonempty English proposal."""
 
-        if not isinstance(proposal, Proposal):
-            raise TypeError("ProposalBoard.submit requires a Proposal")
-        records = self._stage_records(proposal.pass_kind)
+        if not isinstance(proposal, EnglishProposal):
+            raise TypeError("ProposalBoard.submit requires an EnglishProposal")
+        pass_kind = ProposalPass(proposal.pass_id)
+        records = self._stage_records(pass_kind)
         record = records.get(proposal.author_core_id)
         if record is None:
-            raise UnknownParticipantError(
-                f"{proposal.author_core_id!r} is not a declared tick participant"
-            )
+            raise UnknownParticipantError(f"{proposal.author_core_id!r} is not a declared tick participant")
         if record.state is not ParticipantState.PENDING:
             raise DuplicateProposalError(
                 f"participant {record.core_id!r} is already accounted as "
-                f"{record.state.value} in the {proposal.pass_kind.value} pass"
+                f"{record.state.value} in the {pass_kind.value} pass"
             )
         identity = self._image.identity
-        if (
-            proposal.base_field_id != identity.base_field_id
-            or proposal.base_tick_id != identity.base_tick_id
-        ):
+        if proposal.base_field_id != identity.base_field_id or proposal.base_tick_id != identity.base_tick_id:
             raise StaleBaseProposalError(
                 f"proposal from {record.core_id!r} is not bound to the frozen "
                 f"base field {identity.base_field_id!r} tick {identity.base_tick_id}"
@@ -234,12 +160,7 @@ class ProposalBoard:
                 f"participant {record.core_id!r} proposed on d_model rail "
                 f"{proposal.rail_d_model} but is registered on {descriptor.d_model}"
             )
-        descriptor.authority_grant().assert_delta_permitted(proposal.delta)
-        updated = replace(
-            record,
-            state=ParticipantState.RETURNED,
-            proposal=proposal,
-        )
+        updated = replace(record, state=ParticipantState.RETURNED, proposal=proposal)
         records[record.core_id] = updated
         return updated
 
@@ -250,16 +171,16 @@ class ProposalBoard:
         state: ParticipantState,
         detail: str,
     ) -> ParticipantRecord:
+        if state not in {ParticipantState.FAILED, ParticipantState.TIMED_OUT}:
+            raise ProposalBoardError("only failure or timeout may complete a pass without an English proposal")
         records = self._stage_records(pass_kind)
         record = records.get(core_id)
         if record is None:
-            raise UnknownParticipantError(
-                f"{core_id!r} is not a declared tick participant"
-            )
+            raise UnknownParticipantError(f"{core_id!r} is not a declared tick participant")
         if record.state is not ParticipantState.PENDING:
             raise DuplicateProposalError(
                 f"participant {core_id!r} is already accounted as "
-                f"{record.state.value} in the {pass_kind.value} pass"
+                f"{record.state.value} in the {ProposalPass(pass_kind).value} pass"
             )
         updated = replace(record, state=state, detail=str(detail))
         records[core_id] = updated
@@ -281,26 +202,6 @@ class ProposalBoard:
     ) -> ParticipantRecord:
         return self._mark(core_id, pass_kind, ParticipantState.TIMED_OUT, detail)
 
-    def mark_no_op(
-        self,
-        core_id: str,
-        pass_kind: ProposalPass,
-        detail: str = "",
-    ) -> ParticipantRecord:
-        """Account an explicit grounded decision that no edit is proposed."""
-
-        return self._mark(core_id, pass_kind, ParticipantState.NO_OP, detail)
-
-    def mark_abstained(
-        self,
-        core_id: str,
-        pass_kind: ProposalPass,
-        detail: str = "",
-    ) -> ParticipantRecord:
-        """Account an explicit refusal to guess without sufficient grounds."""
-
-        return self._mark(core_id, pass_kind, ParticipantState.ABSTAINED, detail)
-
     @staticmethod
     def _pending_ids(records: dict[str, ParticipantRecord]) -> tuple[str, ...]:
         return tuple(
@@ -312,84 +213,57 @@ class ProposalBoard:
         )
 
     def close_first_pass(self) -> None:
-        """Close the first pass once every participant is accounted for."""
-
         if self._first_pass_closed:
             raise BarrierClosedError("the first pass is already closed")
         pending = self._pending_ids(self._first_pass)
         if pending:
             raise BarrierNotReadyError(
-                "first-pass barrier cannot close; participants pending: "
-                + ", ".join(pending)
+                "first-pass barrier cannot close; participants pending: " + ", ".join(pending)
             )
         self._first_pass_closed = True
         self._refinement = self._fresh_pass_records()
 
-    def first_pass_proposals(self) -> tuple[Proposal, ...]:
-        """The complete first-pass board, exposed only after the barrier."""
-
+    def first_pass_proposals(self) -> tuple[EnglishProposal, ...]:
         if not self._first_pass_closed:
-            raise BarrierNotReadyError(
-                "the first-pass board is exposed only after its barrier closes"
-            )
+            raise BarrierNotReadyError("the first-pass board is exposed only after its barrier closes")
         return tuple(
             record.proposal
-            for core_id, record in sorted(self._first_pass.items())
-            if record.state is ParticipantState.RETURNED
-            and record.proposal is not None
+            for _, record in sorted(self._first_pass.items())
+            if record.state is ParticipantState.RETURNED and record.proposal is not None
         )
 
     def close_refinement(self) -> None:
-        """Close the refinement barrier once every participant is accounted."""
-
         if self._refinement is None:
-            raise BarrierNotReadyError(
-                "refinement has not begun; the first-pass barrier must close first"
-            )
+            raise BarrierNotReadyError("refinement has not begun; the first-pass barrier must close first")
         if self._refinement_closed:
             raise BarrierClosedError("the refinement pass is already closed")
         pending = self._pending_ids(self._refinement)
         if pending:
             raise BarrierNotReadyError(
-                "refinement barrier cannot close; participants pending: "
-                + ", ".join(pending)
+                "refinement barrier cannot close; participants pending: " + ", ".join(pending)
             )
         self._refinement_closed = True
 
-    def refined_proposals(self) -> tuple[Proposal, ...]:
-        """Every refined delta, exposed only after the refinement barrier."""
-
+    def refined_proposals(self) -> tuple[EnglishProposal, ...]:
         if not self._refinement_closed or self._refinement is None:
-            raise BarrierNotReadyError(
-                "refined proposals are exposed only after the refinement barrier"
-            )
+            raise BarrierNotReadyError("refined proposals are exposed only after the refinement barrier")
         return tuple(
             record.proposal
-            for core_id, record in sorted(self._refinement.items())
-            if record.state is ParticipantState.RETURNED
-            and record.proposal is not None
+            for _, record in sorted(self._refinement.items())
+            if record.state is ParticipantState.RETURNED and record.proposal is not None
         )
 
     def assert_ready_for_consolidation(self) -> None:
-        """Gate the consolidator: reachable only after the refinement barrier."""
-
         if not self._refinement_closed:
-            raise BarrierNotReadyError(
-                "consolidation requires the refinement barrier to be closed"
-            )
+            raise BarrierNotReadyError("consolidation requires the refinement barrier to be closed")
 
-    def participant_states(
-        self, pass_kind: ProposalPass
-    ) -> tuple[ParticipantRecord, ...]:
-        """Immutable accounting view of one pass, ordered by core id."""
-
+    def participant_states(self, pass_kind: ProposalPass) -> tuple[ParticipantRecord, ...]:
+        pass_kind = pass_kind if isinstance(pass_kind, ProposalPass) else ProposalPass(pass_kind)
         if pass_kind is ProposalPass.FIRST:
             records = self._first_pass
         else:
             if self._refinement is None:
-                raise BarrierNotReadyError(
-                    "refinement has not begun; the first-pass barrier must close first"
-                )
+                raise BarrierNotReadyError("refinement has not begun; the first-pass barrier must close first")
             records = self._refinement
         return tuple(records[core_id] for core_id in sorted(records))
 

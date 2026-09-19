@@ -1,10 +1,10 @@
-"""Runtime circulation across proposal, refinement, and consolidation barriers.
+"""Runtime circulation across English proposal, refinement, and consolidation barriers.
 
-This module is the executable boundary between learned reasoning tissue and the
-Heart.  Cores receive only frozen, derived rail views.  They return categorical
-emissions; Heart decodes and validates those emissions into typed deltas.  The
-proposal workspaces remain derived and noncanonical.  Only the final,
-Heart-materialized consolidator delta crosses the transaction boundary.
+Cores receive frozen derived rail views plus their private Souls.  FIRST and
+REFINED return mandatory nonempty English proposals; the rotating consolidator
+returns one compact tagged-region FINAL verdict.  Heart alone materializes that
+verdict into an internal typed FieldDelta and crosses the canonical transaction
+boundary.  No learned DELTA/NO_OP/ABSTAIN permission decision exists here.
 """
 
 from __future__ import annotations
@@ -21,9 +21,9 @@ from runtime.soul import (
     SoulTransition,
 )
 
-from .authority import AuthorityGrant
-from .board import ParticipantRecord, Proposal, ProposalBoard, ProposalPass
+from .board import ParticipantRecord, ProposalBoard, ProposalPass
 from .coordinator import BeatCoordinator
+from .english_reasoning import EnglishProposal, TechnicalFinalVerdict
 from .errors import ReasoningCirculationError
 from .proposal_workspace import (
     D64ProposalWorkspaceRenderer,
@@ -31,7 +31,6 @@ from .proposal_workspace import (
     ProposalWorkspace,
     RenderedProposalRail,
 )
-from .reasoning_output import ReasoningDecision, ReasoningEmission
 from .reasoning_recovery import (
     REASONING_RECOVERY_PREPARATION_SCHEMA,
     ReasoningAutobiographyRecoveryStore,
@@ -43,9 +42,9 @@ from .transaction import HeartCommit
 from .turns import TurnFinalizationReceipt, materialize_completed_turn
 
 REASONING_REQUEST_SCHEMA = "axon-reasoning-pass-request-v2"
-REASONING_PASS_RESULT_SCHEMA = "axon-reasoning-pass-result-v1"
+REASONING_PASS_RESULT_SCHEMA = "axon-reasoning-pass-result-v2"
 REASONING_SOUL_LINEAGE_SCHEMA = "axon-reasoning-soul-lineage-v1"
-REASONING_CIRCULATION_SCHEMA = "axon-reasoning-circulation-v2"
+REASONING_CIRCULATION_SCHEMA = "axon-reasoning-circulation-v3"
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,15 +120,15 @@ class ReasoningPassRequest:
 
 @dataclass(frozen=True, slots=True)
 class ReasoningPassResult:
-    """One exact field decision plus the core's opaque private-soul exhale."""
+    """One public English output plus the core's opaque private-Soul exhale."""
 
-    emission: ReasoningEmission
+    output: EnglishProposal | TechnicalFinalVerdict
     soul_transition: SoulTransition
     result_id: str = field(init=False)
 
     def __post_init__(self) -> None:
-        if not isinstance(self.emission, ReasoningEmission):
-            raise TypeError("emission must be ReasoningEmission")
+        if not isinstance(self.output, (EnglishProposal, TechnicalFinalVerdict)):
+            raise TypeError("output must be EnglishProposal or TechnicalFinalVerdict")
         if not isinstance(self.soul_transition, SoulTransition):
             raise TypeError("soul_transition must be SoulTransition")
         object.__setattr__(self, "result_id", canonical_sha256(self.to_canonical_dict(False)))
@@ -137,7 +136,7 @@ class ReasoningPassResult:
     def to_canonical_dict(self, include_id: bool = True) -> dict[str, Any]:
         value = {
             "schema": REASONING_PASS_RESULT_SCHEMA,
-            "emission": self.emission.to_canonical_dict(),
+            "output": self.output.to_canonical_dict(),
             "soul_transition": self.soul_transition.to_canonical_dict(),
         }
         if include_id:
@@ -152,7 +151,7 @@ class ReasoningCorePort(Protocol):
     core_id: str
 
     def emit(self, request: ReasoningPassRequest) -> ReasoningPassResult:
-        """Return one exact field decision and private-soul successor proposal."""
+        """Return one public English contribution and private-Soul successor."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -195,12 +194,12 @@ class ReasoningCirculationResult:
     refined_records: tuple[ParticipantRecord, ...]
     first_workspace: ProposalWorkspace
     refined_workspace: ProposalWorkspace
-    first_emissions: tuple[ReasoningEmission, ...]
-    refined_emissions: tuple[ReasoningEmission, ...]
+    first_proposals: tuple[EnglishProposal, ...]
+    refined_proposals: tuple[EnglishProposal, ...]
     soul_transition_receipts: tuple[SoulCommitReceipt, ...]
     soul_lineages: tuple[SoulCoreLineage, ...]
     consolidator_core_id: str
-    consolidator_emission: ReasoningEmission
+    consolidator_verdict: TechnicalFinalVerdict
     source_delta: FieldDelta
     materialized_delta: FieldDelta
     finalization_receipt: TurnFinalizationReceipt | None
@@ -218,14 +217,14 @@ class ReasoningCirculationResult:
             "refined_records": [_record_dict(item) for item in self.refined_records],
             "first_workspace": self.first_workspace.to_canonical_dict(),
             "refined_workspace": self.refined_workspace.to_canonical_dict(),
-            "first_emissions": [item.to_canonical_dict() for item in self.first_emissions],
-            "refined_emissions": [item.to_canonical_dict() for item in self.refined_emissions],
+            "first_proposals": [item.to_canonical_dict() for item in self.first_proposals],
+            "refined_proposals": [item.to_canonical_dict() for item in self.refined_proposals],
             "soul_transition_receipts": [
                 item.to_canonical_dict() for item in self.soul_transition_receipts
             ],
             "soul_lineages": [item.to_canonical_dict() for item in self.soul_lineages],
             "consolidator_core_id": self.consolidator_core_id,
-            "consolidator_emission": self.consolidator_emission.to_canonical_dict(),
+            "consolidator_verdict": self.consolidator_verdict.to_canonical_dict(),
             "source_delta": self.source_delta.to_canonical_dict(),
             "materialized_delta": self.materialized_delta.to_canonical_dict(),
             "finalization_receipt": (
@@ -245,8 +244,8 @@ def _record_dict(record: ParticipantRecord) -> dict[str, Any]:
         "d_model": record.d_model,
         "state": record.state.value,
         "detail": record.detail,
-        "emission_id": None if proposal is None else proposal.emission_id,
-        "delta_id": None if proposal is None else proposal.delta.delta_id,
+        "proposal_id": None if proposal is None else proposal.proposal_id,
+        "proposal_text": None if proposal is None else proposal.text,
     }
 
 
@@ -333,21 +332,26 @@ class ReasoningCirculation:
         )
 
     @staticmethod
-    def _assert_emission_binding(
-        emission: ReasoningEmission,
+    def _assert_output_binding(
+        output: EnglishProposal | TechnicalFinalVerdict,
         descriptor: CoreDescriptor,
         image: FrozenTickImage,
         phase: str,
     ) -> None:
         identity = image.identity
-        if emission.author_core_id != descriptor.core_id:
-            raise ReasoningCirculationError("reasoning emission author differs from the invoked core")
-        if emission.rail_d_model != descriptor.d_model:
-            raise ReasoningCirculationError("reasoning emission names the wrong home rail")
-        if emission.pass_id != phase:
-            raise ReasoningCirculationError("reasoning emission names the wrong pass")
-        if emission.base_field_id != identity.base_field_id or emission.base_tick_id != identity.base_tick_id:
-            raise ReasoningCirculationError("reasoning emission is stale for the frozen tick")
+        if output.author_core_id != descriptor.core_id:
+            raise ReasoningCirculationError("reasoning output author differs from the invoked core")
+        if output.rail_d_model != descriptor.d_model:
+            raise ReasoningCirculationError("reasoning output names the wrong home rail")
+        if output.base_field_id != identity.base_field_id or output.base_tick_id != identity.base_tick_id:
+            raise ReasoningCirculationError("reasoning output is stale for the frozen tick")
+        if phase in {ProposalPass.FIRST.value, ProposalPass.REFINED.value}:
+            if not isinstance(output, EnglishProposal):
+                raise ReasoningCirculationError("FIRST/REFINED must return an EnglishProposal")
+            if output.pass_id != phase:
+                raise ReasoningCirculationError("English proposal names the wrong pass")
+        elif not isinstance(output, TechnicalFinalVerdict):
+            raise ReasoningCirculationError("CONSOLIDATED must return a TechnicalFinalVerdict")
 
     @staticmethod
     def _assert_soul_transition_binding(
@@ -377,8 +381,8 @@ class ReasoningCirculation:
         participants: tuple[CoreDescriptor, ...],
         pass_kind: ProposalPass,
         visible_workspace: ProposalWorkspace | None,
-    ) -> tuple[tuple[ReasoningEmission, ...], tuple[SoulCommitReceipt, ...]]:
-        emissions: list[ReasoningEmission] = []
+    ) -> tuple[tuple[EnglishProposal, ...], tuple[SoulCommitReceipt, ...]]:
+        proposals: list[EnglishProposal] = []
         receipts: list[SoulCommitReceipt] = []
         phase = pass_kind.value
         for descriptor in participants:
@@ -400,39 +404,20 @@ class ReasoningCirculation:
                 pass_result = self._ports[descriptor.core_id].emit(request)
                 if not isinstance(pass_result, ReasoningPassResult):
                     raise TypeError("core returned a value other than ReasoningPassResult")
-                emission = pass_result.emission
-                self._assert_emission_binding(emission, descriptor, image, phase)
+                output = pass_result.output
+                self._assert_output_binding(output, descriptor, image, phase)
+                if not isinstance(output, EnglishProposal):
+                    raise ReasoningCirculationError("FIRST/REFINED output is not an EnglishProposal")
                 self._assert_soul_transition_binding(pass_result.soul_transition, request)
-                proposal: Proposal | None = None
-                detail = "" if emission.detail is None else emission.detail.text
-                if emission.decision is ReasoningDecision.DELTA:
-                    delta = emission.decode_delta(
-                        base,
-                        descriptor.authority_grant(),
-                        attended_surface=request.rail.exact_surface,
-                    )
-                    if delta is None:
-                        raise ReasoningCirculationError("delta decision decoded to no delta")
-                    proposal = Proposal(
-                        delta=delta,
-                        rail_d_model=descriptor.d_model,
-                        pass_kind=pass_kind,
-                        emission_id=emission.emission_id,
-                    )
                 receipt = soul_branch.commit_transition(pass_result.soul_transition)
-                if proposal is not None:
-                    board.submit(proposal)
-                elif emission.decision is ReasoningDecision.NO_OP:
-                    board.mark_no_op(descriptor.core_id, pass_kind, detail)
-                else:
-                    board.mark_abstained(descriptor.core_id, pass_kind, detail)
-                emissions.append(emission)
+                board.submit(output)
+                proposals.append(output)
                 receipts.append(receipt)
             except TimeoutError as exc:
                 board.mark_timed_out(descriptor.core_id, pass_kind, f"{type(exc).__name__}: {exc}")
             except Exception as exc:
                 board.mark_failed(descriptor.core_id, pass_kind, f"{type(exc).__name__}: {exc}")
-        return tuple(emissions), tuple(receipts)
+        return tuple(proposals), tuple(receipts)
 
     def _consolidator(
         self,
@@ -456,7 +441,7 @@ class ReasoningCirculation:
         }
         board = ProposalBoard(image, participants)
 
-        first_emissions, first_receipts = self._run_pass(
+        first_proposals, first_receipts = self._run_pass(
             base,
             image,
             board,
@@ -468,7 +453,7 @@ class ReasoningCirculation:
         first_records = board.participant_states(ProposalPass.FIRST)
         first_workspace = self._renderer.render(image, ProposalPass.FIRST, first_records)
 
-        refined_emissions, refined_receipts = self._run_pass(
+        refined_proposals, refined_receipts = self._run_pass(
             base,
             image,
             board,
@@ -497,18 +482,12 @@ class ReasoningCirculation:
             pass_result = self._ports[consolidator.core_id].emit(request)
             if not isinstance(pass_result, ReasoningPassResult):
                 raise TypeError("consolidator returned a value other than ReasoningPassResult")
-            emission = pass_result.emission
-            self._assert_emission_binding(emission, consolidator, image, "consolidated")
+            verdict = pass_result.output
+            self._assert_output_binding(verdict, consolidator, image, "consolidated")
+            if not isinstance(verdict, TechnicalFinalVerdict):
+                raise ReasoningCirculationError("consolidator output is not a tagged FINAL verdict")
             self._assert_soul_transition_binding(pass_result.soul_transition, request)
-            if emission.decision is not ReasoningDecision.DELTA:
-                raise ReasoningCirculationError("consolidator must return a non-empty delta decision")
-            source_delta = emission.decode_delta(
-                base,
-                AuthorityGrant.consolidator(),
-                attended_surface=request.rail.exact_surface,
-            )
-            if source_delta is None:
-                raise ReasoningCirculationError("consolidator delta decoded to no delta")
+            source_delta = verdict.materialize(base)
             materialized_delta, finalization = materialize_completed_turn(base, source_delta)
             soul_branch = self._soul_store.branch(consolidator.core_id)
             soul_branch.prepare_transition(
@@ -519,7 +498,7 @@ class ReasoningCirculation:
                 "reasoning_image_id": image.image_id,
                 "first_workspace_id": first_workspace.workspace_id,
                 "refined_workspace_id": refined_workspace.workspace_id,
-                "consolidator_emission_id": emission.emission_id,
+                "consolidator_verdict_id": verdict.verdict_id,
                 "source_delta_id": source_delta.delta_id,
                 "soul_transition_id": pass_result.soul_transition.transition_id,
                 "turn_finalization_receipt_id": (
@@ -542,15 +521,15 @@ class ReasoningCirculation:
                         "refined_records": [_record_dict(item) for item in refined_records],
                         "first_workspace": first_workspace.to_canonical_dict(),
                         "refined_workspace": refined_workspace.to_canonical_dict(),
-                        "first_emissions": [item.to_canonical_dict() for item in first_emissions],
-                        "refined_emissions": [item.to_canonical_dict() for item in refined_emissions],
+                        "first_proposals": [item.to_canonical_dict() for item in first_proposals],
+                        "refined_proposals": [item.to_canonical_dict() for item in refined_proposals],
                         "prior_soul_receipts": [
                             item.to_canonical_dict()
                             for item in (*first_receipts, *refined_receipts)
                         ],
                         "initial_souls": dict(sorted(initial_souls.items())),
                         "consolidator_core_id": consolidator.core_id,
-                        "consolidator_emission": emission.to_canonical_dict(),
+                        "consolidator_verdict": verdict.to_canonical_dict(),
                         "consolidator_soul_transition": pass_result.soul_transition.to_canonical_dict(),
                         "source_delta": source_delta.to_canonical_dict(),
                         "materialized_delta": materialized_delta.to_canonical_dict(),
@@ -601,12 +580,12 @@ class ReasoningCirculation:
             refined_records=refined_records,
             first_workspace=first_workspace,
             refined_workspace=refined_workspace,
-            first_emissions=first_emissions,
-            refined_emissions=refined_emissions,
+            first_proposals=first_proposals,
+            refined_proposals=refined_proposals,
             soul_transition_receipts=tuple(soul_receipts),
             soul_lineages=lineages,
             consolidator_core_id=consolidator.core_id,
-            consolidator_emission=emission,
+            consolidator_verdict=verdict,
             source_delta=source_delta,
             materialized_delta=materialized_delta,
             finalization_receipt=finalization,

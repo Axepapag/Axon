@@ -211,6 +211,29 @@ class EnglishProposal:
             value["proposal_id"] = self.proposal_id
         return value
 
+    @classmethod
+    def from_mapping(cls, value: Mapping[str, Any]) -> "EnglishProposal":
+        if not isinstance(value, Mapping) or value.get("schema") != ENGLISH_PROPOSAL_SCHEMA:
+            raise EnglishReasoningContractError("serialized English proposal schema is invalid")
+        required = {
+            "schema", "base_field_id", "base_tick_id", "author_core_id", "pass_id",
+            "rail_d_model", "text", "evidence", "proposal_id",
+        }
+        if set(value) != required:
+            raise EnglishReasoningContractError("serialized English proposal fields are invalid")
+        proposal = cls(
+            base_field_id=value["base_field_id"],
+            base_tick_id=value["base_tick_id"],
+            author_core_id=value["author_core_id"],
+            pass_id=value["pass_id"],
+            rail_d_model=value["rail_d_model"],
+            text=value["text"],
+            evidence=tuple(value["evidence"]),
+        )
+        if value["proposal_id"] != proposal.proposal_id:
+            raise EnglishReasoningContractError("serialized English proposal identity mismatch")
+        return proposal
+
     def frame_for(self, d_model: int) -> CategoricalTextFrame:
         """Mechanically repack the exact proposal text for any registered rail width."""
 
@@ -288,47 +311,73 @@ def parse_final_verdict(
 
 @dataclass(frozen=True, slots=True)
 class TechnicalFinalVerdict:
-    """One compact tagged-region consolidator verdict bound to its Heart transaction."""
+    """One tagged-region FINAL utterance authored by the rotating consolidator.
 
+    The learned core emits only ``text``.  Binding metadata is supplied by the
+    runtime envelope, not spoken by the model.  Heart materializes ``text``
+    against the frozen base into an internal ``FieldDelta`` only after receipt.
+    """
+
+    base_field_id: str
+    base_tick_id: int
+    author_core_id: str
+    rail_d_model: int
     text: str
-    delta: FieldDelta
+    evidence: tuple[str, ...] = ()
     verdict_id: str = field(init=False)
 
     def __post_init__(self) -> None:
+        for name in ("base_field_id", "author_core_id"):
+            value = getattr(self, name)
+            if not isinstance(value, str) or not value:
+                raise EnglishReasoningContractError(f"{name} must be nonempty")
+        if isinstance(self.base_tick_id, bool) or not isinstance(self.base_tick_id, int) or self.base_tick_id < 0:
+            raise EnglishReasoningContractError("base_tick_id must be a non-negative integer")
+        if (
+            isinstance(self.rail_d_model, bool)
+            or not isinstance(self.rail_d_model, int)
+            or self.rail_d_model < 16
+            or self.rail_d_model % 16
+        ):
+            raise EnglishReasoningContractError("rail_d_model must be a positive multiple of 16")
         _require_exact_unicode_text(self.text, name="final verdict", nonempty=True)
-        if not isinstance(self.delta, FieldDelta):
-            raise TypeError("TechnicalFinalVerdict.delta must be FieldDelta")
-        if str(self.delta.pass_id) != "consolidated":
-            raise EnglishReasoningContractError("final verdict delta must use pass_id 'consolidated'")
-        object.__setattr__(
-            self,
-            "verdict_id",
-            canonical_sha256(
-                {
-                    "schema": TECHNICAL_FINAL_VERDICT_SCHEMA,
-                    "text": self.text,
-                    "delta_id": self.delta.delta_id,
-                }
-            ),
-        )
+        # Syntax is checked without needing semantic state.  Actual change and
+        # authority are checked later when Heart binds the frozen base.
+        _parse_sections(self.text)
+        evidence = tuple(sorted(set(str(item) for item in self.evidence)))
+        object.__setattr__(self, "evidence", evidence)
+        object.__setattr__(self, "verdict_id", canonical_sha256(self.to_canonical_dict(include_id=False)))
 
     @classmethod
-    def parse(
-        cls,
-        text: str,
-        *,
-        base: SharedFieldSnapshot,
-        author_core_id: str,
-        evidence: tuple[str, ...] = (),
-    ) -> "TechnicalFinalVerdict":
-        return cls(
-            text=text,
-            delta=parse_final_verdict(
-                text,
-                base=base,
-                author_core_id=author_core_id,
-                evidence=evidence,
-            ),
+    def from_mapping(cls, value: Mapping[str, Any]) -> "TechnicalFinalVerdict":
+        if not isinstance(value, Mapping) or value.get("schema") != TECHNICAL_FINAL_VERDICT_SCHEMA:
+            raise EnglishReasoningContractError("serialized FINAL verdict schema is invalid")
+        required = {
+            "schema", "base_field_id", "base_tick_id", "author_core_id",
+            "rail_d_model", "text", "evidence", "verdict_id",
+        }
+        if set(value) != required:
+            raise EnglishReasoningContractError("serialized FINAL verdict fields are invalid")
+        verdict = cls(
+            base_field_id=value["base_field_id"],
+            base_tick_id=value["base_tick_id"],
+            author_core_id=value["author_core_id"],
+            rail_d_model=value["rail_d_model"],
+            text=value["text"],
+            evidence=tuple(value["evidence"]),
+        )
+        if value["verdict_id"] != verdict.verdict_id:
+            raise EnglishReasoningContractError("serialized FINAL verdict identity mismatch")
+        return verdict
+
+    def materialize(self, base: SharedFieldSnapshot) -> FieldDelta:
+        if base.field_id != self.base_field_id or base.tick_id != self.base_tick_id:
+            raise EnglishReasoningContractError("final verdict is stale for the supplied frozen base")
+        return parse_final_verdict(
+            self.text,
+            base=base,
+            author_core_id=self.author_core_id,
+            evidence=self.evidence,
         )
 
     @classmethod
@@ -337,25 +386,28 @@ class TechnicalFinalVerdict:
         *,
         base: SharedFieldSnapshot,
         author_core_id: str,
+        rail_d_model: int,
         sections: Mapping[LogicalRegion | str, str],
         evidence: tuple[str, ...] = (),
     ) -> "TechnicalFinalVerdict":
-        return cls.parse(
-            render_final_verdict(sections),
-            base=base,
+        return cls(
+            base_field_id=base.field_id,
+            base_tick_id=base.tick_id,
             author_core_id=author_core_id,
+            rail_d_model=rail_d_model,
+            text=render_final_verdict(sections),
             evidence=evidence,
         )
 
     @classmethod
-    def from_delta(cls, base: SharedFieldSnapshot, delta: FieldDelta) -> "TechnicalFinalVerdict":
-        """Convert a known typed delta into equivalent simple region-tag training text.
-
-        Sparse historical operations are applied mechanically, then only the touched
-        regions' complete successor text is emitted.  Re-parsing need not reproduce
-        the original sparse operations byte-for-byte; it must reproduce the same
-        successor field contents.
-        """
+    def from_delta(
+        cls,
+        base: SharedFieldSnapshot,
+        delta: FieldDelta,
+        *,
+        rail_d_model: int = 64,
+    ) -> "TechnicalFinalVerdict":
+        """Convert a known typed delta into equivalent tagged-region training text."""
 
         if not isinstance(delta, FieldDelta):
             raise TypeError("TechnicalFinalVerdict.from_delta requires FieldDelta")
@@ -375,10 +427,11 @@ class TechnicalFinalVerdict:
         verdict = cls.from_sections(
             base=base,
             author_core_id=delta.author_core_id,
+            rail_d_model=rail_d_model,
             sections=sections,
             evidence=delta.evidence,
         )
-        reconstructed = apply_delta(base, verdict.delta, permitted_regions=grant.governed_regions)
+        reconstructed = apply_delta(base, verdict.materialize(base), permitted_regions=grant.governed_regions)
         for region in touched:
             if reconstructed.region(region).text != successor.region(region).text:
                 raise EnglishReasoningContractError("tagged verdict failed successor-state equivalence")
@@ -390,13 +443,19 @@ class TechnicalFinalVerdict:
             raise EnglishReasoningContractError("final verdict changed during rail repacking")
         return frame
 
-    def to_canonical_dict(self) -> dict[str, Any]:
-        return {
+    def to_canonical_dict(self, *, include_id: bool = True) -> dict[str, Any]:
+        value: dict[str, Any] = {
             "schema": TECHNICAL_FINAL_VERDICT_SCHEMA,
-            "verdict_id": self.verdict_id,
+            "base_field_id": self.base_field_id,
+            "base_tick_id": self.base_tick_id,
+            "author_core_id": self.author_core_id,
+            "rail_d_model": self.rail_d_model,
             "text": self.text,
-            "delta": self.delta.to_canonical_dict(),
+            "evidence": list(self.evidence),
         }
+        if include_id:
+            value["verdict_id"] = self.verdict_id
+        return value
 
 
 __all__ = [

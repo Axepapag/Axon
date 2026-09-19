@@ -87,8 +87,14 @@ def test_english_proposal_rejects_the_old_consolidated_or_permission_surface() -
 def test_final_verdict_is_the_simple_tagged_surface_requested_by_doctrine() -> None:
     base = _base()
     text = "#responseDraft# Hello Jeff.\n#scratch# Something to write down."
-    verdict = TechnicalFinalVerdict.parse(text, base=base, author_core_id="core-64-a")
-    successor = _apply(base, verdict.delta)
+    verdict = TechnicalFinalVerdict(
+        base_field_id=base.field_id,
+        base_tick_id=base.tick_id,
+        author_core_id="core-64-a",
+        rail_d_model=64,
+        text=text,
+    )
+    successor = _apply(base, verdict.materialize(base))
 
     assert verdict.text == text
     assert successor.region(LogicalRegion.RESPONSE_DRAFT).text == "Hello Jeff."
@@ -177,7 +183,7 @@ def test_sparse_historical_delta_can_be_rendered_as_equivalent_simple_region_tex
     )
     expected = _apply(base, original)
     verdict = TechnicalFinalVerdict.from_delta(base, original)
-    reconstructed = _apply(base, verdict.delta)
+    reconstructed = _apply(base, verdict.materialize(base))
 
     assert verdict.text.startswith("#taskState#") or verdict.text.startswith("#scratch#")
     assert "Mutation" not in verdict.text

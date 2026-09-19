@@ -25,6 +25,7 @@ from runtime.heart import (
     CoreStatus,
     DuplicateCoreError,
     DuplicateProposalError,
+    EnglishProposal,
     FinalCommitAlreadyMadeError,
     FrozenTickImage,
     HeartbeatClock,
@@ -35,7 +36,6 @@ from runtime.heart import (
     IngressDuringTickError,
     InvalidAuthorityGrantError,
     NoActiveParticipantsError,
-    Proposal,
     ProposalBoard,
     ProposalBoardError,
     ProposalPass,
@@ -87,6 +87,24 @@ def _scratch_append(base: SharedFieldSnapshot, author: str, pass_id: str, text: 
         author,
         pass_id,
         (InsertText(region=LogicalRegion.SCRATCH, offset=0, text=text),),
+    )
+
+
+def _proposal(
+    base: SharedFieldSnapshot,
+    author: str,
+    pass_id: str,
+    text: str,
+    *,
+    d_model: int = D64,
+) -> EnglishProposal:
+    return EnglishProposal(
+        base_field_id=base.field_id,
+        base_tick_id=base.tick_id,
+        author_core_id=author,
+        pass_id=pass_id,
+        rail_d_model=d_model,
+        text=text,
     )
 
 
@@ -287,103 +305,53 @@ def test_board_barriers_and_participant_accounting() -> None:
 
     # Refinement is unreachable while the first pass is open.
     with pytest.raises(BarrierNotReadyError):
-        board.submit(
-            Proposal(
-                delta=_scratch_append(base, "core-alpha", "refined", "early"),
-                rail_d_model=D64,
-                pass_kind=ProposalPass.REFINED,
-            )
-        )
+        board.submit(_proposal(base, "core-alpha", "refined", "I have an early refinement."))
     with pytest.raises(BarrierNotReadyError):
         board.first_pass_proposals()
     with pytest.raises(BarrierNotReadyError):
         board.assert_ready_for_consolidation()
 
-    board.submit(
-        Proposal(
-            delta=_scratch_append(base, "core-alpha", "first", "alpha sees "),
-            rail_d_model=D64,
-            pass_kind=ProposalPass.FIRST,
-        )
+    alpha = _proposal(
+        base,
+        "core-alpha",
+        "first",
+        "I notice the response is terse; we should preserve the exact user intent.",
     )
+    board.submit(alpha)
 
     with pytest.raises(UnknownParticipantError):
-        board.submit(
-            Proposal(
-                delta=_scratch_append(base, "core-ghost", "first", "ghost"),
-                rail_d_model=D64,
-                pass_kind=ProposalPass.FIRST,
-            )
-        )
+        board.submit(_proposal(base, "core-ghost", "first", "I am not on this tick."))
     with pytest.raises(DuplicateProposalError):
-        board.submit(
-            Proposal(
-                delta=_scratch_append(base, "core-alpha", "first", "again"),
-                rail_d_model=D64,
-                pass_kind=ProposalPass.FIRST,
-            )
-        )
+        board.submit(_proposal(base, "core-alpha", "first", "A second thought in the same pass."))
     with pytest.raises(RailMembershipError):
-        board.submit(
-            Proposal(
-                delta=_scratch_append(base, "core-beta", "first", "wrong rail"),
-                rail_d_model=128,
-                pass_kind=ProposalPass.FIRST,
-            )
-        )
+        board.submit(_proposal(base, "core-beta", "first", "Wrong physical rail.", d_model=128))
+
     stale_base = SharedFieldSnapshot.from_texts({LogicalRegion.SCRATCH: "elsewhere"})
     with pytest.raises(StaleBaseProposalError):
-        board.submit(
-            Proposal(
-                delta=_delta(
-                    stale_base,
-                    "core-beta",
-                    "first",
-                    (InsertText(region=LogicalRegion.SCRATCH, offset=0, text="x"),),
-                ),
-                rail_d_model=D64,
-                pass_kind=ProposalPass.FIRST,
-            )
-        )
+        board.submit(_proposal(stale_base, "core-beta", "first", "This came from a stale field."))
 
-    # Authority classes bind core proposals even on the noncanonical board.
-    with pytest.raises(AuthorityViolationError):
-        board.submit(
-            Proposal(
-                delta=_delta(
-                    base,
-                    "core-beta",
-                    "first",
-                    (InsertText(region=LogicalRegion.USER_INPUT, offset=0, text="overreach"),),
-                ),
-                rail_d_model=D64,
-                pass_kind=ProposalPass.FIRST,
-            )
-        )
-
-    # The first-pass barrier refuses to close while beta is unaccounted.
-    with pytest.raises(BarrierNotReadyError):
-        board.close_first_pass()
-
-    board.mark_failed("core-beta", ProposalPass.FIRST, detail="attend crashed")
-    board.close_first_pass()
-    assert board.first_pass_closed
-
-    exposed = board.first_pass_proposals()
-    assert [proposal.author_core_id for proposal in exposed] == ["core-alpha"]
-
-    states = {
-        record.core_id: record.state.value
-        for record in board.participant_states(ProposalPass.FIRST)
-    }
-    assert states == {"core-alpha": "returned", "core-beta": "failed"}
-
-    # Refinement: alpha returns, beta times out; then the barrier closes.
+    # English proposals are intentionally relaxed noncanonical thought.  They do
+    # not acquire or require canonical region authority merely by discussing it.
     board.submit(
-        Proposal(
-            delta=_scratch_append(base, "core-alpha", "refined", "refined note"),
-            rail_d_model=D64,
-            pass_kind=ProposalPass.REFINED,
+        _proposal(
+            base,
+            "core-beta",
+            "first",
+            "I think the user input matters here, and I would ask the group to reconsider it.",
+        )
+    )
+    board.close_first_pass()
+    exposed = board.first_pass_proposals()
+    assert [proposal.author_core_id for proposal in exposed] == ["core-alpha", "core-beta"]
+    assert all(proposal.text for proposal in exposed)
+    assert {record.state.value for record in board.participant_states(ProposalPass.FIRST)} == {"returned"}
+
+    board.submit(
+        _proposal(
+            base,
+            "core-alpha",
+            "refined",
+            "After reading beta, I still favor a concise answer but would keep the reasoning grounded.",
         )
     )
     with pytest.raises(BarrierNotReadyError):
@@ -393,13 +361,9 @@ def test_board_barriers_and_participant_accounting() -> None:
 
     refined = board.refined_proposals()
     assert [proposal.author_core_id for proposal in refined] == ["core-alpha"]
-    assert refined[0].delta.pass_id == "refined"
+    assert refined[0].pass_id == "refined"
     board.assert_ready_for_consolidation()
-
-    states = {
-        record.core_id: record.state.value
-        for record in board.participant_states(ProposalPass.REFINED)
-    }
+    states = {record.core_id: record.state.value for record in board.participant_states(ProposalPass.REFINED)}
     assert states == {"core-alpha": "returned", "core-beta": "timed_out"}
 
 
@@ -410,24 +374,16 @@ def test_board_is_a_noncanonical_workspace() -> None:
     before_hash = base.canonical_hash
 
     _, _, _, _, board = _board(base)
-    board.submit(
-        Proposal(
-            delta=_scratch_append(base, "core-alpha", "first", "alpha"),
-            rail_d_model=D64,
-            pass_kind=ProposalPass.FIRST,
-        )
-    )
+    board.submit(_proposal(base, "core-alpha", "first", "Alpha offers a free-form observation."))
     board.mark_failed("core-beta", ProposalPass.FIRST)
     board.close_first_pass()
 
-    # Board activity advances the workspace only; canonical state is untouched.
+    # Board activity advances deliberation only; canonical state is untouched.
     assert base.field_id == before_id
     assert base.tick_id == before_tick
     assert base.canonical_hash == before_hash
     assert board.base_field_id == before_id
-    assert not any(
-        isinstance(value, SharedFieldSnapshot) for value in vars(board).values()
-    )
+    assert not any(isinstance(value, SharedFieldSnapshot) for value in vars(board).values())
 
 
 def test_board_requires_active_participants_on_carried_rails() -> None:
@@ -515,22 +471,10 @@ def test_validated_consolidator_decision_commits_via_canonical_delta_path() -> N
     with pytest.raises(HeartTransactionError):
         boundary.note_tick_opened(image)
 
-    board.submit(
-        Proposal(
-            delta=_scratch_append(base, "core-alpha", "first", "alpha draft. "),
-            rail_d_model=D64,
-            pass_kind=ProposalPass.FIRST,
-        )
-    )
+    board.submit(_proposal(base, "core-alpha", "first", "Alpha draft: consider the scratch state."))
     board.mark_failed("core-beta", ProposalPass.FIRST, detail="no response")
     board.close_first_pass()
-    board.submit(
-        Proposal(
-            delta=_scratch_append(base, "core-alpha", "refined", "refined draft. "),
-            rail_d_model=D64,
-            pass_kind=ProposalPass.REFINED,
-        )
-    )
+    board.submit(_proposal(base, "core-alpha", "refined", "Refined view: consolidate the scratch state."))
     board.mark_timed_out("core-beta", ProposalPass.REFINED)
     board.close_refinement()
     board.assert_ready_for_consolidation()

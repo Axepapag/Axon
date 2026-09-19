@@ -9,9 +9,9 @@ from runtime.dormant import DormantExperienceStore
 from runtime.field import FieldDelta, LogicalRegion, ReplaceText
 from runtime.heart import (
     BeatConfig,
-    CategoricalTextFrame,
     CoreDescriptor,
     CoreRegistry,
+    EnglishProposal,
     ExactProposalWorkspaceRenderer,
     FrozenTickImage,
     HeartHost,
@@ -20,12 +20,9 @@ from runtime.heart import (
     ParticipantState,
     ProposalPass,
     RailBinding,
-    ReasoningDecision,
-    ReasoningEmission,
-    ReasoningOperationEmission,
-    ReasoningOperationKind,
     ReasoningPassRequest,
     ReasoningPassResult,
+    TechnicalFinalVerdict,
     TickIdentity,
 )
 from runtime.soul import SoulLayer, SoulTemperature, SoulTransition
@@ -42,37 +39,17 @@ class FixtureCorePort:
     core_id: str
 
     @staticmethod
-    def _decision(
+    def _result(
         request: ReasoningPassRequest,
-        *,
-        decision: ReasoningDecision,
-        operations=(),
-        detail: str = "",
-    ) -> ReasoningEmission:
-        return ReasoningEmission(
-            base_field_id=request.image.identity.base_field_id,
-            base_tick_id=request.image.identity.base_tick_id,
-            author_core_id=request.descriptor.core_id,
-            pass_id=request.phase,
-            rail_d_model=request.descriptor.d_model,
-            decision=decision,
-            operations=tuple(operations),
-            detail=(
-                None
-                if not detail
-                else CategoricalTextFrame.from_text(detail, d_model=request.descriptor.d_model)
-            ),
-        )
-
-    @staticmethod
-    def _result(request: ReasoningPassRequest, emission: ReasoningEmission) -> ReasoningPassResult:
+        output: EnglishProposal | TechnicalFinalVerdict,
+    ) -> ReasoningPassResult:
         hot = SoulLayer(
             SoulTemperature.HOT,
             f"{request.descriptor.core_id}:{request.phase}:{request.soul.generation + 1}".encode(),
             tensor_layout="fixture-hot-v1",
         )
         return ReasoningPassResult(
-            emission=emission,
+            output=output,
             soul_transition=SoulTransition(
                 core_id=request.descriptor.core_id,
                 architecture_id=request.descriptor.architecture_id,
@@ -86,86 +63,62 @@ class FixtureCorePort:
             ),
         )
 
+    @staticmethod
+    def _proposal(request: ReasoningPassRequest, text: str) -> EnglishProposal:
+        return EnglishProposal(
+            base_field_id=request.image.identity.base_field_id,
+            base_tick_id=request.image.identity.base_tick_id,
+            author_core_id=request.descriptor.core_id,
+            pass_id=request.phase,
+            rail_d_model=request.descriptor.d_model,
+            text=text,
+        )
+
     def emit(self, request: ReasoningPassRequest) -> ReasoningPassResult:
         if request.phase == "consolidated":
             assert len(request.proposal_rails) == 2
             assert all(rail.text for rail in request.proposal_rails)
-            current_response = request.rail.exact_surface.region_text(
-                LogicalRegion.RESPONSE_DRAFT.value
-            )
-            return self._result(
-                request,
-                self._decision(
-                    request,
-                    decision=ReasoningDecision.DELTA,
-                    operations=(
-                    ReasoningOperationEmission(
-                        kind=ReasoningOperationKind.REPLACE,
-                        region=LogicalRegion.RESPONSE_DRAFT,
-                        start=0,
-                        end=len(current_response),
-                        payload=CategoricalTextFrame.from_text(
-                            "I received the exact Unicode: λ🧠",
-                            d_model=request.descriptor.d_model,
-                        ),
-                    ),
-                    ),
+            verdict = TechnicalFinalVerdict(
+                base_field_id=request.image.identity.base_field_id,
+                base_tick_id=request.image.identity.base_tick_id,
+                author_core_id=request.descriptor.core_id,
+                rail_d_model=request.descriptor.d_model,
+                text=(
+                    "#responseDraft# I received the exact Unicode: \u03bb\U0001f9e0"
+                    if "\u03bb\U0001f9e0" in request.rail.exact_surface.region_text(LogicalRegion.USER_INPUT.value)
+                    else "#responseDraft# I received: " + request.rail.exact_surface.region_text(LogicalRegion.USER_INPUT.value)
                 ),
             )
-        if self.core_id == "core-beta" and request.phase == "first":
-            return self._result(
-                request,
-                self._decision(
-                    request,
-                    decision=ReasoningDecision.DELTA,
-                    operations=(
-                    ReasoningOperationEmission(
-                        kind=ReasoningOperationKind.INSERT,
-                        region=LogicalRegion.SCRATCH,
-                        start=0,
-                        end=0,
-                        payload=CategoricalTextFrame.from_text(
-                            "candidate evidence",
-                            d_model=request.descriptor.d_model,
-                        ),
-                    ),
-                    ),
-                ),
-            )
-        if self.core_id == "core-beta" and request.phase == "refined":
-            assert len(request.proposal_rails) == 1
-            return self._result(
-                request,
-                self._decision(
-                    request,
-                    decision=ReasoningDecision.ABSTAIN,
-                    detail="no grounded refinement",
-                ),
-            )
-        return self._result(
-            request,
-            self._decision(
-                request,
-                decision=ReasoningDecision.NO_OP,
-                detail="no independent edit",
-            ),
-        )
+            return self._result(request, verdict)
+
+        if request.phase == "first":
+            if self.core_id == "core-alpha":
+                text = "The user included exact Unicode. I think we should answer by acknowledging it exactly."
+            else:
+                text = "I notice \u03bb\U0001f9e0 is the distinctive evidence; preserve it exactly in the response."
+            return self._result(request, self._proposal(request, text))
+
+        assert request.phase == "refined"
+        assert len(request.proposal_rails) == 1
+        if self.core_id == "core-alpha":
+            text = "After reading beta, I agree: keep \u03bb\U0001f9e0 exact and make the answer concise."
+        else:
+            text = "Alpha's proposal is grounded. I would retain the exact symbol and avoid extra claims."
+        return self._result(request, self._proposal(request, text))
 
 
 @dataclass
 class MalformedFixturePort(FixtureCorePort):
     def emit(self, request: ReasoningPassRequest) -> ReasoningPassResult:
-        return self._result(
-            request,
-            ReasoningEmission(
-                base_field_id=request.image.identity.base_field_id,
-                base_tick_id=request.image.identity.base_tick_id,
-                author_core_id="not-the-invoked-core",
-                pass_id=request.phase,
-                rail_d_model=request.descriptor.d_model,
-                decision=ReasoningDecision.NO_OP,
-            ),
+        proposal = EnglishProposal(
+            base_field_id=request.image.identity.base_field_id,
+            base_tick_id=request.image.identity.base_tick_id,
+            author_core_id="not-the-invoked-core",
+            pass_id=request.phase if request.phase != "consolidated" else "first",
+            rail_d_model=request.descriptor.d_model,
+            text="This proposal is intentionally bound to the wrong author.",
         )
+        return self._result(request, proposal)
 
 
 def _host(root: Path, *, beta_port: FixtureCorePort | None = None) -> HeartHost:
@@ -193,13 +146,16 @@ def test_host_runs_both_barriers_finalizes_turn_and_deposits_loadable_episode(tm
         result = beat.reasoning_result
         assert result.consolidator_core_id == "core-alpha"
         assert [item.state for item in result.first_records] == [
-            ParticipantState.NO_OP,
+            ParticipantState.RETURNED,
             ParticipantState.RETURNED,
         ]
         assert [item.state for item in result.refined_records] == [
-            ParticipantState.NO_OP,
-            ParticipantState.ABSTAINED,
+            ParticipantState.RETURNED,
+            ParticipantState.RETURNED,
         ]
+        assert len(result.first_proposals) == 2
+        assert len(result.refined_proposals) == 2
+        assert result.consolidator_verdict.text.startswith("#responseDraft#")
         assert result.first_workspace.require_rail(64).text == result.first_workspace.readable_text()
         assert result.refined_workspace.require_rail(64).text == result.refined_workspace.readable_text()
         assert not host.coordinator.tick_in_flight
@@ -264,14 +220,14 @@ def test_host_runs_both_barriers_finalizes_turn_and_deposits_loadable_episode(tm
             loaded[0].example,
             outcome_record_id=full_outcome.record_id,
         )
+        # The historical typed-action lived compiler is intentionally not allowed
+        # to reinterpret new English proposals as DELTA/NO_OP/ABSTAIN targets.
+        # A dedicated English lived compiler replaces this route before training resumes.
         full_compilation = EvidenceQualifiedLivedCurriculumCompiler().compile(
             (replace(loaded[0], example=full_example, outcome_record=full_outcome),)
         )
-        assert [item.supervision_weight for item in full_compilation.episodes[0].targets] == [
-            1.0,
-            1.0,
-            1.0,
-        ]
+        assert full_compilation.episodes == ()
+        assert full_compilation.excluded_counts
 
         corrected_delta = FieldDelta(
             base_field_id=loaded[0].pre_action_field.field_id,
@@ -414,13 +370,21 @@ def test_exact_workspace_renderer_is_width_generic_without_claiming_wider_compil
             ParticipantRecord(
                 core_id="core-a",
                 d_model=64,
-                state=ParticipantState.NO_OP,
+                state=ParticipantState.RETURNED,
+                proposal=EnglishProposal(
+                    base_field_id=identity.base_field_id,
+                    base_tick_id=identity.base_tick_id,
+                    author_core_id="core-a",
+                    pass_id="first",
+                    rail_d_model=64,
+                    text="I have a concrete observation for the group.",
+                ),
             ),
             ParticipantRecord(
                 core_id="core-b",
                 d_model=128,
-                state=ParticipantState.ABSTAINED,
-                detail="not enough evidence",
+                state=ParticipantState.FAILED,
+                detail="runtime failure",
             ),
         ),
     )
