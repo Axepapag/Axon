@@ -848,3 +848,157 @@ def test_the_scoped_rate_is_shown_beside_the_whole_surface_rate():
     rendered = watcher.render()
     assert "payload[stage] 1.000 over 16 eligible" in rendered
     assert "(whole-surface 0.667)" in rendered
+
+
+def test_a_rung_shows_the_readings_its_gate_actually_grades():
+    """A rung graded on a pair the early stages never named must show that pair.
+
+    On 2026-09-19 a real ``decision`` run reached this dashboard showing
+    ``payload[stage] 0.667`` -- a rate that rung does not grade -- and nothing
+    else.  Its gate is ``pair decision`` plus every member of
+    ``per_decision_accuracy``, and neither was rendered, so a rung at its entry
+    reading was indistinguishable from a rung with nothing measured.  The stage
+    plan travels with the probe, and whatever it names is printed.
+    """
+    watcher = _watcher()
+    watcher.consume(
+        _event(
+            "eval-decision",
+            "evaluated",
+            phase="initial",
+            global_step=720,
+            foundation_motor_v2_heldout_probe={
+                "case_count": 72,
+                "alignment_copy_gate_accuracy": 1.0,
+                "alignment_position_accuracy": 1.0,
+                "alignment_eos_gate_accuracy": 1.0,
+                "pair_copy_gate": 1.0,
+                "pair_position": 1.0,
+                "pair_exact_rates": {
+                    "copy_gate": 1.0,
+                    "position": 1.0,
+                    "content": 1.0,
+                    "eos_gate": 1.0,
+                    "decision": 0.3333333333333333,
+                    "operation": 0.3333333333333333,
+                },
+                "per_decision_accuracy": {"abstain": 0.0, "delta": 1.0, "no_op": 0.0},
+                "payload_scope": {
+                    "basis": "stage_eligible_actions",
+                    "training_stage": "decision",
+                    "eligible_case_count": 72,
+                    "excluded_actions": [],
+                },
+                "stage_gate": {
+                    "training_stage": "decision",
+                    "metrics": [],
+                    "pairs": ["decision"],
+                    "any_checks": ["per_decision_accuracy"],
+                },
+            },
+        )
+    )
+    rendered = _plain(watcher.render())
+    assert "pair decision 0.333" in rendered
+    # The gate needs every class at the threshold, so the worst member is stated
+    # and the members are listed -- an average would hide the stuck class.
+    assert "per_decision_accuracy min 0.000" in rendered
+    assert "abstain 0.000" in rendered and "delta 1.000" in rendered and "no_op 0.000" in rendered
+
+
+def test_a_declared_reading_missing_from_the_probe_is_shown_as_absent():
+    """Fail closed: an unmeasurable graded reading must not vanish from the line."""
+    watcher = _watcher()
+    watcher.consume(
+        _event(
+            "eval-missing",
+            "evaluated",
+            phase="final",
+            global_step=780,
+            foundation_motor_v2_heldout_probe={
+                "case_count": 72,
+                "alignment_position_accuracy": 1.0,
+                "pair_exact_rates": {},
+                "stage_gate": {
+                    "training_stage": "decision",
+                    "metrics": [],
+                    "pairs": ["decision"],
+                    "any_checks": ["per_decision_accuracy"],
+                },
+            },
+        )
+    )
+    rendered = _plain(watcher.render())
+    assert "pair decision -" in rendered
+    assert "per_decision_accuracy -" in rendered
+
+
+def test_a_probe_without_a_stage_plan_renders_exactly_as_before():
+    """Old packets carry no plan, and must not gain a fabricated one."""
+    watcher = _watcher()
+    watcher.consume(
+        _event(
+            "eval-legacy",
+            "evaluated",
+            phase="final",
+            global_step=660,
+            foundation_motor_v2_heldout_probe={
+                "case_count": 72,
+                "alignment_copy_gate_accuracy": 1.0,
+                "alignment_position_accuracy": 1.0,
+                "alignment_eos_gate_accuracy": 1.0,
+                "pair_copy_gate": 1.0,
+                "pair_position": 1.0,
+            },
+        )
+    )
+    line = _plain(watcher.render())
+    assert "pair gate" not in line
+    assert "pair decision" not in line
+    assert "per_decision_accuracy" not in line
+    assert "copy-gate 1.000" in line
+
+
+def test_a_gate_named_metric_is_not_printed_twice_under_two_names():
+    """The plan names metrics and their pair twins; one reading prints once."""
+    watcher = _watcher()
+    watcher.consume(
+        _event(
+            "eval-twin",
+            "evaluated",
+            phase="final",
+            global_step=660,
+            foundation_motor_v2_heldout_probe={
+                "case_count": 72,
+                "alignment_copy_gate_accuracy": 1.0,
+                "alignment_position_accuracy": 1.0,
+                "alignment_eos_gate_accuracy": 1.0,
+                "pair_exact_rates": {"copy_gate": 1.0, "position": 1.0, "content": 1.0},
+                "payload_transport_exact_rate": 1.0,
+                "payload_scope": {
+                    "basis": "stage_eligible_actions",
+                    "training_stage": "transport_eos",
+                    "eligible_case_count": 16,
+                },
+                "stage_gate": {
+                    "training_stage": "transport_eos",
+                    "metrics": [
+                        "alignment_position_accuracy",
+                        "alignment_copy_gate_accuracy",
+                        "payload_content_accuracy",
+                        "payload_eos_accuracy",
+                        "payload_transport_exact_rate",
+                    ],
+                    "pairs": ["position", "copy_gate", "content"],
+                    "any_checks": [],
+                },
+            },
+        )
+    )
+    line = _plain(watcher.render())
+    assert "pair content 1.000" in line
+    assert line.count("position") == 1
+    assert "pair copy_gate" not in line
+    assert "pair position" not in line
+    assert "payload_transport_exact_rate" not in line
+    assert "alignment_eos_gate_accuracy" not in line

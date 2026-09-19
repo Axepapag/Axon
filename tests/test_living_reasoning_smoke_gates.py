@@ -71,6 +71,77 @@ def test_the_compact_probe_omits_an_absent_scope_rather_than_inventing_one() -> 
     assert probe["payload_transport_exact_rate"] is None
 
 
+def test_the_compact_probe_carries_every_graded_reading_and_the_stage_plan() -> None:
+    """The gate's own numbers must survive compaction, not just the early rungs'.
+
+    ``_compact_motor_v2_probes`` rebuilt each probe from a key allowlist naming
+    ``pair_copy_gate`` and ``pair_position``.  Those two pairs were all the
+    ``copy_alignment`` and ``transport_eos`` rungs graded, so the list looked
+    complete.  The ``decision`` rung is graded on ``pair decision`` and on every
+    member of ``per_decision_accuracy``, and on 2026-09-19 a real decision run
+    reached the dashboard with neither: the line showed the stage payload rate,
+    which that rung does not grade, and nothing that it does.  The pair mapping
+    and both per-action mappings now travel whole, together with the plan that
+    says which of them are graded.
+    """
+    compact = _compact_motor_v2_probes(
+        {
+            "foundation_motor_v2_heldout_probe": {
+                "case_count": 72,
+                "pair_exact_rates": {
+                    "copy_gate": 1.0,
+                    "position": 1.0,
+                    "decision": 0.3333333333333333,
+                },
+                "per_decision_accuracy": {"abstain": 0.0, "delta": 1.0, "no_op": 0.0},
+                "per_operation_accuracy": {"delete": 0.0, "insert": 0.0, "replace": 1.0},
+                "payload_scope": {
+                    "basis": "stage_eligible_actions",
+                    "training_stage": "decision",
+                    "eligible_case_count": 72,
+                },
+            }
+        }
+    )
+    probe = compact["foundation_motor_v2_heldout_probe"]
+    assert probe["pair_exact_rates"]["decision"] == 0.3333333333333333
+    assert probe["per_decision_accuracy"] == {"abstain": 0.0, "delta": 1.0, "no_op": 0.0}
+    assert probe["per_operation_accuracy"]["replace"] == 1.0
+    assert probe["stage_gate"]["training_stage"] == "decision"
+    assert probe["stage_gate"]["pairs"] == ["decision"]
+    assert probe["stage_gate"]["any_checks"] == ["per_decision_accuracy"]
+
+
+def test_the_stage_plan_travels_even_when_the_probe_has_no_payload_scope() -> None:
+    """The graded readings are named from the plan, so the plan needs the stage.
+
+    ``payload_scope`` is the carrier that happens to already know the stage, but
+    it is absent whenever a probe is measured without a scope.  The stage is
+    therefore passed in explicitly rather than inferred, or a scope-less probe
+    would silently lose the list of its own graded readings.
+    """
+    compact = _compact_motor_v2_probes(
+        {"foundation_motor_v2_heldout_probe": {"case_count": 72}},
+        stage="address",
+    )
+    probe = compact["foundation_motor_v2_heldout_probe"]
+    assert probe["payload_scope"] is None
+    assert probe["stage_gate"]["training_stage"] == "address"
+    assert probe["stage_gate"]["metrics"] == [
+        "region_accuracy",
+        "start_accuracy",
+        "end_accuracy",
+    ]
+
+
+def test_an_unknown_stage_yields_no_plan_rather_than_a_guess() -> None:
+    compact = _compact_motor_v2_probes(
+        {"foundation_motor_v2_heldout_probe": {"case_count": 72}},
+        stage=None,
+    )
+    assert compact["foundation_motor_v2_heldout_probe"]["stage_gate"] is None
+
+
 def test_matching_the_constant_answer_is_not_progress() -> None:
     evaluation = _evaluation(typed=1.0 / 3.0, payload=1.0 / 3.0)
     assert nonzero_exact_output_observed(evaluation) is False

@@ -44,11 +44,13 @@ from training import (
     FOUNDATION_MOTOR_V2_PROGRAM_ID,
     FOUNDATION_MOTOR_V2_RETENTION_CONTRACT_ID,
     FOUNDATION_MOTOR_V2_RETENTION_CONTRACT_V2_ID,
+    FOUNDATION_MOTOR_V2_STAGE_GATE_PLAN,
     FOUNDATION_MOTOR_V2_STAGE_ORDER,
     FOUNDATION_SEQUENCE_GATE_POLICY_ID,
+    RECEIPT_GENERATE_HEAD_PROFILES,
     RECEIPT_TEACHING_PROFILE_CONTINUATION_V1,
-    RECEIPT_TERMINATION_HEAD_PROFILES,
     RECEIPT_TEACHING_PROFILES,
+    RECEIPT_TERMINATION_HEAD_PROFILES,
     LivingReasoningCoreD64,
     LivingReasoningCurriculum,
     TeachingEligibility,
@@ -64,7 +66,6 @@ from training import (
     decide_foundation_motor_v2_checkpoint_retention_v2,
     decide_foundation_motor_v2_stage,
     decide_foundation_sequence_mastery,
-    resolve_retention_action,
     evaluate_living_episode,
     evaluate_sequential_case,
     foundation_motor_probe,
@@ -73,7 +74,6 @@ from training import (
     foundation_motor_v2_probe,
     foundation_motor_v2_stage_policy,
     foundation_motor_v2_termination_route_rejection,
-    RECEIPT_GENERATE_HEAD_PROFILES,
     foundation_sequence_probe,
     is_foundation_motor_episode,
     is_foundation_motor_v2_episode,
@@ -84,13 +84,41 @@ from training import (
     load_sequential_first_form,
     oversample_multicell_copy_cases,
     receipt_continuation_teach_profile,
+    resolve_retention_action,
     sequential_living_objective,
 )
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def _compact_motor_v2_probes(evaluation: dict[str, Any]) -> dict[str, Any]:
+def _motor_v2_stage_gate_requirements(stage: Any) -> dict[str, Any] | None:
+    """Return the gate's own declared requirements for ``stage``, or None.
+
+    The dashboard cannot know what a rung is graded on unless the probe says
+    so.  Every rung so far has been misread at least once because the number the
+    gate uses never reached the screen: the payload scope, then the scoped
+    payload rate, then the rung gate flag.  Rather than repeat that for
+    ``decision`` (graded on ``per_decision_accuracy``), ``operation`` and
+    ``address`` (graded on pairs and metrics the earlier stages never named),
+    the producer now ships the stage's gate plan with the probe.  Consumers can
+    then render the graded readings instead of guessing from a key list.
+    """
+    if not isinstance(stage, str) or not stage:
+        return None
+    plan = FOUNDATION_MOTOR_V2_STAGE_GATE_PLAN.get(stage)
+    if not isinstance(plan, dict):
+        return None
+    return {
+        "training_stage": stage,
+        "metrics": list(plan.get("metrics") or ()),
+        "pairs": list(plan.get("pairs") or ()),
+        "any_checks": list(plan.get("any_checks") or ()),
+    }
+
+
+def _compact_motor_v2_probes(
+    evaluation: dict[str, Any], *, stage: Any = None
+) -> dict[str, Any]:
     compact: dict[str, Any] = {}
     for key in (
         "foundation_motor_v2_heldout_probe",
@@ -100,6 +128,10 @@ def _compact_motor_v2_probes(evaluation: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(probe, dict):
             continue
         pair = probe.get("pair_exact_rates") or {}
+        scope = probe.get("payload_scope")
+        probe_stage = stage
+        if probe_stage is None and isinstance(scope, dict):
+            probe_stage = scope.get("training_stage")
         compact[key] = {
             "case_count": probe.get("case_count"),
             "alignment_copy_gate_accuracy": probe.get("alignment_copy_gate_accuracy"),
@@ -109,6 +141,18 @@ def _compact_motor_v2_probes(evaluation: dict[str, Any]) -> dict[str, Any]:
             "alignment_eos_gate_accuracy": probe.get("alignment_eos_gate_accuracy"),
             "pair_copy_gate": pair.get("copy_gate") if isinstance(pair, dict) else None,
             "pair_position": pair.get("position") if isinstance(pair, dict) else None,
+            # The full pair mapping travels, not just the two pairs the early
+            # rungs happened to grade.  ``decision``, ``operation``, ``address``
+            # and ``joint`` are each graded on pairs that an allowlist of
+            # copy_gate/position silently dropped, which made a graded 0.000
+            # indistinguishable on screen from "not measured".
+            "pair_exact_rates": dict(pair) if isinstance(pair, dict) else None,
+            "per_decision_accuracy": probe.get("per_decision_accuracy"),
+            "per_operation_accuracy": probe.get("per_operation_accuracy"),
+            "per_action_joint_exact_rate": probe.get("per_action_joint_exact_rate"),
+            "decision_accuracy": probe.get("decision_accuracy"),
+            "operation_accuracy": probe.get("operation_accuracy"),
+            "stage_gate": _motor_v2_stage_gate_requirements(probe_stage),
             # The stage gate grades the payload rates over the stage's declared
             # eligible actions only, and reports the whole-surface value beside
             # it.  Dropping the scope here left the dashboard printing only the
@@ -2248,7 +2292,9 @@ def main() -> int:
                 qa_transcripts=initial_evaluation.get("qa_transcripts", [])[:6],
                 qa_transcript_coverage=initial_evaluation.get("qa_transcript_coverage"),
                 initial_evaluation_source=initial_evaluation_source,
-                **_compact_motor_v2_probes(initial_evaluation),
+                **_compact_motor_v2_probes(
+                    initial_evaluation, stage=foundation_motor_v2_training_stage
+                ),
             )
         prior_reports = sorted(campaign_report_dir.glob("segment_*.json"))
         campaign_baseline_evaluation = (
@@ -2573,7 +2619,9 @@ def main() -> int:
                 evaluated_case_count=final_evaluation["evaluated_case_count"],
                 qa_transcripts=final_evaluation.get("qa_transcripts", [])[:6],
                 qa_transcript_coverage=final_evaluation.get("qa_transcript_coverage"),
-                **_compact_motor_v2_probes(final_evaluation),
+                **_compact_motor_v2_probes(
+                    final_evaluation, stage=foundation_motor_v2_training_stage
+                ),
             )
         counterfactuals_passed = all(value > 1e-8 for value in final_evaluation["counterfactuals"].values())
         task_gate_passed = (

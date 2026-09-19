@@ -794,27 +794,101 @@ def _rate_text(value: Any) -> str:
     return f"{float(value):.3f}"
 
 
+# training/foundation_motor_curriculum.py::FOUNDATION_MOTOR_V2_PROGRAM["gate_threshold"].
+# Kept local because this watcher runs standalone against a log stream and must
+# not import the training package.
+MOTOR_V2_GATE_THRESHOLD = 0.95
+
+# A gate that names both a metric and its pair twin is naming one reading.  The
+# earlier lines of this renderer already print the short form, so render the
+# declared metric only when its short twin is genuinely absent.
+_MOTOR_V2_DECLARED_ALIASES = {
+    "alignment_position_accuracy": "position",
+    "alignment_copy_gate_accuracy": "copy_gate",
+    "alignment_eos_gate_accuracy": "eos_gate",
+    "payload_content_accuracy": "content",
+    "payload_eos_accuracy": "eos_gate",
+}
+
+
+def _gate_declared_parts(probe: dict[str, Any], already: set[str]) -> list[str]:
+    """Render the readings the stage gate declares it grades.
+
+    ``decision`` is graded on ``pair decision`` and on *every* value of
+    ``per_decision_accuracy``; ``operation`` on ``per_operation_accuracy``;
+    ``address`` on three metrics.  None of those keys were printed before, so a
+    decision rung reporting ``pair decision 0.667`` looked exactly like a rung
+    reporting nothing measured at all.  The stage plan now travels with the
+    probe, and whatever it names gets shown -- with a placeholder, never a
+    silent omission, when the probe lacks it.
+    """
+    stage_gate = probe.get("stage_gate")
+    if not isinstance(stage_gate, dict):
+        return []
+    pairs = probe.get("pair_exact_rates")
+    parts: list[str] = []
+    for name in stage_gate.get("pairs") or ():
+        label = str(name)
+        if label in already:
+            continue
+        value = pairs.get(label) if isinstance(pairs, dict) else None
+        color = GREEN if value is not None and float(value) >= MOTOR_V2_GATE_THRESHOLD else RED
+        parts.append(_color(f"pair {label} {_rate_text(value)}", color))
+        already.add(label)
+    for name in stage_gate.get("metrics") or ():
+        label = str(name)
+        if label in already or _MOTOR_V2_DECLARED_ALIASES.get(label) in already:
+            continue
+        value = probe.get(label)
+        color = GREEN if value is not None and float(value) >= MOTOR_V2_GATE_THRESHOLD else RED
+        parts.append(_color(f"{label} {_rate_text(value)}", color))
+    for name in stage_gate.get("any_checks") or ():
+        label = str(name)
+        if label in already or _MOTOR_V2_DECLARED_ALIASES.get(label) in already:
+            continue
+        readings = probe.get(label)
+        if not isinstance(readings, dict) or not readings:
+            parts.append(_color(f"{label} -", RED))
+            continue
+        worst = min(float(value) for value in readings.values())
+        detail = " ".join(f"{k} {_rate_text(v)}" for k, v in sorted(readings.items()))
+        color = GREEN if worst >= MOTOR_V2_GATE_THRESHOLD else RED
+        # The gate requires *every* member to reach the threshold, so the worst
+        # value is the verdict; the members are shown so a single stuck class is
+        # visible instead of averaged away.
+        parts.append(_color(f"{label} min {_rate_text(worst)} ({detail})", color))
+    return parts
+
+
 def _motor_v2_line(label: str, probe: dict[str, Any] | None) -> str | None:
     if not probe:
         return None
     gate = probe.get("alignment_copy_gate_accuracy")
     position = probe.get("alignment_position_accuracy")
     eos_gate = probe.get("alignment_eos_gate_accuracy")
-    if gate is None and position is None and eos_gate is None:
+    stage_gate = probe.get("stage_gate")
+    if gate is None and position is None and eos_gate is None and not stage_gate:
         return None
     pair_gate = probe.get("pair_copy_gate")
     pair_position = probe.get("pair_position")
     cases = probe.get("case_count")
     position_color = GREEN if position == 1.0 else (YELLOW if position is not None else DIM)
+    printed: set[str] = set()
     parts = [
         f" {label}:",
         f"copy-gate {_rate_text(gate)}",
         _color(f"position {_rate_text(position)}", position_color),
     ]
+    if gate is not None:
+        printed.add("copy_gate")
+    if position is not None:
+        printed.add("position")
     if eos_gate is not None:
         # This is the rate the termination repair is graded on; the legacy route
         # never moved it off 0.3125.
         parts.append(f"eos-gate {_rate_text(eos_gate)}")
+        printed.add("eos_gate")
+        printed.add("alignment_eos_gate_accuracy")
     if pair_gate is not None or pair_position is not None:
         parts.append(f"pair-gate {_rate_text(pair_gate)}  pair-pos {_rate_text(pair_position)}")
     scope = probe.get("payload_scope")
@@ -832,6 +906,7 @@ def _motor_v2_line(label: str, probe: dict[str, Any] | None) -> str | None:
             if excluded:
                 text += " excl " + ",".join(str(item) for item in excluded)
             parts.append(_color(text, GREEN if float(scoped) == 1.0 else YELLOW))
+            printed.add("payload_transport_exact_rate")
             if whole_surface is not None and float(whole_surface) != float(scoped):
                 # Printed in dim beside the gated rate so the unteachable share
                 # is visible instead of hidden -- and never alone.
@@ -847,6 +922,8 @@ def _motor_v2_line(label: str, probe: dict[str, Any] | None) -> str | None:
                 DIM,
             )
         )
+        printed.add("payload_transport_exact_rate")
+    parts.extend(_gate_declared_parts(probe, printed))
     if cases is not None:
         parts.append(f"n={cases}")
     return "  ".join(parts)
