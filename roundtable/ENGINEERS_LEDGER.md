@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-19T05:00:00+00:00
+Updated: 2026-09-19T05:45:00+00:00
 current_through_event_id:
-`evt-20260919T050000Z-copilot-transport-eos-rung-passed-and-ladder-advanced-to-decision`
+`evt-20260919T054500Z-copilot-decision-head-input-is-near-constant`
 
 Append order note: several events sit *earlier* in the file than events carrying
 later timestamps, because corrections are appended **after** the verdicts they
@@ -2946,9 +2946,165 @@ un-winnable-gate class**; `845bf8b` fixed the *vacuous-denominator* form
 **probe scoping rather than metric renaming**, so the metric names and every recorded
 verdict are untouched.
 
+## 2026-09-19 — THE DECISION RUNG FAILED FOR A MEASURED PHYSICAL REASON: its head reads a near-constant vector
+
+`evt-20260919T051000Z-copilot-decision-rung-completed-and-hole-4-fixed`
+`evt-20260919T052000Z-copilot-stage3-merge-proven-and-establish-vs-refine`
+`evt-20260919T054500Z-copilot-decision-head-input-is-near-constant`
+
+### The rung ran, and hole #4 was found **live**
+
+Job `4e84089c…` ran its 60 steps to global **step 780**. While it ran, the fourth
+observability hole of the same family was found *on the screen*: the `decision` rung's
+gate grades `pair decision` and **every** `per_decision_accuracy` value, and **neither
+the producer nor the display carried either reading to the screen**. The rung the whole
+ladder turns on was invisible while it ran. Producer
+(`scripts/train_living_reasoning_smoke.py`), display (`scripts/axon_training_watch.py`)
+and tests fixed, committed **`6325279`** (4 files, +357/−7), and proved
+**instrumentation-only** by an *empty* `git show 6325279 -- training/ runtime/` — so the
+run's own evaluation math equals current HEAD and its numbers are usable as evidence.
+
+### The stored gate, read from disk
+
+`passed False`, `unreachable_requirements []`, **4 failures**, over a **complete 72/72
+heldout + 72/72 regression** evaluation with **0 deferred**:
+`payload_transport_exact_rate 0.6667 → 0.875`; `payload_content_accuracy 0.8125`;
+`payload_eos_accuracy 1.0`; `alignment_* 1.0`; `typed_emission_exact_rate 0.3333`
+(still at floor, blocked on `address`).
+
+**The decisive reading is `decision_correct_by_target`:**
+
+| array | value | meaning |
+|---|---|---|
+| `initial_evaluation` | `[24, 0, 0]` | always **DELTA** |
+| `final_evaluation` | `[0, 0, 24]` | always **ABSTAIN** |
+| `campaign_baseline_evaluation` | `[0, 0, 24]` | always **ABSTAIN** |
+
+The rung spent its **entire budget moving a fresh head from one constant policy back to
+the campaign baseline constant policy**, and `start_accuracy` fell `0.3333 → 0.1667` on
+the way. This also **resolved the `ReasoningDecision` index order** from evidence as
+`(delta, no_op, abstain)` — **never infer it again**; and it confirmed the head moved only
+`|dW| = 0.031` against `|W₀| = 0.975`, i.e. **~22 effective supervised steps' worth** of
+travel at `lr 1e-4` in 60 steps.
+
+### The merge was **proved**, and the head was **byte-frozen** until this rung
+
+`merge_stage3.py` was written, fixed twice for Windows long-path/path-normalisation
+faults, and then **proved rather than trusted**: 9,976 files compared, 743 copied,
+second pass **`MERGE PROVEN: 0 missing, 0 differing`**, report **sha256-identical**. The
+stage re-derives as **`('decision', False)`**. Measuring the head across the rung's own
+checkpoints: **`|W − W@720| = 0.000000` at steps 600, 660 and 720** — byte-frozen until
+this rung — then `|dW| = 0.031`. Head inventory at step 780: `operation_head |W| 0.943620`
+(exact init draw), `region_head |W| 2.068436` (exact default init, **never trained**),
+`region_embedding ≈ N(0, 0.02²)` frozen, `termination_output 0.821422` (moved from `0.577`,
+established), `copy_gate 0.424066`.
+
+A **matched-budget simulation** under the rung's real contract: **60 steps @ `lr 1e-4` →
+0.319** (≈ chance, even on classes separated by 20σ); **1800 steps → 0.958**. Hence the
+**establish-vs-refine precedent**: the **600-step rung ESTABLISHES** heads; every
+**60-step rung only REFINES** pre-trained ones. `operation` holds a fresh head and
+`address` a fresh head **plus** fresh query heads — **neither can be established by a
+60-step rung.**
+
+### The physical cause, measured instead of inferred
+
+**The head's input is a near-constant vector.** `reader_state` *is* LayerNorm'd
+(`complete_field_64d.py:737`); only `copy_gate(cat(output, context))` reads a bare decoder
+hidden — my earlier "every failing head reads an unnormalized mean" was imprecise and is
+corrected here.
+
+| quantity | pre-`state_norm` | post-`state_norm` |
+|---|---|---|
+| `‖state‖` | 485.3961 | 8.245884 |
+| per-dim across-case σ | `1.504e-3` (**3.1e-6** relative) | `2.43e-5` |
+| pairwise L2 across cases | `0.0156` | `0.000252` |
+
+The four state slots are **near-identical to each other** (pre-norm pairwise L2 1.65–2.99
+on a 485-norm vector), cosine between case summaries is **1.000000000**, and
+`‖state − initial_state‖ = 8.2348` against `‖initial_state‖ = 0.167` — the read moves far
+from init to a learned **near-fixed-point**. `state_norm` is called **exactly 6× per
+episode** for all 72 episodes.
+
+**Two of my own errors, caught and retracted rather than reported:**
+
+1. My **first probe was invalid** — Adam at `lr 1e-2` × 4000 steps caps `|w| ~ 40` while
+   the signal needed `|w| ~ 4000`, so it could not have succeeded whatever the
+   representation. Declared invalid, rewritten with standardised inputs, a closed-form
+   `lstsq` baseline, and the rung's **real** contract. The invalid run is kept on disk as
+   the record of the error.
+2. My **first pre-norm capture was misaligned** — it stacked all 48 `state_norm` calls
+   (heterogeneous phases) and compared them against only the 24 graded phases, yielding a
+   nonsense attenuation of `4.57e-8`. Re-run with **exact tensor matching**
+   (`state_norm(input) == reader_state`, max abs diff `0`), the true figure is
+   **`0.0161`, i.e. 62×**. The LayerNorm prediction for the post-norm spread
+   (`2.461e-5`) matches the observed `2.426e-5`.
+
+**Budget and learning rate are EXONERATED — my earlier "the budget is binding" is
+WITHDRAWN.** The raw representation scores **0.3333 at every budget 60/180/600/1800/6000/
+12000** and at **`lr 1e-4`/`1e-3`/`1e-2`**, and `|W|` stayed `1.0330–1.0335` against
+`|W₀| 1.033436` — the head **cannot move at all**.
+
+**The discriminative residue IS present and IS linearly separable** — the z-scored probe
+reaches **288/288** and closed-form `lstsq` **288/288** — **but both are IN-SAMPLE**
+(the probe trains and evaluates on the same tensor), so **288/288 is a ceiling, not a
+generalisation result.** The raw-vs-z-scored comparison is matched and its *relative*
+conclusion stands.
+
+What each transform actually achieves:
+
+| treatment | result |
+|---|---|
+| raw | `0.3333` at **every** budget and learning rate |
+| remove dataset mean only | `0.6806` |
+| **per-sample** LayerNorm | `0.3333` everywhere — **does not help** |
+| across-sample z-score, `lr 1e-4` | `0.6250 @60` → `0.8681 @180` → **`0.9653 @600`** → `0.9896 @1800` → `1.0 @12000` |
+| across-sample z-score, `lr 1e-2` | **`0.9931 @60`** |
+
+### The channel ranking — the memory pool carries ~100× more case variation
+
+Measured at matched phases, comparable norms:
+
+| channel | per-dim across-case σ | pairwise L2 | `|w|` to separate |
+|---|---|---|---|
+| recurrent **post**-LayerNorm summary (current head input) | `2.43e-5` | `0.000252` | **~4000** |
+| recurrent **pre**-LayerNorm | `1.504e-3` | `0.0156` | ~64 |
+| `complete_memory` pool | `2.51e-3` | `0.026957` | **~37** |
+| `canonical_memory` pool | `3.47e-3` | `0.037308` | ~35 |
+
+Corpus inventory: **two DISJOINT `ffcs_v1` manifests**, 144 episodes each (72 train / 36
+heldout / 36 regression), **0 episode-id overlap** ⇒ **288 supervised phases** (144 train,
+144 heldout+regression), **exactly one supervised phase per episode, always
+`consolidated`**, `48` phases per decision class. The probe's 288 came from **both**
+manifests, so `288/288` is not duplication.
+
+### What is still open, and what was launched to close it
+
+`State/training/diagnostics/summary_channel_probe.py` (**new**, git-ignored like all of
+`State/*`) collects **all four channels** for **all 288 supervised phases** across **both**
+manifests and then sweeps the rung's real protocol **training on the train split ONLY and
+scoring on heldout+regression** — so its number will be a **generalisation** result rather
+than an in-sample ceiling. It is running in the background
+(`D:\AxonBaseProof\summary_channel_probe.log`, ~45 min).
+
+**The full test suite passes on HEAD with `exit 0`.** **No** objective, weight, geometry,
+data, seed, architecture, curriculum or ladder content was changed, and **nothing was
+launched or promoted.** The single open question is whether the **memory-pool** channel
+clears the threshold where the recurrent summary stays at `0.3333`.
+
 ## Next actions
 
-**CURRENT STATE (2026-09-19, `evt-20260919T050000Z`).** The v6 termination repair
+**CURRENT STATE (2026-09-19, `evt-20260919T054500Z`).** The `decision` rung **has now run
+and failed**, and the failure has a **measured physical cause, not a design one**: the
+head's input is a **near-constant vector** (per-dim across-case σ `2.4e-5` on an `8.25`-norm
+summary, i.e. **3e-6 relative**), its cross-entropy gradient is dominated by the constant
+component, and the fresh head learned **only the class prior** — flipping always-DELTA
+`[24,0,0]` to always-**ABSTAIN** `[0,0,24]`, which is **exactly the campaign baseline**.
+Budget and learning rate are **exonerated** (`0.3333` at every budget `60→12000` and at
+`lr 1e-4`/`1e-3`/`1e-2`; `|W|` never left `1.0330–1.0335`). The fix is **not** more steps.
+**Awaiting the convener's ratification of exactly ONE intervention** — the leading
+candidate is feeding the summary-path heads from a **content-bearing channel** (the memory
+pool carries **~100× more case variation**, `|w| ~ 37` vs `~4000`), pending the running
+`summary_channel_probe.py`. The v6 termination repair
 **succeeded**, and the ladder has now **advanced twice**. `copy_alignment` passed,
 `transport_eos` passed — job `8cfa2116…` ran 60/60 to global step **720** with all
 four motor-v2 probes at `copy-gate/position/eos-gate/pair-gate/pair-pos = 1.000`,
