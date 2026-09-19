@@ -23,7 +23,7 @@ from runtime.heart import ProposalPass, ReasoningDecision, ReasoningOperationKin
 from substrate import encode_unicode_text
 
 from .first_form_curriculum import FirstFormCase, FirstFormCurriculum, TeachingEligibility, _workspace
-from .living_reasoning_curriculum import (
+from .legacy_typed_reasoning_curriculum import (
     LivingReasoningEpisode,
     LivingReasoningTarget,
     constant_baseline_floors,

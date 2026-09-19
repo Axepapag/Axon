@@ -27,7 +27,7 @@ from .first_form_curriculum import (
     TeachingEligibility,
     _workspace,
 )
-from .living_reasoning_curriculum import LivingReasoningEpisode, LivingReasoningTarget
+from .legacy_typed_reasoning_curriculum import LivingReasoningEpisode, LivingReasoningTarget
 
 FOUNDATION_SEQUENCE_STAGE = "sequence_transport_v1"
 FOUNDATION_SEQUENCE_SOURCE_ID = canonical_sha256(

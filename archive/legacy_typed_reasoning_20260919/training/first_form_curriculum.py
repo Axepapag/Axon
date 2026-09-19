@@ -34,7 +34,7 @@ from runtime.heart import (
     ReasoningOperationKind,
 )
 
-from .living_reasoning_curriculum import (
+from .legacy_typed_reasoning_curriculum import (
     LIVING_REASONING_TARGET_SCHEMA,
     LivingReasoningCurriculum,
     LivingReasoningEpisode,

@@ -8,7 +8,6 @@ import torch
 
 import training.living_reasoning_curriculum as living_curriculum
 from runtime.field import D64FieldCompiler, LogicalRegion, SharedFieldSnapshot
-from runtime.heart.reasoning_output import ReasoningDecision
 from runtime.soul import (
     SoulSnapshot,
     SoulTemperature,
@@ -23,6 +22,12 @@ from runtime.trainer import (
     PreflightEvidenceKind,
 )
 from substrate import TRANSPORT_VOCAB_SIZE, encode_unicode_text
+from training.legacy_typed_reasoning_d64 import (
+    LivingReasoningCoreConfig as LegacyTypedLivingReasoningCoreConfig,
+)
+from training.legacy_typed_reasoning_d64 import (
+    LivingReasoningCoreD64 as LegacyTypedLivingReasoningCoreD64,
+)
 from training.living_reasoning_curriculum import (
     build_living_reasoning_smoke_curriculum,
     evaluate_living_episode,
@@ -32,16 +37,9 @@ from training.living_reasoning_d64 import (
     LivingReasoningCoreConfig,
     LivingReasoningCoreD64,
     candidate_a_config,
+    migrate_typed_checkpoint_state_to_english_variant,
 )
 from training.living_reasoning_preflight import build_living_reasoning_preflight
-from training.reasoning_tournament import (
-    D64TournamentResult,
-    assert_same_gate_surface,
-    d64_architecture_campaign,
-    d64_architecture_screening_tournament,
-    d64_architecture_search_space,
-    d64_head_geometry_tournament,
-)
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -166,9 +164,14 @@ def test_soul_is_inhaled_before_complete_unicode_field_and_proposal_sweeps() -> 
     assert refined.soul_telemetry["decoded_soul_layers"] == 1.0
     assert refined.soul_telemetry["soul_contribution_l2"] > 0.0
     assert successor.layer(SoulTemperature.HOT).payload
-    assert refined.decision_logits.shape == (1, 3)
-    assert refined.operation_logits.shape == (1, 3)
-    assert refined.region_logits.shape == (1, len(tuple(LogicalRegion)))
+    assert not hasattr(refined, "decision_logits")
+    assert not hasattr(refined, "operation_logits")
+    assert not hasattr(refined, "region_logits")
+    assert not any(
+        name.startswith(("decision_head.", "operation_head.", "region_head.", "start_query.", "end_query."))
+        or name == "boundary_seed"
+        for name in model.state_dict()
+    )
 
 
 def test_unicode_decoder_trains_on_all_351_transport_categories_plus_eos() -> None:
@@ -349,7 +352,7 @@ def test_swapped_brother_and_wrong_parameter_generation_fail_closed() -> None:
         )
 
 
-def test_mechanism_curriculum_backpropagates_through_field_soul_and_typed_heads() -> None:
+def test_english_curriculum_backpropagates_through_field_soul_and_text_decoder() -> None:
     model = _small_model()
     episode = build_living_reasoning_smoke_curriculum().split("train")[0]
     soul = _soul(model)
@@ -364,7 +367,7 @@ def test_mechanism_curriculum_backpropagates_through_field_soul_and_typed_heads(
     loss.backward()
     assert model.page_encoder.layers[0].linear1.weight.grad is not None
     assert model.soul_projection["hot"].weight.grad is not None
-    assert model.decision_head.weight.grad is not None
+    assert not hasattr(model, "decision_head")
     assert model.decoder_output.weight.grad is not None
     assert unroll.souls[-1].generation == 3
     assert len(metrics) == 3
@@ -392,10 +395,10 @@ def test_episode_objective_propagates_balanced_payload_eos_weight(monkeypatch) -
         _soul(model),
         core_id="core-a",
         parameter_generation="g0",
-        payload_eos_weight=1.0,
+        text_eos_weight=1.0,
     )
     assert torch.isfinite(loss)
-    assert observed == [1.0, 1.0]
+    assert observed == [1.0, 1.0, 1.0]
 
 
 def test_teacher_forced_gate_uses_the_strongest_constant_category_floor() -> None:
@@ -408,20 +411,13 @@ def test_teacher_forced_gate_uses_the_strongest_constant_category_floor() -> Non
         core_id="core-a",
         parameter_generation="g0",
     )
-    counts = result["payload_teacher_forced_target_counts"]
-    assert result["payload_teacher_forced_token_count"] == sum(counts)
-    assert result["constant_payload_token_accuracy_floor"] == pytest.approx(max(counts) / sum(counts))
-    assert result["constant_payload_token_accuracy_floor"] > 1.0 / (model.eos_index + 1)
-    # These two floors were literal 0.0 until 2026-09-17, which let the
-    # emit-nothing answer be reported as progress.  They must stay derived from
-    # the strongest fixed answer over the whole evaluated surface.
-    typed_histogram = result["constant_typed_emission_target_histogram"]
-    payload_histogram = result["constant_payload_transport_target_histogram"]
-    assert result["constant_typed_emission_exact_floor"] == pytest.approx(
-        max(typed_histogram.values()) / result["supervised_phase_count"]
-    )
-    assert result["constant_payload_transport_exact_floor"] == pytest.approx(
-        max(payload_histogram.values()) / result["payload_supervised_phase_count"]
+    counts = result["text_teacher_forced_target_counts"]
+    assert result["text_teacher_forced_token_count"] == sum(counts)
+    assert result["constant_text_token_accuracy_floor"] == pytest.approx(max(counts) / sum(counts))
+    assert result["constant_text_token_accuracy_floor"] > 1.0 / (model.eos_index + 1)
+    histogram = result["constant_text_target_histogram"]
+    assert result["constant_text_exact_floor"] == pytest.approx(
+        max(histogram.values()) / result["supervised_phase_count"]
     )
 
 
@@ -437,12 +433,8 @@ def test_the_transcript_sink_cap_is_display_only() -> None:
 
     model = _small_model()
     episode = build_living_reasoning_smoke_curriculum().split("heldout")[0]
-    payload_phases = sum(
-        1
-        for target in episode.targets
-        if target.supervision_weight > 0 and target.decision is ReasoningDecision.DELTA
-    )
-    assert payload_phases > 1, "the fixture must have more than one payload phase"
+    text_phases = sum(1 for target in episode.targets if target.supervision_weight > 0)
+    assert text_phases > 1, "the fixture must have more than one supervised text phase"
 
     def measure(cap: int | None) -> tuple[dict, list[dict]]:
         sink: list[dict] = []
@@ -463,12 +455,10 @@ def test_the_transcript_sink_cap_is_display_only() -> None:
 
     assert unlimited == baseline == nothing_metric
     assert len(nothing) == 0
-    assert len(capped_default) == min(3, payload_phases)
-    assert len(everything) == payload_phases
-    assert [row["expected_payload"] for row in everything] == [
-        target.payload
-        for target in episode.targets
-        if target.supervision_weight > 0 and target.decision is ReasoningDecision.DELTA
+    assert len(capped_default) == min(3, text_phases)
+    assert len(everything) == text_phases
+    assert [row["expected_text"] for row in everything] == [
+        target.text for target in episode.targets if target.supervision_weight > 0
     ]
 
 
@@ -519,58 +509,6 @@ def test_living_reasoning_preflight_binds_all_launch_evidence(tmp_path: Path) ->
     )
 
 
-def test_head_geometry_tournament_changes_only_heads_under_same_gate_surface() -> None:
-    tournament = d64_head_geometry_tournament()
-    assert [item.config.n_heads for item in tournament.candidates] == [1, 2, 4]
-    assert {item.config.d_model for item in tournament.candidates} == {64}
-    assert {item.config.n_layers for item in tournament.candidates} == {2}
-    assert {item.config.ffn_dim for item in tournament.candidates} == {131_072}
-    assert {item.config.page_size for item in tournament.candidates} == {32}
-    metrics = {name: 0.0 for name in tournament.required_metrics}
-    results = tuple(
-        D64TournamentResult.from_mapping(
-            tournament,
-            candidate,
-            metrics,
-            gate_passed=False,
-        )
-        for candidate in tournament.candidates
-    )
-    assert_same_gate_surface(tournament, results)
-
-
-def test_architecture_campaign_declares_balanced_legal_d64_search() -> None:
-    search = d64_architecture_search_space()
-    assert len(search) == 48
-    assert {item.config.n_layers for item in search} == {2, 5, 10}
-    assert {item.config.n_heads for item in search} == {1, 2, 4, 8}
-    assert {item.config.ffn_dim for item in search} == {
-        4_096,
-        16_384,
-        65_536,
-        131_072,
-    }
-    assert all(item.config.d_model == 64 for item in search)
-    assert all(64 % item.config.n_heads == 0 for item in search)
-    assert all(item.config.receipt_continuation for item in search)
-
-    screening = d64_architecture_screening_tournament()
-    assert len(screening.candidates) == 16
-    assert {item.config.n_layers for item in screening.candidates} == {2, 5, 10}
-    assert {item.config.n_heads for item in screening.candidates} == {1, 2, 4, 8}
-    assert {item.config.ffn_dim for item in screening.candidates} == {
-        4_096,
-        16_384,
-        65_536,
-        131_072,
-    }
-
-    campaign = d64_architecture_campaign()
-    assert campaign.screening_tournament.tournament_id == screening.tournament_id
-    assert [stage.optimizer_step_budget for stage in campaign.stages] == [32, 256, 1024]
-    assert [stage.promotion_count for stage in campaign.stages] == [8, 3, 1]
-    assert [stage.entrant_count for stage in campaign.stages] == [16, 8, 3]
-    assert [len(stage.seeds) for stage in campaign.stages] == [1, 3, 3]
 class _StubMemory:
     """Minimal AddressableMemory stand-in for route-selection unit tests."""
 
@@ -773,3 +711,50 @@ def test_legacy_route_still_requires_gate_for_eos() -> None:
     memory = _StubMemory(slots=4, d_model=model.living_config.d_model)
     route, _category, _memory_index, _receipt = model._select_learned_emission(step, memory)
     assert route is DecoderEmissionRoute.LEARNED_COPY_ANCHOR
+
+
+def test_typed_checkpoint_migrates_by_exact_subset_without_obsolete_heads() -> None:
+    torch.manual_seed(991)
+    legacy_config = LegacyTypedLivingReasoningCoreConfig(
+        n_heads=1,
+        n_layers=1,
+        ffn_dim=128,
+        state_tokens=2,
+        page_size=2,
+        dropout=0.0,
+    )
+    source = LegacyTypedLivingReasoningCoreD64(legacy_config)
+    target = LivingReasoningCoreD64(
+        LivingReasoningCoreConfig(
+            n_heads=1,
+            n_layers=1,
+            ffn_dim=128,
+            state_tokens=2,
+            page_size=2,
+            dropout=0.0,
+        )
+    )
+    receipt = migrate_typed_checkpoint_state_to_english_variant(
+        source.state_dict(),
+        target,
+        source_architecture_id=source.architecture_id,
+        source_parameter_generation="step-720-typed",
+        target_parameter_generation="english-donor-g1",
+    )
+
+    target_state = target.state_dict()
+    source_state = source.state_dict()
+    assert target.architecture_id != source.architecture_id
+    assert receipt.target_architecture_id == target.architecture_id
+    assert receipt.source_architecture_id == source.architecture_id
+    assert receipt.retired_tensors
+    assert any(name.startswith("decision_head.") for name in receipt.retired_tensors)
+    assert any(name.startswith("operation_head.") for name in receipt.retired_tensors)
+    assert any(name.startswith("region_head.") for name in receipt.retired_tensors)
+    assert all(name in source_state for name in target_state)
+    assert all(torch.equal(target_state[name], source_state[name]) for name in target_state)
+    assert not any(
+        name.startswith(("decision_head.", "operation_head.", "region_head.", "start_query.", "end_query."))
+        or name == "boundary_seed"
+        for name in target_state
+    )

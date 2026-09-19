@@ -37,7 +37,7 @@ from .first_form_curriculum import (
     _case,
     _workspace,
 )
-from .living_reasoning_curriculum import (
+from .legacy_typed_reasoning_curriculum import (
     LivingReasoningEpisode,
     LivingReasoningTarget,
 )

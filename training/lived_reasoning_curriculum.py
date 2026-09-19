@@ -1,10 +1,12 @@
-"""Evidence-qualified conversion of exact lived ticks into D64 supervision.
+"""Evidence-qualified conversion of lived runtime ticks into English supervision.
 
-The runtime episode loader proves that an episode is reproducible. This layer
-answers the different question of what, if anything, that episode may teach.
-A successful final response does not silently bless every earlier proposal:
-intermediate phases are supervised only when outcome evidence explicitly names
-the whole trajectory as its target.
+The runtime episode loader proves reproducibility.  This layer decides what that
+experience may teach under the post-2026-09-19 public reasoning contract.  New
+circulation-v3 FIRST/REFINED English proposals may be supervised only when
+explicit outcome evidence blesses the whole trajectory.  FINAL supervision is
+always compact tagged-region text.  Historical typed circulations may contribute
+only a mechanically translated FINAL target; their intermediate typed emissions
+are never converted into English supervision.
 """
 
 from __future__ import annotations
@@ -13,118 +15,51 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
 
 from runtime.field import (
-    DeleteText,
     FieldDelta,
-    InsertText,
-    ReplaceText,
     apply_delta,
     canonical_json_bytes,
     canonical_sha256,
     field_delta_from_canonical_dict,
 )
-from runtime.heart import (
-    AuthorityGrant,
-    ReasoningDecision,
-    ReasoningEmission,
-    ReasoningOperationKind,
-)
+from runtime.heart import AuthorityGrant, EnglishProposal, TechnicalFinalVerdict
 from runtime.trainer import EpisodeOutcomeQuality, LoadedRuntimeEpisode
 
-from .living_reasoning_curriculum import (
-    LivingReasoningCurriculum,
-    LivingReasoningEpisode,
-    LivingReasoningTarget,
-)
+from .living_reasoning_curriculum import LivingReasoningCurriculum, LivingReasoningEpisode, LivingReasoningTarget
 
-LIVED_REASONING_COMPILATION_SCHEMA = "axon-lived-reasoning-compilation-v1"
+LIVED_REASONING_COMPILATION_SCHEMA = "axon-lived-english-reasoning-compilation-v1"
+_CURRENT_CIRCULATION_SCHEMA = "axon-reasoning-circulation-v3"
 
 
 def _workspace_text(value: Mapping[str, Any]) -> str:
     workspace = dict(value)
-    return canonical_json_bytes(
-        {
-            key: workspace[key]
-            for key in (
-                "schema",
-                "image_id",
-                "tick_uid",
-                "pass_kind",
-                "entries",
-                "workspace_id",
-            )
-        }
-    ).decode("utf-8")
+    readable = workspace.get("readable_text")
+    if isinstance(readable, str):
+        return readable
+    # Immutable v2 episodes did not carry the new readable field.  Keep their
+    # exact workspace available as context without pretending it was English
+    # proposal supervision.
+    return canonical_json_bytes(workspace).decode("utf-8")
 
 
-def _operation_target(
-    *,
-    phase: str,
-    operation: InsertText | DeleteText | ReplaceText,
-) -> LivingReasoningTarget:
-    if isinstance(operation, InsertText):
-        kind = ReasoningOperationKind.INSERT
-    elif isinstance(operation, DeleteText):
-        kind = ReasoningOperationKind.DELETE
-    elif isinstance(operation, ReplaceText):
-        kind = ReasoningOperationKind.REPLACE
-    else:  # pragma: no cover - FieldDelta already enforces its union.
-        raise TypeError("unsupported exact field operation")
-    return LivingReasoningTarget(
-        phase=phase,
-        decision=ReasoningDecision.DELTA,
-        operation=kind,
-        region=operation.region,
-        start=operation.start,
-        end=operation.end,
-        payload=operation.replacement_text,
-    )
-
-
-def _delta_target(*, phase: str, delta: FieldDelta) -> LivingReasoningTarget:
-    if len(delta.operations) != 1:
-        raise ValueError("living D64 target contract currently requires exactly one operation")
-    return _operation_target(phase=phase, operation=delta.operations[0])
-
-
-def _emission_target(*, phase: str, emission: ReasoningEmission) -> LivingReasoningTarget:
-    if emission.decision is not ReasoningDecision.DELTA:
-        return LivingReasoningTarget(phase=phase, decision=emission.decision)
-    if len(emission.operations) != 1:
-        raise ValueError("living D64 target contract currently requires exactly one operation")
-    operation = emission.operations[0]
-    return LivingReasoningTarget(
-        phase=phase,
-        decision=ReasoningDecision.DELTA,
-        operation=operation.kind,
-        region=operation.region,
-        start=operation.start,
-        end=operation.end,
-        payload=operation.payload.text,
-    )
-
-
-def _unsupervised_target(phase: str) -> LivingReasoningTarget:
-    return LivingReasoningTarget(
-        phase=phase,
-        decision=ReasoningDecision.ABSTAIN,
-        supervision_weight=0.0,
-    )
-
-
-def _one_author_emission(
+def _one_author_proposal(
     values: Sequence[Mapping[str, Any]],
     *,
     core_id: str,
     phase: str,
-) -> ReasoningEmission:
+) -> EnglishProposal:
     matches = tuple(
-        ReasoningEmission.from_mapping(value)
+        EnglishProposal.from_mapping(value)
         for value in values
         if value.get("author_core_id") == core_id
     )
     if len(matches) != 1 or matches[0].pass_id != phase:
-        raise ValueError("whole-trajectory evidence lacks one exact consolidator phase emission")
+        raise ValueError("whole-trajectory evidence lacks one exact consolidator English proposal")
     return matches[0]
+
+
+def _unsupervised_text_target(phase: str, text: str | None = None) -> LivingReasoningTarget:
+    placeholder = text or "Historical phase retained as context only; no English supervision is authorized."
+    return LivingReasoningTarget(phase=phase, text=placeholder, supervision_weight=0.0)
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,22 +79,17 @@ class LivedReasoningCompilation:
         object.__setattr__(self, "episodes", episodes)
         object.__setattr__(self, "source_example_ids", source_ids)
         object.__setattr__(self, "excluded_counts", tuple(sorted(self.excluded_counts)))
-        object.__setattr__(
-            self,
-            "compilation_id",
-            canonical_sha256(self.to_canonical_dict(include_id=False)),
-        )
+        object.__setattr__(self, "compilation_id", canonical_sha256(self.to_canonical_dict(False)))
 
     def require_curriculum(self) -> LivingReasoningCurriculum:
-        """Return a curriculum only when train and heldout splits both exist."""
-
         return LivingReasoningCurriculum(self.episodes)
 
-    def to_canonical_dict(self, *, include_id: bool = True) -> dict[str, Any]:
-        value = {
+    def to_canonical_dict(self, include_id: bool = True) -> dict[str, Any]:
+        value: dict[str, Any] = {
             "schema": LIVED_REASONING_COMPILATION_SCHEMA,
-            "source_policy": "runtime-faithful-explicit-outcome-evidence-v1",
-            "intermediate_policy": "unsupervised-unless-explicit-full-trajectory-v1",
+            "source_policy": "runtime-faithful-explicit-outcome-evidence-english-v1",
+            "intermediate_policy": "english-v3-only-and-unsupervised-unless-full-trajectory-v1",
+            "historical_typed_policy": "final-only-mechanical-tagged-translation-v1",
             "source_example_ids": list(self.source_example_ids),
             "excluded_counts": [list(item) for item in self.excluded_counts],
             "episodes": [item.to_canonical_dict() for item in self.episodes],
@@ -170,10 +100,10 @@ class LivedReasoningCompilation:
 
 
 class EvidenceQualifiedLivedCurriculumCompiler:
-    """Fail-closed converter from verified lived episodes to exact targets."""
+    """Fail-closed converter from verified lived episodes to English targets."""
 
     @staticmethod
-    def _final_delta(episode: LoadedRuntimeEpisode) -> tuple[FieldDelta, str]:
+    def _outcome_scope(episode: LoadedRuntimeEpisode) -> tuple[str, str]:
         outcome = episode.outcome_record
         if outcome is None:
             raise ValueError("missing_explicit_outcome")
@@ -181,32 +111,105 @@ class EvidenceQualifiedLivedCurriculumCompiler:
         scope = str(payload.get("target_scope", "final_delta"))
         quality = episode.example.outcome_quality
         if quality is EpisodeOutcomeQuality.CORRECTED:
-            if scope != "corrected_delta" or not isinstance(
-                payload.get("corrected_source_delta"), Mapping
-            ):
+            if scope != "corrected_delta" or not isinstance(payload.get("corrected_source_delta"), Mapping):
                 raise ValueError("invalid_corrected_target")
-            delta = field_delta_from_canonical_dict(payload["corrected_source_delta"])
-            if (
-                delta.base_field_id != episode.pre_action_field.field_id
-                or delta.base_tick_id != episode.pre_action_field.tick_id
-            ):
-                raise ValueError("stale_corrected_target")
-            apply_delta(
-                episode.pre_action_field,
-                delta,
-                permitted_regions=AuthorityGrant.consolidator().governed_regions,
-            )
-            return delta, f"corrected_delta:{outcome.record_id}"
+            return scope, f"corrected_delta:{outcome.record_id}"
         if quality not in {EpisodeOutcomeQuality.SUCCESS, EpisodeOutcomeQuality.ENDORSED}:
             raise ValueError("outcome_quality_not_teachable")
         if scope not in {"final_delta", "full_trajectory"}:
             raise ValueError("invalid_target_scope")
-        return episode.source_delta, f"accepted_{scope}:{outcome.record_id}"
+        return scope, f"accepted_{scope}:{outcome.record_id}"
 
-    def compile(
-        self,
-        loaded: Sequence[LoadedRuntimeEpisode],
-    ) -> LivedReasoningCompilation:
+    @staticmethod
+    def _corrected_delta(episode: LoadedRuntimeEpisode) -> FieldDelta:
+        outcome = episode.outcome_record
+        assert outcome is not None
+        delta = field_delta_from_canonical_dict(outcome.payload["corrected_source_delta"])
+        if delta.base_field_id != episode.pre_action_field.field_id or delta.base_tick_id != episode.pre_action_field.tick_id:
+            raise ValueError("stale_corrected_target")
+        apply_delta(
+            episode.pre_action_field,
+            delta,
+            permitted_regions=AuthorityGrant.consolidator().governed_regions,
+        )
+        # Historical corrections may use pass_id=corrected.  The public FINAL
+        # contract is consolidated, so rebind only the runtime envelope before
+        # mechanically rendering the equivalent desired-region text.
+        if str(delta.pass_id) != "consolidated":
+            delta = FieldDelta(
+                base_field_id=delta.base_field_id,
+                base_tick_id=delta.base_tick_id,
+                author_core_id=delta.author_core_id,
+                pass_id="consolidated",
+                operations=delta.operations,
+                evidence=delta.evidence,
+            )
+        return delta
+
+    @staticmethod
+    def _final_text(episode: LoadedRuntimeEpisode, scope: str) -> str:
+        if scope == "corrected_delta":
+            delta = EvidenceQualifiedLivedCurriculumCompiler._corrected_delta(episode)
+            return TechnicalFinalVerdict.from_delta(episode.pre_action_field, delta, rail_d_model=64).text
+
+        circulation = episode.circulation
+        if circulation.get("schema") == _CURRENT_CIRCULATION_SCHEMA:
+            verdict = TechnicalFinalVerdict.from_mapping(circulation["consolidator_verdict"])
+            # Materialization is a second exact check that the serialized FINAL
+            # remains valid against the loaded frozen base.
+            verdict.materialize(episode.pre_action_field)
+            return verdict.text
+
+        # Immutable v2 evidence remains useful for accepted FINAL behavior only.
+        # Convert its already-verified source delta mechanically; do not imitate
+        # the old decision/operation/address language.
+        delta = episode.source_delta
+        if str(delta.pass_id) != "consolidated":
+            delta = FieldDelta(
+                base_field_id=delta.base_field_id,
+                base_tick_id=delta.base_tick_id,
+                author_core_id=delta.author_core_id,
+                pass_id="consolidated",
+                operations=delta.operations,
+                evidence=delta.evidence,
+            )
+        return TechnicalFinalVerdict.from_delta(episode.pre_action_field, delta, rail_d_model=64).text
+
+    @staticmethod
+    def _intermediate_targets(
+        episode: LoadedRuntimeEpisode,
+        *,
+        scope: str,
+    ) -> tuple[LivingReasoningTarget, LivingReasoningTarget]:
+        circulation = episode.circulation
+        is_v3 = circulation.get("schema") == _CURRENT_CIRCULATION_SCHEMA
+        if is_v3:
+            consolidator = str(circulation["consolidator_core_id"])
+            first_proposal = _one_author_proposal(
+                circulation["first_proposals"],
+                core_id=consolidator,
+                phase="first",
+            )
+            refined_proposal = _one_author_proposal(
+                circulation["refined_proposals"],
+                core_id=consolidator,
+                phase="refined",
+            )
+            if scope == "full_trajectory":
+                return (
+                    LivingReasoningTarget(phase="first", text=first_proposal.text),
+                    LivingReasoningTarget(phase="refined", text=refined_proposal.text),
+                )
+            return (
+                _unsupervised_text_target("first", first_proposal.text),
+                _unsupervised_text_target("refined", refined_proposal.text),
+            )
+
+        if scope == "full_trajectory":
+            raise ValueError("historical_typed_full_trajectory_is_not_english_supervision")
+        return (_unsupervised_text_target("first"), _unsupervised_text_target("refined"))
+
+    def compile(self, loaded: Sequence[LoadedRuntimeEpisode]) -> LivedReasoningCompilation:
         episodes: list[LivingReasoningEpisode] = []
         source_ids: list[str] = []
         excluded: dict[str, int] = {}
@@ -219,50 +222,25 @@ class EvidenceQualifiedLivedCurriculumCompiler:
             try:
                 if not episode.example.serving_promotion_eligible:
                     raise ValueError("not_serving_eligible")
-                final_delta, basis = self._final_delta(episode)
-                outcome = episode.outcome_record
-                assert outcome is not None
-                scope = str(outcome.payload.get("target_scope", "final_delta"))
-                if scope == "full_trajectory":
-                    consolidator = str(episode.circulation["consolidator_core_id"])
-                    first = _emission_target(
-                        phase="first",
-                        emission=_one_author_emission(
-                            episode.circulation["first_emissions"],
-                            core_id=consolidator,
-                            phase="first",
-                        ),
-                    )
-                    refined = _emission_target(
-                        phase="refined",
-                        emission=_one_author_emission(
-                            episode.circulation["refined_emissions"],
-                            core_id=consolidator,
-                            phase="refined",
-                        ),
-                    )
-                else:
-                    first = _unsupervised_target("first")
-                    refined = _unsupervised_target("refined")
+                scope, basis = self._outcome_scope(episode)
+                first, refined = self._intermediate_targets(episode, scope=scope)
+                final_text = self._final_text(episode, scope)
                 target = LivingReasoningEpisode(
                     label=f"lived:{episode.example.episode_event_id}",
                     split=episode.example.split,
                     snapshot=episode.pre_action_field,
-                    first_workspace_text=_workspace_text(
-                        episode.circulation["first_workspace"]
-                    ),
-                    refined_workspace_text=_workspace_text(
-                        episode.circulation["refined_workspace"]
-                    ),
+                    first_workspace_text=_workspace_text(episode.circulation["first_workspace"]),
+                    refined_workspace_text=_workspace_text(episode.circulation["refined_workspace"]),
                     targets=(
                         first,
                         refined,
-                        _delta_target(phase="consolidated", delta=final_delta),
+                        LivingReasoningTarget(phase="consolidated", text=final_text),
                     ),
                     mechanism_tags=(
                         "lived_experience",
                         "runtime_faithful",
                         "explicit_outcome_evidence",
+                        "english_reasoning",
                         scope,
                     ),
                     outcome_quality=episode.example.outcome_quality.value,

@@ -207,7 +207,7 @@ def test_host_runs_both_barriers_finalizes_turn_and_deposits_loadable_episode(tm
         lived = compilation.episodes[0]
         assert lived.source_example_id == loaded[0].example.example_id
         assert [item.supervision_weight for item in lived.targets] == [0.0, 0.0, 1.0]
-        assert lived.targets[-1].payload == "I received the exact Unicode: λ🧠"
+        assert lived.targets[-1].text == "#responseDraft# I received the exact Unicode: λ🧠"
 
         full_outcome = replace(
             loaded[0].outcome_record,
@@ -220,14 +220,16 @@ def test_host_runs_both_barriers_finalizes_turn_and_deposits_loadable_episode(tm
             loaded[0].example,
             outcome_record_id=full_outcome.record_id,
         )
-        # The historical typed-action lived compiler is intentionally not allowed
-        # to reinterpret new English proposals as DELTA/NO_OP/ABSTAIN targets.
-        # A dedicated English lived compiler replaces this route before training resumes.
         full_compilation = EvidenceQualifiedLivedCurriculumCompiler().compile(
             (replace(loaded[0], example=full_example, outcome_record=full_outcome),)
         )
-        assert full_compilation.episodes == ()
-        assert full_compilation.excluded_counts
+        assert len(full_compilation.episodes) == 1
+        assert [item.supervision_weight for item in full_compilation.episodes[0].targets] == [
+            1.0,
+            1.0,
+            1.0,
+        ]
+        assert full_compilation.excluded_counts == ()
 
         corrected_delta = FieldDelta(
             base_field_id=loaded[0].pre_action_field.field_id,
@@ -267,7 +269,7 @@ def test_host_runs_both_barriers_finalizes_turn_and_deposits_loadable_episode(tm
                 ),
             )
         )
-        assert corrected_compilation.episodes[0].targets[-1].payload == "Corrected λ🧠"
+        assert corrected_compilation.episodes[0].targets[-1].text == "#responseDraft# Corrected λ🧠"
 
 
 def test_whole_conversation_split_is_stable_for_multiple_episode_records(tmp_path: Path) -> None:

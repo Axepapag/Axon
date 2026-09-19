@@ -10,12 +10,12 @@ import torch
 from runtime.field import LogicalRegion, SharedFieldSnapshot, canonical_sha256
 from runtime.soul import SoulSnapshot, SoulTemperature
 
-from .living_reasoning_curriculum import (
+from .legacy_typed_reasoning_curriculum import (
     LivingReasoningEpisode,
     evaluate_living_episode,
     living_phase_breakdown,
 )
-from .living_reasoning_d64 import (
+from .legacy_typed_reasoning_d64 import (
     LivingReasoningCoreConfig,
     LivingReasoningCoreD64,
     LivingReasoningForward,

@@ -40,14 +40,14 @@ from runtime.heart import (
 from runtime.soul import SoulSnapshot, SoulTemperature
 
 from .first_form_curriculum import _episode_from_dict, _episode_to_dict
-from .living_reasoning_curriculum import (
+from .legacy_typed_reasoning_curriculum import (
     LivingReasoningEpisode,
     LivingReasoningTarget,
     constant_baseline_floors,
     evaluate_living_episode,
     living_episode_objective,
 )
-from .living_reasoning_d64 import CausalLivingUnroll, LivingReasoningCoreD64
+from .legacy_typed_reasoning_d64 import CausalLivingUnroll, LivingReasoningCoreD64
 
 FFCS_E_TICK_SCHEMA = "axon-first-form-sequential-tick-v1"
 FFCS_E_CASE_SCHEMA = "axon-first-form-sequential-case-v1"

@@ -1,137 +1,126 @@
-"""Deterministic mechanism curriculum for the first living reasoning core.
+"""English-native curriculum, objective, evaluation, and gate for D64 reasoning.
 
-These cases prove trainability of the permanent neural/runtime contract.  They
-are not presented as factual supervision or a serving-quality corpus.  Real
-lived-experience sessions are a separate governed source and retain their
-explicit outcome-quality labels.
+This is the active post-2026-09-19 training contract.  A supervised phase teaches
+one exact variable-length Unicode utterance.  FIRST and REFINED targets are free
+English reasoning proposals; CONSOLIDATED targets are compact tagged-region
+FINAL verdicts.  There is no decision, operation, region, or address classifier
+in the objective.
+
+The previous typed DELTA/NO_OP/ABSTAIN curriculum is preserved, by name, in
+``legacy_typed_reasoning_curriculum`` for immutable historical evidence only.
 """
 
 from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Mapping
+from typing import Any, Mapping, Sequence
 
 import torch
-import torch.nn.functional as F
 
-from runtime.field import (
-    D64FieldCompiler,
-    LogicalRegion,
-    SharedFieldSnapshot,
-    canonical_json_bytes,
-    canonical_sha256,
-)
-from runtime.heart import (
-    ProposalPass,
-    ProposalWorkspace,
-    ProposalWorkspaceEntry,
-    ReasoningDecision,
-    ReasoningOperationKind,
-)
+from runtime.field import D64FieldCompiler, LogicalRegion, SharedFieldSnapshot, canonical_json_bytes, canonical_sha256
+from runtime.heart import TechnicalFinalVerdict
 from runtime.soul import SoulSnapshot, SoulTemperature
-from runtime.source_of_truth import capacity_policy
+from substrate import encode_unicode_text
 
 from .complete_field_64d import sequence_cross_entropy
-from .living_reasoning_d64 import (
-    CausalLivingUnroll,
-    LivingReasoningCoreD64,
-    LivingReasoningForward,
-)
+from .living_reasoning_d64 import CausalLivingUnroll, LivingReasoningCoreD64, LivingReasoningForward
 
-LIVING_REASONING_TARGET_SCHEMA = "axon-living-reasoning-target-v1"
-LIVING_REASONING_EPISODE_SCHEMA = "axon-living-reasoning-episode-v1"
-LIVING_REASONING_CURRICULUM_SCHEMA = "axon-living-reasoning-curriculum-v1"
+LIVING_REASONING_TARGET_SCHEMA = "axon-living-reasoning-english-target-v1"
+LIVING_REASONING_EPISODE_SCHEMA = "axon-living-reasoning-english-episode-v1"
+LIVING_REASONING_CURRICULUM_SCHEMA = "axon-living-reasoning-english-curriculum-v1"
+LIVING_REASONING_GATE_SCHEMA = "axon-living-reasoning-english-gate-v1"
+
 LIVING_OBJECTIVE_COMPONENTS = (
-    "decision",
-    "operation",
-    "region",
-    "start",
-    "end",
-    "payload",
+    "text",
     "alignment_position",
     "alignment_copy_gate",
     "alignment_eos_gate",
 )
 
+ENGLISH_REASONING_GATE_REQUIREMENTS: Mapping[str, float] = {
+    "text_exact_rate": 1.0,
+    "text_teacher_forced_content_accuracy": 1.0,
+    "text_teacher_forced_eos_accuracy": 1.0,
+    "complete_field_coverage_rate": 1.0,
+    "final_verdict_valid_rate": 1.0,
+}
+
+
+def _require_unicode(value: str, *, name: str, nonempty: bool) -> str:
+    if not isinstance(value, str):
+        raise TypeError(f"{name} must be text")
+    if nonempty and not value.strip():
+        raise ValueError(f"{name} must be nonempty")
+    try:
+        roundtrip = value.encode("utf-8", errors="strict").decode("utf-8", errors="strict")
+    except UnicodeError as exc:
+        raise ValueError(f"{name} must be valid exact Unicode") from exc
+    if roundtrip != value:
+        raise ValueError(f"{name} failed exact Unicode roundtrip")
+    return value
+
+
+def _validate_final_syntax(text: str) -> None:
+    # TechnicalFinalVerdict validates exact Unicode and tag grammar without
+    # materializing a mutation; these bindings are deliberately dummy envelope
+    # data because the learned target is text only.
+    TechnicalFinalVerdict(
+        base_field_id="training-syntax-only",
+        base_tick_id=0,
+        author_core_id="training-syntax-only",
+        rail_d_model=64,
+        text=text,
+    )
+
 
 @dataclass(frozen=True, slots=True)
 class LivingReasoningTarget:
+    """One exact public text target for one reasoning phase."""
+
     phase: str
-    decision: ReasoningDecision | str
-    operation: ReasoningOperationKind | str | None = None
-    region: LogicalRegion | str | None = None
-    start: int | None = None
-    end: int | None = None
-    payload: str = ""
-    payload_alignment: Mapping[str, Any] | None = None
+    text: str
+    text_alignment: Mapping[str, Any] | None = None
     supervision_weight: float = 1.0
     target_id: str = field(init=False)
 
     def __post_init__(self) -> None:
-        decision = (
-            self.decision
-            if isinstance(self.decision, ReasoningDecision)
-            else ReasoningDecision(self.decision)
-        )
-        object.__setattr__(self, "decision", decision)
-        weight = float(self.supervision_weight)
-        if not 0.0 <= weight < float("inf"):
-            raise ValueError("supervision_weight must be finite and non-negative")
-        object.__setattr__(self, "supervision_weight", weight)
         if self.phase not in {"first", "refined", "consolidated"}:
             raise ValueError("unsupported living reasoning target phase")
-        if decision is ReasoningDecision.DELTA:
-            operation = (
-                self.operation
-                if isinstance(self.operation, ReasoningOperationKind)
-                else ReasoningOperationKind(self.operation)
-            )
-            region = self.region if isinstance(self.region, LogicalRegion) else LogicalRegion(self.region)
-            if self.start is None or self.end is None or self.start < 0 or self.end < self.start:
-                raise ValueError("delta target requires an ordered exact address")
-            if operation is ReasoningOperationKind.INSERT and self.start != self.end:
-                raise ValueError("insert target requires start == end")
-            if operation is ReasoningOperationKind.DELETE and (self.end == self.start or self.payload):
-                raise ValueError("delete target requires a nonempty range and empty payload")
-            if operation is not ReasoningOperationKind.DELETE and not self.payload:
-                raise ValueError("insert/replace target requires exact payload text")
-            object.__setattr__(self, "operation", operation)
-            object.__setattr__(self, "region", region)
-        elif any(
-            item is not None
-            for item in (self.operation, self.region, self.start, self.end)
-        ) or self.payload:
-            raise ValueError("no-op/abstain target cannot carry an operation")
-        if self.payload_alignment is not None:
-            alignment = dict(self.payload_alignment)
-            if decision is not ReasoningDecision.DELTA or operation is ReasoningOperationKind.DELETE:
-                raise ValueError("payload alignment requires a non-delete delta target")
+        _require_unicode(self.text, name=f"{self.phase} target text", nonempty=True)
+        if self.phase == "consolidated":
+            _validate_final_syntax(self.text)
+        weight = float(self.supervision_weight)
+        if not math.isfinite(weight) or weight < 0.0:
+            raise ValueError("supervision_weight must be finite and non-negative")
+        object.__setattr__(self, "supervision_weight", weight)
+        if self.text_alignment is not None:
+            alignment = dict(self.text_alignment)
             if set(alignment) != {"schema", "segments", "supervise_eos_generate"}:
-                raise ValueError("payload alignment fields are invalid")
+                raise ValueError("text alignment fields are invalid")
             if alignment["schema"] != "axon-r0-target-alignment-v1":
-                raise ValueError("unsupported payload alignment schema")
+                raise ValueError("unsupported text alignment schema")
             if not isinstance(alignment["segments"], list) or not alignment["segments"]:
-                raise ValueError("payload alignment requires one or more exact source segments")
+                raise ValueError("text alignment requires one or more exact source segments")
             if alignment["supervise_eos_generate"] is not True:
-                raise ValueError("payload alignment must supervise EOS as generated")
-            object.__setattr__(self, "payload_alignment", alignment)
+                raise ValueError("text alignment must supervise EOS as generated")
+            object.__setattr__(self, "text_alignment", alignment)
         object.__setattr__(self, "target_id", canonical_sha256(self.to_canonical_dict(False)))
 
+    @property
+    def payload(self) -> str:
+        """Compatibility spelling for display-only consumers; the contract is text."""
+        return self.text
+
     def to_canonical_dict(self, include_id: bool = True) -> dict[str, Any]:
-        value = {
+        value: dict[str, Any] = {
             "schema": LIVING_REASONING_TARGET_SCHEMA,
             "phase": self.phase,
-            "decision": self.decision.value,
-            "operation": None if self.operation is None else self.operation.value,
-            "region": None if self.region is None else self.region.value,
-            "start": self.start,
-            "end": self.end,
-            "payload": self.payload,
+            "text": self.text,
             "supervision_weight": self.supervision_weight,
         }
-        if self.payload_alignment is not None:
-            value["payload_alignment"] = dict(self.payload_alignment)
+        if self.text_alignment is not None:
+            value["text_alignment"] = dict(self.text_alignment)
         if include_id:
             value["target_id"] = self.target_id
         return value
@@ -149,33 +138,41 @@ class LivingReasoningEpisode:
     outcome_quality: str = "synthetic_mechanism"
     source_example_id: str | None = None
     outcome_evidence_ids: tuple[str, ...] = ()
-    target_basis: str = "synthetic_mechanism"
+    target_basis: str = "english_reasoning_v1"
     episode_id: str = field(init=False)
 
     def __post_init__(self) -> None:
+        if not isinstance(self.label, str) or not self.label:
+            raise ValueError("living reasoning episode label must be non-empty")
         if self.split not in {"train", "heldout", "regression"}:
             raise ValueError("living reasoning split must be train, heldout, or regression")
+        if not isinstance(self.snapshot, SharedFieldSnapshot):
+            raise TypeError("living reasoning snapshot must be SharedFieldSnapshot")
+        _require_unicode(self.first_workspace_text, name="first workspace text", nonempty=False)
+        _require_unicode(self.refined_workspace_text, name="refined workspace text", nonempty=False)
         targets = tuple(self.targets)
         if tuple(item.phase for item in targets) != ("first", "refined", "consolidated"):
             raise ValueError("living episode requires exact three-phase target order")
+        if not any(item.supervision_weight > 0.0 for item in targets):
+            raise ValueError("living episode requires at least one supervised English phase")
         object.__setattr__(self, "targets", targets)
-        object.__setattr__(self, "mechanism_tags", tuple(sorted(set(self.mechanism_tags))))
-        if self.source_example_id is not None and len(self.source_example_id) != 64:
-            raise ValueError("source_example_id must be None or a content identity")
+        object.__setattr__(self, "mechanism_tags", tuple(sorted(set(map(str, self.mechanism_tags)))))
         evidence = tuple(sorted(set(map(str, self.outcome_evidence_ids))))
         object.__setattr__(self, "outcome_evidence_ids", evidence)
+        if self.source_example_id is not None and len(self.source_example_id) != 64:
+            raise ValueError("source_example_id must be None or a content identity")
         if not isinstance(self.target_basis, str) or not self.target_basis:
             raise ValueError("target_basis must be non-empty")
         object.__setattr__(self, "episode_id", canonical_sha256(self.to_canonical_dict(False)))
 
     def to_canonical_dict(self, include_id: bool = True) -> dict[str, Any]:
-        value = {
+        value: dict[str, Any] = {
             "schema": LIVING_REASONING_EPISODE_SCHEMA,
             "label": self.label,
             "split": self.split,
-            "field_id": self.snapshot.field_id,
-            "first_workspace_sha256": canonical_sha256({"text": self.first_workspace_text}),
-            "refined_workspace_sha256": canonical_sha256({"text": self.refined_workspace_text}),
+            "snapshot": self.snapshot.to_dict(),
+            "first_workspace_text": self.first_workspace_text,
+            "refined_workspace_text": self.refined_workspace_text,
             "targets": [item.to_canonical_dict() for item in self.targets],
             "mechanism_tags": list(self.mechanism_tags),
             "outcome_quality": self.outcome_quality,
@@ -195,9 +192,7 @@ class LivingReasoningCurriculum:
 
     def __post_init__(self) -> None:
         episodes = tuple(self.episodes)
-        if not episodes or not {"train", "heldout"}.issubset(
-            {item.split for item in episodes}
-        ):
+        if not episodes or not {"train", "heldout"}.issubset({item.split for item in episodes}):
             raise ValueError("living curriculum requires train and heldout episodes")
         if len({item.episode_id for item in episodes}) != len(episodes):
             raise ValueError("living curriculum contains duplicate episodes")
@@ -213,7 +208,7 @@ class LivingReasoningCurriculum:
             raise KeyError(f"living curriculum has no split {name!r}")
         return canonical_sha256(
             {
-                "schema": "axon-living-reasoning-split-manifest-v1",
+                "schema": "axon-living-reasoning-english-split-manifest-v1",
                 "curriculum_id": self.curriculum_id,
                 "split": name,
                 "episode_ids": [item.episode_id for item in episodes],
@@ -229,8 +224,9 @@ class LivingReasoningCurriculum:
         return self.split_manifest_id("heldout")
 
     def to_canonical_dict(self, include_id: bool = True) -> dict[str, Any]:
-        value = {
+        value: dict[str, Any] = {
             "schema": LIVING_REASONING_CURRICULUM_SCHEMA,
+            "public_output_contract": "english-proposal-tagged-final-v1",
             "episodes": [item.to_canonical_dict() for item in self.episodes],
         }
         if include_id:
@@ -238,133 +234,85 @@ class LivingReasoningCurriculum:
         return value
 
 
-def _workspace_text(pass_kind: ProposalPass, detail: str) -> str:
-    workspace = ProposalWorkspace(
-        image_id="synthetic-mechanism-image-v1",
-        tick_uid="synthetic-mechanism-tick-v1",
-        pass_kind=pass_kind,
-        entries=(
-            ProposalWorkspaceEntry(
-                core_id="brother-fixture",
-                d_model=64,
-                state="returned",
-                detail=detail,
-                emission_id=None,
-                delta=None,
-            ),
-        ),
-    )
-    return workspace.readable_text()
-
-
-def _episode(
+def _smoke_episode(
     *,
     label: str,
     split: str,
     user_text: str,
     answer: str,
-    first_decision: ReasoningDecision,
-    refined_decision: ReasoningDecision,
-    tags: Iterable[str],
+    first: str,
+    refined: str,
 ) -> LivingReasoningEpisode:
-    scratch = ""
-    response = ""
     snapshot = SharedFieldSnapshot.from_texts(
         {
-            LogicalRegion.IDENTITY: (
-                "Axon follows current canonical evidence and preserves exact Unicode transport."
-            ),
+            LogicalRegion.IDENTITY: "I am Axon.",
             LogicalRegion.USER_INPUT: user_text,
-            LogicalRegion.SCRATCH: scratch,
-            LogicalRegion.RESPONSE_DRAFT: response,
-        }
+            LogicalRegion.RESPONSE_DRAFT: "",
+            LogicalRegion.SCRATCH: "",
+        },
+        source_manifest_ids=("english-reasoning-smoke-v1",),
     )
-
-    def phase_target(phase: str, decision: ReasoningDecision) -> LivingReasoningTarget:
-        if decision is not ReasoningDecision.DELTA:
-            return LivingReasoningTarget(phase=phase, decision=decision)
-        return LivingReasoningTarget(
-            phase=phase,
-            decision=decision,
-            operation=ReasoningOperationKind.REPLACE,
-            region=LogicalRegion.SCRATCH,
-            start=0,
-            end=0,
-            payload=f"evidence:{answer}",
-        )
-
     return LivingReasoningEpisode(
         label=label,
         split=split,
         snapshot=snapshot,
-        first_workspace_text=_workspace_text(
-            ProposalPass.FIRST,
-            f"Brother proposes exact candidate {answer!r}.",
-        ),
-        refined_workspace_text=_workspace_text(
-            ProposalPass.REFINED,
-            f"Brother rechecks current field and retains {answer!r}.",
-        ),
+        first_workspace_text=f"[brother-first]\n{first}",
+        refined_workspace_text=f"[brother-refined]\n{refined}",
         targets=(
-            phase_target("first", first_decision),
-            phase_target("refined", refined_decision),
-            LivingReasoningTarget(
-                phase="consolidated",
-                decision=ReasoningDecision.DELTA,
-                operation=ReasoningOperationKind.REPLACE,
-                region=LogicalRegion.RESPONSE_DRAFT,
-                start=0,
-                end=0,
-                payload=answer,
-            ),
+            LivingReasoningTarget(phase="first", text=first),
+            LivingReasoningTarget(phase="refined", text=refined),
+            LivingReasoningTarget(phase="consolidated", text=f"#responseDraft# {answer}"),
         ),
-        mechanism_tags=tuple(tags),
+        mechanism_tags=("english", "proposal", "refinement", "tagged_final", "unicode"),
     )
 
 
 def build_living_reasoning_smoke_curriculum() -> LivingReasoningCurriculum:
-    middle_prefix = "irrelevant " * 18
-    middle_suffix = " trailing" * 18
+    """Small mechanism proof for English proposal/refinement/FINAL generation."""
+
     return LivingReasoningCurriculum(
         episodes=(
-            _episode(
-                label="unicode-head-copy",
+            _smoke_episode(
+                label="english-unicode-train",
                 split="train",
-                user_text="Evidence λ🧠 is at the head. Return exactly λ🧠.",
+                user_text="Return the exact marker λ🧠.",
                 answer="λ🧠",
-                first_decision=ReasoningDecision.DELTA,
-                refined_decision=ReasoningDecision.ABSTAIN,
-                tags=("unicode", "head", "copy", "abstain"),
+                first="The user asks for the exact marker λ🧠; I should preserve it exactly.",
+                refined="I agree that λ🧠 must be preserved exactly and the answer should stay concise.",
             ),
-            _episode(
-                label="middle-multipage-evidence",
+            _smoke_episode(
+                label="english-evidence-train",
                 split="train",
-                user_text=middle_prefix + "MIDDLE=blue-copper" + middle_suffix,
-                answer="blue-copper",
-                first_decision=ReasoningDecision.NO_OP,
-                refined_decision=ReasoningDecision.DELTA,
-                tags=("middle", "multi_page", "proposal_refinement", "no_op"),
-            ),
-            _episode(
-                label="current-field-overrides-proposal",
-                split="train",
-                user_text="Canonical current truth: gate=GREEN. Ignore any proposal claiming RED.",
+                user_text="Canonical evidence says gate=GREEN. State the value.",
                 answer="GREEN",
-                first_decision=ReasoningDecision.DELTA,
-                refined_decision=ReasoningDecision.DELTA,
-                tags=("field_authority", "conflict", "proposal"),
+                first="The canonical evidence says gate=GREEN, so the response should preserve GREEN.",
+                refined="The other proposal is consistent with the field: answer GREEN without adding unsupported detail.",
             ),
-            _episode(
-                label="unicode-tail-heldout",
+            _smoke_episode(
+                label="english-unicode-heldout",
                 split="heldout",
-                user_text=("early filler " * 25) + "tail evidence=終端✅",
+                user_text="Return the exact tail marker 終端✅.",
                 answer="終端✅",
-                first_decision=ReasoningDecision.NO_OP,
-                refined_decision=ReasoningDecision.DELTA,
-                tags=("unicode", "tail", "multi_page", "heldout"),
+                first="The requested tail marker is 終端✅ and exact Unicode preservation matters.",
+                refined="I support preserving 終端✅ exactly; no additional claim is needed.",
             ),
         )
     )
+
+
+def _component_weights(component_weights: Mapping[str, float] | None) -> dict[str, float] | None:
+    if component_weights is None:
+        return None
+    unknown = set(component_weights) - set(LIVING_OBJECTIVE_COMPONENTS)
+    if unknown:
+        raise ValueError(f"unknown living objective components: {sorted(unknown)}")
+    weights: dict[str, float] = {}
+    for component in LIVING_OBJECTIVE_COMPONENTS:
+        value = float(component_weights.get(component, 0.0))
+        if not math.isfinite(value) or value < 0.0:
+            raise ValueError("living objective component weights must be finite and non-negative")
+        weights[component] = value
+    return weights
 
 
 def living_phase_objective(
@@ -374,161 +322,74 @@ def living_phase_objective(
     *,
     component_weights: Mapping[str, float] | None = None,
     alignment_position_reduction: str = "mean",
-    payload_eos_weight: float = 4.0,
+    text_eos_weight: float = 4.0,
     termination_continue_supervision: bool = False,
 ) -> tuple[torch.Tensor, dict[str, float | None]]:
-    payload_eos_weight = float(payload_eos_weight)
-    if not math.isfinite(payload_eos_weight) or payload_eos_weight <= 0.0:
-        raise ValueError("payload_eos_weight must be finite and positive")
-    if not isinstance(termination_continue_supervision, bool):
-        raise TypeError("termination_continue_supervision must be boolean")
-    weights: dict[str, float] | None = None
-    if component_weights is not None:
-        unknown = set(component_weights) - set(LIVING_OBJECTIVE_COMPONENTS)
-        if unknown:
-            raise ValueError(f"unknown living objective components: {sorted(unknown)}")
-        weights = {}
-        for component in LIVING_OBJECTIVE_COMPONENTS:
-            value = float(component_weights.get(component, 0.0))
-            if not math.isfinite(value) or value < 0.0:
-                raise ValueError("living objective component weights must be finite and non-negative")
-            weights[component] = value
+    """Supervise exactly one variable-length English/tagged-text emission."""
 
-    def weighted(component: str, value: torch.Tensor) -> torch.Tensor:
-        return value if weights is None else value * weights[component]
+    text_eos_weight = float(text_eos_weight)
+    if not math.isfinite(text_eos_weight) or text_eos_weight <= 0.0:
+        raise ValueError("text_eos_weight must be finite and positive")
+    if output.phase != target.phase:
+        raise ValueError("reasoning output phase differs from English target phase")
+    weights = _component_weights(component_weights)
 
-    decision_index = tuple(ReasoningDecision).index(target.decision)
-    decision_loss = F.cross_entropy(
-        output.decision_logits,
-        torch.tensor([decision_index], dtype=torch.long, device=model.device),
-    )
-    loss = weighted("decision", decision_loss)
-    metrics = {"decision_loss": float(decision_loss.detach().item())}
-    if target.decision is not ReasoningDecision.DELTA:
-        return loss, metrics
-
-    operation_index = tuple(ReasoningOperationKind).index(target.operation)
-    operation_loss = F.cross_entropy(
-        output.operation_logits,
-        torch.tensor([operation_index], dtype=torch.long, device=model.device),
-    )
-    region_index = tuple(LogicalRegion).index(target.region)
-    region_loss = F.cross_entropy(
-        output.region_logits,
-        torch.tensor([region_index], dtype=torch.long, device=model.device),
-    )
-    candidates, start_logits, end_logits = model.boundary_logits(output, target.region)
-    if target.start not in candidates or target.end not in candidates:
-        raise ValueError("curriculum target address is not present in the exact active field")
-    start_loss = F.cross_entropy(
-        start_logits,
-        torch.tensor([candidates.index(target.start)], dtype=torch.long, device=model.device),
-    )
-    end_loss = F.cross_entropy(
-        end_logits,
-        torch.tensor([candidates.index(target.end)], dtype=torch.long, device=model.device),
-    )
     decoded = model.decode_teacher(
         output.reader_state,
-        target.payload,
+        target.text,
         head=1,
         memory=output.complete_memory,
-        return_alignment=target.payload_alignment is not None,
+        return_alignment=target.text_alignment is not None,
     )
-    if target.payload_alignment is None:
-        payload_logits, payload_targets = decoded
-        alignment_supervision = None
+    if target.text_alignment is None:
+        text_logits, text_targets = decoded
+        alignment = None
     else:
-        payload_logits, payload_targets, decoder_alignment = decoded
-        alignment_supervision = model.alignment_supervision(
-            target_text=target.payload,
+        text_logits, text_targets, decoder_alignment = decoded
+        alignment = model.alignment_supervision(
+            target_text=target.text,
             memory=output.complete_memory,
             decoder_alignment=decoder_alignment,
-            specification=target.payload_alignment,
+            specification=target.text_alignment,
             position_reduction=alignment_position_reduction,
             supervise_termination_continue=termination_continue_supervision,
         )
-    payload_loss = sequence_cross_entropy(
-        payload_logits,
-        payload_targets,
-        eos_weight=payload_eos_weight,
-        token_mask=(
-            None
-            if alignment_supervision is None
-            else alignment_supervision["learned_decision_mask"]
-        ),
+    learned_mask = None if alignment is None else alignment["learned_decision_mask"]
+    text_loss = sequence_cross_entropy(
+        text_logits,
+        text_targets,
+        eos_weight=text_eos_weight,
+        token_mask=learned_mask,
     )
-    loss = (
-        loss
-        + weighted("operation", operation_loss)
-        + weighted("region", region_loss)
-        + weighted("start", start_loss)
-        + weighted("end", end_loss)
-        + weighted("payload", payload_loss)
-    )
-    metrics.update(
-        {
-            "operation_loss": float(operation_loss.detach().item()),
-            "region_loss": float(region_loss.detach().item()),
-            "start_loss": float(start_loss.detach().item()),
-            "end_loss": float(end_loss.detach().item()),
-            "payload_loss": float(payload_loss.detach().item()),
-        }
-    )
-    if alignment_supervision is not None:
-        position_loss = alignment_supervision["position_loss"]
-        gate_loss = alignment_supervision["gate_loss"]
-        copy_gate_loss = alignment_supervision["copy_gate_loss"]
-        eos_gate_loss = alignment_supervision["eos_gate_loss"]
+    loss = text_loss if weights is None else text_loss * weights["text"]
+    metrics: dict[str, float | None] = {
+        "text_loss": float(text_loss.detach().item()),
+        "target_transport_units": float(len(encode_unicode_text(target.text))),
+    }
+    if alignment is not None:
+        position_loss = alignment["position_loss"]
+        copy_gate_loss = alignment["copy_gate_loss"]
+        eos_gate_loss = alignment["eos_gate_loss"]
         if weights is None:
-            # Preserve the historical objective exactly for every existing
-            # manifest/checkpoint. The staged v2 program opts into separated
-            # copy and EOS terms through explicit content-addressed weights.
-            loss = loss + position_loss + gate_loss
+            loss = loss + position_loss + alignment["gate_loss"]
         else:
             loss = (
                 loss
-                + weighted("alignment_position", position_loss)
-                + weighted("alignment_copy_gate", copy_gate_loss)
-                + weighted("alignment_eos_gate", eos_gate_loss)
+                + position_loss * weights["alignment_position"]
+                + copy_gate_loss * weights["alignment_copy_gate"]
+                + eos_gate_loss * weights["alignment_eos_gate"]
             )
         metrics.update(
             {
                 "alignment_position_loss": float(position_loss.detach().item()),
-                "alignment_gate_loss": float(gate_loss.detach().item()),
                 "alignment_copy_gate_loss": float(copy_gate_loss.detach().item()),
                 "alignment_eos_gate_loss": float(eos_gate_loss.detach().item()),
-                "alignment_copy_positions": float(alignment_supervision["copy_positions"]),
+                "alignment_position_accuracy": float(alignment["position_accuracy"]),
+                "alignment_copy_gate_accuracy": float(alignment["copy_gate_accuracy"]),
+                "alignment_eos_gate_accuracy": float(alignment["eos_gate_accuracy"]),
                 "deterministic_continuation_positions": float(
-                    alignment_supervision["deterministic_continuation_positions"]
+                    alignment["deterministic_continuation_positions"]
                 ),
-                "alignment_position_accuracy": float(alignment_supervision["position_accuracy"]),
-                "alignment_copy_gate_accuracy": float(
-                    alignment_supervision["copy_gate_accuracy"]
-                ),
-                "alignment_eos_gate_accuracy": float(
-                    alignment_supervision["eos_gate_accuracy"]
-                ),
-                "termination_continue_positions": float(
-                    alignment_supervision["termination_continue_positions"]
-                ),
-                # Unavailable stays unavailable: an accuracy over zero supervised
-                # positions must not be reported as a rate, and the continuation
-                # loss must not be reported as a number when no stop=0 term was
-                # evaluated. Both are instrumented only; neither is optimized.
-                "termination_continue_accuracy": (
-                    None
-                    if alignment_supervision["termination_continue_accuracy"] is None
-                    else float(alignment_supervision["termination_continue_accuracy"])
-                ),
-                "termination_continue_loss": (
-                    None
-                    if alignment_supervision["termination_continue_loss"] is None
-                    else float(
-                        alignment_supervision["termination_continue_loss"].detach().item()
-                    )
-                ),
-                "alignment_gate_accuracy": float(alignment_supervision["gate_accuracy"]),
             }
         )
     return loss, metrics
@@ -544,16 +405,16 @@ def living_episode_objective(
     ablate_temperatures: tuple[SoulTemperature, ...] = (),
     component_weights: Mapping[str, float] | None = None,
     alignment_position_reduction: str = "mean",
-    payload_eos_weight: float = 4.0,
+    text_eos_weight: float = 4.0,
     termination_continue_supervision: bool = False,
-) -> tuple[torch.Tensor, CausalLivingUnroll, tuple[dict[str, float], ...]]:
+) -> tuple[torch.Tensor, CausalLivingUnroll, tuple[dict[str, float | None], ...]]:
     compiled = D64FieldCompiler().compile(episode.snapshot)
     compiled.verify_roundtrip(episode.snapshot)
     unroll = model.unroll_runtime_phases(
         initial_soul=initial_soul,
         expected_core_id=core_id,
         parameter_generation=parameter_generation,
-        tick_uid=f"training-episode:{episode.episode_id}",
+        tick_uid=f"english-training-episode:{episode.episode_id}",
         canonical=compiled,
         first_workspace_text=episode.first_workspace_text,
         refined_workspace_text=episode.refined_workspace_text,
@@ -566,7 +427,7 @@ def living_episode_objective(
             target,
             component_weights=component_weights,
             alignment_position_reduction=alignment_position_reduction,
-            payload_eos_weight=payload_eos_weight,
+            text_eos_weight=text_eos_weight,
             termination_continue_supervision=termination_continue_supervision,
         )
         for output, target in zip(unroll.outputs, episode.targets, strict=True)
@@ -583,58 +444,28 @@ def living_episode_objective(
 
 
 def constant_baseline_target_key(target: LivingReasoningTarget) -> str:
-    """Name the constant answer a zero-skill emitter would have to give.
-
-    A constant emitter repeats one answer for every phase, so its exact score is
-    the frequency of the most common target answer.  A non-delta phase is
-    scored on its decision alone, which is why an always-``no_op`` lineage
-    already collects every no-op case without emitting anything; a delta phase
-    is scored on the whole tuple, so its key carries the full address.
-    """
-
-    if target.decision is not ReasoningDecision.DELTA:
-        return str(target.decision.value)
-    return "|".join(
-        (
-            str(target.decision.value),
-            str(target.operation.value),
-            str(target.region.value),
-            str(target.start),
-            str(target.end),
-            target.payload,
-        )
-    )
+    """Exact fixed answer a zero-skill text emitter would repeat."""
+    return target.text
 
 
 def constant_baseline_floors(
-    typed_target_histogram: Mapping[str, int],
-    payload_target_histogram: Mapping[str, int],
+    text_target_histogram: Mapping[str, int],
     *,
     supervised_phase_count: float,
-    payload_supervised_phase_count: float,
 ) -> dict[str, float]:
-    """Return the strongest constant-emitter score for each exact metric.
-
-    These are baselines, not thresholds: a lineage at or below them has learned
-    nothing that a fixed answer could not already produce.
-    """
-
+    strongest = max(text_target_histogram.values(), default=0)
     return {
-        "constant_typed_emission_exact_count": float(
-            max(typed_target_histogram.values(), default=0)
-        ),
-        "constant_typed_emission_exact_floor": max(
-            typed_target_histogram.values(), default=0
-        )
-        / max(1.0, supervised_phase_count),
-        "constant_payload_transport_exact_count": float(
-            max(payload_target_histogram.values(), default=0)
-        ),
-        "constant_payload_transport_exact_floor": max(
-            payload_target_histogram.values(), default=0
-        )
-        / max(1.0, payload_supervised_phase_count),
+        "constant_text_exact_count": float(strongest),
+        "constant_text_exact_floor": strongest / max(1.0, supervised_phase_count),
     }
+
+
+def _decode_one_slice(model: LivingReasoningCoreD64, output: LivingReasoningForward) -> tuple[str, bool]:
+    if model.living_config.receipt_continuation:
+        state = model.initial_decoder_execution_state(output)
+        result = model.advance_decoder_execution(output, state, work_units=256)
+        return result.text, result.complete
+    return model.decode_transport_greedy(output, work_units=256)
 
 
 @torch.no_grad()
@@ -649,369 +480,176 @@ def evaluate_living_episode(
     transcript_sink: list[dict[str, Any]] | None = None,
     transcript_sink_cap: int | None = 3,
 ) -> dict[str, Any]:
-    """Measure free-running exact typed emissions on one complete episode.
-
-    ``transcript_sink_cap`` bounds how many DELTA payload phases per episode are
-    recorded for display; ``None`` records every one.  Capping only ever removed
-    rows from an unrepresentative sample, so an unlimited sink changes no metric.
-    """
+    """Measure exact English emission, transport learning, EOS, and FINAL syntax."""
 
     compiled = D64FieldCompiler().compile(episode.snapshot)
     unroll = model.unroll_runtime_phases(
         initial_soul=initial_soul,
         expected_core_id=core_id,
         parameter_generation=parameter_generation,
-        tick_uid=f"evaluation-episode:{episode.episode_id}",
+        tick_uid=f"english-evaluation-episode:{episode.episode_id}",
         canonical=compiled,
         first_workspace_text=episode.first_workspace_text,
         refined_workspace_text=episode.refined_workspace_text,
         ablate_temperatures=ablate_temperatures,
     )
-    region_texts = {state.name: state.text for state in episode.snapshot.regions}
-    prompt_text = region_texts.get(LogicalRegion.USER_INPUT, "")
     supervised = 0
-    typed_exact = 0
-    payload_count = 0
-    payload_exact = 0
-    payload_token_count = 0
-    payload_token_correct = 0
-    payload_content_token_count = 0
-    payload_content_token_correct = 0
-    payload_eos_token_count = 0
-    payload_eos_token_correct = 0
-    alignment_position_count = 0
-    alignment_position_correct = 0
-    alignment_copy_gate_count = 0
-    alignment_copy_gate_correct = 0
-    alignment_eos_gate_count = 0
-    alignment_eos_gate_correct = 0
-    deterministic_continuation_count = 0
-    deterministic_continuation_correct = 0
-    decision_correct = 0
-    operation_count = 0
-    operation_correct = 0
-    region_count = 0
-    region_correct = 0
-    start_count = 0
-    start_correct = 0
-    end_count = 0
-    end_correct = 0
-    decision_target_counts = [0] * len(ReasoningDecision)
-    decision_correct_by_target = [0] * len(ReasoningDecision)
-    operation_target_counts = [0] * len(ReasoningOperationKind)
-    operation_correct_by_target = [0] * len(ReasoningOperationKind)
+    exact = 0
+    terminated_count = 0
+    token_count = 0
+    token_correct = 0
+    content_count = 0
+    content_correct = 0
+    eos_count = 0
+    eos_correct = 0
+    final_count = 0
+    final_valid = 0
+    target_counts = torch.zeros(model.eos_index + 1, dtype=torch.long, device=model.device)
+    target_histogram: dict[str, int] = {}
     phase_diagnostics: list[dict[str, Any]] = []
-    payload_target_counts = torch.zeros(
-        model.eos_index + 1,
-        dtype=torch.long,
-        device=model.device,
-    )
-    typed_target_histogram: dict[str, int] = {}
-    payload_target_histogram: dict[str, int] = {}
+
     for output, target in zip(unroll.outputs, episode.targets, strict=True):
-        if target.supervision_weight <= 0:
+        if target.supervision_weight <= 0.0:
             continue
         supervised += 1
-        typed_key = constant_baseline_target_key(target)
-        typed_target_histogram[typed_key] = typed_target_histogram.get(typed_key, 0) + 1
-        decision = tuple(ReasoningDecision)[
-            int(output.decision_logits.argmax(dim=-1).item())
-        ]
-        decision_index = tuple(ReasoningDecision).index(target.decision)
-        decision_is_exact = decision is target.decision
-        decision_target_counts[decision_index] += 1
-        decision_correct_by_target[decision_index] += int(decision_is_exact)
-        decision_correct += int(decision_is_exact)
-        exact = decision_is_exact
-        diagnostic: dict[str, Any] = {
-            "target_decision": target.decision.value,
-            "decision_exact": bool(decision_is_exact),
-        }
-        if target.decision is ReasoningDecision.DELTA:
-            payload_count += 1
-            payload_key = target.payload
-            payload_target_histogram[payload_key] = (
-                payload_target_histogram.get(payload_key, 0) + 1
-            )
-            operation = tuple(ReasoningOperationKind)[
-                int(output.operation_logits.argmax(dim=-1).item())
-            ]
-            region = tuple(LogicalRegion)[int(output.region_logits.argmax(dim=-1).item())]
-            operation_index = tuple(ReasoningOperationKind).index(target.operation)
-            operation_is_exact = operation is target.operation
-            operation_count += 1
-            operation_correct += int(operation_is_exact)
-            operation_target_counts[operation_index] += 1
-            operation_correct_by_target[operation_index] += int(operation_is_exact)
-            region_is_exact = region is target.region
-            region_count += 1
-            region_correct += int(region_is_exact)
+        target_histogram[target.text] = target_histogram.get(target.text, 0) + 1
+        predicted, terminated = _decode_one_slice(model, output)
+        is_exact = bool(terminated and predicted == target.text)
+        exact += int(is_exact)
+        terminated_count += int(terminated)
 
-            target_candidates, target_start_logits, target_end_logits = model.boundary_logits(
-                output, target.region
-            )
-            target_start_prediction = target_candidates[
-                int(target_start_logits.argmax(dim=-1).item())
-            ]
-            target_end_prediction = target_candidates[
-                int(target_end_logits.argmax(dim=-1).item())
-            ]
-            start_is_exact = target_start_prediction == target.start
-            end_is_exact = target_end_prediction == target.end
-            start_count += 1
-            start_correct += int(start_is_exact)
-            end_count += 1
-            end_correct += int(end_is_exact)
-
-            candidates, start_logits, end_logits = model.boundary_logits(output, region)
-            start = candidates[int(start_logits.argmax(dim=-1).item())]
-            end = candidates[int(end_logits.argmax(dim=-1).item())]
-            if operation is ReasoningOperationKind.INSERT:
-                end = start
-            phase_continuations = 0
-            phase_continuations_correct = 0
-            if model.living_config.receipt_continuation:
-                execution = model.initial_decoder_execution_state(output)
-                decoded_result = model.advance_decoder_execution(
-                    output,
-                    execution,
-                    work_units=capacity_policy().integer(
-                        "reasoning.emission_work_slice_transport_units"
-                    ),
-                )
-                payload = decoded_result.text
-                terminated = decoded_result.complete
-                continuation_events = tuple(
-                    item
-                    for item in decoded_result.state.trace
-                    if item.route.value == "deterministic_receipt_continuation"
-                )
-                phase_continuations = len(continuation_events)
-                for item in continuation_events:
-                    if item.memory_index is None:
-                        continue
-                    receipt = output.complete_memory.receipt(item.memory_index)
-                    phase_continuations_correct += int(
-                        receipt.receipt_id == item.receipt_id
-                        and receipt.address.transport_token_id == item.category
-                    )
-                deterministic_continuation_count += phase_continuations
-                deterministic_continuation_correct += phase_continuations_correct
-            else:
-                payload, terminated = model.decode_transport_greedy(output)
-            payload_match = terminated and payload == target.payload
-            payload_exact += int(payload_match)
-            if transcript_sink is not None and (
-                transcript_sink_cap is None or payload_count <= transcript_sink_cap
-            ):
-                transcript_sink.append(
-                    {
-                        "episode_id": episode.episode_id,
-                        # A transcript that cannot name its case is unreadable
-                        # during a run; the label is the only human-usable key.
-                        "episode_label": episode.label,
-                        "prompt": prompt_text,
-                        "predicted_payload": payload,
-                        "expected_payload": target.payload,
-                        "exact_match": bool(payload_match),
-                        "terminated": bool(terminated),
-                        "operation": (operation.name if operation is not None else None),
-                        "region": (region.name if region is not None else None),
-                        "decision": (decision.name if decision is not None else None),
-                    }
-                )
-            teacher_decoded = model.decode_teacher(
-                output.reader_state,
-                target.payload,
-                head=1,
+        teacher = model.decode_teacher(
+            output.reader_state,
+            target.text,
+            head=1,
+            memory=output.complete_memory,
+            return_alignment=target.text_alignment is not None,
+        )
+        if target.text_alignment is None:
+            logits, targets = teacher
+            learned_mask = torch.ones_like(targets, dtype=torch.bool)
+        else:
+            logits, targets, decoder_alignment = teacher
+            alignment = model.alignment_supervision(
+                target_text=target.text,
                 memory=output.complete_memory,
-                return_alignment=target.payload_alignment is not None,
+                decoder_alignment=decoder_alignment,
+                specification=target.text_alignment,
             )
-            if target.payload_alignment is None:
-                teacher_logits, teacher_targets = teacher_decoded
-                alignment = None
-            else:
-                teacher_logits, teacher_targets, decoder_alignment = teacher_decoded
-                alignment = model.alignment_supervision(
-                    target_text=target.payload,
-                    memory=output.complete_memory,
-                    decoder_alignment=decoder_alignment,
-                    specification=target.payload_alignment,
+            learned_mask = alignment["learned_decision_mask"]
+        predictions = logits.argmax(dim=-1)
+        learned_targets = targets[learned_mask]
+        learned_predictions = predictions[learned_mask]
+        token_count += int(learned_targets.numel())
+        token_correct += int(learned_predictions.eq(learned_targets).sum().item())
+        target_counts += torch.bincount(learned_targets.reshape(-1), minlength=model.eos_index + 1)
+
+        content_mask = learned_mask[:, :-1]
+        content_targets = targets[:, :-1][content_mask]
+        content_predictions = predictions[:, :-1][content_mask]
+        content_count += int(content_targets.numel())
+        content_correct += int(content_predictions.eq(content_targets).sum().item())
+        eos_count += int(targets.shape[0])
+        eos_correct += int(predictions[:, -1].eq(targets[:, -1]).sum().item())
+
+        final_is_valid: bool | None = None
+        if target.phase == "consolidated":
+            final_count += 1
+            try:
+                verdict = TechnicalFinalVerdict(
+                    base_field_id=episode.snapshot.field_id,
+                    base_tick_id=episode.snapshot.tick_id,
+                    author_core_id=core_id,
+                    rail_d_model=64,
+                    text=predicted,
                 )
-            teacher_predictions = teacher_logits.argmax(dim=-1)
-            learned_mask = (
-                torch.ones_like(teacher_targets, dtype=torch.bool)
-                if alignment is None
-                else alignment["learned_decision_mask"]
-            )
-            learned_targets = teacher_targets[learned_mask]
-            learned_predictions = teacher_predictions[learned_mask]
-            payload_token_count += int(learned_targets.numel())
-            payload_token_correct += int(
-                learned_predictions.eq(learned_targets).sum().item()
-            )
-            content_mask = learned_mask[:, :-1]
-            content_targets = teacher_targets[:, :-1][content_mask]
-            content_predictions = teacher_predictions[:, :-1][content_mask]
-            content_count = int(content_targets.numel())
-            content_correct = int(content_predictions.eq(content_targets).sum().item())
-            payload_content_token_count += content_count
-            payload_content_token_correct += content_correct
-            eos_count = int(teacher_targets.shape[0])
-            eos_correct = int(
-                teacher_predictions[:, -1].eq(teacher_targets[:, -1]).sum().item()
-            )
-            payload_eos_token_count += eos_count
-            payload_eos_token_correct += eos_correct
-            payload_target_counts += torch.bincount(
-                learned_targets.reshape(-1),
-                minlength=model.eos_index + 1,
-            )
-            if alignment is not None:
-                alignment_position_count += int(alignment["copy_positions"])
-                alignment_position_correct += int(alignment["position_correct"])
-                alignment_copy_gate_count += int(alignment["copy_positions"])
-                alignment_copy_gate_correct += int(alignment["copy_gate_correct"])
-                alignment_eos_gate_count += int(
-                    alignment["eos_gate_supervised_positions"]
-                )
-                alignment_eos_gate_correct += int(alignment["eos_gate_correct"])
-            diagnostic.update(
-                {
-                    "target_operation": target.operation.value,
-                    "operation_exact": bool(operation_is_exact),
-                    "region_exact": bool(region_is_exact),
-                    "start_exact": bool(start_is_exact),
-                    "end_exact": bool(end_is_exact),
-                    "payload_content_count": content_count,
-                    "payload_content_correct": content_correct,
-                    "payload_content_exact": (
-                        None if content_count == 0 else content_correct == content_count
-                    ),
-                    "payload_eos_exact": bool(eos_correct == eos_count),
-                    "alignment_position_exact": (
-                        None
-                        if alignment is None
-                        else alignment["position_correct"] == alignment["copy_positions"]
-                    ),
-                    "alignment_copy_gate_exact": (
-                        None
-                        if alignment is None
-                        else alignment["copy_gate_correct"] == alignment["copy_positions"]
-                    ),
-                    "alignment_eos_gate_exact": (
-                        None
-                        if alignment is None
-                        else alignment["eos_gate_correct"]
-                        == alignment["eos_gate_supervised_positions"]
-                    ),
-                    "deterministic_continuation_count": (
-                        phase_continuations
-                    ),
-                    "deterministic_continuation_integrity_exact": (
-                        None
-                        if phase_continuations == 0
-                        else phase_continuations_correct == phase_continuations
-                    ),
-                }
-            )
-            exact = exact and all(
-                (
-                    operation is target.operation,
-                    region is target.region,
-                    start == target.start,
-                    end == target.end,
-                    payload_match,
-                )
-            )
+                verdict.materialize(episode.snapshot)
+                final_is_valid = True
+                final_valid += 1
+            except (TypeError, ValueError):
+                final_is_valid = False
+
+        diagnostic = {
+            "phase": target.phase,
+            "expected_text": target.text,
+            "predicted_text": predicted,
+            "terminated": bool(terminated),
+            "text_exact": is_exact,
+            "final_verdict_valid": final_is_valid,
+        }
         phase_diagnostics.append(diagnostic)
-        typed_exact += int(exact)
-    coverage = sum(item.canonical_coverage.complete for item in unroll.outputs) / len(
-        unroll.outputs
-    )
-    constant_token_correct = int(payload_target_counts.max().item())
+        if transcript_sink is not None and (
+            transcript_sink_cap is None or len(transcript_sink) < transcript_sink_cap
+        ):
+            transcript_sink.append({"episode_id": episode.episode_id, **diagnostic})
+
+    coverage_count = sum(item.canonical_coverage.complete for item in unroll.outputs)
     floors = constant_baseline_floors(
-        typed_target_histogram,
-        payload_target_histogram,
+        target_histogram,
         supervised_phase_count=float(supervised),
-        payload_supervised_phase_count=float(payload_count),
     )
+    constant_token_correct = int(target_counts.max().item()) if token_count else 0
     return {
         "supervised_phase_count": float(supervised),
-        "typed_emission_exact_count": float(typed_exact),
-        "payload_supervised_phase_count": float(payload_count),
-        "payload_transport_exact_count": float(payload_exact),
+        "text_exact_count": float(exact),
+        "text_exact_rate": exact / max(1, supervised),
+        "text_terminated_count": float(terminated_count),
+        "text_termination_rate": terminated_count / max(1, supervised),
+        "text_teacher_forced_token_accuracy": token_correct / max(1, token_count),
+        "text_teacher_forced_token_count": token_count,
+        "text_teacher_forced_token_correct": token_correct,
+        "text_teacher_forced_target_counts": target_counts.tolist(),
+        "text_teacher_forced_content_accuracy": content_correct / max(1, content_count),
+        "text_teacher_forced_content_count": content_count,
+        "text_teacher_forced_content_correct": content_correct,
+        "text_teacher_forced_eos_accuracy": eos_correct / max(1, eos_count),
+        "text_teacher_forced_eos_count": eos_count,
+        "text_teacher_forced_eos_correct": eos_correct,
+        "constant_text_token_accuracy_floor": constant_token_correct / max(1, token_count),
+        "constant_text_target_histogram": dict(sorted(target_histogram.items())),
+        "final_verdict_count": float(final_count),
+        "final_verdict_valid_count": float(final_valid),
+        "final_verdict_valid_rate": final_valid / max(1, final_count),
         "phase_output_count": float(len(unroll.outputs)),
-        "complete_field_coverage_count": float(
-            sum(item.canonical_coverage.complete for item in unroll.outputs)
-        ),
-        "typed_emission_exact_rate": typed_exact / max(1, supervised),
-        "payload_transport_exact_rate": payload_exact / max(1, payload_count),
-        "payload_teacher_forced_token_accuracy": payload_token_correct
-        / max(1, payload_token_count),
-        "payload_teacher_forced_token_count": payload_token_count,
-        "payload_teacher_forced_token_correct": payload_token_correct,
-        "payload_teacher_forced_target_counts": payload_target_counts.tolist(),
-        "payload_teacher_forced_content_accuracy": payload_content_token_correct
-        / max(1, payload_content_token_count),
-        "payload_teacher_forced_content_count": payload_content_token_count,
-        "payload_teacher_forced_content_correct": payload_content_token_correct,
-        "payload_teacher_forced_eos_accuracy": payload_eos_token_correct
-        / max(1, payload_eos_token_count),
-        "payload_teacher_forced_eos_count": payload_eos_token_count,
-        "payload_teacher_forced_eos_correct": payload_eos_token_correct,
-        "alignment_position_accuracy": alignment_position_correct
-        / max(1, alignment_position_count),
-        "alignment_position_count": alignment_position_count,
-        "alignment_position_correct": alignment_position_correct,
-        "alignment_copy_gate_accuracy": alignment_copy_gate_correct
-        / max(1, alignment_copy_gate_count),
-        "alignment_copy_gate_count": alignment_copy_gate_count,
-        "alignment_copy_gate_correct": alignment_copy_gate_correct,
-        "alignment_eos_gate_accuracy": alignment_eos_gate_correct
-        / max(1, alignment_eos_gate_count),
-        "alignment_eos_gate_count": alignment_eos_gate_count,
-        "alignment_eos_gate_correct": alignment_eos_gate_correct,
-        "deterministic_continuation_integrity_rate": deterministic_continuation_correct
-        / max(1, deterministic_continuation_count),
-        "deterministic_continuation_count": deterministic_continuation_count,
-        "deterministic_continuation_correct": deterministic_continuation_correct,
-        "decision_accuracy": decision_correct / max(1, supervised),
-        "decision_correct": decision_correct,
-        "decision_target_counts": decision_target_counts,
-        "decision_correct_by_target": decision_correct_by_target,
-        "operation_accuracy": operation_correct / max(1, operation_count),
-        "operation_count": operation_count,
-        "operation_correct": operation_correct,
-        "operation_target_counts": operation_target_counts,
-        "operation_correct_by_target": operation_correct_by_target,
-        "region_accuracy": region_correct / max(1, region_count),
-        "region_count": region_count,
-        "region_correct": region_correct,
-        "start_accuracy": start_correct / max(1, start_count),
-        "start_count": start_count,
-        "start_correct": start_correct,
-        "end_accuracy": end_correct / max(1, end_count),
-        "end_count": end_count,
-        "end_correct": end_correct,
+        "complete_field_coverage_count": float(coverage_count),
+        "complete_field_coverage_rate": coverage_count / max(1, len(unroll.outputs)),
         "phase_diagnostics": phase_diagnostics,
-        "complete_field_coverage_rate": coverage,
-        "constant_typed_emission_target_histogram": dict(
-            sorted(typed_target_histogram.items())
-        ),
-        "constant_payload_transport_target_histogram": dict(
-            sorted(payload_target_histogram.items())
-        ),
         **floors,
-        "constant_payload_token_accuracy_floor": constant_token_correct
-        / max(1, payload_token_count),
-        "constant_payload_content_accuracy_floor": (
-            0.0
-            if payload_content_token_count == 0
-            else max(payload_target_counts[:-1]).item()
-            / payload_content_token_count
-        ),
     }
+
+
+def decide_living_reasoning_mastery(metrics: Mapping[str, Any]) -> dict[str, Any]:
+    """Fail-closed heldout gate for the English-native learned surface."""
+
+    failures: list[dict[str, Any]] = []
+    for metric, threshold in ENGLISH_REASONING_GATE_REQUIREMENTS.items():
+        observed = metrics.get(metric)
+        if not isinstance(observed, (int, float)) or float(observed) < threshold:
+            failures.append(
+                {
+                    "metric": metric,
+                    "observed": observed,
+                    "required_minimum": threshold,
+                }
+            )
+    exact = metrics.get("text_exact_rate")
+    floor = metrics.get("constant_text_exact_floor")
+    if not isinstance(exact, (int, float)) or not isinstance(floor, (int, float)) or float(exact) <= float(floor):
+        failures.append(
+            {
+                "metric": "text_exact_rate_vs_constant",
+                "observed": exact,
+                "required_strictly_greater_than": floor,
+            }
+        )
+    value = {
+        "schema": LIVING_REASONING_GATE_SCHEMA,
+        "requirements": dict(ENGLISH_REASONING_GATE_REQUIREMENTS),
+        "failures": failures,
+        "passed": not failures,
+    }
+    value["gate_id"] = canonical_sha256(value)
+    return value
 
 
 @torch.no_grad()
@@ -1023,21 +661,21 @@ def living_source_counterfactuals(
     core_id: str,
     parameter_generation: str,
 ) -> dict[str, float]:
-    """Prove field, proposals, and private Soul all affect consolidated state."""
+    """Prove field, proposal-board, and Soul inputs all affect decoder state."""
 
     compiled = D64FieldCompiler().compile(episode.snapshot)
     unroll = model.unroll_runtime_phases(
         initial_soul=initial_soul,
         expected_core_id=core_id,
         parameter_generation=parameter_generation,
-        tick_uid=f"counterfactual-episode:{episode.episode_id}",
+        tick_uid=f"english-counterfactual:{episode.episode_id}",
         canonical=compiled,
         first_workspace_text=episode.first_workspace_text,
         refined_workspace_text=episode.refined_workspace_text,
     )
     consolidated_soul = unroll.souls[2]
 
-    def forward(canonical, proposals, *, ablate=()):
+    def forward(canonical: Any, proposals: Sequence[str], *, ablate: tuple[SoulTemperature, ...] = ()) -> LivingReasoningForward:
         return model.forward_surfaces(
             soul=consolidated_soul,
             expected_core_id=core_id,
@@ -1068,9 +706,7 @@ def living_source_counterfactuals(
         return torch.cat(
             (
                 output.reader_state.mean(dim=1),
-                output.decision_logits,
-                output.operation_logits,
-                output.region_logits,
+                model._initial_decoder_hidden(output.reader_state, 1).reshape(1, -1),
             ),
             dim=-1,
         )
@@ -1078,9 +714,7 @@ def living_source_counterfactuals(
     reference = signature(baseline)
     return {
         "field_counterfactual_l2": float((signature(changed_field) - reference).norm().item()),
-        "proposal_counterfactual_l2": float(
-            (signature(changed_proposals) - reference).norm().item()
-        ),
+        "proposal_counterfactual_l2": float((signature(changed_proposals) - reference).norm().item()),
         "soul_counterfactual_l2": float((signature(ablated_soul) - reference).norm().item()),
     }
 
@@ -1094,55 +728,22 @@ def living_phase_breakdown(
     core_id: str,
     parameter_generation: str,
 ) -> dict[str, dict[str, float]]:
-    """Per-phase free-running exactness for one episode.
-
-    Returns one row per phase target (``first``, ``refined``,
-    ``consolidated``).  A supervised weight of zero still produces a row —
-    the emission is measured, it simply never becomes a training target.
-    Callers use the FIRST-vs-REFINED rows to measure proposal-board use and
-    the CONSOLIDATED row for final-authority exactness.
-    """
-
     compiled = D64FieldCompiler().compile(episode.snapshot)
     unroll = model.unroll_runtime_phases(
         initial_soul=initial_soul,
         expected_core_id=core_id,
         parameter_generation=parameter_generation,
-        tick_uid=f"phase-breakdown:{episode.episode_id}",
+        tick_uid=f"english-phase-breakdown:{episode.episode_id}",
         canonical=compiled,
         first_workspace_text=episode.first_workspace_text,
         refined_workspace_text=episode.refined_workspace_text,
     )
     rows: dict[str, dict[str, float]] = {}
     for output, target in zip(unroll.outputs, episode.targets, strict=True):
-        decision = tuple(ReasoningDecision)[
-            int(output.decision_logits.argmax(dim=-1).item())
-        ]
-        decision_match = float(decision is target.decision)
-        payload_match = 0.0
-        if target.decision is ReasoningDecision.DELTA:
-            operation = tuple(ReasoningOperationKind)[
-                int(output.operation_logits.argmax(dim=-1).item())
-            ]
-            region = tuple(LogicalRegion)[int(output.region_logits.argmax(dim=-1).item())]
-            candidates, start_logits, end_logits = model.boundary_logits(output, region)
-            start = candidates[int(start_logits.argmax(dim=-1).item())]
-            end = candidates[int(end_logits.argmax(dim=-1).item())]
-            if operation is ReasoningOperationKind.INSERT:
-                end = start
-            payload, terminated = model.decode_transport_greedy(output)
-            payload_match = float(terminated and payload == target.payload)
-            decision_match = float(
-                decision_match
-                and operation is target.operation
-                and region is target.region
-                and start == target.start
-                and end == target.end
-                and payload_match
-            )
+        text, terminated = _decode_one_slice(model, output)
         rows[target.phase] = {
-            "decision_match": decision_match,
-            "payload_match": payload_match,
+            "text_match": float(terminated and text == target.text),
+            "terminated": float(terminated),
             "supervision_weight": float(target.supervision_weight),
         }
     return rows
@@ -1153,14 +754,20 @@ def curriculum_manifest_bytes(curriculum: LivingReasoningCurriculum) -> bytes:
 
 
 __all__ = [
+    "ENGLISH_REASONING_GATE_REQUIREMENTS",
+    "LIVING_OBJECTIVE_COMPONENTS",
     "LIVING_REASONING_CURRICULUM_SCHEMA",
     "LIVING_REASONING_EPISODE_SCHEMA",
+    "LIVING_REASONING_GATE_SCHEMA",
     "LIVING_REASONING_TARGET_SCHEMA",
     "LivingReasoningCurriculum",
     "LivingReasoningEpisode",
     "LivingReasoningTarget",
     "build_living_reasoning_smoke_curriculum",
+    "constant_baseline_floors",
+    "constant_baseline_target_key",
     "curriculum_manifest_bytes",
+    "decide_living_reasoning_mastery",
     "evaluate_living_episode",
     "living_episode_objective",
     "living_phase_breakdown",

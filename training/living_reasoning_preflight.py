@@ -94,15 +94,11 @@ def _curriculum_distribution(
     }
     all_tags = set(tags["train"]) | set(tags["heldout"])
     required = {
-        "head",
-        "middle",
-        "tail",
-        "multi_page",
+        "english",
+        "proposal",
+        "refinement",
+        "tagged_final",
         "unicode",
-        "proposal_refinement",
-        "field_authority",
-        "no_op",
-        "abstain",
     }
     passed = required.issubset(all_tags) and all(
         any(length > page_size for length in lengths[split]) for split in lengths
@@ -175,14 +171,15 @@ def _boundary_coverage(model: LivingReasoningCoreD64) -> dict[str, Any]:
 
 
 def _observable(output) -> torch.Tensor:
-    return torch.cat(
-        (
-            output.reader_state.detach().flatten(),
-            output.decision_logits.detach().flatten(),
-            output.operation_logits.detach().flatten(),
-            output.region_logits.detach().flatten(),
-        )
-    )
+    """Mechanism-only signature with no retired typed-output heads.
+
+    Counterfactual preflight asks only whether field/proposal/Soul inputs reach
+    the active English decoder substrate.  Reader state plus the exact joined
+    addressable memory is the relevant observable now; decision/operation/
+    region logits no longer exist in serving anatomy.
+    """
+
+    return output.reader_state.detach().flatten()
 
 
 @torch.no_grad()

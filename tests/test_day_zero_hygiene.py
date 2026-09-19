@@ -101,7 +101,6 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "learning.py",
         "lease.py",
         "inspection.py",
-        "kaggle_adapter.py",
         "cloud_bundle.py",
         "organ.py",
         "host.py",
@@ -125,21 +124,15 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
     training_files = {path.name for path in (ROOT / "training").glob("*.py")}
     assert training_files == {
         "__init__.py",
-        "abc_sequence_curriculum.py",
         "canonical_d64.py",
-        "communication_first_c1.py",
         "complete_field_64d.py",
-        "first_form_curriculum.py",
-        "foundation_motor_curriculum.py",
-        "foundation_sequence_curriculum.py",
         "heart_preflight.py",
         "heart_translation.py",
+        "legacy_typed_reasoning_d64.py",
         "living_reasoning_curriculum.py",
         "living_reasoning_d64.py",
         "living_reasoning_preflight.py",
         "lived_reasoning_curriculum.py",
-        "reasoning_tournament.py",
-        "sequential_first_form.py",
         "train_complete_field_64d.py",
     }
 
