@@ -18,6 +18,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Iterable, Mapping
 
 import torch
+import torch.nn.functional as F
 
 from runtime.field import CompiledD64Field, canonical_sha256
 from runtime.heart import (
@@ -28,7 +29,7 @@ from runtime.heart import (
 )
 from runtime.soul import SoulSnapshot, SoulTemperature
 
-from .complete_field_64d import AddressableMemory, CoverageManifest
+from .complete_field_64d import AddressableMemory, CompleteField64D, CoverageManifest
 from .legacy_typed_reasoning_d64 import (
     D64_DECODER_EXECUTION_STATE_SCHEMA,
     D64_DECODER_TRACE_SCHEMA,
@@ -58,6 +59,7 @@ LIVING_REASONING_RECEIPT_ARCHITECTURE_SCHEMA = (
     "axon-living-reasoning-english-receipt-architecture-v1"
 )
 ENGLISH_REASONING_OUTPUT_CONTRACT = "english-proposal-tagged-final-v1"
+ENGLISH_REASONING_TERMINATION_CONTRACT = "generated-eos-independent-of-content-gate-v1"
 D64_ENGLISH_MIGRATION_SCHEMA = "axon-d64-english-reasoning-migration-v1"
 
 # The only learned tensors that may exist in a pre-amendment donor but may not
@@ -83,11 +85,16 @@ class LivingReasoningCoreConfig(LegacyTypedLivingReasoningCoreConfig):
         # then deliberately sever architecture identity from the retired typed
         # output topology.
         LegacyTypedLivingReasoningCoreConfig.__post_init__(self)
+        if self.receipt_continuation or self.eos_generate_head_route or self.termination_head_route:
+            raise ValueError(
+                "English-native reasoning retired receipt/termination-head routes; "
+                "EOS is always the generated text terminator"
+            )
         if self.reasoning_output_contract != ENGLISH_REASONING_OUTPUT_CONTRACT:
             raise ValueError(
                 "LivingReasoningCoreConfig supports only the English proposal/tagged FINAL contract"
             )
-        prefix = "living-d64-english-receipt-" if self.receipt_continuation else "living-d64-english-"
+        prefix = "living-d64-english-"
         object.__setattr__(
             self,
             "architecture_id",
@@ -96,12 +103,9 @@ class LivingReasoningCoreConfig(LegacyTypedLivingReasoningCoreConfig):
 
     def to_canonical_dict(self, include_id: bool = True) -> dict[str, Any]:
         value = LegacyTypedLivingReasoningCoreConfig.to_canonical_dict(self, include_id=False)
-        value["schema"] = (
-            LIVING_REASONING_RECEIPT_ARCHITECTURE_SCHEMA
-            if self.receipt_continuation
-            else LIVING_REASONING_ARCHITECTURE_SCHEMA
-        )
+        value["schema"] = LIVING_REASONING_ARCHITECTURE_SCHEMA
         value["reasoning_output_contract"] = self.reasoning_output_contract
+        value["termination_contract"] = ENGLISH_REASONING_TERMINATION_CONTRACT
         if include_id:
             value["architecture_id"] = self.architecture_id
         return value
@@ -298,6 +302,46 @@ class LivingReasoningCoreD64(LegacyTypedLivingReasoningCoreD64):
         ):
             delattr(self, name)
 
+
+    def _decoder_logits(
+        self,
+        output: torch.Tensor,
+        memory: AddressableMemory | None,
+        *,
+        return_alignment: bool = False,
+    ) -> torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]:
+        """Use ordinary generated EOS while the copy gate routes content only.
+
+        The retired motor trainer coupled termination to the copy/generate gate.
+        English-native reasoning does not: EOS probability comes directly from
+        the generated text distribution, while the copy pointer may still route
+        non-EOS substrate content.  Training and free-running decoding consume
+        this same normalized distribution.
+        """
+
+        mixed_logits, alignment = CompleteField64D._decoder_logits(
+            self, output, memory, return_alignment=True
+        )
+        generated_log_probabilities = F.log_softmax(alignment["generated_logits"], dim=-1)
+        if memory is None:
+            mixed_logits = generated_log_probabilities
+        else:
+            tiny = torch.finfo(mixed_logits.dtype).tiny
+            epsilon = torch.finfo(mixed_logits.dtype).eps
+            generated_eos = generated_log_probabilities[..., self.eos_index].exp()
+            mixed_eos = mixed_logits[..., self.eos_index].exp()
+            generated_eos = generated_eos.clamp(min=tiny, max=1.0 - epsilon)
+            mixed_eos = mixed_eos.clamp(min=tiny, max=1.0 - epsilon)
+            content_scale = torch.log1p(-generated_eos) - torch.log1p(-mixed_eos)
+            mixed_logits = mixed_logits.clone()
+            mixed_logits[..., : self.eos_index] = (
+                mixed_logits[..., : self.eos_index] + content_scale.unsqueeze(-1)
+            )
+            mixed_logits[..., self.eos_index] = generated_log_probabilities[..., self.eos_index]
+        if return_alignment:
+            return mixed_logits, alignment
+        return mixed_logits
+
     def forward_surfaces(
         self,
         *,
@@ -420,7 +464,10 @@ class LivingReasoningCoreD64(LegacyTypedLivingReasoningCoreD64):
 
     def architecture_report(self) -> dict[str, Any]:
         report = super().architecture_report()
+        report.pop("eos_generate_head_route", None)
+        report.pop("termination_head_route", None)
         report["reasoning_output_contract"] = ENGLISH_REASONING_OUTPUT_CONTRACT
+        report["termination_contract"] = ENGLISH_REASONING_TERMINATION_CONTRACT
         report["retired_learned_heads"] = [
             "decision",
             "operation",
@@ -449,6 +496,7 @@ __all__ = [
     "D64_SOUL_CODEC_VERSION",
     "D64_SOUL_MEDIA_TYPE",
     "ENGLISH_REASONING_OUTPUT_CONTRACT",
+    "ENGLISH_REASONING_TERMINATION_CONTRACT",
     "LEGACY_TYPED_OUTPUT_TENSOR_PREFIXES",
     "LIVING_REASONING_ARCHITECTURE_SCHEMA",
     "LIVING_REASONING_RECEIPT_ARCHITECTURE_SCHEMA",

@@ -75,7 +75,7 @@ def _compiled():
     snapshot = SharedFieldSnapshot.from_texts(
         {
             LogicalRegion.IDENTITY: "I am Axon.",
-            LogicalRegion.USER_INPUT: "Read beginning λ, middle 🧠, and end.",
+            LogicalRegion.USER_INPUT: "Read beginning \u03bb, middle \U0001F9E0, and end.",
             LogicalRegion.SCRATCH: "",
         },
         tick_id=7,
@@ -117,16 +117,12 @@ def test_candidate_a_parameter_estimate_preserves_deliberate_huge_ffn() -> None:
     assert report["parameter_bytes_fp32"] == report["parameter_count"] * 4
 
 
-def test_architecture_report_explicitly_serializes_generated_head_eos_route() -> None:
-    config = candidate_a_config(
-        dropout=0.0,
-        ffn_dim=128,
-        n_layers=1,
-        receipt_continuation=True,
-        eos_generate_head_route=True,
-    )
+def test_architecture_report_declares_normal_text_termination_contract() -> None:
+    config = candidate_a_config(dropout=0.0, ffn_dim=128, n_layers=1)
     report = LivingReasoningCoreD64(config).architecture_report()
-    assert report["eos_generate_head_route"] is True
+    assert report["termination_contract"] == "generated-eos-independent-of-content-gate-v1"
+    assert "eos_generate_head_route" not in report
+    assert "termination_head_route" not in report
     assert report["architecture_id"] == config.architecture_id
 
 
@@ -155,7 +151,7 @@ def test_soul_is_inhaled_before_complete_unicode_field_and_proposal_sweeps() -> 
         parameter_generation="g0",
         phase="refined",
         canonical=compiled,
-        proposal_texts=('core-b proposes "preserve λ🧠"',),
+        proposal_texts=('core-b proposes "preserve \u03bb\U0001F9E0"',),
     )
 
     assert first.canonical_coverage.complete
@@ -184,7 +180,7 @@ def test_unicode_decoder_trains_on_all_351_transport_categories_plus_eos() -> No
         phase="first",
         canonical=compiled,
     )
-    target = "λ🧠"
+    target = "\u03bb\U0001F9E0"
     logits, targets = model.decode_teacher(
         output.reader_state,
         target,
@@ -206,7 +202,7 @@ def test_exact_alignment_supervises_every_multibyte_unicode_transport_cell() -> 
         phase="first",
         canonical=compiled,
     )
-    target = "λ🧠"
+    target = "\u03bb\U0001F9E0"
     _logits, _targets, decoder_alignment = model.decode_teacher(
         output.reader_state,
         target,
@@ -214,7 +210,7 @@ def test_exact_alignment_supervises_every_multibyte_unicode_transport_cell() -> 
         memory=output.complete_memory,
         return_alignment=True,
     )
-    source = "Read beginning λ, middle 🧠, and end."
+    source = "Read beginning \u03bb, middle \U0001F9E0, and end."
     segments = []
     for target_position, character in enumerate(target):
         source_position = source.index(character)
@@ -526,191 +522,43 @@ class _StubMemory:
         )
 
 
-def test_eos_generate_head_route_is_opt_in_and_changes_emission_identity() -> None:
+def test_active_config_rejects_retired_termination_routes() -> None:
+    with pytest.raises(ValueError, match="retired receipt/termination-head routes"):
+        LivingReasoningCoreConfig(receipt_continuation=True)
+    with pytest.raises(ValueError, match="retired receipt/termination-head routes"):
+        LivingReasoningCoreConfig(receipt_continuation=True, eos_generate_head_route=True)
+    with pytest.raises(ValueError, match="retired receipt/termination-head routes"):
+        LivingReasoningCoreConfig(receipt_continuation=True, termination_head_route=True)
+
+
+def test_generated_eos_is_independent_of_content_copy_gate() -> None:
     model = LivingReasoningCoreD64(
         LivingReasoningCoreConfig(
             n_heads=1,
-            n_layers=2,
+            n_layers=1,
             ffn_dim=128,
             state_tokens=2,
             page_size=2,
             dropout=0.0,
-            receipt_continuation=True,
-        )
-    )
-    routed = LivingReasoningCoreD64(
-        LivingReasoningCoreConfig(
-            n_heads=1,
-            n_layers=2,
-            ffn_dim=128,
-            state_tokens=2,
-            page_size=2,
-            dropout=0.0,
-            receipt_continuation=True,
-            eos_generate_head_route=True,
-        )
-    )
-    assert model.architecture_id != routed.architecture_id
-    identity = routed.living_config.to_canonical_dict(False)
-    assert "generate_head_eos" in identity["emission_routes"]
-
-    with pytest.raises(ValueError, match="receipt_continuation"):
-        LivingReasoningCoreConfig(eos_generate_head_route=True)
-
-
-def test_eos_generate_head_route_lets_generate_head_emit_eos_under_copy_gate() -> None:
-    from training.living_reasoning_d64 import (
-        CausalDecoderStep,
-        DecoderEmissionRoute,
-    )
-
-    model = LivingReasoningCoreD64(
-        LivingReasoningCoreConfig(
-            n_heads=1,
-            n_layers=2,
-            ffn_dim=128,
-            state_tokens=2,
-            page_size=2,
-            dropout=0.0,
-            receipt_continuation=True,
-            eos_generate_head_route=True,
-        )
-    )
-    hidden = torch.zeros(1, 1, model.living_config.d_model)
-    generated = torch.zeros(1, 1, model.eos_index + 1)
-    generated[0, 0, model.eos_index] = 10.0
-    step = CausalDecoderStep(
-        hidden=hidden,
-        mixed_logits=generated.clone(),
-        generated_logits=generated,
-        position_logits=torch.zeros(1, 1, 4),
-        generate_gate_logits=torch.full((1, 1), -5.0),
-    )
-    memory = _StubMemory(slots=4, d_model=model.living_config.d_model)
-    route, category, memory_index, receipt = model._select_learned_emission(step, memory)
-    assert route is DecoderEmissionRoute.LEARNED_GENERATE
-    assert category == model.eos_index
-    assert memory_index is None
-    assert receipt is None
-
-
-def test_eos_generate_head_route_uses_one_normalized_training_and_runtime_distribution() -> None:
-    model = LivingReasoningCoreD64(
-        LivingReasoningCoreConfig(
-            n_heads=1,
-            n_layers=2,
-            ffn_dim=128,
-            state_tokens=2,
-            page_size=2,
-            dropout=0.0,
-            receipt_continuation=True,
-            eos_generate_head_route=True,
         )
     )
     memory = _StubMemory(slots=4, d_model=model.living_config.d_model, token_id=7)
-    output = torch.zeros(1, 1, model.living_config.d_model)
+    decoder_state = torch.zeros(1, 1, model.living_config.d_model)
     with torch.no_grad():
         model.copy_gate.weight.zero_()
-        model.copy_gate.bias.fill_(-5.0)
+        model.copy_gate.bias.fill_(-8.0)
         model.decoder_output.weight.zero_()
         model.decoder_output.bias.zero_()
-        model.decoder_output.bias[model.eos_index] = 1.0
+        model.decoder_output.bias[model.eos_index] = 12.0
 
-    logits, alignment = model._decoder_logits(output, memory, return_alignment=True)
+    logits, alignment = model._decoder_logits(decoder_state, memory, return_alignment=True)
     probabilities = logits.exp()
-    generated_probabilities = torch.softmax(alignment["generated_logits"], dim=-1)
+    generated = torch.softmax(alignment["generated_logits"], dim=-1)
     assert torch.allclose(probabilities.sum(dim=-1), torch.ones(1, 1), atol=1e-6)
     assert torch.allclose(
-        probabilities[..., model.eos_index],
-        generated_probabilities[..., model.eos_index],
-        atol=1e-6,
+        probabilities[..., model.eos_index], generated[..., model.eos_index], atol=1e-6
     )
-
-    content_loss = torch.nn.functional.nll_loss(
-        logits.reshape(-1, logits.shape[-1]), torch.tensor([7])
-    )
-    model.zero_grad(set_to_none=True)
-    content_loss.backward()
-    assert model.decoder_output.bias.grad[model.eos_index] > 0
-
-
-def test_eos_generate_head_route_does_not_terminate_when_content_distribution_wins() -> None:
-    from training.living_reasoning_d64 import CausalDecoderStep, DecoderEmissionRoute
-
-    model = LivingReasoningCoreD64(
-        LivingReasoningCoreConfig(
-            n_heads=1,
-            n_layers=2,
-            ffn_dim=128,
-            state_tokens=2,
-            page_size=2,
-            dropout=0.0,
-            receipt_continuation=True,
-            eos_generate_head_route=True,
-        )
-    )
-    hidden = torch.zeros(1, 1, model.living_config.d_model)
-    generated = torch.zeros(1, 1, model.eos_index + 1)
-    generated[0, 0, model.eos_index] = 10.0
-    mixed = torch.zeros_like(generated)
-    mixed[0, 0, 0] = 11.0
-    step = CausalDecoderStep(
-        hidden=hidden,
-        mixed_logits=mixed,
-        generated_logits=generated,
-        position_logits=torch.zeros(1, 1, 4),
-        generate_gate_logits=torch.full((1, 1), -5.0),
-    )
-    memory = _StubMemory(slots=4, d_model=model.living_config.d_model)
-    route, category, _memory_index, _receipt = model._select_learned_emission(step, memory)
-    assert route is DecoderEmissionRoute.LEARNED_COPY_ANCHOR
-    assert category == 0
-
-    generated[0, 0, 7] = 9.0
-    generated_step = CausalDecoderStep(
-        hidden=hidden,
-        mixed_logits=mixed,
-        generated_logits=generated,
-        position_logits=torch.zeros(1, 1, 4),
-        generate_gate_logits=torch.full((1, 1), 5.0),
-    )
-    route, category, _memory_index, _receipt = model._select_learned_emission(
-        generated_step, memory
-    )
-    assert route is DecoderEmissionRoute.LEARNED_GENERATE
-    assert category == 7
-
-
-def test_legacy_route_still_requires_gate_for_eos() -> None:
-    from training.living_reasoning_d64 import (
-        CausalDecoderStep,
-        DecoderEmissionRoute,
-    )
-
-    model = LivingReasoningCoreD64(
-        LivingReasoningCoreConfig(
-            n_heads=1,
-            n_layers=2,
-            ffn_dim=128,
-            state_tokens=2,
-            page_size=2,
-            dropout=0.0,
-            receipt_continuation=True,
-        )
-    )
-    hidden = torch.zeros(1, 1, model.living_config.d_model)
-    generated = torch.zeros(1, 1, model.eos_index + 1)
-    generated[0, 0, model.eos_index] = 10.0
-    step = CausalDecoderStep(
-        hidden=hidden,
-        mixed_logits=generated.clone(),
-        generated_logits=generated,
-        position_logits=torch.zeros(1, 1, 4),
-        generate_gate_logits=torch.full((1, 1), -5.0),
-    )
-    memory = _StubMemory(slots=4, d_model=model.living_config.d_model)
-    route, _category, _memory_index, _receipt = model._select_learned_emission(step, memory)
-    assert route is DecoderEmissionRoute.LEARNED_COPY_ANCHOR
+    assert int(logits[0, 0].argmax().item()) == model.eos_index
 
 
 def test_typed_checkpoint_migrates_by_exact_subset_without_obsolete_heads() -> None:

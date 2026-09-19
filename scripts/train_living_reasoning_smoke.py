@@ -1,8 +1,9 @@
 """Governed English-native D64 reasoning smoke trainer.
 
-This is the active post-2026-09-19 Trainer entrypoint.  It trains only
-variable-length English FIRST/REFINED proposals and compact tagged-region FINAL
-text.  The retired DELTA/NO_OP/ABSTAIN, operation, and address heads are not
+This is the active post-2026-09-19 Trainer entrypoint.  Its first developmental
+stage is exact substrate literacy over the normal FIRST/REFINED/Soul loop; later
+stages train free English reasoning and tagged-region FINAL text.  The retired
+DELTA/NO_OP/ABSTAIN, operation, address, and special termination heads are not
 present in the candidate topology and no old motor ladder is reachable here.
 
 A pre-amendment checkpoint may be supplied as a governed donor.  Donor loading
@@ -41,7 +42,9 @@ from training import (
     LivingReasoningCoreD64,
     build_living_reasoning_preflight,
     build_living_reasoning_smoke_curriculum,
+    build_substrate_literacy_curriculum,
     decide_living_reasoning_mastery,
+    decide_substrate_literacy_mastery,
     evaluate_living_episode,
     living_episode_objective,
     migrate_typed_checkpoint_state_to_english_variant,
@@ -99,9 +102,9 @@ def _arguments() -> argparse.Namespace:
     parser.add_argument("--heads", type=int, default=1)
     parser.add_argument("--layers", type=int, default=2)
     parser.add_argument("--state-tokens", type=int, default=4)
-    parser.add_argument("--receipt-continuation", action="store_true")
-    parser.add_argument("--eos-generate-head-route", action="store_true")
-    parser.add_argument("--termination-head-route", action="store_true")
+    parser.add_argument("--generate-gate-bias", type=float, default=0.0)
+    parser.add_argument("--experiences-per-step", type=int, default=8)
+    parser.add_argument("--curriculum", choices=("substrate", "reasoning"), default="substrate")
     parser.add_argument("--preflight-only", action="store_true")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument(
@@ -197,8 +200,8 @@ def main() -> int:
         raise ValueError("--tranche-steps must be positive")
     if not (0.0 < args.learning_rate < float("inf")):
         raise ValueError("--learning-rate must be positive and finite")
-    if args.eos_generate_head_route and args.termination_head_route:
-        raise ValueError("generated-head EOS and dedicated termination-head routes are mutually exclusive")
+    if args.experiences_per_step < 1:
+        raise ValueError("--experiences-per-step must be positive")
     _seed_everything(args.seed)
     device = _device(args.device)
 
@@ -208,9 +211,7 @@ def main() -> int:
         ffn_dim=args.ffn_dim,
         state_tokens=args.state_tokens,
         page_size=args.page_size,
-        receipt_continuation=args.receipt_continuation,
-        eos_generate_head_route=args.eos_generate_head_route,
-        termination_head_route=args.termination_head_route,
+        generate_gate_bias=args.generate_gate_bias,
     )
     model = LivingReasoningCoreD64(config).to(device)
     migration = None
@@ -246,10 +247,16 @@ def main() -> int:
             {
                 "architecture_id": model.architecture_id,
                 "seed": args.seed,
+                "generate_gate_bias": args.generate_gate_bias,
             }
         )[:20]
 
-    curriculum = build_living_reasoning_smoke_curriculum()
+    if args.curriculum == "substrate":
+        curriculum = build_substrate_literacy_curriculum()
+        mastery_decider = decide_substrate_literacy_mastery
+    else:
+        curriculum = build_living_reasoning_smoke_curriculum()
+        mastery_decider = decide_living_reasoning_mastery
     policy = GovernedLearningPolicy(
         optimizer="adamw",
         learning_rate=args.learning_rate,
@@ -262,6 +269,8 @@ def main() -> int:
             "architecture_id": model.architecture_id,
             "curriculum_id": curriculum.curriculum_id,
             "learning_policy_id": policy.policy_id,
+            "curriculum_kind": args.curriculum,
+            "experiences_per_step": args.experiences_per_step,
         }
     )[:20]
     descriptor = ParameterModuleDescriptor(
@@ -306,7 +315,7 @@ def main() -> int:
             base_global_step=0 if latest is None else latest.step,
             steps=args.tranche_steps,
             parent_bundle_id=None if latest is None else latest.bundle_id,
-            purpose="bounded English reasoning smoke tranche",
+            purpose=f"bounded English-native {args.curriculum} lived-experience tranche",
         )
         preflight = build_living_reasoning_preflight(
             model=model,
@@ -325,6 +334,8 @@ def main() -> int:
             "base_generation": base_generation,
             "candidate_generation": candidate_generation,
             "curriculum_id": curriculum.curriculum_id,
+            "curriculum_kind": args.curriculum,
+            "experiences_per_step": args.experiences_per_step,
             "objective_program_id": OBJECTIVE_PROGRAM_ID,
             "learning_policy": policy.to_canonical_dict(),
             "plan": plan.to_canonical_dict(),
@@ -367,6 +378,7 @@ def main() -> int:
             policy=policy,
             tranche=tranche,
         )
+        session.candidate_module.train()
 
         live_souls = SoulStore.active(state_root)
         live_souls.ensure_core(
@@ -378,7 +390,7 @@ def main() -> int:
         soul_manifest = soul_workspace.prepare(
             candidate_id=candidate_generation,
             core_id=args.module_id,
-            runtime_episode_session_id=f"english-smoke:{curriculum.curriculum_id}",
+            runtime_episode_session_id=f"english-{args.curriculum}:{curriculum.curriculum_id}",
             whole_episode_split="train",
             soul_trajectory_ids=tuple(item.episode_id for item in curriculum.split("train")),
             candidate_parameter_generation=candidate_generation,
@@ -391,28 +403,44 @@ def main() -> int:
 
         train = curriculum.split("train")
         for _local_index in range(args.tranche_steps):
-            episode = train[session.step_index % len(train)]
             before_soul = soul_branch.load_head()
             captured: dict[str, Any] = {}
+            start_experience = session.step_index * args.experiences_per_step
+            experiences = tuple(
+                train[(start_experience + offset) % len(train)]
+                for offset in range(args.experiences_per_step)
+            )
 
             def loss_fn(
                 candidate: torch.nn.Module,
-                episode=episode,
+                experiences=experiences,
                 before_soul=before_soul,
                 captured=captured,
             ) -> torch.Tensor:
                 if not isinstance(candidate, LivingReasoningCoreD64):
                     raise TypeError("governed candidate is not the English-native D64 core")
-                loss, unroll, phase_metrics = living_episode_objective(
-                    candidate,
-                    episode,
-                    before_soul,
-                    core_id=args.module_id,
-                    parameter_generation=candidate_generation,
-                )
-                captured["unroll"] = unroll
-                captured["phase_metrics"] = phase_metrics
-                return loss
+                candidate.train()
+                soul = before_soul
+                losses: list[torch.Tensor] = []
+                transitions = []
+                metrics = []
+                for episode in experiences:
+                    loss, unroll, phase_metrics = living_episode_objective(
+                        candidate,
+                        episode,
+                        soul,
+                        core_id=args.module_id,
+                        parameter_generation=candidate_generation,
+                        text_eos_weight=1.0,
+                    )
+                    losses.append(loss)
+                    transitions.extend(unroll.transitions)
+                    metrics.append(phase_metrics)
+                    soul = unroll.souls[-1]
+                captured["transitions"] = tuple(transitions)
+                captured["phase_metrics"] = tuple(metrics)
+                captured["experience_ids"] = tuple(item.episode_id for item in experiences)
+                return torch.stack(losses).mean()
 
             optimization = session.step(loss_fn)
             checkpoint = session.checkpoint(include_optimizer=True)
@@ -420,9 +448,11 @@ def main() -> int:
                 optimization_receipt=optimization,
                 checkpoint=checkpoint,
                 soul_manifest=soul_manifest,
-                transitions=captured["unroll"].transitions,
+                transitions=captured["transitions"],
             )
-            report["optimizer_steps"].append(optimization.to_canonical_dict())
+            step_row = optimization.to_canonical_dict()
+            step_row["experience_ids"] = list(captured["experience_ids"])
+            report["optimizer_steps"].append(step_row)
             report["accepted_bundles"].append(bundle.to_canonical_dict())
 
         candidate = session.candidate_module
@@ -441,8 +471,8 @@ def main() -> int:
             for episode in curriculum.split("heldout")
         ]
         heldout = _aggregate_heldout(heldout_rows)
-        gate = decide_living_reasoning_mastery(heldout)
-        session.complete(reason="English-native smoke tranche complete; no promotion attempted")
+        gate = mastery_decider(heldout)
+        session.complete(reason=f"English-native {args.curriculum} tranche complete; no promotion attempted")
         report.update(
             {
                 "status": "completed",

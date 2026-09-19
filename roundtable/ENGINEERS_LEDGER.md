@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-19T19:34:49+00:00
+Updated: 2026-09-19T23:55:14+00:00
 current_through_event_id:
-`evt-20260919T193449967089Z-chatgpt-english-native-circulation`
+`evt-20260919T235514609806Z-chatgpt-substrate-lifelong-soul-ready`
 
 Append order note: several events sit *earlier* in the file than events carrying
 later timestamps, because corrections are appended **after** the verdicts they
@@ -32,6 +32,8 @@ The rotating consolidator still reasons as a Core but its FINAL output is delibe
 The older decision-head forensic result remains useful architectural evidence: its near-constant recurrent summary does **not** need to be repaired as a classifier, but the measured richer memory channels may inform the later English decoder/readout design. The private Soul has not yet been proven to perform useful autobiographical reasoning merely from that probe.
 
 **THE ACTIVE RUNTIME CIRCULATION IS NOW ENGLISH-NATIVE.** Commit `729d55d` introduced exact English proposals, `5a80465` simplified the consolidator to tagged desired-region text, and commit `924547b` removes the typed-delta/NO_OP/ABSTAIN success path from `ProposalBoard`, `ProposalWorkspace`, and `ReasoningCirculation`. Every successful FIRST and REFINED participant now returns a nonempty `EnglishProposal`; only failure/timeout may complete runtime accounting without one. Proposal workspaces expose readable exact English and repack it losslessly across rail widths. The rotating consolidator emits only tagged desired-region FINAL text such as `#responseDraft# Hello Jeff.` and `#scratch# remember this`; Heart binds field/tick/author metadata out of band and alone materializes/validates internal `FieldDelta` transactions. Runtime autobiography/recovery now supports circulation v3 while preserving historical v2 evidence. Focused migration verification is 42/42 tests green plus ruff, py_compile, and `git diff --check`; `924547b` is pushed to `origin/main`. **No training was launched.** The remaining obsolete decision-head anatomy is confined to the pre-amendment training candidate/curriculum, remains non-serving, and is unauthorized for optimizer steps until the next bounded migration replaces it.
+
+**SCRATCH SUBSTRATE TRAINING IS READY TO LAUNCH.** `evt-20260919T235514609806Z-chatgpt-substrate-lifelong-soul-ready`. The active English D64 decoder now treats EOS as ordinary generated sequence termination independent of the content copy/generate gate and rejects the retired receipt/termination-head routes. `training/substrate_literacy_curriculum.py` provides 228 train and 12 held-out Stage-0 experiences over the frozen native symbol bank, exact ordering/sequence use, whitespace/punctuation/case, and Unicode compositions. The first durable lineage is fresh parameters ? **no step-720 donor** ? with D64, one 64D attention head, two layers, FFN 16384, four state tokens, page size 32 and neutral copy/generate bias. Soul is present from birth with HOT/WARM/COLD/DEEP_COLD and persists across experiences and optimizer steps: eight lived experiences run under fixed weights, each performs FIRST/REFINED/CONSOLIDATED Soul transitions, then one optimizer update is accepted atomically with all 24 Soul receipts. A one-step GTX 1650 shape proof succeeded end-to-end in 86.28 seconds; focused verification is 52 tests green, full pytest collection is clean, and changed-file Ruff/py_compile/diff checks pass. The planned first durable local tranche is 64 optimizer steps / 512 lived experiences, competency-gated afterward, with no promotion attempt.
 
 ## Current mission and honest status
 
