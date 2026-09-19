@@ -784,3 +784,38 @@ def test_an_unscoped_probe_gains_no_stage_payload_claim():
     rendered = watcher.render()
     assert "motor v2 final/heldout" in rendered
     assert "payload[stage]" not in rendered
+    # An unlabelled absence is what let a scoped 1.0 go unseen; the number is
+    # still shown, but named for what it is.
+    assert "payload unscoped 0.667" in rendered
+    assert "(no stage scope on this probe)" in rendered
+
+
+def test_the_scoped_rate_is_shown_beside_the_whole_surface_rate():
+    """Both readings together, or the reader cannot tell which one is gated."""
+    watcher = _watcher()
+    watcher.consume(
+        _event(
+            "eval-both",
+            "evaluated",
+            phase="final",
+            global_step=660,
+            foundation_motor_v2_heldout_probe={
+                "case_count": 72,
+                "alignment_copy_gate_accuracy": 1.0,
+                "alignment_position_accuracy": 1.0,
+                "payload_transport_exact_rate": 1.0,
+                "whole_surface_payload_transport_exact_rate": 0.6667,
+                "payload_scope": {
+                    "basis": "stage_eligible_actions",
+                    "training_stage": "transport_eos",
+                    "eligible_actions": ["copy", "insert", "replace"],
+                    "eligible_case_count": 16,
+                    "excluded_actions": ["abstain", "delete", "no_op"],
+                    "excluded_case_count": 56,
+                },
+            },
+        )
+    )
+    rendered = watcher.render()
+    assert "payload[stage] 1.000 over 16 eligible" in rendered
+    assert "(whole-surface 0.667)" in rendered

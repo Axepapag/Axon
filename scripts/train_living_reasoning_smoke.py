@@ -109,6 +109,26 @@ def _compact_motor_v2_probes(evaluation: dict[str, Any]) -> dict[str, Any]:
             "alignment_eos_gate_accuracy": probe.get("alignment_eos_gate_accuracy"),
             "pair_copy_gate": pair.get("copy_gate") if isinstance(pair, dict) else None,
             "pair_position": pair.get("position") if isinstance(pair, dict) else None,
+            # The stage gate grades the payload rates over the stage's declared
+            # eligible actions only, and reports the whole-surface value beside
+            # it.  Dropping the scope here left the dashboard printing only the
+            # whole-surface rate -- the number the gate does NOT use -- which is
+            # how the 2026-09-18 v6 plateau was misread as a Stage-0 blocker for
+            # two turns.  The scope and both readings travel together or not at
+            # all: a consumer cannot tell a scoped 1.0 from a whole-surface 1.0.
+            "payload_scope": probe.get("payload_scope"),
+            "payload_content_accuracy": probe.get("payload_content_accuracy"),
+            "payload_eos_accuracy": probe.get("payload_eos_accuracy"),
+            "payload_transport_exact_rate": probe.get("payload_transport_exact_rate"),
+            "whole_surface_payload_eos_accuracy": probe.get(
+                "whole_surface_payload_eos_accuracy"
+            ),
+            "whole_surface_payload_transport_exact_rate": probe.get(
+                "whole_surface_payload_transport_exact_rate"
+            ),
+            "scoped_constant_payload_transport_exact_floor": probe.get(
+                "scoped_constant_payload_transport_exact_floor"
+            ),
         }
     return compact
 

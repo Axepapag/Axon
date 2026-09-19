@@ -786,6 +786,7 @@ def _motor_v2_line(label: str, probe: dict[str, Any] | None) -> str | None:
     if pair_gate is not None or pair_position is not None:
         parts.append(f"pair-gate {_rate_text(pair_gate)}  pair-pos {_rate_text(pair_position)}")
     scope = probe.get("payload_scope")
+    whole_surface = probe.get("whole_surface_payload_transport_exact_rate")
     if isinstance(scope, dict) and scope.get("basis") == "stage_eligible_actions":
         # The stage gate grades this rate over the stages's own eligible actions
         # only.  The whole-surface rate is larger than the stage can ever teach,
@@ -799,6 +800,21 @@ def _motor_v2_line(label: str, probe: dict[str, Any] | None) -> str | None:
             if excluded:
                 text += " excl " + ",".join(str(item) for item in excluded)
             parts.append(_color(text, GREEN if float(scoped) == 1.0 else YELLOW))
+            if whole_surface is not None and float(whole_surface) != float(scoped):
+                # Printed in dim beside the gated rate so the unteachable share
+                # is visible instead of hidden -- and never alone.
+                parts.append(_color(f"(whole-surface {_rate_text(whole_surface)})", DIM))
+    elif whole_surface is None and probe.get("payload_transport_exact_rate") is not None:
+        # No scope travelled with this probe, so this rate is whole-surface.  It
+        # may not be presented as a stage rate, but it must not vanish either:
+        # an unlabelled absence is what let the scoped 1.0 go unseen.
+        parts.append(
+            _color(
+                f"payload unscoped {_rate_text(probe.get('payload_transport_exact_rate'))}"
+                " (no stage scope on this probe)",
+                DIM,
+            )
+        )
     if cases is not None:
         parts.append(f"n={cases}")
     return "  ".join(parts)

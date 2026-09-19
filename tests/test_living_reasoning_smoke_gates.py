@@ -1,4 +1,5 @@
 from scripts.train_living_reasoning_smoke import (
+    _compact_motor_v2_probes,
     exact_serving_gate_passed,
     nonzero_exact_output_observed,
     select_qa_transcript_rows,
@@ -21,6 +22,53 @@ def _evaluation(
         "constant_typed_emission_exact_floor": typed_floor,
         "constant_payload_transport_exact_floor": payload_floor,
     }
+
+
+def test_the_dashboard_probe_carries_the_scope_the_display_needs() -> None:
+    """The display fix is worthless if the producer strips the scope.
+
+    On 2026-09-19 the watch was taught to render the stage-scoped payload rate,
+    and the dashboard still showed none: ``_compact_motor_v2_probes`` rebuilds
+    each probe from an explicit key allowlist that omitted ``payload_scope`` and
+    both payload readings.  The scope is the one thing a consumer cannot
+    reconstruct, so it must survive compaction -- with the whole-surface value
+    beside it, since a bare ``payload_transport_exact_rate`` alone cannot say
+    which surface it was measured over.
+    """
+    compact = _compact_motor_v2_probes(
+        {
+            "foundation_motor_v2_heldout_probe": {
+                "case_count": 72,
+                "alignment_eos_gate_accuracy": 1.0,
+                "payload_content_accuracy": 1.0,
+                "payload_eos_accuracy": 1.0,
+                "payload_transport_exact_rate": 1.0,
+                "whole_surface_payload_transport_exact_rate": 0.6666666666666666,
+                "scoped_constant_payload_transport_exact_floor": 0.0625,
+                "payload_scope": {
+                    "basis": "stage_eligible_actions",
+                    "training_stage": "transport_eos",
+                    "eligible_case_count": 16,
+                },
+            }
+        }
+    )
+    probe = compact["foundation_motor_v2_heldout_probe"]
+    assert probe["payload_scope"]["basis"] == "stage_eligible_actions"
+    assert probe["payload_scope"]["eligible_case_count"] == 16
+    assert probe["payload_transport_exact_rate"] == 1.0
+    assert probe["whole_surface_payload_transport_exact_rate"] == 0.6666666666666666
+    assert probe["scoped_constant_payload_transport_exact_floor"] == 0.0625
+
+
+def test_the_compact_probe_omits_an_absent_scope_rather_than_inventing_one() -> None:
+    """A probe measured without a stage keeps reporting no scope, not a fake one."""
+    compact = _compact_motor_v2_probes(
+        {"foundation_motor_v2_heldout_probe": {"case_count": 72, "alignment_position_accuracy": 1.0}}
+    )
+    probe = compact["foundation_motor_v2_heldout_probe"]
+    assert probe["payload_scope"] is None
+    assert probe["payload_transport_exact_rate"] is None
 
 
 def test_matching_the_constant_answer_is_not_progress() -> None:
