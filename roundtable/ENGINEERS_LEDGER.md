@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-19T04:00:00+00:00
+Updated: 2026-09-19T05:00:00+00:00
 current_through_event_id:
-`evt-20260919T040000Z-copilot-scope-artifact-explains-the-v6-plateau`
+`evt-20260919T050000Z-copilot-transport-eos-rung-passed-and-ladder-advanced-to-decision`
 
 Append order note: several events sit *earlier* in the file than events carrying
 later timestamps, because corrections are appended **after** the verdicts they
@@ -589,6 +589,102 @@ and `reconciled_record_count=0` is **not** a fail-open.
 `tests/test_training_watch.py` **28 passed**; full suite #2
 (`D:\AxonBaseProof\full_suite_2.log`) **`exit=0`, `[100%]`, zero failures**.
 No objective, weight, geometry, data, seed, or architecture change.
+
+## 2026-09-19 — The `transport_eos` rung passes, and the ladder reaches `decision`
+`evt-20260919T050000Z-copilot-transport-eos-rung-passed-and-ladder-advanced-to-decision`
+
+### The rung is done, and the gate is read from disk, not from the dashboard
+
+Job `8cfa2116b24c37dea5d76c0bf3c1da421246d92f775d74ca6aaced9b6085c307`,
+revision `7e9957e`, 60/60 to global step **720**, `loss 0.007`, `pace 6.6 s/step`,
+`termination: continue positions 1 (min 1 of 60 steps) cont-loss 0.004`,
+`train eos-gate 100%`.
+
+All four motor-v2 probes — `{initial, final} × {heldout, regression}`, `n=72` —
+read **`copy-gate 1.000  position 1.000  eos-gate 1.000  pair-gate 1.000
+pair-pos 1.000`**. `alignment_eos_gate_accuracy` entered this rung at `0.0` and
+left at `1.0`.
+
+The stored gate object (`segment_000000661_000000720.json`) reads
+`passed=True`, `verdict="passed"`, `failures=[]`, `unreachable_requirements=[]`,
+`scope=curriculum_advancement_only_not_serving_or_promotion`,
+`report_id 7fa534810e2d457f6b3ed045237f2d8011470c001cd9e2efe8814fd1f03f730c`.
+Both probes read the five gated metrics at **1.0** against
+`scoped_constant_payload_transport_exact_floor 0.0625`.
+
+The `whole_surface_*` pair still reads **0.6667** — unchanged, still the legacy
+continuity view, still not a defect. Do not misread it a third time.
+
+### Two more observability holes of the same family, both closed
+
+Both were **producer-side**: the number the reader needed was never emitted.
+
+| hole | where | effect | commit |
+|---|---|---|---|
+| #2 | `_compact_motor_v2_probes` rebuilt each probe from a hardcoded key allowlist | stripped `payload_scope` + both payload rates, so the `9a0f6dc` display fix **could never fire** on a dashboard `motor v2` line | `69de279` |
+| #3 | the `completed`/`paused` progress emit carried only four coarse flags | omitted the rung gate, so a passed rung printed `curriculum_stage_complete=FAIL` and read as a failed run | `191c722` |
+
+Hole #3's own test **failed first**, with
+`AssertionError: 'foundation_motor_v2_stage_gate_passed=PASS' not in rendered`.
+Cause: the renderer wraps `PASS` in ANSI colour, splitting the literal with an
+escape sequence. Fixed by asserting against `_plain(...)`, the helper already at
+`tests/test_training_watch.py:433`. **43 passed**; `git diff --check` exit 0.
+
+The dashboard now prints a `ladder:` line naming the rung and whether the next
+tranche is `PAUSED` or `RUNNABLE`, with the note that
+`curriculum_stage_complete` means the whole six-rung program, not this rung.
+
+### The merge, proved rather than assumed
+
+`fetch` → **`Phase: outputs_fetched`**, `Fetch mode: bundle`, 9,548 files /
+60.6 MiB. Merged into `D:\Axon\State` and then **re-compared from scratch**:
+**9,248 files identical, 0 missing, 0 differing**. The 15 pre-merge differences
+were all backed up to `D:\AxonBaseProof\premerge_backup_stage2\`. Manifests:
+`merge_manifest_stage2.json`, `merge_copied_stage2.json`.
+
+The merge needed a **long-path fix**: the first attempt died with
+`FileNotFoundError` on a 271-character snapshot path. Re-running with the `\\?\`
+prefix on source, destination *and* backup completed it.
+
+`_foundation_motor_v2_stage_from_reports` on the merged directory returns
+**`('decision', False)`**.
+
+### The next rung is real work, not another scope artifact
+
+`FOUNDATION_MOTOR_V2_STAGE_GATE_PLAN['decision']` is `metrics ()`,
+`pairs ('decision',)`, `any_checks ('per_decision_accuracy',)`. Entry readings:
+
+| reading | value |
+|---|---|
+| `pair_exact_rates["decision"]` | 0.3333 |
+| `per_decision_accuracy` | `{abstain 0.0, delta 1.0, no_op 0.0}` |
+
+`eligible_actions` becomes the **complete** set
+`[copy, insert, replace, delete, no_op, abstain]`, so the stage-eligible
+denominator finally covers all 24 DELTA phases and the legacy whole-surface view
+stops being narrower than the scoped one. Component weights move to
+`decision 1.0`, `alignment_copy_gate 1.0`, `alignment_eos_gate 0.25`,
+`alignment_position 0.25`, `payload 0.25` — read from the shipped
+`FOUNDATION_MOTOR_V2_PROGRAM`, not authored here.
+
+**Local `--preflight-only` on the real path** proved it before any cloud spend:
+`preflight_passed true`, stage `decision`, base `adopted`
+(`19d4efae…`, 15 reconciled records, `max_abs_delta 1.6689300537109375e-06`),
+`resource_tranche 720 → 780`, `tranche_id 369d3fee…`,
+`preflight_receipt_id 302b27c1…`.
+
+**FLAGGED, NOT ACTED ON.** `decision` is the first stage where a component weight
+jumps `0.0 → 1.0` across a boundary. The `copy_alignment` comment claims no
+component does that any more, so the table and that comment disagree. It is a
+pre-existing property of the shipped program and was deliberately **not** changed.
+
+### Launched
+
+`configs/kaggle/axon_d64_emission_rung_v6_decision.json` committed as `26712ea`
+so the stamped revision contains the packet definition. `prepare` → job
+**`4e84089cd8bf249f5870a782f83266efb318d00466d355ba682bd6f05eb33a2a`**,
+revision `26712ea`, 56.8 MiB / 9,420 files. `launch --yes` → `submitted`.
+`monitor --follow` open, teeing to `D:\AxonBaseProof\monitor_stage3.log`.
 
 ## 2026-09-18 — v6 at step 600: the fixed point is broken, and my own floor repair was still hollow
 `evt-20260918T064500Z-copilot-v6-tranche-verdict-and-stage0-gate`
@@ -2852,33 +2948,38 @@ verdict are untouched.
 
 ## Next actions
 
-**CURRENT STATE (2026-09-19, `evt-20260919T040000Z`).** The v6 termination repair
-**succeeded**: content `0.0 → 1.000`, `alignment_eos_gate_accuracy 0.3125 → 1.000`,
-`termination_continue_positions` 1 on all 1,200 rows, continuation loss
-`0.5004 → 0.0057`. The 60-step renewal that followed was a **null result by
-construction** — the stage gate was already `passed=True` with
-`failures=[]`, the gated rates already `1.0`, and the `0.6667` I chased for two
-turns is the **namespaced `whole_surface_*` continuity view** (16/24 payload
-phases; the 8 lost phases are exactly the empty-payload `delete` phases that
-`copy_alignment` may not teach). The stage ladder now derives **`transport_eos`**
-(verified by calling `_foundation_motor_v2_stage_from_reports` on the merged
-state). The next rung's objective delta is **only** `alignment_eos_gate 0.0 → 1.0`,
-provable from `FOUNDATION_MOTOR_V2_STAGE_GATE_PLAN`. Everything below is retained
-as history; where a bullet says a renewal is "NEXT" or a pass is "not yet
+**CURRENT STATE (2026-09-19, `evt-20260919T050000Z`).** The v6 termination repair
+**succeeded**, and the ladder has now **advanced twice**. `copy_alignment` passed,
+`transport_eos` passed — job `8cfa2116…` ran 60/60 to global step **720** with all
+four motor-v2 probes at `copy-gate/position/eos-gate/pair-gate/pair-pos = 1.000`,
+`n=72`, and its stored gate object reads `passed=True`, `failures=[]`. The
+`whole_surface_payload_transport_exact_rate 0.6667` is still the namespaced legacy
+continuity view (16/24 payload phases; the 8 lost phases are exactly the
+empty-payload `delete` phases `copy_alignment` may not teach) and is **not a
+defect**. `_foundation_motor_v2_stage_from_reports` on the merged state returns
+**`('decision', False)`**. Two more **producer-side** observability holes of the
+same family were closed (`69de279`, `191c722`); in both cases the number the reader
+needed was simply never emitted. The fetched state was merged and independently
+re-verified: **9,248 identical, 0 missing, 0 differing**. Everything below is
+retained as history; where a bullet says a renewal is "NEXT" or a pass is "not yet
 observed", read it as superseded by this paragraph.
 
-**NEXT ACTION — launch the stage-2 packet, do not design a new intervention.**
-`configs/kaggle/axon_d64_emission_rung_v6_transport_eos.json` is prepared
-(byte-identical `entrypoint_argv` to the renewal, `include_paths` extended with the
-now-existing base artifact). Sequence: commit the ledger + config → `prepare` →
-`launch <job_id> --yes` → `monitor <job_id> --follow` → on completion `fetch` →
-**MERGE** (mandatory: `export_cloud_packet` builds from the **local** state root)
-→ append the turn event. **Read the next report as follows so `0.6667` is not
-misread a third time:** `whole_surface_payload_transport_exact_rate` will
-**remain 0.6667** until the `decision` rung (delete is not eligible before it),
-and `typed_emission_exact_rate` will **remain 0.0** until `address` (first
-reachable denominator). The substantive work for "attend and produce deltas" is at
-`decision` / `operation` / `address` / `joint`, not here.
+**NEXT ACTION — the `decision` rung is running; do not design a new intervention.**
+Job `4e84089cd8bf249f5870a782f83266efb318d00466d355ba682bd6f05eb33a2a` was
+prepared at revision `26712ea` (56.8 MiB / 9,420 files), launched with `--yes`, and
+is under a followed monitor (`mon3`, tee'd to
+`D:\AxonBaseProof\monitor_stage3.log`). On completion: `fetch` → **MERGE**
+(mandatory — `export_cloud_packet` builds from the **local** state root) →
+**re-verify all-identical** → read the gate from the stored segment report, **never
+from the dashboard flags** → derive the next stage → append the turn event.
+**Read the next report as follows so `0.6667` is not misread a third time:**
+`whole_surface_payload_transport_exact_rate` remains **0.6667** until the
+`delete`/`no_op`/`abstain` phases are actually learned, and because
+`eligible_actions` is now the complete set the **scoped rate converges with it**.
+`typed_emission_exact_rate` remains **0.0** until `address`. The `decision` gate
+hinges on `pairs decision` and **every** `per_decision_accuracy` value at `0.95`;
+`abstain` and `no_op` both enter at `0.0`. The substantive work for "attend and
+produce deltas" is at `decision` / `operation` / `address` / `joint`.
 
 **PRIORITY 0 — DONE: the un-winnable Stage-0 gate was scoped to `eligible_actions`**
 (`evt-20260918T165000Z`):
