@@ -1,20 +1,21 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-18T18:30:00+00:00
+Updated: 2026-09-19T04:00:00+00:00
 current_through_event_id:
-`evt-20260918T183000Z-copilot-step600-forensic-table-and-monitor-qa-repair`
+`evt-20260919T040000Z-copilot-scope-artifact-explains-the-v6-plateau`
 
-Append order note: the two events carrying timestamps `19:10` and `19:30` sit
-*earlier* in the file than the `20:00` launch event, because the correction was
-appended after the verdict it corrects. The canonical file is authority in
-**append** order; these are correct events appended in a non-monotonic timestamp
-sequence. The line above names the last physical line.
+Append order note: several events sit *earlier* in the file than events carrying
+later timestamps, because corrections are appended **after** the verdicts they
+correct (`19:10` and `19:30` after the `20:00` launch; `04:00` after `01:00`).
+The canonical file is authority in **append** order; these are all correct events
+appended in a non-monotonic timestamp sequence. The line above names the last
+physical line.
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
-Identity stamp: GitHub Copilot CLI / deepseek-v4.1-flash:cloud / 2026-09-18
+Identity stamp: GitHub Copilot CLI / deepseek-v4.1-flash:cloud / 2026-09-19
 (previous revision: Kimi / Kimi K2 Code / 2026-09-17,
 and before that GitHub Copilot CLI / deepseek-v4.1-flash:cloud / 2026-09-16 —
 those revisions are superseded, not erased; canonical events remain the authority)
@@ -56,10 +57,26 @@ campaign while reporting success.
 job `2a9f934e…` → `600/600` → paused for renewal. All four acceptance conditions
 PASS; content accuracy went **0.0 → 1.000**, transport **0.1667 → 0.6667**,
 heldout loss **4.3974 → 0.5882**, `alignment_eos_gate_accuracy` **0.3125 → 1.000**.
-**The sole remaining Stage-0 blocker is EOS precision: `payload_eos_accuracy`
-0.6667 and `payload_transport_exact_rate` 0.6667 against a required 0.95.** The
-stage gate is well-formed; Stage 0 is *not* mastered and nothing is promoted or
-served. `evt-20260918T064500Z`.
+
+**STAGE 0 IS MASTERED — MY PREVIOUS "SOLE REMAINING BLOCKER" CLAIM WAS WRONG.**
+`evt-20260919T040000Z`, superseding `evt-20260919T010000Z`. The `0.6667` figure I
+twice reported as a Stage-0 blocker is the **explicitly namespaced
+`whole_surface_*` legacy continuity view**. The **gated** metrics are
+stage-scoped to `copy_alignment`'s declared `eligible_actions [copy, insert,
+replace]`, and there the renewal's heldout **and** regression probes both read
+`payload_eos_accuracy` **1.0** and `payload_transport_exact_rate` **1.0** over 16
+eligible cases against a scoped constant floor of **0.0625**. The stage gate
+therefore reads **`passed=True`, `verdict="passed"`, `failures=[]`,
+`unreachable_requirements=[]`**. The 60-step renewal was a **null result by
+construction — there was zero headroom** — and I had also mis-stated its
+arithmetic: `0.6667` is **16/24 payload phases**, not 48/72 cases. The 8 phases it
+loses are **exactly the 8 `delete` phases** (target payload `""`;
+`constant_payload_transport_target_histogram: {"": 8}`), and `copy_alignment` is
+**contractually forbidden** to teach `delete`/`no_op`/`abstain`. Nothing is
+promoted or served: the gate itself declares
+`scope: curriculum_advancement_only_not_serving_or_promotion`. `typed_exact 0.0`
+is likewise not a defect — it is pinned to the full DELTA action set and is first
+reachable at the `address` rung.
 
 **And my own floor repair was still hollow.** `81dd8a3`. The surface merge
 iterated a `dict` row directly, so it merged to `{}` and both constant-emitter
@@ -443,6 +460,135 @@ collapse, route-weight seesaw — while the process class (guard, probation,
 lease) is now sound.
 
 </details>
+
+## 2026-09-19 — Scope artifact explains the v6 plateau, and the ladder advances to transport_eos
+`evt-20260919T040000Z-copilot-scope-artifact-explains-the-v6-plateau`
+(supersedes `evt-20260919T010000Z`)
+
+### The headline: the renewal was a null result **by construction**, not a defect
+
+I reversed my own verdict a second time, and this time the reversal is provable
+from source. The renewal (`segment_000000601_000000660.json`) gate object:
+
+| field | value |
+|---|---|
+| `verdict` | **`"passed"`** |
+| `passed` | **`True`** |
+| `failures` | **`[]`** |
+| `unreachable_requirements` | **`[]`** |
+| `training_stage` | `copy_alignment` |
+| `scope` | `curriculum_advancement_only_not_serving_or_promotion` |
+
+Its **heldout and regression probes** (both `case_count 72`) each read:
+
+| metric | heldout | regression |
+|---|---|---|
+| `alignment_position_accuracy` | 1.0 | 1.0 |
+| `alignment_copy_gate_accuracy` | 1.0 | 1.0 |
+| `alignment_eos_gate_accuracy` | 1.0 | 1.0 |
+| `payload_content_accuracy` | 1.0 | 1.0 |
+| `payload_eos_accuracy` | **1.0** | **1.0** |
+| `payload_transport_exact_rate` | **1.0** | **1.0** |
+| `scoped_constant_payload_transport_exact_floor` | 0.0625 | 0.0625 |
+| `whole_surface_payload_eos_accuracy` | 0.6667 | 0.6667 |
+| `whole_surface_payload_transport_exact_rate` | 0.6667 | 0.6667 |
+
+The `0.6667` I twice recorded as a Stage-0 blocker is the **legacy whole-surface
+name**, retained for continuity. The **gated** metric is stage-scoped.
+
+### The arithmetic, corrected — including my own unit error
+
+`payload_scope` (verbatim): `basis=stage_eligible_actions`,
+`eligible_actions=[copy, insert, replace]`, `eligible_case_count=16`,
+`excluded_actions=[abstain, delete, no_op]`, `excluded_case_count=56`,
+`training_stage=copy_alignment`. `16 + 56 = 72`.
+
+I had recorded `0.6667 = 48/72` **cases**. That was a unit error. The `rate()`
+closure at `training/foundation_motor_curriculum.py:1936-1946` sums
+`count_key`/`correct_key` over the chosen surface, so
+`whole_surface_payload_transport_exact_rate = payload_transport_exact_count /
+payload_supervised_phase_count` = **16/24 payload phases**.
+
+**The floor arithmetic names the 8 lost phases exactly.** The emit-nothing
+baseline wins `constant_payload_transport_exact_count 8.0 / 24.0 = 0.3333`, and
+`constant_payload_transport_target_histogram` is `{"": 8}` — the **eight empty
+target payloads**. The model wins all 16 non-empty-target phases and 0 of the 8
+`delete` phases, where it emits a REPLACE. `copy_alignment`'s `eligible_actions`
+exclude `delete`; it becomes teachable at `decision` and first weighted at
+`operation`. The loss is therefore **out of contract at this rung**.
+
+`typed_emission_exact_rate 0.0` is the same kind of artifact: it is pinned to the
+full `FOUNDATION_MOTOR_V2_METRIC_DENOMINATOR_ACTIONS` set and is unreachable and
+ungated before `address`.
+
+### What the next rung actually changes — proved from the policy table
+
+| | `copy_alignment` | `transport_eos` |
+|---|---|---|
+| `eligible_actions` | `[copy, insert, replace]` | `[copy, insert, replace]` |
+| `payload` | 1.0 | 1.0 |
+| `alignment_position` | 1.0 | 1.0 |
+| `alignment_copy_gate` | 4.0 | 4.0 |
+| **`alignment_eos_gate`** | **0.0** | **1.0** |
+| gated metrics | + `payload_transport_exact_rate` | + `payload_eos_accuracy` |
+| `decision`/`operation`/`region`/`start`/`end` | 0.0 | 0.0 |
+
+So ChatGPT's "one narrow intervention" is **not** an EOS objective or data change:
+it is **advance the ladder**. Its advice to stop stacking identical epochs was the
+right tactic for the wrong reason — there was no headroom to spend.
+
+Ladder: `FOUNDATION_MOTOR_V2_STAGE_ORDER = (copy_alignment, transport_eos,
+decision, operation, address, joint)`. With the step-600 gate `passed=False` and
+the renewal gate `passed=True`, `_foundation_motor_v2_stage_from_reports` now
+derives **`transport_eos`** — verified by calling it against the merged state
+before preparing the packet.
+
+### Base identity: the local BLAS build was the outlier, not the record
+
+Kaggle reproduced **all 95** recorded base hashes bit-exactly (`created-verified`,
+drifted set empty). The local build now reports `action=adopted`, artifact
+`19d4efae…`, `recorded_base_inventory_id 598955928fa2220f…`,
+`reconciled_record_count 15`, `max_abs_delta 1.6689300537109375e-06` against
+`atol 1e-5` — and those 15 records are **exactly** the 15 measured before the
+repair, so the reconciliation is targeted, not a blanket accept.
+
+**Tested non-finding:** `action=adopted` with `recorded_base_inventory_id=null`
+and `reconciled_record_count=0` is **not** a fail-open.
+`base_artifact.py:166-218` unconditionally compares the stored artifact to the
+**live** module tensor-by-tensor and fails closed on version drift;
+`:242-274` returns early only when there is no inventory to cross-check.
+
+### Honest costs and my own errors
+
+- `heldout_mean_loss 0.588237865207096 → 0.6084178631297417` — **+0.0202 worse**
+  over 60 fully saturated steps. Real, and it bought nothing.
+- **Monitor defect (fixed in `9a0f6dc`):** the watch had no knowledge of
+  `probe.payload_scope`, so it printed the whole-surface rate and **hid the very
+  number the gate used**. That defect is what misled me twice. `_motor_v2_line`
+  now prints `payload[stage] {rate} over {n} eligible excl {actions}` and makes
+  **no** stage-payload claim when the probe carries no `payload_scope`.
+- **My own unit error** (`48/72` → `16/24`), corrected here rather than by editing
+  the earlier event: the canonical ledger is append-only.
+- **My own timing evidence was wrong at first.** I cited progress seq 1 vs seq 3
+  (`239.488458445` → `248.172380693`) as the adoption proof; that pair measures
+  **run setup**. The load-bearing pair is the initial evaluation's own events:
+  `evaluating 248.165262895` → `evaluated 248.172380693` = **0.0071 s** for 72
+  cases, versus the final evaluation's `evaluating 642.012684458` → `evaluated
+  1261.504383683` = **619.4917 s** for the same 72 cases. A 72-case pass cannot
+  complete in 7 ms on any hardware.
+- `curriculum_stage_complete=FAIL` while the **gate** is `passed=True` is a label
+  conflation, not a contradiction: at `train_living_reasoning_smoke.py:2627` that
+  flag means *program* complete (`stage == FOUNDATION_MOTOR_V2_STAGE_ORDER[-1]`),
+  i.e. the whole six-rung ladder, not the current rung.
+
+### What changed on disk
+
+`9a0f6dc` — 3 files, **210 insertions, 0 deletions**:
+`scripts/axon_training_watch.py` (+44), `tests/test_training_watch.py` (+152),
+`scripts/train_living_reasoning_smoke.py` (+14). `git diff --check` exit 0;
+`tests/test_training_watch.py` **28 passed**; full suite #2
+(`D:\AxonBaseProof\full_suite_2.log`) **`exit=0`, `[100%]`, zero failures**.
+No objective, weight, geometry, data, seed, or architecture change.
 
 ## 2026-09-18 — v6 at step 600: the fixed point is broken, and my own floor repair was still hollow
 `evt-20260918T064500Z-copilot-v6-tranche-verdict-and-stage0-gate`
@@ -2705,6 +2851,34 @@ un-winnable-gate class**; `845bf8b` fixed the *vacuous-denominator* form
 verdict are untouched.
 
 ## Next actions
+
+**CURRENT STATE (2026-09-19, `evt-20260919T040000Z`).** The v6 termination repair
+**succeeded**: content `0.0 → 1.000`, `alignment_eos_gate_accuracy 0.3125 → 1.000`,
+`termination_continue_positions` 1 on all 1,200 rows, continuation loss
+`0.5004 → 0.0057`. The 60-step renewal that followed was a **null result by
+construction** — the stage gate was already `passed=True` with
+`failures=[]`, the gated rates already `1.0`, and the `0.6667` I chased for two
+turns is the **namespaced `whole_surface_*` continuity view** (16/24 payload
+phases; the 8 lost phases are exactly the empty-payload `delete` phases that
+`copy_alignment` may not teach). The stage ladder now derives **`transport_eos`**
+(verified by calling `_foundation_motor_v2_stage_from_reports` on the merged
+state). The next rung's objective delta is **only** `alignment_eos_gate 0.0 → 1.0`,
+provable from `FOUNDATION_MOTOR_V2_STAGE_GATE_PLAN`. Everything below is retained
+as history; where a bullet says a renewal is "NEXT" or a pass is "not yet
+observed", read it as superseded by this paragraph.
+
+**NEXT ACTION — launch the stage-2 packet, do not design a new intervention.**
+`configs/kaggle/axon_d64_emission_rung_v6_transport_eos.json` is prepared
+(byte-identical `entrypoint_argv` to the renewal, `include_paths` extended with the
+now-existing base artifact). Sequence: commit the ledger + config → `prepare` →
+`launch <job_id> --yes` → `monitor <job_id> --follow` → on completion `fetch` →
+**MERGE** (mandatory: `export_cloud_packet` builds from the **local** state root)
+→ append the turn event. **Read the next report as follows so `0.6667` is not
+misread a third time:** `whole_surface_payload_transport_exact_rate` will
+**remain 0.6667** until the `decision` rung (delete is not eligible before it),
+and `typed_emission_exact_rate` will **remain 0.0** until `address` (first
+reachable denominator). The substantive work for "attend and produce deltas" is at
+`decision` / `operation` / `address` / `joint`, not here.
 
 **PRIORITY 0 — DONE: the un-winnable Stage-0 gate was scoped to `eligible_actions`**
 (`evt-20260918T165000Z`):
