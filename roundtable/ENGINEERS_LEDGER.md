@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-19T05:45:00+00:00
+Updated: 2026-09-19T16:23:06+00:00
 current_through_event_id:
-`evt-20260919T054500Z-copilot-decision-head-input-is-near-constant`
+`evt-20260919T162306192419Z-chatgpt-english-proposal-doctrine`
 
 Append order note: several events sit *earlier* in the file than events carrying
 later timestamps, because corrections are appended **after** the verdicts they
@@ -15,10 +15,21 @@ Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
-Identity stamp: GitHub Copilot CLI / deepseek-v4.1-flash:cloud / 2026-09-19
-(previous revision: Kimi / Kimi K2 Code / 2026-09-17,
-and before that GitHub Copilot CLI / deepseek-v4.1-flash:cloud / 2026-09-16 —
-those revisions are superseded, not erased; canonical events remain the authority)
+Identity stamp: ChatGPT / GPT-5.6 Sol / 2026-09-19
+(previous revision: GitHub Copilot CLI / deepseek-v4.1-flash:cloud / 2026-09-19;
+older revisions are superseded, not erased; canonical events remain the authority)
+
+## Current doctrine correction and next work
+
+**THE LEARNED DELTA / NO_OP / ABSTAIN DECISION HEAD IS REMOVED FROM AXON DOCTRINE.** Jeff explicitly corrected this on 2026-09-19 and commit `e09578c` updates both Source of Truth mirrors. Every successful active Core now emits a **nonempty variable-length English FIRST proposal** and, after attending the complete proposal board, a **nonempty English REFINED proposal**. Proposals are conversational reasoning — observations, questions, hypotheses, disagreement, suggestions, tool/advisor requests, uncertainty stated constructively — and need not themselves encode a canonical mutation. English vocabulary, grammar, syntax, discourse and refinement are explicit curriculum capabilities.
+
+Public proposal text has one exact width-neutral identity: exact Unicode is represented through the frozen 16D transport substrate and Heart mechanically repacks it for D64/D128/D256/etc. Private hidden tensors and private Soul state remain arbitrary architecture-native latent state. Proposal length is independent of input/page count; no `output_slots <= input_slots` doctrine exists and EMPTY padding is not proposal capacity.
+
+The rotating consolidator still reasons as a Core but its FINAL output is different: **constrained technical English** specifying the complete intended canonical mutation set (region, operation, exact span/address where applicable, exact text, frozen base/tick identity, provenance). Heart is deliberately non-semantic here: it parses this grammar mechanically, validates it fail-closed, converts it to internal typed canonical mutations, and alone commits `F_N+1`.
+
+**TRAINING BOUNDARY:** `copy_alignment` and `transport_eos` remain valid learned transport evidence through accepted step **720**. The 720->780 `decision` tranche trained an interface that is now doctrinally obsolete; step **780 is diagnostic evidence only and must not parent English-proposal training**. Step 720 is the last semantically aligned trained state, but adding the English proposal/verdict output anatomy may require a governed donor/new-generation transition rather than exact checkpoint resume. No further optimizer steps are authorized on the old `decision/operation/address/joint` ladder. Before training resumes, runtime/proposal-board/parser/curriculum/evaluation/gate code must implement and prove the new English interface.
+
+The older decision-head forensic result remains useful architectural evidence: its near-constant recurrent summary does **not** need to be repaired as a classifier, but the measured richer memory channels may inform the later English decoder/readout design. The private Soul has not yet been proven to perform useful autobiographical reasoning merely from that probe.
 
 ## Current mission and honest status
 
