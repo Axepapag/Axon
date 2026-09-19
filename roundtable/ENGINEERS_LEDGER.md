@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger — Rolling Summary
 
-Updated: 2026-09-19T17:38:55+00:00
+Updated: 2026-09-19T19:34:49+00:00
 current_through_event_id:
-`evt-20260919T173855372714Z-chatgpt-tagged-final-verdict`
+`evt-20260919T193449967089Z-chatgpt-english-native-circulation`
 
 Append order note: several events sit *earlier* in the file than events carrying
 later timestamps, because corrections are appended **after** the verdicts they
@@ -31,7 +31,7 @@ The rotating consolidator still reasons as a Core but its FINAL output is delibe
 
 The older decision-head forensic result remains useful architectural evidence: its near-constant recurrent summary does **not** need to be repaired as a classifier, but the measured richer memory channels may inform the later English decoder/readout design. The private Soul has not yet been proven to perform useful autobiographical reasoning merely from that probe.
 
-**ENGLISH MIGRATION PHASE 1 IS COMMITTED, AND ITS FINAL-VERDICT SURFACE WAS IMMEDIATELY SIMPLIFIED BY JEFF.** Commit `729d55d` introduced exact English proposals and the first parser contract; commit `5a80465` replaces its over-specified technical-English/JSON transaction envelope with the intended tagged-region surface. `TechnicalFinalVerdict` now accepts compact text such as `#responseDraft# Hello Jeff.` and `#scratch# remember this`; Heart supplies frozen field/tick/author context externally, treats each named section as the complete desired region text, and materializes the internal typed `FieldDelta` mechanically. `#journal#` maps to the historical canonical `diary` region. Sparse historical deltas can be converted into equivalent tagged desired-region training text, and literal tag-shaped lines are escaped losslessly. Adjacent reasoning-output/circulation/hygiene suites plus the contract suite pass 28/28; ruff, py_compile, SoT mirror hash and `git diff --check` are clean. **No training was launched.** ProposalBoard/Workspace and ReasoningCirculation still use the superseded learned decision/delta interface and remain the next bounded migration slice.
+**THE ACTIVE RUNTIME CIRCULATION IS NOW ENGLISH-NATIVE.** Commit `729d55d` introduced exact English proposals, `5a80465` simplified the consolidator to tagged desired-region text, and commit `924547b` removes the typed-delta/NO_OP/ABSTAIN success path from `ProposalBoard`, `ProposalWorkspace`, and `ReasoningCirculation`. Every successful FIRST and REFINED participant now returns a nonempty `EnglishProposal`; only failure/timeout may complete runtime accounting without one. Proposal workspaces expose readable exact English and repack it losslessly across rail widths. The rotating consolidator emits only tagged desired-region FINAL text such as `#responseDraft# Hello Jeff.` and `#scratch# remember this`; Heart binds field/tick/author metadata out of band and alone materializes/validates internal `FieldDelta` transactions. Runtime autobiography/recovery now supports circulation v3 while preserving historical v2 evidence. Focused migration verification is 42/42 tests green plus ruff, py_compile, and `git diff --check`; `924547b` is pushed to `origin/main`. **No training was launched.** The remaining obsolete decision-head anatomy is confined to the pre-amendment training candidate/curriculum, remains non-serving, and is unauthorized for optimizer steps until the next bounded migration replaces it.
 
 ## Current mission and honest status
 
