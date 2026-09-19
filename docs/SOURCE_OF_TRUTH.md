@@ -1,6 +1,6 @@
 # Axon Source Of Truth
 
-Last updated: 2026-09-10 (accepted checkpoint recovery and training landmarks)
+Last updated: 2026-09-19 (English proposal/verdict doctrine; learned no-op/abstain decision head removed)
 
 ## Core Doctrine
 
@@ -334,17 +334,42 @@ section is binding doctrine.
   attention path. The Heart packs and unpacks cells at every registered
   width, maintains exact substrate/rail and rail-to-rail roundtrips, moves
   masks, and remains the sole validator and committer of canonical state.
-- Emission contract: a Unicode-capable core emits discrete per-lane
-  categorical decisions over the 351-category registered transport codebook
-  (native character or strict UTF-8 byte), plus explicit EMPTY and EOS control
-  categories, trained with per-lane cross-entropy per Layer 13. Emissions bind
-  exact region/start/end addresses, base field/tick, author, home rail, and
-  pass. DELTA, NO_OP, and ABSTAIN are distinct decisions. The Heart rejects
-  malformed category streams, missing/duplicate EOS, noncanonical Unicode,
-  stale bases, invalid bounds, and unauthorized regions, then deterministically
-  reconstructs exact 16D cells and a typed proposal from accepted decisions.
-  Nearest-vector snapping is auxiliary evidence only; an arbitrary
-  continuous vector is never claimed to be exactly invertible.
+- Public reasoning-language contract (ratified 2026-09-19): a reasoning core's
+  private hidden tensors and Soul may use any architecture-native latent form;
+  they are not required to round-trip through 16D. What crosses between cores
+  is instead exact variable-length English text. FIRST and REFINED proposals
+  are ordinary conversational English: observations, questions, hypotheses,
+  disagreements, suggestions, requests for tools/advisors, uncertainty stated
+  constructively, or other useful reasoning. They are not required to name a
+  canonical edit. Every active core must produce a nonempty English proposal on
+  every successful FIRST and REFINED pass. There is no learned DELTA/NO_OP/
+  ABSTAIN permission or decision head. Failure, timeout, and offline status are
+  control-plane outcomes, never learned semantic choices. If a task is
+  saturated, a core redirects attention constructively rather than choosing
+  silence; mature Axon may turn to Journal/Scratch, Dormant inspection,
+  knowledge-gap research, semantic integration, hygiene, or another useful
+  focus.
+- English proposals are serialized exactly through the registered Unicode
+  transport codebook, represented canonically as exact 16D transport cells,
+  and mechanically repacked by Heart onto every destination rail width. Heart
+  does not translate proposal meaning and no learned width-to-width translator
+  is required. The same proposal text therefore has one exact identity across
+  D64, D128, D256, and any future registered rail.
+- Proposal generation is length-decoupled from rail input. A core may attend
+  many pages and emit a short proposal, or attend a small field and emit a long
+  proposal. No reasoning rule requires output-slot count <= input-slot count,
+  and blank/EMPTY input slots are not proposal-capacity reservations. EOS (or
+  an equivalent exact stream terminator) ends the variable-length proposal.
+- The rotating consolidator also speaks English, but its FINAL verdict is a
+  constrained technical English transaction language rather than free-form
+  conversation. The verdict must state every intended canonical mutation with
+  unambiguous region, operation, exact span/address where applicable, exact
+  inserted/replacement text, frozen base field/tick identity, and provenance.
+  Heart parses this grammar mechanically and deterministically into canonical
+  mutations; it performs no semantic interpretation. Ambiguous, malformed,
+  stale, unauthorized, overlapping, or noncanonical verdicts fail closed.
+  Nearest-vector snapping is auxiliary evidence only; arbitrary continuous
+  vectors never have canonical or inter-core communication authority.
 - Shelf: the learned Heart translator tissue, its training campaigns and
   checkpoints, and autonomous Cortex implementations are shelved —
   preserved, non-serving, documented by a shelf manifest (original paths,
@@ -660,11 +685,19 @@ fakeness, concealed replacement, and planned disposability are not.
 - External ingress (user/tool/advisor) may submit heart-governed mutations
   targeting only its runtime-owned regions, and only between ticks.
 - The current bootstrap dormant valve may submit Heart-governed materialization of governed `cortex`; it never independently writes truth. In mature anatomy, dormant recall is a Cortex-owned semantic sense and the Semantic Cortex submits any canonical Cortex materialization through its governed Heart boundary.
-- Core proposals may target only the scopes their authority class permits.
-- The consolidator's proposal may address every canonical region as governed.
-- Only the heart's transaction layer converts any proposal into canonical
-  state. Validation must detect and reject conflicting or overlapping sparse
-  edits and any proposal not bound to the frozen base.
+- Ordinary FIRST and REFINED core proposals are noncanonical English reasoning
+  contributions, not direct Shared Field writes and not pre-authorized sparse
+  mutations. They may discuss any attended evidence, ask questions, recommend
+  changes, request tools/advisors, or offer observations without themselves
+  acquiring canonical-write authority.
+- The rotating consolidator alone converts the deliberation into a FINAL
+  constrained technical-English verdict. That verdict may address every
+  canonical region allowed by the governing authority model.
+- Only the Heart's transaction layer mechanically parses the consolidator's
+  FINAL verdict and converts its authorized, exact instructions into canonical
+  state. Validation rejects malformed or ambiguous grammar, conflicting or
+  overlapping mutations, stale bases, unauthorized regions, and any verdict
+  not bound to the frozen tick.
 
 Bootstrap write restrictions (such as a scratch/response-only validator) are
 implementation restrictions, not doctrine; widening happens only through this
@@ -672,11 +705,11 @@ authority model.
 
 ## Cores
 
-Cores are transformer reasoners with private souls. Axon's mature reasoning ensemble is heterogeneous: cores may have different architectures, specialties, parameter counts, and `d_model` widths while still reasoning against the same frozen canonical Shared Field. Each active width has a **home rail** supplied by the Heart, bound to the same exact field/tick identity and provenance. A core inhales from, attends through, and exhales its native proposal back onto its own home rail; it is not required to speak another width's tensor dialect or directly author canonical serialization. The Heart translates/grounds native rail proposals into the shared proposal/interlingua surface and re-renders other organs' proposals back into each destination home-rail dialect. No core's larger or smaller rail becomes a competing truth body.
+Cores are transformer reasoners with private souls. Axon's mature reasoning ensemble is heterogeneous: cores may have different architectures, specialties, parameter counts, and `d_model` widths while still reasoning against the same frozen canonical Shared Field. Each active width has a **home rail** supplied by the Heart, bound to the same exact field/tick identity and provenance. A core may think internally in arbitrary architecture-native latent space, but its public FIRST and REFINED contributions are variable-length English proposals. English is the common learned reasoning language of the ensemble: vocabulary, grammar, syntax, discourse, questioning, explanation, disagreement, and proposal/refinement behavior are explicit curriculum capabilities rather than assumptions. Public proposal text is exact Unicode transported through the 16D substrate and mechanically repacked onto each receiving home rail. No core's larger or smaller rail becomes a competing truth body, and Heart is never required to understand or semantically translate one core's private tensor dialect into another.
 
 A home rail must be roundtrip-capable with respect to its exact canonical scaffold. Different widths may require different physical slot counts for the same story: smaller `d_model` rails can use more slots while larger rails can carry more exact substrate cells and richer derived semantic structure per slot. Larger width is therefore additional representational bandwidth, not permission to discard characters or provenance. A 4096D core may bind broad entity/event/context relationships more compactly than a 64D core while both remain grounded to the same exact field evidence.
 
-Native rail proposals are preserved exactly as emitted. Heart translation may render a proposal very closely into another rail's dialect, but any semantic looseness is receipted rather than erased. Thus cores may genuinely develop different dialects while communication still converges on one grounded meaning space and one canonical body.
+Public proposals have one exact textual identity independent of rail width. The transient proposal board stores or references that exact English text once in the canonical 16D transport representation; rail-specific D64/D128/D256/etc. forms are deterministic derived packings, not separately authored dialects. Private latent dialects may differ inside cores and Souls, but inter-core communication does not rely on lossy semantic translation. Every receiving core must be able to recover the same proposal text byte-for-byte before attending it.
 
 The present 64D core is a developmental proving width, not a final architecture limit. Development may prove new widths deliberately and independently, but mature Axon may run 64D, 128D, 256D, 512D, 1024D, or other explicitly governed widths together in one ensemble once each rail/compiler/core contract is proven. A tick is one full
 deliberation round against a frozen canonical base:
@@ -687,50 +720,77 @@ deliberation round against a frozen canonical base:
    state.
 2. The heart declares the tick's participant set from the core registry
    (active / offline-training / disabled, rail membership).
-3. Each participating core inhales its private soul, attends the complete
-   tick image with a coverage proof, emits a sparse proposed delta (only the
-   edits it proposes, each bound to F_N with author/rail/pass provenance),
-   and exhales the experience into its soul.
-4. The first pass closes when every required participant has returned a delta,
-   returned an explicit no-op, abstained, failed, or timed out under governed
-   policy. The heart then exposes the complete first-pass proposal board and
-   participant accounting in the per-rail workspace.
-5. Each core inhales its updated soul, re-attends the tick image plus the
-   complete proposal board, emits one refined sparse delta, and exhales.
-6. After the refinement barrier, the rotating consolidator attends the tick
-   image plus every refined delta and emits one proposed authoritative delta.
-   The consolidator is the final reasoning authority of the tick; it still
-   only proposes.
-7. The heart validates the consolidator's proposal (typing, authority class,
-   base freshness, provenance) and atomically commits it, producing the
-   successor canonical field; the consolidator exhales its experience. The
-   tick ends at that commit — and only there.
+3. Each participating core inhales its private Soul, attends the complete tick
+   image with a coverage proof, and emits one nonempty variable-length English
+   FIRST proposal. The proposal is free conversational reasoning: it may offer
+   observations, questions, hypotheses, disagreement, suggestions, tool/advisor
+   requests, uncertainty, or recommended changes. It is not required to encode
+   a canonical mutation. The core then exhales the experience into its Soul.
+4. The first barrier closes only when every required participant has produced
+   its FIRST proposal, or has failed/timed out under governed runtime policy.
+   There is no learned no-op or abstain completion path. Heart exposes the
+   complete exact-English first-pass proposal board plus participant accounting
+   to every active rail by deterministic 16D repacking.
+5. Each core inhales its updated Soul, re-attends the complete frozen tick image
+   plus every FIRST proposal, and emits one nonempty variable-length English
+   REFINED proposal. Refinement may support, challenge, extend, redirect, ask a
+   new question, request outside help, or introduce a materially different line
+   of thought. The core then exhales again.
+6. After the refinement barrier, the rotating consolidator attends the frozen
+   tick image plus every refined English proposal. It emits one FINAL verdict
+   in constrained technical English. Unlike brother proposals, this verdict is
+   deliberately precise and machine-parseable: it completely states the
+   intended canonical mutations, including region, operation, exact address or
+   span where applicable, exact text payload, frozen base/tick identity, and
+   provenance. The consolidator is the final reasoning authority of the tick;
+   it still does not directly write canonical state.
+7. Heart parses the FINAL verdict mechanically, validates grammar, authority,
+   base freshness, provenance, Unicode, addresses, and non-overlap, then
+   atomically commits the resulting exact mutation set to produce F_N+1. Heart
+   performs no semantic inference while parsing. During the present reasoning
+   program, a successfully completed tick must yield at least one valid
+   canonical mutation; when the immediate user task is saturated, reasoning
+   redirects to response refinement, Scratch/Journal, task/focus transition,
+   knowledge-gap work, or other constructive activity rather than emitting a
+   no-op/abstain verdict. The consolidator exhales its experience, and the tick
+   ends at that commit — and only there.
 
-The current runtime implements this complete barrier/transaction mechanism
-synchronously through a permanent `ReasoningCorePort`; future local-thread,
-process, or remote executors implement the same boundary. Every request carries
-that core's exact private Soul snapshot. FIRST and REFINED each require and
-durably commit a HOT-layer Soul transition before their barrier can close. The
-consolidator's transition is prepared before the canonical field transaction,
-then finalized against the exact successor `field_id`; restart recovery binds
-an already-committed field journal entry to the prepared Soul transition rather
-than double-applying it. Deterministic fixture ports prove this organism
-mechanism, and the first neural D64 candidate implements the same causal phase
-surface in training. No learned reasoning core is serving yet. This is
-mechanism-functional circulation, not a claim of learned reasoning or
-conversational intelligence.
+The current runtime implements the barrier/transaction skeleton synchronously
+through a permanent `ReasoningCorePort`; future local-thread, process, or remote
+executors implement the same causal boundary. Every request carries that core's
+exact private Soul snapshot. FIRST and REFINED each require and durably commit a
+HOT-layer Soul transition before their barrier can close. The consolidator's
+transition is prepared before the canonical field transaction, then finalized
+against the exact successor `field_id`; restart recovery binds an already-
+committed field journal entry to the prepared Soul transition rather than
+applying it twice.
 
-"Against the entire shared field" means authored against the exact frozen
-base with field-wide addressability as permitted by authority class; it never
-means reproducing unchanged content.
+**Implementation debt created by the 2026-09-19 doctrine correction:** the
+existing learned `ReasoningDecision` DELTA/NO_OP/ABSTAIN head, sparse typed-delta
+FIRST/REFINED emission path, and any runtime fixture that treats no-op/abstain as
+a successful reasoning contribution are superseded and non-serving. They are
+historical evidence only and must not receive further reasoning-training budget,
+be promoted, or be used as the target interface for new learned cores. Before
+reasoning training resumes beyond the accepted transport checkpoint, runtime,
+proposal-board, parser, curriculum, evaluation, and gate code must be revised to
+implement exact variable-length English FIRST/REFINED proposals plus constrained
+technical-English FINAL verdicts. The barrier/Soul/Heart-commit mechanics remain
+valid. No learned reasoning core is serving yet.
 
-The validated consolidator delta may address every canonical shared-field
-region. Axon's cores ultimately maintain Axon's conversation, knowledge,
-situation awareness, task state, scratch, response, diary, and other canonical
-regions. Runtime validation, immutable provenance, base-field identity, and
-atomic replay remain mandatory; field-wide authority is not permission for
-unattributed or partial writes. Any narrower validator in the bootstrap
-runtime is a temporary implementation restriction rather than final doctrine.
+"Against the entire shared field" means that every successful reasoning pass
+has actually attended every exposed character/cell of the exact frozen base,
+across as many ordered pages as necessary, with an auditable coverage proof.
+It never means reproducing unchanged content, and proposal length is not coupled
+to field size or page count.
+
+The parsed FINAL consolidator verdict may address every governed canonical
+shared-field region. Axon's cores ultimately maintain Axon's conversation,
+knowledge, situation awareness, task state, Scratch, response draft, Journal/
+diary, and other canonical regions. Runtime validation, immutable provenance,
+base-field identity, deterministic parsing, and atomic replay remain mandatory;
+field-wide consolidator authority is not permission for unattributed,
+ambiguous, or partial writes. Any narrower validator in the bootstrap runtime
+is a temporary implementation restriction rather than final doctrine.
 
 Input does not enter the soul first. The shared field is the input interface.
 
@@ -876,32 +936,42 @@ gate. Immutable records remain intact; dry-run and execution use the same
 retention selection. Automatic assignment scheduling and atomic runtime
 mode switching are not implemented by this retention change.
 
-The first load-bearing neural reasoning candidate is
+The first load-bearing neural reasoning candidate body is
 `training/living_reasoning_d64.py`. Candidate A is exactly `d_model=64`, one
 64D attention head, two Transformer layers, `ffn_dim=131072`, and four
-persistent Soul-state tokens. It has 33,981,879 trainable parameters
-(135,927,516 bytes in FP32; 67,963,758 bytes in FP16). Its source pages are
-bounded compute units only: a recurrent state containing the inhaled private
-Soul traverses every canonical page in order and then every proposal-workspace
-page. All four Soul layers can influence that initial recurrent state; each
-runtime phase exhales an exact safe `f32le` HOT-layer state and the next phase
-re-inhales it. The typed output surface predicts decision, operation, region,
-dynamic exact boundary addresses, and 351 Unicode transport categories plus
-EMPTY/EOS. An untrained or malformed emission fails closed and is never
-registered live. Free-running diagnostics stop only at a renewable external
-work slice and report incompletion. The core exposes a resumable iterator that
-preserves exact decoder state across slices without a configured total output
-length. The current runtime adapter consumes one slice and abstains when it is
-incomplete; durable Heart-host continuation is required before learned D64
-tissue may serve.
+persistent Soul-state tokens. Its source pages are bounded compute units only:
+a recurrent state containing the inhaled private Soul traverses every canonical
+page in order and then every proposal-workspace page. All four Soul layers can
+influence that initial recurrent state; each runtime phase exhales an exact
+safe `f32le` HOT-layer state and the next phase re-inhales it.
 
-`training/living_reasoning_curriculum.py` supplies deterministic synthetic
-mechanism cases for exact addressed edits, Unicode payloads, no-op/abstain,
-proposal refinement, conflict handling, and current-field authority.
-`training/living_reasoning_preflight.py` binds static capacity, architecture,
-curriculum distribution, boundary coverage, Soul/field counterfactual
-dependence, and strict checkpoint-compatibility evidence into the Trainer's
-existing preflight receipt. `training/reasoning_tournament.py` fixes the first
+The candidate's pre-2026-09-19 typed output anatomy (learned decision,
+operation, region and boundary heads plus EMPTY/EOS) is **superseded at the
+reasoning interface**. It remains historical diagnostic tissue, not the target
+for further reasoning education. The replacement reasoning-output contract is
+a resumable variable-length English text decoder over the exact Unicode
+transport vocabulary plus an exact terminator. FIRST/REFINED mode generates
+free conversational English proposals; CONSOLIDATOR mode generates the
+constrained technical-English FINAL verdict. Decoder work may span renewable
+execution slices with exact continuation state, but no learned abstention is an
+acceptable completion path: incompletion remains runtime status and resumes
+until the proposal/verdict finishes or the execution fails/times out. There is
+no configured total proposal-length ceiling and no relation between input page
+count and output symbol count.
+
+`training/living_reasoning_curriculum.py` still preserves deterministic
+synthetic mechanism evidence for exact Unicode transport, addressed canonical
+mutation, proposal refinement, conflict handling, and current-field authority,
+but its historical no-op/abstain and learned-decision targets are superseded and
+must not be used as new reasoning targets. The replacement curriculum must teach
+English explicitly: exact Unicode transport first, then English orthography,
+vocabulary, morphology, grammar, syntax, sentence/paragraph construction,
+questioning, explanation, disagreement, conversational proposal style,
+FIRST-to-REFINED revision, and finally the constrained technical-English
+consolidator verdict grammar. `training/living_reasoning_preflight.py` binds
+static capacity, architecture, curriculum distribution, boundary coverage,
+Soul/field counterfactual dependence, and strict checkpoint-compatibility
+evidence into the Trainer's existing preflight receipt. `training/reasoning_tournament.py` fixes the first
 architecture comparison at 1x64 versus 2x32 versus 4x16 heads with identical
 two-layer/131072-FFN anatomy and identical evaluation gates, followed only if
 needed by a 1x64 six-layer/4096-FFN and 2x32 four-layer/16384-FFN comparison.
@@ -968,31 +1038,43 @@ mechanism cases; reports retain per-manifest and per-family metrics. Historical
 C1 step-193 artifacts predate this contract and remain inadmissible as the
 evidence-qualified C1 verdict.
 
-The first objective Language Foundations curriculum is published at manifest
+The first objective Language Foundations curriculum is preserved at manifest
 `824aabae2090c721da9b55540a5d890fc958577d2e5c78fde49da870096634f9`.
 It contains 349 complete `VERIFIED_TARGET` cases across L0 exact
 character/Unicode transport, L1 orthography, L2 vocabulary, L3 morphology, and
-L4 grammar, with 240 train, 56 heldout, and 53 regression cases. Every lesson
-uses the real Shared Field, exact D64 compiler rail, three-phase private-Soul
-unroll, typed 351-category transport, and exact response-draft address. Hidden-
-target leakage, visibility consistency, and train/heldout/regression transfer-
-item disjointness fail closed. The full 1x64-head/two-layer/131072-FFN tissue
-passed local CPU preflight as receipt
+L4 grammar, with 240 train, 56 heldout, and 53 regression cases. Those English
+language targets remain valuable evidence, but the manifest predates the
+2026-09-19 proposal-language correction: its lessons terminate in an exact
+response-draft address rather than the new free-English proposal stream and
+technical-English consolidator stream. It is therefore historical curriculum
+evidence, not by itself the complete current reasoning interface. Hidden-target
+leakage, visibility consistency, and train/heldout/regression transfer-item
+disjointness remain fail-closed requirements. The full
+1x64-head/two-layer/131072-FFN tissue passed local CPU preflight as receipt
 `ae99a3149485f0fa3d5d0d5dd006d2a89c0bf66f44b08fff8a36a35d4e3070d3`;
 this proves launch anatomy, not learned language.
 
-Jeff ratified the **foundations-first reasoning curriculum** on 2026-09-04.
-The frozen substrate already represents exact native and Unicode transport;
-an ABC exercise therefore teaches sequence use, not the existence of letters.
-Fresh reasoning education begins narrowly with real typed-delta motor control,
-exact one- and multi-character transport, response-draft addressing, no-op/
-abstain, and EOS. It then uses alphabet, digit, punctuation, Unicode and
-arbitrary sequences as one early sequence-navigation stage before word
-mechanics, short communication, composition, brother circulation and lived-
-experience reasoning. A fixed alphabet recitation cannot establish mastery.
-Heldout and regression work must be split-disjoint, and every evaluation
-operation must include a changed-source pair (plus arbitrary non-alphabet
-sequences) so a memorized song cannot satisfy the gate.
+Jeff ratified the **foundations-first reasoning curriculum** on 2026-09-04;
+the 2026-09-19 proposal-language amendment preserves its transport-first intent
+while superseding its learned decision/no-op/abstain interface. The frozen
+substrate already represents exact native and Unicode transport; an ABC
+exercise therefore teaches sequence use, not the existence of letters. Fresh
+reasoning education begins with exact one- and multi-character transport,
+position/use of attended evidence, continuation/EOS, and full-field recurrent
+coverage. It then teaches English as the public reasoning language: alphabet,
+digit, punctuation and arbitrary Unicode sequences; orthography; vocabulary;
+morphology; grammar and syntax; sentence and paragraph construction; concise
+and extended conversational contributions; questions, observations,
+hypotheses, disagreement and requests for tools/advisors; FIRST-to-REFINED
+revision after reading brother proposals; and finally constrained technical
+English that a deterministic Heart parser can convert into exact canonical
+mutations. A fixed alphabet recitation cannot establish mastery. Heldout and
+regression work must be split-disjoint, changed-source/counterfactual evidence
+must defeat memorization and constant-output policies, and successful proposal
+evaluation must prove both English coherence and dependence on the actual
+attended field.
+
+**2026-09-19 training disposition:** the accepted step-720 v6 transport checkpoint is the last trained state before the now-superseded learned decision rung. The step-780 decision checkpoint is preserved as diagnostic evidence only and must not be the parent of English-proposal reasoning training. Replacing the reasoning-output anatomy may make step 720 incompatible with exact checkpoint restoration; if so, its compatible body tensors may be used only through an explicitly governed donor/new-generation transition with exact tensor-scope and lineage proof. No further optimizer steps are authorized on the old decision/operation/address/joint ladder. Training resumes only after the English FIRST/REFINED proposal decoder, constrained technical-English consolidator decoder/parser contract, corresponding curriculum, evaluation, and gates are implemented and pass preflight.
 
 Advancement is competency-gated and cumulative. Teacher forcing may supply
 credit assignment, but it is never mastery evidence. Stage advancement needs
@@ -1018,10 +1100,12 @@ therefore remained false and no long continuation was authorized.
 That falsification activates the ratified prerequisite rather than weakening
 the gate. Foundations Stage 0 is the content-addressed `F0` manifest
 `a273737cdaa399f9b85e1a8ac91326a255a6c3b63ef880fd1bc1273832be857c`:
-120 complete cases (72 train, 24 heldout, 24 regression), with copy, insert,
-replace, delete, no-op and abstain represented in changed-source pairs in every
-split. Copy-bearing targets may now carry an additive exact source-alignment
-contract. The living D64 objective supervises the existing copy pointer at the
+120 complete cases (72 train, 24 heldout, 24 regression), historically with
+copy, insert, replace, delete, no-op and abstain represented in changed-source
+pairs in every split. The no-op/abstain and learned-decision labels in this
+immutable manifest are now obsolete as reasoning targets; the artifact remains
+for historical/transport diagnostics only. Copy-bearing targets may carry an
+additive exact source-alignment contract. The living D64 objective supervises the existing copy pointer at the
 exact current-field scalar address while expanding that scalar to all one-to-
 four Unicode transport cells in order; EOS remains explicit generated output.
 This is decoder exposure for existing tissue, not an alternate substrate,
@@ -1393,13 +1477,15 @@ used as a completed semantic roundtrip, and cannot satisfy Heart promotion.
 
 Training must match runtime:
 
-- curriculum enters through the shared field,
+- curriculum enters through the Shared Field,
 - unused regions are masked,
-- core inhales,
-- core attends,
-- core emits deltas,
-- loss is applied to the delta/response target,
-- core exhales after action.
+- core inhales its private Soul,
+- core attends the complete frozen field across all required pages,
+- in FIRST/REFINED mode the core emits a nonempty variable-length English proposal,
+- proposal loss teaches exact Unicode plus English vocabulary, grammar, syntax, discourse, and evidence-dependent reasoning,
+- in CONSOLIDATOR mode the core emits a constrained technical-English FINAL verdict that is deterministically parseable into exact canonical mutations,
+- no learned DELTA/NO_OP/ABSTAIN permission head gates whether the core contributes,
+- core exhales after each causal reasoning phase.
 
 ### Non-disposable capacity law
 
@@ -1465,10 +1551,11 @@ behavioral evidence and machine-marked non-resumable/non-activatable. They may
 become donors only through a separately authorized, measured experiment that
 creates a new lineage and never represents the donor as a valid resume.
 
-Full-field training must reproduce the same complete ordered sweep, all-delta
-refinement, consolidator pass, soul boundaries, and typed canonical commit used
-at runtime. A short physical page may not be trained or reported as though it
-were the complete field.
+Full-field training must reproduce the same complete ordered Shared-Field sweep,
+English FIRST proposal, all-proposal refinement barrier, technical-English
+consolidator pass, Soul boundaries, deterministic Heart parsing, and typed
+canonical commit used at runtime. A short physical page may not be trained or
+reported as though it were the complete field.
 
 Current Day Zero D64 trainer:
 
@@ -1479,9 +1566,10 @@ Current Day Zero D64 trainer:
 - scratch changes are ordinary typed deltas followed by canonical successor compilation and a second complete read,
 - response-draft learning remains observable and exact-position/copy-gate evaluation remains available,
 - the living D64 path executes FIRST, REFINED, and CONSOLIDATED against one
-  frozen field image, exhales and re-inhales exact private HOT Soul state at
-  every phase boundary, and trains the same typed decision/delta/Unicode heads
-  exposed at runtime,
+  frozen field image and exhales/re-inhales exact private HOT Soul state at
+  every phase boundary; however its pre-2026-09-19 typed decision/delta heads
+  are now superseded and must be replaced by the English proposal/verdict
+  interface before further reasoning training,
 - isolated candidate Soul branches inherit exact live layers without mutating
   live state; no opaque Soul merge is permitted at promotion,
 - training workspaces live beneath `State/training`; branch-backed episode journaling and canonical split/resume proof remain required before a new training campaign is authorized.
@@ -1539,9 +1627,11 @@ Binding invariants:
   tokens. Current V6 consumers deterministically unpack exact lanes before the
   existing per-character neural lift;
 - compiler output is derived and rebuildable. It has no reasoning vote and no
-  commit authority. Cores/consolidation propose ordinary typed `FieldDelta`
-  objects and canonical validation/transaction code decides whether they may
-  become the next field.
+  commit authority. Ordinary cores publish exact English proposal text;
+  consolidation publishes constrained technical English. Heart alone parses
+  the FINAL verdict into internal typed `FieldDelta` objects, and canonical
+  validation/transaction code decides whether those exact mutations may become
+  the next field.
 
 The deterministic compiler may mark exact structural spans such as words,
 sentences, and paragraphs. Learned English semantics, semantic compression,
@@ -1639,8 +1729,9 @@ Runtime and training do not own separate competing state roots.
 
 Training may create isolated copy-on-write branches, run workspaces, and curriculum material beneath `State\training`,
 but core-facing state must use the same `SharedFieldSnapshot`, dormant-memory,
-exact D64 compiler rail, typed-delta, validation, and commit contracts as
-runtime. Curriculum JSON may remain reproducible source material, but it is
+exact rail compiler, English proposal/technical-verdict, deterministic Heart
+parse, typed canonical-mutation, validation, and commit contracts as runtime.
+Curriculum JSON may remain reproducible source material, but it is
 materialized as canonical state before a D64 core reads it. A smoke or
 curriculum may be small in content or compute; it may not substitute a
 truncated/fake core-facing anatomy that production later discards.
