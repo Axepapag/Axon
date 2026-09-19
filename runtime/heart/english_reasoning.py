@@ -1,36 +1,67 @@
 """Exact English reasoning contracts for inter-core proposals and final verdicts.
 
 FIRST and REFINED communication is ordinary variable-length English text with one
-exact Unicode identity independent of rail width.  CONSOLIDATED output uses a
-strict technical-English envelope whose mutation payloads are canonical JSON;
-Heart parses that grammar mechanically into the existing typed ``FieldDelta``
-transaction boundary.
+exact Unicode identity independent of rail width.  CONSOLIDATED output is also
+English, but uses a deliberately tiny tagged-region surface such as::
+
+    #responseDraft# Hello Jeff.
+    #scratch# Remember to inspect the trainer lineage next.
+
+A tag names a canonical Shared Field region; the following text is the complete
+desired text of that region.  Unmentioned regions remain unchanged.  The Heart
+already owns the frozen base/tick/author context, so the learned consolidator does
+not waste output reproducing transaction metadata or numeric character addresses.
+Heart parses the tags mechanically, compares them with the frozen base, and
+materializes the internal typed ``FieldDelta`` transaction.  It performs no
+semantic interpretation.
 
 This module intentionally contains no learned decision/no-op/abstain gate.
 Runtime failure, timeout, and incompletion remain control-plane states.
 """
 from __future__ import annotations
 
-import json
 import re
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
 from runtime.field import (
-    DeleteText,
+    CANONICAL_REGION_ORDER,
     FieldDelta,
     InsertText,
     LogicalRegion,
     ReplaceText,
+    SharedFieldSnapshot,
+    apply_delta,
     canonical_sha256,
+    validate_delta,
 )
 
+from .authority import AuthorityGrant
 from .reasoning_output import CategoricalTextFrame
 
 ENGLISH_PROPOSAL_SCHEMA = "axon-english-proposal-v1"
-TECHNICAL_FINAL_VERDICT_SCHEMA = "axon-technical-final-verdict-v1"
-FINAL_VERDICT_HEADER = "AXON FINAL VERDICT V1"
-FINAL_VERDICT_FOOTER = "END AXON FINAL VERDICT V1"
+TECHNICAL_FINAL_VERDICT_SCHEMA = "axon-tagged-final-verdict-v2"
+
+# Human-facing canonical tag names.  ``journal`` is the public architectural
+# name for the historical ``diary`` field region.
+REGION_TAGS: Mapping[LogicalRegion, str] = {
+    LogicalRegion.CONVERSATION_HISTORY: "conversationHistory",
+    LogicalRegion.USER_INPUT: "userInput",
+    LogicalRegion.CORTEX: "cortex",
+    LogicalRegion.SITUATION_AWARENESS: "situationAwareness",
+    LogicalRegion.TOOL_RESULTS: "toolResults",
+    LogicalRegion.ADVISOR_INPUT: "advisorInput",
+    LogicalRegion.TASK_STATE: "taskState",
+    LogicalRegion.SCRATCH: "scratch",
+    LogicalRegion.RESPONSE_DRAFT: "responseDraft",
+    LogicalRegion.DIARY: "journal",
+    LogicalRegion.IDENTITY: "identity",
+    LogicalRegion.TRAINER_INSTRUCTIONS: "trainerInstructions",
+    LogicalRegion.TRAINING_RESPONSES: "trainingResponses",
+}
+_TAG_TO_REGION: dict[str, LogicalRegion] = {tag: region for region, tag in REGION_TAGS.items()}
+_TAG_TO_REGION["diary"] = LogicalRegion.DIARY  # accepted compatibility alias
+_TAG_LINE_RE = re.compile(r"^#([A-Za-z][A-Za-z0-9]*)#(?: (.*))?$")
 
 
 class EnglishReasoningContractError(ValueError):
@@ -52,18 +83,83 @@ def _require_exact_unicode_text(value: str, *, name: str, nonempty: bool) -> str
     return value
 
 
-def _canonical_json(value: Any) -> str:
-    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-
-
-def _parse_canonical_json(text: str, *, name: str) -> Any:
+def _coerce_region(value: LogicalRegion | str) -> LogicalRegion:
+    if isinstance(value, LogicalRegion):
+        return value
+    if value in _TAG_TO_REGION:
+        return _TAG_TO_REGION[value]
     try:
-        value = json.loads(text)
-    except json.JSONDecodeError as exc:
-        raise EnglishReasoningContractError(f"{name} is not valid JSON") from exc
-    if _canonical_json(value) != text:
-        raise EnglishReasoningContractError(f"{name} is not canonical JSON")
-    return value
+        return LogicalRegion(value)
+    except (TypeError, ValueError) as exc:
+        raise EnglishReasoningContractError(f"unknown final-verdict region {value!r}") from exc
+
+
+def _looks_like_tag_line(line: str) -> bool:
+    return _TAG_LINE_RE.fullmatch(line) is not None
+
+
+def _escape_body_line(line: str) -> str:
+    # A leading backslash escapes itself.  A line that looks like a region tag is
+    # escaped so arbitrary English/code can still contain literal tag-shaped text.
+    if line.startswith("\\") or _looks_like_tag_line(line):
+        return "\\" + line
+    return line
+
+
+def _render_section(region: LogicalRegion, text: str) -> list[str]:
+    tag = REGION_TAGS[region]
+    _require_exact_unicode_text(text, name=f"{tag} region text", nonempty=False)
+    body_lines = text.split("\n")
+    first = body_lines[0] if body_lines else ""
+    lines = [f"#{tag}#" + (f" {first}" if first else "")]
+    lines.extend(_escape_body_line(line) for line in body_lines[1:])
+    return lines
+
+
+def _parse_sections(text: str) -> tuple[tuple[LogicalRegion, str], ...]:
+    _require_exact_unicode_text(text, name="final verdict", nonempty=True)
+    lines = text.split("\n")
+    sections: list[tuple[LogicalRegion, str]] = []
+    seen: set[LogicalRegion] = set()
+    current_region: LogicalRegion | None = None
+    current_lines: list[str] = []
+
+    def flush() -> None:
+        nonlocal current_region, current_lines
+        if current_region is None:
+            return
+        sections.append((current_region, "\n".join(current_lines)))
+        current_region = None
+        current_lines = []
+
+    for line in lines:
+        if current_region is not None and line.startswith("\\"):
+            current_lines.append(line[1:])
+            continue
+
+        match = _TAG_LINE_RE.fullmatch(line)
+        if match is not None:
+            tag = match.group(1)
+            region = _TAG_TO_REGION.get(tag)
+            if region is None:
+                raise EnglishReasoningContractError(f"unknown final-verdict tag #{tag}#")
+            if region in seen:
+                raise EnglishReasoningContractError(f"duplicate final-verdict region tag #{tag}#")
+            flush()
+            seen.add(region)
+            current_region = region
+            first = match.group(2)
+            current_lines = [] if first is None else [first]
+            continue
+
+        if current_region is None:
+            raise EnglishReasoningContractError("final verdict text must begin with a known #region# tag")
+        current_lines.append(line)
+
+    flush()
+    if not sections:
+        raise EnglishReasoningContractError("final verdict must contain at least one #region# section")
+    return tuple(sections)
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,9 +220,75 @@ class EnglishProposal:
         return frame
 
 
+def render_final_verdict(sections: Mapping[LogicalRegion | str, str]) -> str:
+    """Render a compact tagged-region verdict.
+
+    Each named section is the complete desired text of one region.  The mapping's
+    insertion order is preserved so the consolidator is not trained on a needless
+    region-order decision.  Heart semantics are carried entirely by the tags.
+    """
+
+    if not isinstance(sections, Mapping) or not sections:
+        raise EnglishReasoningContractError("final verdict requires at least one region section")
+    rendered: list[str] = []
+    seen: set[LogicalRegion] = set()
+    for raw_region, raw_text in sections.items():
+        region = _coerce_region(raw_region)
+        if region in seen:
+            raise EnglishReasoningContractError(f"duplicate final-verdict region {region.value!r}")
+        seen.add(region)
+        rendered.extend(_render_section(region, raw_text))
+    return "\n".join(rendered)
+
+
+def parse_final_verdict(
+    text: str,
+    *,
+    base: SharedFieldSnapshot,
+    author_core_id: str,
+    evidence: tuple[str, ...] = (),
+) -> FieldDelta:
+    """Mechanically turn tagged desired-region text into an internal typed delta."""
+
+    if not isinstance(base, SharedFieldSnapshot):
+        raise TypeError("parse_final_verdict requires the frozen SharedFieldSnapshot base")
+    if not isinstance(author_core_id, str) or not author_core_id:
+        raise EnglishReasoningContractError("author_core_id must be nonempty")
+
+    operations: list[InsertText | ReplaceText] = []
+    for region, desired in _parse_sections(text):
+        current = base.region(region).text
+        if desired == current:
+            continue
+        if not current:
+            if desired:
+                operations.append(InsertText(region=region, offset=0, text=desired))
+        else:
+            # Whole-region desired-state semantics keep the learned grammar tiny.
+            # Heart may later optimize this internal materialization without changing
+            # what the consolidator has to learn to say.
+            operations.append(ReplaceText(region=region, start=0, end=len(current), text=desired))
+
+    if not operations:
+        raise EnglishReasoningContractError("final verdict must change at least one canonical region")
+
+    delta = FieldDelta(
+        base_field_id=base.field_id,
+        base_tick_id=base.tick_id,
+        author_core_id=author_core_id,
+        pass_id="consolidated",
+        operations=tuple(operations),
+        evidence=tuple(sorted(set(str(item) for item in evidence))),
+    )
+    grant = AuthorityGrant.consolidator()
+    grant.assert_delta_permitted(delta)
+    validate_delta(base, delta, permitted_regions=grant.governed_regions)
+    return delta
+
+
 @dataclass(frozen=True, slots=True)
 class TechnicalFinalVerdict:
-    """Exact constrained-English consolidator verdict and its parsed transaction."""
+    """One compact tagged-region consolidator verdict bound to its Heart transaction."""
 
     text: str
     delta: FieldDelta
@@ -138,9 +300,6 @@ class TechnicalFinalVerdict:
             raise TypeError("TechnicalFinalVerdict.delta must be FieldDelta")
         if str(self.delta.pass_id) != "consolidated":
             raise EnglishReasoningContractError("final verdict delta must use pass_id 'consolidated'")
-        canonical = render_final_verdict(self.delta)
-        if canonical != self.text:
-            raise EnglishReasoningContractError("final verdict text is not the canonical rendering of its delta")
         object.__setattr__(
             self,
             "verdict_id",
@@ -154,13 +313,76 @@ class TechnicalFinalVerdict:
         )
 
     @classmethod
-    def from_delta(cls, delta: FieldDelta) -> "TechnicalFinalVerdict":
-        return cls(text=render_final_verdict(delta), delta=delta)
+    def parse(
+        cls,
+        text: str,
+        *,
+        base: SharedFieldSnapshot,
+        author_core_id: str,
+        evidence: tuple[str, ...] = (),
+    ) -> "TechnicalFinalVerdict":
+        return cls(
+            text=text,
+            delta=parse_final_verdict(
+                text,
+                base=base,
+                author_core_id=author_core_id,
+                evidence=evidence,
+            ),
+        )
 
     @classmethod
-    def parse(cls, text: str) -> "TechnicalFinalVerdict":
-        delta = parse_final_verdict(text)
-        return cls(text=text, delta=delta)
+    def from_sections(
+        cls,
+        *,
+        base: SharedFieldSnapshot,
+        author_core_id: str,
+        sections: Mapping[LogicalRegion | str, str],
+        evidence: tuple[str, ...] = (),
+    ) -> "TechnicalFinalVerdict":
+        return cls.parse(
+            render_final_verdict(sections),
+            base=base,
+            author_core_id=author_core_id,
+            evidence=evidence,
+        )
+
+    @classmethod
+    def from_delta(cls, base: SharedFieldSnapshot, delta: FieldDelta) -> "TechnicalFinalVerdict":
+        """Convert a known typed delta into equivalent simple region-tag training text.
+
+        Sparse historical operations are applied mechanically, then only the touched
+        regions' complete successor text is emitted.  Re-parsing need not reproduce
+        the original sparse operations byte-for-byte; it must reproduce the same
+        successor field contents.
+        """
+
+        if not isinstance(delta, FieldDelta):
+            raise TypeError("TechnicalFinalVerdict.from_delta requires FieldDelta")
+        if delta.base_field_id != base.field_id or delta.base_tick_id != base.tick_id:
+            raise EnglishReasoningContractError("delta is stale for the supplied base")
+        if str(delta.pass_id) != "consolidated":
+            raise EnglishReasoningContractError("final verdict delta must use pass_id 'consolidated'")
+        grant = AuthorityGrant.consolidator()
+        grant.assert_delta_permitted(delta)
+        successor = apply_delta(base, delta, permitted_regions=grant.governed_regions)
+        touched = {operation.region for operation in delta.operations}
+        sections = {
+            region: successor.region(region).text
+            for region in CANONICAL_REGION_ORDER
+            if region in touched
+        }
+        verdict = cls.from_sections(
+            base=base,
+            author_core_id=delta.author_core_id,
+            sections=sections,
+            evidence=delta.evidence,
+        )
+        reconstructed = apply_delta(base, verdict.delta, permitted_regions=grant.governed_regions)
+        for region in touched:
+            if reconstructed.region(region).text != successor.region(region).text:
+                raise EnglishReasoningContractError("tagged verdict failed successor-state equivalence")
+        return verdict
 
     def frame_for(self, d_model: int) -> CategoricalTextFrame:
         frame = CategoricalTextFrame.from_text(self.text, d_model=d_model)
@@ -177,159 +399,9 @@ class TechnicalFinalVerdict:
         }
 
 
-def _operation_mapping(operation: InsertText | DeleteText | ReplaceText) -> dict[str, Any]:
-    return operation.to_canonical_dict()
-
-
-def render_final_verdict(delta: FieldDelta) -> str:
-    """Render one canonical technical-English verdict from a typed consolidator delta."""
-
-    if not isinstance(delta, FieldDelta):
-        raise TypeError("render_final_verdict requires FieldDelta")
-    if str(delta.pass_id) != "consolidated":
-        raise EnglishReasoningContractError("technical final verdict requires pass_id 'consolidated'")
-    lines = [
-        FINAL_VERDICT_HEADER,
-        f"The base field is {_canonical_json(delta.base_field_id)}.",
-        f"The base tick is {delta.base_tick_id}.",
-        f"The author core is {_canonical_json(delta.author_core_id)}.",
-        f"The evidence references are {_canonical_json(list(delta.evidence))}.",
-        f"There are {len(delta.operations)} canonical mutations.",
-    ]
-    for index, operation in enumerate(delta.operations, start=1):
-        lines.append(f"Mutation {index} is {_canonical_json(_operation_mapping(operation))}.")
-    lines.append(FINAL_VERDICT_FOOTER)
-    return "\n".join(lines)
-
-
-_BASE_FIELD_RE = re.compile(r"^The base field is (.+)\.$")
-_BASE_TICK_RE = re.compile(r"^The base tick is ([0-9]+)\.$")
-_AUTHOR_RE = re.compile(r"^The author core is (.+)\.$")
-_EVIDENCE_RE = re.compile(r"^The evidence references are (.+)\.$")
-_COUNT_RE = re.compile(r"^There are ([0-9]+) canonical mutations\.$")
-_MUTATION_RE = re.compile(r"^Mutation ([1-9][0-9]*) is (.+)\.$")
-
-
-def _match(regex: re.Pattern[str], line: str, *, name: str) -> re.Match[str]:
-    match = regex.fullmatch(line)
-    if match is None:
-        raise EnglishReasoningContractError(f"malformed {name} line")
-    return match
-
-
-def _string_json(text: str, *, name: str) -> str:
-    value = _parse_canonical_json(text, name=name)
-    if not isinstance(value, str) or not value:
-        raise EnglishReasoningContractError(f"{name} must encode a nonempty string")
-    _require_exact_unicode_text(value, name=name, nonempty=True)
-    return value
-
-
-def _string_list_json(text: str, *, name: str) -> tuple[str, ...]:
-    value = _parse_canonical_json(text, name=name)
-    if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
-        raise EnglishReasoningContractError(f"{name} must encode a JSON string list")
-    canonical = tuple(sorted(set(value)))
-    if list(canonical) != value:
-        raise EnglishReasoningContractError(f"{name} must be sorted and duplicate-free")
-    return canonical
-
-
-def _operation_from_mapping(value: Mapping[str, Any]) -> InsertText | DeleteText | ReplaceText:
-    if not isinstance(value, Mapping):
-        raise EnglishReasoningContractError("mutation must be a JSON object")
-    op = value.get("op")
-    if op == "insert":
-        required = {"op", "region", "offset", "text", "provenance", "container_refs", "edge_refs"}
-    elif op in {"delete", "replace"}:
-        required = {"op", "region", "start", "end", "provenance", "container_refs", "edge_refs"}
-        if op == "replace":
-            required.add("text")
-    else:
-        raise EnglishReasoningContractError(f"unsupported mutation operation {op!r}")
-    if set(value) != required:
-        raise EnglishReasoningContractError("mutation object fields do not match its operation")
-    try:
-        region = LogicalRegion(value["region"])
-    except (TypeError, ValueError) as exc:
-        raise EnglishReasoningContractError(f"unknown mutation region {value.get('region')!r}") from exc
-    provenance = value["provenance"]
-    container_refs = value["container_refs"]
-    edge_refs = value["edge_refs"]
-    if not isinstance(provenance, str):
-        raise EnglishReasoningContractError("mutation provenance must be text")
-    if not isinstance(container_refs, list) or any(not isinstance(item, str) for item in container_refs):
-        raise EnglishReasoningContractError("container_refs must be a JSON string list")
-    if not isinstance(edge_refs, list) or any(not isinstance(item, str) for item in edge_refs):
-        raise EnglishReasoningContractError("edge_refs must be a JSON string list")
-    if container_refs != sorted(set(container_refs)) or edge_refs != sorted(set(edge_refs)):
-        raise EnglishReasoningContractError("mutation references must be sorted and duplicate-free")
-    common = {
-        "region": region,
-        "provenance": provenance,
-        "container_refs": tuple(container_refs),
-        "edge_refs": tuple(edge_refs),
-    }
-    try:
-        if op == "insert":
-            return InsertText(offset=value["offset"], text=value["text"], **common)
-        if op == "delete":
-            return DeleteText(start=value["start"], end=value["end"], **common)
-        return ReplaceText(start=value["start"], end=value["end"], text=value["text"], **common)
-    except (KeyError, TypeError, ValueError) as exc:
-        raise EnglishReasoningContractError(f"invalid {op} mutation: {exc}") from exc
-
-
-def parse_final_verdict(text: str) -> FieldDelta:
-    """Parse canonical technical English into a typed delta with zero semantic inference."""
-
-    _require_exact_unicode_text(text, name="final verdict", nonempty=True)
-    lines = text.split("\n")
-    if len(lines) < 7 or lines[0] != FINAL_VERDICT_HEADER or lines[-1] != FINAL_VERDICT_FOOTER:
-        raise EnglishReasoningContractError("final verdict header/footer is invalid")
-    if any(not line for line in lines):
-        raise EnglishReasoningContractError("final verdict may not contain blank lines")
-
-    base_field = _string_json(_match(_BASE_FIELD_RE, lines[1], name="base field").group(1), name="base field")
-    base_tick = int(_match(_BASE_TICK_RE, lines[2], name="base tick").group(1))
-    author = _string_json(_match(_AUTHOR_RE, lines[3], name="author core").group(1), name="author core")
-    evidence = _string_list_json(
-        _match(_EVIDENCE_RE, lines[4], name="evidence").group(1),
-        name="evidence references",
-    )
-    count = int(_match(_COUNT_RE, lines[5], name="mutation count").group(1))
-    if count < 1:
-        raise EnglishReasoningContractError("final verdict must contain at least one canonical mutation")
-    mutation_lines = lines[6:-1]
-    if len(mutation_lines) != count:
-        raise EnglishReasoningContractError("mutation count does not match the verdict body")
-
-    operations: list[InsertText | DeleteText | ReplaceText] = []
-    for expected_index, line in enumerate(mutation_lines, start=1):
-        match = _match(_MUTATION_RE, line, name=f"mutation {expected_index}")
-        actual_index = int(match.group(1))
-        if actual_index != expected_index:
-            raise EnglishReasoningContractError("mutations must be consecutively numbered from 1")
-        value = _parse_canonical_json(match.group(2), name=f"mutation {expected_index}")
-        operations.append(_operation_from_mapping(value))
-
-    delta = FieldDelta(
-        base_field_id=base_field,
-        base_tick_id=base_tick,
-        author_core_id=author,
-        pass_id="consolidated",
-        operations=tuple(operations),
-        evidence=evidence,
-    )
-    if render_final_verdict(delta) != text:
-        raise EnglishReasoningContractError("final verdict is not in the unique canonical rendering")
-    return delta
-
-
 __all__ = [
     "ENGLISH_PROPOSAL_SCHEMA",
-    "FINAL_VERDICT_FOOTER",
-    "FINAL_VERDICT_HEADER",
+    "REGION_TAGS",
     "TECHNICAL_FINAL_VERDICT_SCHEMA",
     "EnglishProposal",
     "EnglishReasoningContractError",

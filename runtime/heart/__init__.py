@@ -60,8 +60,7 @@ from .d64_codec import (
 from .durable_ingress import DurableIngressSpool, IngressRecord
 from .english_reasoning import (
     ENGLISH_PROPOSAL_SCHEMA,
-    FINAL_VERDICT_FOOTER,
-    FINAL_VERDICT_HEADER,
+    REGION_TAGS,
     TECHNICAL_FINAL_VERDICT_SCHEMA,
     EnglishProposal,
     EnglishReasoningContractError,
@@ -223,8 +222,6 @@ __all__ = [
     "DORMANT_VALVE_GOVERNED_REGIONS",
     "ENGLISH_PROPOSAL_SCHEMA",
     "EMPTY_CATEGORY_ID",
-    "FINAL_VERDICT_FOOTER",
-    "FINAL_VERDICT_HEADER",
     "EOS_CATEGORY_ID",
     "HEART_ENSEMBLE_POLICY_SCHEMA",
     "HEART_FIDELITY_EVIDENCE_SCHEMA",
@@ -242,6 +239,7 @@ __all__ = [
     "OPERATOR_CORE_GRANT_SCHEMA",
     "PROPOSAL_RAIL_SCHEMA",
     "PROPOSAL_WORKSPACE_SCHEMA",
+    "REGION_TAGS",
     "REASONING_CATEGORY_COUNT",
     "REASONING_CIRCULATION_SCHEMA",
     "REASONING_EMISSION_SCHEMA",

@@ -1,10 +1,18 @@
 from __future__ import annotations
 
-import json
-
 import pytest
 
-from runtime.field import DeleteText, FieldDelta, InsertText, LogicalRegion, ReplaceText
+from runtime.field import (
+    DeleteText,
+    FieldDelta,
+    InsertText,
+    LogicalRegion,
+    RegionState,
+    ReplaceText,
+    SharedFieldSnapshot,
+    apply_delta,
+)
+from runtime.heart import AuthorityGrant
 from runtime.heart.english_reasoning import (
     EnglishProposal,
     EnglishReasoningContractError,
@@ -14,36 +22,22 @@ from runtime.heart.english_reasoning import (
 )
 
 
-def _delta() -> FieldDelta:
-    return FieldDelta(
-        base_field_id="f" * 64,
-        base_tick_id=17,
-        author_core_id="core-64-a",
-        pass_id="consolidated",
-        operations=(
-            InsertText(
-                region=LogicalRegion.SCRATCH,
-                offset=3,
-                text="Observe 東京 carefully.\nSecond line.",
-                provenance="proposal:1",
-                container_refs=("c2", "c1"),
-                edge_refs=("e1",),
-            ),
-            ReplaceText(
-                region=LogicalRegion.RESPONSE_DRAFT,
-                start=0,
-                end=5,
-                text='Paris — and "France".',
-                provenance="consolidator",
-            ),
-            DeleteText(
-                region=LogicalRegion.TASK_STATE,
-                start=2,
-                end=4,
-                provenance="cleanup",
-            ),
+def _base() -> SharedFieldSnapshot:
+    return SharedFieldSnapshot(
+        tick_id=17,
+        regions=(
+            RegionState.from_text(LogicalRegion.RESPONSE_DRAFT, "Old answer."),
+            RegionState.from_text(LogicalRegion.SCRATCH, "old scratch"),
+            RegionState.from_text(LogicalRegion.TASK_STATE, "abcd"),
         ),
-        evidence=("source-b", "source-a", "source-a"),
+    )
+
+
+def _apply(base: SharedFieldSnapshot, delta: FieldDelta) -> SharedFieldSnapshot:
+    return apply_delta(
+        base,
+        delta,
+        permitted_regions=AuthorityGrant.consolidator().governed_regions,
     )
 
 
@@ -90,78 +84,105 @@ def test_english_proposal_rejects_the_old_consolidated_or_permission_surface() -
         )
 
 
-def test_final_verdict_roundtrips_all_field_operations_exactly() -> None:
-    original = _delta()
-    text = render_final_verdict(original)
-    parsed = parse_final_verdict(text)
+def test_final_verdict_is_the_simple_tagged_surface_requested_by_doctrine() -> None:
+    base = _base()
+    text = "#responseDraft# Hello Jeff.\n#scratch# Something to write down."
+    verdict = TechnicalFinalVerdict.parse(text, base=base, author_core_id="core-64-a")
+    successor = _apply(base, verdict.delta)
 
-    assert parsed.to_canonical_dict() == original.to_canonical_dict()
-    verdict = TechnicalFinalVerdict.parse(text)
-    assert verdict.delta.delta_id == original.delta_id
+    assert verdict.text == text
+    assert successor.region(LogicalRegion.RESPONSE_DRAFT).text == "Hello Jeff."
+    assert successor.region(LogicalRegion.SCRATCH).text == "Something to write down."
     assert verdict.frame_for(64).text == text
     assert verdict.frame_for(256).text == text
+    assert "base field" not in text.lower()
+    assert "mutation" not in text.lower()
+    assert "{" not in text
 
 
-def test_final_verdict_is_technical_english_with_canonical_json_payloads() -> None:
-    text = render_final_verdict(_delta())
-    lines = text.split("\n")
-
-    assert lines[0] == "AXON FINAL VERDICT V1"
-    assert lines[1].startswith("The base field is ")
-    assert lines[5] == "There are 3 canonical mutations."
-    assert lines[6].startswith("Mutation 1 is {")
-    assert lines[-1] == "END AXON FINAL VERDICT V1"
-    payload = lines[6][len("Mutation 1 is ") : -1]
-    decoded = json.loads(payload)
-    assert decoded["op"] == "insert"
-    assert decoded["text"] == "Observe 東京 carefully.\nSecond line."
-
-
-def test_final_verdict_parser_rejects_noncanonical_or_ambiguous_text() -> None:
-    text = render_final_verdict(_delta())
-    mutation_line = text.split("\n")[6]
-    payload = json.loads(mutation_line[len("Mutation 1 is ") : -1])
-    pretty = json.dumps(payload, ensure_ascii=False, sort_keys=True)  # spaces => noncanonical
-    tampered = text.replace(mutation_line, f"Mutation 1 is {pretty}.")
-
-    with pytest.raises(EnglishReasoningContractError, match="canonical JSON"):
-        parse_final_verdict(tampered)
-
-
-def test_final_verdict_parser_rejects_count_or_numbering_drift() -> None:
-    text = render_final_verdict(_delta())
-    with pytest.raises(EnglishReasoningContractError, match="count"):
-        parse_final_verdict(text.replace("There are 3 canonical mutations.", "There are 2 canonical mutations."))
-    with pytest.raises(EnglishReasoningContractError, match="consecutively"):
-        parse_final_verdict(text.replace("Mutation 2 is ", "Mutation 7 is ", 1))
-
-
-def test_final_verdict_requires_real_canonical_mutation() -> None:
-    text = "\n".join(
-        [
-            "AXON FINAL VERDICT V1",
-            'The base field is "field".',
-            "The base tick is 1.",
-            'The author core is "core".',
-            "The evidence references are [].",
-            "There are 0 canonical mutations.",
-            "END AXON FINAL VERDICT V1",
-        ]
+def test_final_verdict_preserves_multiline_unicode_and_literal_tag_shaped_text() -> None:
+    base = _base()
+    desired = "Observe 東京.\n#responseDraft# this is literal text.\n\\leading slash"
+    text = render_final_verdict(
+        {
+            LogicalRegion.SCRATCH: desired,
+            LogicalRegion.RESPONSE_DRAFT: "Hello Jeff.",
+        }
     )
-    with pytest.raises(EnglishReasoningContractError, match="at least one"):
-        parse_final_verdict(text)
+    assert "\\#responseDraft# this is literal text." in text
+    assert "\\\\leading slash" in text
+
+    parsed = parse_final_verdict(text, base=base, author_core_id="core")
+    successor = _apply(base, parsed)
+    assert successor.region(LogicalRegion.SCRATCH).text == desired
+    assert successor.region(LogicalRegion.RESPONSE_DRAFT).text == "Hello Jeff."
 
 
-def test_verdict_rejects_a_non_consolidated_delta() -> None:
-    delta = FieldDelta(
-        base_field_id="f" * 64,
-        base_tick_id=1,
+def test_journal_is_the_public_tag_for_the_historical_diary_region() -> None:
+    base = _base()
+    text = render_final_verdict({"journal": "Today I learned something useful."})
+    assert text == "#journal# Today I learned something useful."
+    parsed = parse_final_verdict(text, base=base, author_core_id="core")
+    successor = _apply(base, parsed)
+    assert successor.region(LogicalRegion.DIARY).text == "Today I learned something useful."
+
+
+def test_unmentioned_regions_are_unchanged_and_empty_section_can_clear_a_region() -> None:
+    base = _base()
+    parsed = parse_final_verdict(
+        "#scratch#",
+        base=base,
         author_core_id="core",
-        pass_id="first",
-        operations=(InsertText(region=LogicalRegion.SCRATCH, offset=0, text="x"),),
     )
-    with pytest.raises(EnglishReasoningContractError, match="consolidated"):
-        render_final_verdict(delta)
+    successor = _apply(base, parsed)
+    assert successor.region(LogicalRegion.SCRATCH).text == ""
+    assert successor.region(LogicalRegion.RESPONSE_DRAFT).text == "Old answer."
+    assert successor.region(LogicalRegion.TASK_STATE).text == "abcd"
+
+
+def test_parser_rejects_unknown_duplicate_unauthorized_and_effective_noop_tags() -> None:
+    base = _base()
+    with pytest.raises(EnglishReasoningContractError, match="unknown final-verdict tag"):
+        parse_final_verdict("#respnseDraft# typo", base=base, author_core_id="core")
+    with pytest.raises(EnglishReasoningContractError, match="duplicate"):
+        parse_final_verdict(
+            "#scratch# one\n#scratch# two",
+            base=base,
+            author_core_id="core",
+        )
+    with pytest.raises(Exception, match="identity"):
+        parse_final_verdict("#identity# rewrite me", base=base, author_core_id="core")
+    with pytest.raises(EnglishReasoningContractError, match="change at least one"):
+        parse_final_verdict("#responseDraft# Old answer.", base=base, author_core_id="core")
+
+
+def test_sparse_historical_delta_can_be_rendered_as_equivalent_simple_region_text() -> None:
+    base = _base()
+    original = FieldDelta(
+        base_field_id=base.field_id,
+        base_tick_id=base.tick_id,
+        author_core_id="core-64-a",
+        pass_id="consolidated",
+        operations=(
+            InsertText(region=LogicalRegion.SCRATCH, offset=3, text=" INSERT "),
+            ReplaceText(
+                region=LogicalRegion.RESPONSE_DRAFT,
+                start=0,
+                end=3,
+                text="New",
+            ),
+            DeleteText(region=LogicalRegion.TASK_STATE, start=1, end=3),
+        ),
+        evidence=("source-b", "source-a"),
+    )
+    expected = _apply(base, original)
+    verdict = TechnicalFinalVerdict.from_delta(base, original)
+    reconstructed = _apply(base, verdict.delta)
+
+    assert verdict.text.startswith("#taskState#") or verdict.text.startswith("#scratch#")
+    assert "Mutation" not in verdict.text
+    for region in (LogicalRegion.SCRATCH, LogicalRegion.RESPONSE_DRAFT, LogicalRegion.TASK_STATE):
+        assert reconstructed.region(region).text == expected.region(region).text
 
 
 def test_unicode_surrogate_is_rejected_before_transport() -> None:

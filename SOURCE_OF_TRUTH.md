@@ -360,14 +360,22 @@ section is binding doctrine.
   proposal. No reasoning rule requires output-slot count <= input-slot count,
   and blank/EMPTY input slots are not proposal-capacity reservations. EOS (or
   an equivalent exact stream terminator) ends the variable-length proposal.
-- The rotating consolidator also speaks English, but its FINAL verdict is a
-  constrained technical English transaction language rather than free-form
-  conversation. The verdict must state every intended canonical mutation with
-  unambiguous region, operation, exact span/address where applicable, exact
-  inserted/replacement text, frozen base field/tick identity, and provenance.
-  Heart parses this grammar mechanically and deterministically into canonical
-  mutations; it performs no semantic interpretation. Ambiguous, malformed,
-  stale, unauthorized, overlapping, or noncanonical verdicts fail closed.
+- The rotating consolidator also speaks English, but its FINAL verdict uses a
+  deliberately tiny tagged-region surface rather than free-form conversation or
+  a learned operation/address language. A section such as `#responseDraft# Hello
+  Jeff.` or `#scratch# investigate the trainer lineage` means: make that named
+  canonical region's complete text exactly the English text that follows the
+  tag. Multiple tagged sections may appear in one verdict; unmentioned regions
+  remain unchanged. `#journal#` is the public tag for the canonical Journal/
+  historical `diary` region. The Heart already owns the frozen field/tick,
+  consolidator identity, and authority context, so the core must not waste
+  learned output reproducing those receipts or numeric character addresses.
+  Heart mechanically parses the tags, compares each desired region body with the
+  frozen base, materializes the internal typed canonical mutations, validates
+  authority/freshness/Unicode, and commits or rejects. It performs no semantic
+  interpretation. Unknown/duplicate tags, unauthorized regions, malformed text,
+  stale bindings, or a verdict that produces no actual canonical change fail
+  closed.
   Nearest-vector snapping is auxiliary evidence only; arbitrary continuous
   vectors never have canonical or inter-core communication authority.
 - Shelf: the learned Heart translator tissue, its training campaigns and
@@ -691,13 +699,16 @@ fakeness, concealed replacement, and planned disposability are not.
   changes, request tools/advisors, or offer observations without themselves
   acquiring canonical-write authority.
 - The rotating consolidator alone converts the deliberation into a FINAL
-  constrained technical-English verdict. That verdict may address every
-  canonical region allowed by the governing authority model.
-- Only the Heart's transaction layer mechanically parses the consolidator's
-  FINAL verdict and converts its authorized, exact instructions into canonical
-  state. Validation rejects malformed or ambiguous grammar, conflicting or
-  overlapping mutations, stale bases, unauthorized regions, and any verdict
-  not bound to the frozen tick.
+  tagged-region English verdict. Each `#regionTag#` section states the complete
+  desired English text of that canonical region; unmentioned regions remain
+  unchanged. The verdict may address every region allowed by the governing
+  authority model.
+- Only the Heart's transaction layer mechanically parses those region tags,
+  compares their desired text with the frozen base, and converts the differences
+  into internal typed canonical mutations. Frozen field/tick identity and author
+  binding come from the active transaction context rather than learned output.
+  Validation rejects unknown or duplicate tags, stale bases, unauthorized
+  regions, malformed Unicode, and any verdict that yields no actual change.
 
 Bootstrap write restrictions (such as a scratch/response-only validator) are
 implementation restrictions, not doctrine; widening happens only through this
@@ -737,17 +748,20 @@ deliberation round against a frozen canonical base:
    new question, request outside help, or introduce a materially different line
    of thought. The core then exhales again.
 6. After the refinement barrier, the rotating consolidator attends the frozen
-   tick image plus every refined English proposal. It emits one FINAL verdict
-   in constrained technical English. Unlike brother proposals, this verdict is
-   deliberately precise and machine-parseable: it completely states the
-   intended canonical mutations, including region, operation, exact address or
-   span where applicable, exact text payload, frozen base/tick identity, and
-   provenance. The consolidator is the final reasoning authority of the tick;
-   it still does not directly write canonical state.
-7. Heart parses the FINAL verdict mechanically, validates grammar, authority,
-   base freshness, provenance, Unicode, addresses, and non-overlap, then
-   atomically commits the resulting exact mutation set to produce F_N+1. Heart
-   performs no semantic inference while parsing. During the present reasoning
+   tick image plus every refined English proposal. It emits one FINAL tagged-
+   region English verdict. The surface is intentionally simple: for example,
+   `#responseDraft# Hello Jeff.` followed by `#scratch# remember this issue`.
+   Each tag names one canonical region and the following text is that region's
+   complete desired body. Multiple regions may be named; all unmentioned regions
+   remain exactly as they were. The consolidator need not emit operation kinds,
+   character offsets, frozen field/tick ids, or provenance receipts already
+   known to Heart. It is the final reasoning authority of the tick; it still
+   does not directly write canonical state.
+7. Heart parses the FINAL region tags mechanically, binds them to the already-
+   frozen transaction context, compares desired region bodies with F_N, validates
+   authority and Unicode, materializes the internal typed mutation set, and
+   atomically commits F_N+1. Heart performs no semantic inference while parsing.
+   During the present reasoning
    program, a successfully completed tick must yield at least one valid
    canonical mutation; when the immediate user task is saturated, reasoning
    redirects to response refinement, Scratch/Journal, task/focus transition,
@@ -773,8 +787,8 @@ historical evidence only and must not receive further reasoning-training budget,
 be promoted, or be used as the target interface for new learned cores. Before
 reasoning training resumes beyond the accepted transport checkpoint, runtime,
 proposal-board, parser, curriculum, evaluation, and gate code must be revised to
-implement exact variable-length English FIRST/REFINED proposals plus constrained
-technical-English FINAL verdicts. The barrier/Soul/Heart-commit mechanics remain
+implement exact variable-length English FIRST/REFINED proposals plus the simple
+`#regionTag# desired text` FINAL verdict surface. The barrier/Soul/Heart-commit mechanics remain
 valid. No learned reasoning core is serving yet.
 
 "Against the entire shared field" means that every successful reasoning pass
@@ -951,8 +965,8 @@ reasoning interface**. It remains historical diagnostic tissue, not the target
 for further reasoning education. The replacement reasoning-output contract is
 a resumable variable-length English text decoder over the exact Unicode
 transport vocabulary plus an exact terminator. FIRST/REFINED mode generates
-free conversational English proposals; CONSOLIDATOR mode generates the
-constrained technical-English FINAL verdict. Decoder work may span renewable
+free conversational English proposals; CONSOLIDATOR mode generates the simple
+tagged-region FINAL verdict (`#responseDraft# ...`, `#scratch# ...`, etc.). Decoder work may span renewable
 execution slices with exact continuation state, but no learned abstention is an
 acceptable completion path: incompletion remains runtime status and resumes
 until the proposal/verdict finishes or the execution fails/times out. There is
@@ -967,8 +981,8 @@ must not be used as new reasoning targets. The replacement curriculum must teach
 English explicitly: exact Unicode transport first, then English orthography,
 vocabulary, morphology, grammar, syntax, sentence/paragraph construction,
 questioning, explanation, disagreement, conversational proposal style,
-FIRST-to-REFINED revision, and finally the constrained technical-English
-consolidator verdict grammar. `training/living_reasoning_preflight.py` binds
+FIRST-to-REFINED revision, and finally the compact tagged-region consolidator
+verdict surface. `training/living_reasoning_preflight.py` binds
 static capacity, architecture, curriculum distribution, boundary coverage,
 Soul/field counterfactual dependence, and strict checkpoint-compatibility
 evidence into the Trainer's existing preflight receipt. `training/reasoning_tournament.py` fixes the first
@@ -1046,7 +1060,7 @@ L4 grammar, with 240 train, 56 heldout, and 53 regression cases. Those English
 language targets remain valuable evidence, but the manifest predates the
 2026-09-19 proposal-language correction: its lessons terminate in an exact
 response-draft address rather than the new free-English proposal stream and
-technical-English consolidator stream. It is therefore historical curriculum
+simple tagged-region consolidator stream. It is therefore historical curriculum
 evidence, not by itself the complete current reasoning interface. Hidden-target
 leakage, visibility consistency, and train/heldout/regression transfer-item
 disjointness remain fail-closed requirements. The full
@@ -1066,15 +1080,17 @@ digit, punctuation and arbitrary Unicode sequences; orthography; vocabulary;
 morphology; grammar and syntax; sentence and paragraph construction; concise
 and extended conversational contributions; questions, observations,
 hypotheses, disagreement and requests for tools/advisors; FIRST-to-REFINED
-revision after reading brother proposals; and finally constrained technical
-English that a deterministic Heart parser can convert into exact canonical
-mutations. A fixed alphabet recitation cannot establish mastery. Heldout and
+revision after reading brother proposals; and finally the tagged-region verdict
+surface (`#responseDraft# ...`, `#scratch# ...`, `#journal# ...`) that a
+deterministic Heart parser can convert into exact canonical mutations by
+comparing desired region bodies with the frozen base. A fixed alphabet
+recitation cannot establish mastery. Heldout and
 regression work must be split-disjoint, changed-source/counterfactual evidence
 must defeat memorization and constant-output policies, and successful proposal
 evaluation must prove both English coherence and dependence on the actual
 attended field.
 
-**2026-09-19 training disposition:** the accepted step-720 v6 transport checkpoint is the last trained state before the now-superseded learned decision rung. The step-780 decision checkpoint is preserved as diagnostic evidence only and must not be the parent of English-proposal reasoning training. Replacing the reasoning-output anatomy may make step 720 incompatible with exact checkpoint restoration; if so, its compatible body tensors may be used only through an explicitly governed donor/new-generation transition with exact tensor-scope and lineage proof. No further optimizer steps are authorized on the old decision/operation/address/joint ladder. Training resumes only after the English FIRST/REFINED proposal decoder, constrained technical-English consolidator decoder/parser contract, corresponding curriculum, evaluation, and gates are implemented and pass preflight.
+**2026-09-19 training disposition:** the accepted step-720 v6 transport checkpoint is the last trained state before the now-superseded learned decision rung. The step-780 decision checkpoint is preserved as diagnostic evidence only and must not be the parent of English-proposal reasoning training. Replacing the reasoning-output anatomy may make step 720 incompatible with exact checkpoint restoration; if so, its compatible body tensors may be used only through an explicitly governed donor/new-generation transition with exact tensor-scope and lineage proof. No further optimizer steps are authorized on the old decision/operation/address/joint ladder. Training resumes only after the English FIRST/REFINED proposal decoder, simple tagged-region consolidator decoder/parser contract, corresponding curriculum, evaluation, and gates are implemented and pass preflight.
 
 Advancement is competency-gated and cumulative. Teacher forcing may supply
 credit assignment, but it is never mastery evidence. Stage advancement needs
@@ -1483,7 +1499,7 @@ Training must match runtime:
 - core attends the complete frozen field across all required pages,
 - in FIRST/REFINED mode the core emits a nonempty variable-length English proposal,
 - proposal loss teaches exact Unicode plus English vocabulary, grammar, syntax, discourse, and evidence-dependent reasoning,
-- in CONSOLIDATOR mode the core emits a constrained technical-English FINAL verdict that is deterministically parseable into exact canonical mutations,
+- in CONSOLIDATOR mode the core emits a simple tagged-region FINAL verdict (for example `#responseDraft# ...` and `#scratch# ...`) that Heart deterministically converts into exact canonical mutations against the frozen base,
 - no learned DELTA/NO_OP/ABSTAIN permission head gates whether the core contributes,
 - core exhales after each causal reasoning phase.
 
@@ -1552,7 +1568,7 @@ become donors only through a separately authorized, measured experiment that
 creates a new lineage and never represents the donor as a valid resume.
 
 Full-field training must reproduce the same complete ordered Shared-Field sweep,
-English FIRST proposal, all-proposal refinement barrier, technical-English
+English FIRST proposal, all-proposal refinement barrier, tagged-region
 consolidator pass, Soul boundaries, deterministic Heart parsing, and typed
 canonical commit used at runtime. A short physical page may not be trained or
 reported as though it were the complete field.
@@ -1628,8 +1644,9 @@ Binding invariants:
   existing per-character neural lift;
 - compiler output is derived and rebuildable. It has no reasoning vote and no
   commit authority. Ordinary cores publish exact English proposal text;
-  consolidation publishes constrained technical English. Heart alone parses
-  the FINAL verdict into internal typed `FieldDelta` objects, and canonical
+  consolidation publishes simple tagged-region English such as
+  `#responseDraft# ...` and `#scratch# ...`. Heart alone parses the FINAL
+  verdict into internal typed `FieldDelta` objects, and canonical
   validation/transaction code decides whether those exact mutations may become
   the next field.
 
