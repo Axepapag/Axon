@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-20T07:49:05.0222579Z
+Updated: 2026-09-20T08:36:28.7977931Z
 current_through_event_id:
-`evt-20260920T074905022257Z-codex-kimmy-progress-audit`
+`evt-20260920T083628797793Z-codex-launcher-gpu-tranche`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -24,10 +24,10 @@ and verified the uncommitted follow-through in event
 `evt-20260920T035033160846Z-chatgpt-codex-integration`.
 
 Codex's 2026-09-20 follow-up audit is recorded in event
-`evt-20260920T074905022257Z-codex-kimmy-progress-audit`. The committed integration
-remains verified, while Kimmy's direct `LivingReasoningCoreD64` refactor is still
-uncommitted. It passes the current focused suites and a fresh CPU preflight, but no
-optimizer run was launched from that code.
+`evt-20260920T083628797793Z-codex-launcher-gpu-tranche`. The launcher lineage repair
+and standalone `LivingReasoningCoreD64` refactor are now pushed in commits `9956e82`
+and `a7d493f`. The first fresh local CUDA tranche completed durably but failed the
+production heldout gate; optimizer continuation is paused for decoder diagnosis.
 
 - The first fresh English-native CUDA v1 run remains **diagnostic failure evidence**:
   candidate `english-candidate-53f4ad04ba58c4d27348`, 64 optimizer steps / 512
@@ -48,10 +48,20 @@ optimizer run was launched from that code.
   selecting the accepted resume boundary. Completed heldout evaluations are immutable,
   content-addressed, and tied to the exact accepted bundle and candidate Soul; a
   mastery landmark is written only on a real pass.
-- The current smoke launcher still does not persist its in-memory `ResourceTranche`
-  through `TrancheStore.write_tranche()` or create a `TrancheContinuation` receipt.
-  Durable renewable tranche lineage is therefore a launch blocker even though
-  checkpoint/step-bundle recovery is wired and tested.
+- The smoke launcher now persists each `ResourceTranche` under the Trainer writer
+  lease and writes exact-parent `TrancheContinuation` receipts for resumed segments;
+  launcher regression coverage proves fresh and resumed lineage. Commits `9956e82`
+  and `a7d493f` are pushed to `origin/main`.
+- The first fresh 16,384-FFN local CUDA Stage-0A tranche (`english-candidate-1c991f8c911f79394e91`)
+  completed **8 optimizer steps / 8 accepted bundles** with loss **11.15 -> 5.79**.
+  Its heldout exact rate was **0.0**, teacher-forced content **57/650 = 0.0876923**,
+  EOS **0/64 = 0.0**, complete-field coverage **1.0**, and mastery **false**.
+  Production FIRST/REFINED decoder passes repeatedly failed to terminate within the
+  renewable work slice. The report and tranche artifact are durable; no continuation
+  tranche or Kaggle job is authorized from this evidence.
+- The launcher now emits final reports through UTF-8 bytes, fixing a Windows CP1252
+  console failure that occurred after the first CUDA report had already been durably
+  written.
 - `training/soul_delayed_recall_probe.py` is now an active evaluator with eight
   arbitrary cue/reply cases and intact/reset/swapped/irrelevant controls after neutral
   intervening ticks. It proves nothing merely by existing: no trained Core has passed
@@ -62,9 +72,10 @@ optimizer run was launched from that code.
   tests plus **34** Trainer/tranche/session/remediation tests;
   repository collection completed cleanly; changed-file Ruff, py_compile, and
   `git diff --check` passed; Source of Truth mirrors are byte-identical. A fresh
-  current-code CPU `--preflight-only` passed with zero optimizer steps and no
-  accepted bundles. **No optimizer training, promotion, cloud job, or persistent
-  process was launched by the audit.**
+  current-code CPU `--preflight-only` passed with zero optimizer steps and a durable
+  initial tranche artifact. The current combined focused verification is **88 tests**
+  green. The local CUDA tranche is diagnostic failure evidence; **no cloud job or
+  persistent process remains running.**
 
 ## Current doctrine correction and next work
 
