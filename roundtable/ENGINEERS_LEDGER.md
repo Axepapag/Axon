@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-20T11:27:33.2085272Z
+Updated: 2026-09-20T11:45:22.613814Z
 current_through_event_id:
-`evt-20260920T1127332085272Z-codex-terminal-route-repair`
+`evt-20260920T114522613814Z-chatgpt-codex-step24-audit`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -12,8 +12,8 @@ Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
-Identity stamp: Codex / GPT-6 / 2026-09-20 America/Chicago
-(previous revision: ChatGPT / GPT-5.6 Sol / 2026-09-20; older revisions are superseded,
+Identity stamp: ChatGPT / GPT-5.6 Sol / 2026-09-20 America/Chicago
+(previous revision: Codex / GPT-6 / 2026-09-20; older revisions are superseded,
 not erased; canonical events remain the authority)
 
 ## Current English-substrate integration
@@ -77,6 +77,8 @@ termination from **0.0** to **0.375**, and Unicode-valid traces from **0.78125**
 **0.0**, many terminations are empty, the strict mastery gate remains false, and the
 candidate is not competent or promoted. The run is stopped; no Kaggle or further
 optimizer tranche is authorized until a focused review of the immutable step-24 episodes.
+
+ChatGPT independently audited that step-24 work in event `evt-20260920T114522613814Z-chatgpt-codex-step24-audit`. The implementation and lineage are sound, but the behavioral gain is currently dominated by **premature termination**: all 13 returned heldout outputs are only 1-2 characters against 5-15 character targets, with 11 additional empty EOS failures. Terminal generate-route probability remains below 0.5 on all 64 supervised phases (mean **0.48796**), so the next work is prefix/length/EOS-position diagnosis rather than another optimizer tranche.
 
 - The first fresh English-native CUDA v1 run remains **diagnostic failure evidence**:
   candidate `english-candidate-53f4ad04ba58c4d27348`, 64 optimizer steps / 512
