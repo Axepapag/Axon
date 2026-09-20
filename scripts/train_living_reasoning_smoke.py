@@ -482,8 +482,16 @@ def main() -> int:
             source_manifest_ids=(curriculum.train_manifest_id,),
             holdout_manifest_ids=(curriculum.heldout_manifest_id,),
         )
-        if latest is not None and latest.plan_id != plan.plan_id:
-            raise RuntimeError("accepted English candidate belongs to a different mutation plan")
+        if latest is not None:
+            latest_checkpoint = step_bundles.checkpoint_for_bundle(latest)
+            if latest_checkpoint.plan_id != plan.plan_id:
+                raise RuntimeError(
+                    "accepted English candidate belongs to a different mutation plan"
+                )
+            if latest_checkpoint.learning_policy_id != policy.policy_id:
+                raise RuntimeError(
+                    "accepted English candidate belongs to a different learning policy"
+                )
         tranche = ResourceTranche(
             module_id=args.module_id,
             candidate_generation_id=candidate_generation,
