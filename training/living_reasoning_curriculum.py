@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
 
 import torch
+import torch.nn.functional as F
 
 from runtime.field import D64FieldCompiler, LogicalRegion, SharedFieldSnapshot, canonical_json_bytes, canonical_sha256
 from runtime.heart import (
@@ -775,6 +776,13 @@ def evaluate_living_episode(
     target_counts = torch.zeros(model.eos_index + 1, dtype=torch.long, device=model.device)
     target_histogram: dict[str, int] = {}
     phase_diagnostics: list[dict[str, Any]] = []
+    teacher_eos_probabilities: list[float] = []
+    teacher_eos_ranks: list[int] = []
+    teacher_eos_top1 = 0
+    generated_eos_probabilities: list[float] = []
+    generated_eos_ranks: list[int] = []
+    generated_eos_top1 = 0
+    free_run_traces: list[dict[str, Any]] = []
 
     for runtime_phase, target in zip(runtime_tick.phases, episode.targets, strict=True):
         output = runtime_phase.diagnostic_forward
@@ -803,13 +811,50 @@ def evaluate_living_episode(
                 target.text,
                 head=1,
                 memory=output.complete_memory,
-                return_alignment=target.text_alignment is not None,
+                return_alignment=True,
             )
+            logits, targets, decoder_alignment = teacher
+            terminal_probabilities = logits[:, -1].exp()
+            terminal_eos_probability = float(
+                terminal_probabilities[0, model.eos_index].item()
+            )
+            terminal_eos_rank = (
+                int(
+                    (
+                        terminal_probabilities[0]
+                        > terminal_probabilities[0, model.eos_index]
+                    )
+                    .sum()
+                    .item()
+                )
+                + 1
+            )
+            teacher_eos_probabilities.append(terminal_eos_probability)
+            teacher_eos_ranks.append(terminal_eos_rank)
+            teacher_eos_top1 += int(terminal_eos_rank == 1)
+            generated_terminal_probabilities = F.softmax(
+                decoder_alignment["generated_logits"][:, -1], dim=-1
+            )
+            generated_terminal_eos_probability = float(
+                generated_terminal_probabilities[0, model.eos_index].item()
+            )
+            generated_terminal_eos_rank = (
+                int(
+                    (
+                        generated_terminal_probabilities[0]
+                        > generated_terminal_probabilities[0, model.eos_index]
+                    )
+                    .sum()
+                    .item()
+                )
+                + 1
+            )
+            generated_eos_probabilities.append(generated_terminal_eos_probability)
+            generated_eos_ranks.append(generated_terminal_eos_rank)
+            generated_eos_top1 += int(generated_terminal_eos_rank == 1)
             if target.text_alignment is None:
-                logits, targets = teacher
                 learned_mask = torch.ones_like(targets, dtype=torch.bool)
             else:
-                logits, targets, decoder_alignment = teacher
                 alignment = model.alignment_supervision(
                     target_text=target.text,
                     memory=output.complete_memory,
@@ -832,6 +877,36 @@ def evaluate_living_episode(
             eos_count += int(targets.shape[0])
             eos_correct += int(predictions[:, -1].eq(targets[:, -1]).sum().item())
 
+            decoder_trace = model.decode_transport_diagnostic(
+                output,
+                work_units=512,
+                max_decisions=64,
+            )
+            decoder_trace.update(
+                {
+                    "teacher_forced_eos_probability": terminal_eos_probability,
+                    "teacher_forced_eos_rank": terminal_eos_rank,
+                    "teacher_forced_eos_top1": terminal_eos_rank == 1,
+                    "teacher_forced_generated_eos_probability": (
+                        generated_terminal_eos_probability
+                    ),
+                    "teacher_forced_generated_eos_rank": generated_terminal_eos_rank,
+                    "teacher_forced_generated_eos_top1": generated_terminal_eos_rank == 1,
+                    "teacher_forced_generated_eos_logit": float(
+                        decoder_alignment["generated_logits"][0, -1, model.eos_index]
+                        .item()
+                    ),
+                    "teacher_forced_generate_route_probability": float(
+                        torch.sigmoid(
+                            decoder_alignment["generate_gate_logits"][0, -1]
+                        ).item()
+                    ),
+                }
+            )
+            free_run_traces.append(decoder_trace)
+        else:
+            decoder_trace = None
+
         diagnostic = {
             "phase": target.phase,
             "attempted": True,
@@ -851,6 +926,7 @@ def evaluate_living_episode(
             "before_soul_generation": runtime_phase.before_soul.generation,
             "after_soul_generation": runtime_phase.after_soul.generation,
             "runtime_detail": runtime_phase.detail or None,
+            "decoder_diagnostics": decoder_trace,
         }
         phase_diagnostics.append(diagnostic)
         if transcript_sink is not None and (
@@ -868,6 +944,14 @@ def evaluate_living_episode(
         supervised_phase_count=float(supervised),
     )
     constant_token_correct = int(target_counts.max().item()) if token_count else 0
+    def _mean(values: list[float]) -> float | None:
+        return sum(values) / len(values) if values else None
+
+    free_terminated = sum(bool(item["terminated"]) for item in free_run_traces)
+    free_first_slice_terminated = sum(
+        bool(item["first_slice_terminated"]) for item in free_run_traces
+    )
+    free_unicode_valid = sum(bool(item["unicode_valid"]) for item in free_run_traces)
     return {
         "supervised_phase_count": float(supervised),
         "text_exact_count": float(exact),
@@ -896,6 +980,73 @@ def evaluate_living_episode(
         "phase_expected_count": float(len(episode.targets)),
         "complete_field_coverage_count": float(coverage_count),
         "complete_field_coverage_rate": coverage_count / max(1, len(episode.targets)),
+        "decoder_observability": {
+            "sample_count": len(free_run_traces),
+            "teacher_forced_terminal_eos_probability_mean": _mean(
+                teacher_eos_probabilities
+            ),
+            "teacher_forced_terminal_eos_probability_min": min(
+                teacher_eos_probabilities, default=None
+            ),
+            "teacher_forced_terminal_eos_probability_max": max(
+                teacher_eos_probabilities, default=None
+            ),
+            "teacher_forced_terminal_eos_rank_mean": _mean(
+                [float(item) for item in teacher_eos_ranks]
+            ),
+            "teacher_forced_terminal_eos_top1_rate": teacher_eos_top1
+            / max(1, len(teacher_eos_ranks)),
+            "teacher_forced_generated_eos_probability_mean": _mean(
+                generated_eos_probabilities
+            ),
+            "teacher_forced_generated_eos_rank_mean": _mean(
+                [float(item) for item in generated_eos_ranks]
+            ),
+            "teacher_forced_generated_eos_top1_rate": generated_eos_top1
+            / max(1, len(generated_eos_ranks)),
+            "free_running_termination_rate": free_terminated
+            / max(1, len(free_run_traces)),
+            "free_running_first_slice_termination_rate": free_first_slice_terminated
+            / max(1, len(free_run_traces)),
+            "free_running_unicode_valid_rate": free_unicode_valid
+            / max(1, len(free_run_traces)),
+            "free_running_decision_count_mean": _mean(
+                [float(item["decision_count"]) for item in free_run_traces]
+            ),
+            "free_running_eos_probability_first_mean": _mean(
+                [
+                    float(item["eos_probability_first"])
+                    for item in free_run_traces
+                    if item["eos_probability_first"] is not None
+                ]
+            ),
+            "free_running_eos_probability_max_mean": _mean(
+                [
+                    float(item["eos_probability_max"])
+                    for item in free_run_traces
+                    if item["eos_probability_max"] is not None
+                ]
+            ),
+            "free_running_generated_eos_probability_first_mean": _mean(
+                [
+                    float(item["generated_eos_probability_first"])
+                    for item in free_run_traces
+                    if item["generated_eos_probability_first"] is not None
+                ]
+            ),
+            "free_running_generated_eos_rank_first_mean": _mean(
+                [
+                    float(item["generated_eos_rank_first"])
+                    for item in free_run_traces
+                    if item["generated_eos_rank_first"] is not None
+                ]
+            ),
+            "free_running_invalid_transport_rate": sum(
+                item["invalid_transport_category"] is not None
+                for item in free_run_traces
+            )
+            / max(1, len(free_run_traces)),
+        },
         "runtime_image_id": runtime_tick.image.image_id,
         "initial_soul_id": runtime_tick.initial_soul.soul_id,
         "final_soul_id": runtime_tick.final_soul.soul_id,

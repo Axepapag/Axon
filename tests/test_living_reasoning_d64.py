@@ -194,6 +194,80 @@ def test_unicode_decoder_trains_on_all_351_transport_categories_plus_eos() -> No
     assert int(targets[0, -1]) == TRANSPORT_VOCAB_SIZE + 1
 
 
+def test_stage0a_eos_loss_reaches_ordinary_generated_output_row() -> None:
+    model = _small_model()
+    output = model.forward_surfaces(
+        soul=_soul(model),
+        expected_core_id="core-a",
+        parameter_generation="g0",
+        phase="first",
+        canonical=_compiled(),
+    )
+    logits, targets = model.decode_teacher(
+        output.reader_state,
+        "a",
+        head=1,
+        memory=output.complete_memory,
+    )
+    loss = living_curriculum.sequence_cross_entropy(logits, targets, eos_weight=4.0)
+    loss.backward()
+    assert model.decoder_output.weight.grad is not None
+    assert float(model.decoder_output.weight.grad[model.eos_index].norm().item()) > 0.0
+    assert model.decoder_output.bias.grad is not None
+    assert float(model.decoder_output.bias.grad[model.eos_index].abs().item()) > 0.0
+
+
+def test_bounded_decoder_diagnostic_records_eos_and_unicode(monkeypatch: pytest.MonkeyPatch) -> None:
+    model = _small_model()
+    output = model.forward_surfaces(
+        soul=_soul(model),
+        expected_core_id="core-a",
+        parameter_generation="g0",
+        phase="first",
+        canonical=_compiled(),
+    )
+    categories = iter((*encode_unicode_text("a"), model.eos_index))
+
+    def deterministic_logits(
+        decoder_states: torch.Tensor,
+        _memory: object,
+        *,
+        return_alignment: bool = False,
+    ):
+        logits = torch.full(
+            (*decoder_states.shape[:2], model.eos_index + 1),
+            -1_000.0,
+            device=decoder_states.device,
+        )
+        logits[..., next(categories)] = 0.0
+        log_probabilities = torch.log_softmax(logits, dim=-1)
+        if not return_alignment:
+            return log_probabilities
+        return log_probabilities, {
+            "generated_logits": logits,
+            "generate_gate_logits": torch.zeros(
+                decoder_states.shape[0],
+                decoder_states.shape[1],
+                device=decoder_states.device,
+            ),
+        }
+
+    monkeypatch.setattr(model, "_decoder_logits", deterministic_logits)
+    diagnostic = model.decode_transport_diagnostic(
+        output,
+        work_units=1,
+        max_decisions=2,
+    )
+    assert diagnostic["terminated"] is True
+    assert diagnostic["first_slice_terminated"] is False
+    assert diagnostic["work_slice_exhausted"] is False
+    assert diagnostic["emitted_text"] == "a"
+    assert diagnostic["unicode_valid"] is True
+    assert diagnostic["decision_count"] == 2
+    assert diagnostic["eos_rank_last"] == 1
+    assert diagnostic["generated_eos_rank_last"] == 1
+
+
 def test_exact_alignment_supervises_every_multibyte_unicode_transport_cell() -> None:
     model = _small_model()
     compiled = _compiled()
@@ -417,6 +491,11 @@ def test_teacher_forced_gate_uses_the_strongest_constant_category_floor() -> Non
     assert result["constant_text_exact_floor"] == pytest.approx(
         max(histogram.values()) / result["supervised_phase_count"]
     )
+    observability = result["decoder_observability"]
+    assert observability["sample_count"] == result["supervised_phase_count"]
+    assert observability["teacher_forced_terminal_eos_probability_mean"] is not None
+    assert observability["teacher_forced_generated_eos_rank_mean"] is not None
+    assert result["phase_diagnostics"][0]["decoder_diagnostics"]["decision_count"] >= 1
 
 
 def test_heldout_refinement_reads_the_production_first_workspace(

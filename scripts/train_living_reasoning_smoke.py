@@ -277,6 +277,79 @@ def _aggregate_heldout(rows: list[dict[str, Any]]) -> dict[str, Any]:
     final_count = max(1.0, counts["final_verdict_count"])
     expected_phase_count = max(1.0, counts["phase_expected_count"])
     strongest = max(histogram.values(), default=0)
+    observability_rows = [
+        dict(row.get("decoder_observability", {}))
+        for row in rows
+        if isinstance(row.get("decoder_observability"), Mapping)
+    ]
+    observability_samples = sum(
+        int(row.get("sample_count", 0)) for row in observability_rows
+    )
+
+    def weighted_mean(key: str) -> float | None:
+        values = [
+            (float(row[key]), int(row.get("sample_count", 0)))
+            for row in observability_rows
+            if isinstance(row.get(key), (int, float))
+            and not isinstance(row.get(key), bool)
+            and row.get(key) is not None
+        ]
+        denominator = sum(weight for _value, weight in values)
+        return (
+            sum(value * weight for value, weight in values) / denominator
+            if denominator
+            else None
+        )
+
+    def observed_min(key: str) -> float | None:
+        values = [
+            float(row[key])
+            for row in observability_rows
+            if isinstance(row.get(key), (int, float))
+            and not isinstance(row.get(key), bool)
+            and row.get(key) is not None
+        ]
+        return min(values) if values else None
+
+    def observed_max(key: str) -> float | None:
+        values = [
+            float(row[key])
+            for row in observability_rows
+            if isinstance(row.get(key), (int, float))
+            and not isinstance(row.get(key), bool)
+            and row.get(key) is not None
+        ]
+        return max(values) if values else None
+
+    decoder_observability = {
+        "episode_count": len(observability_rows),
+        "sample_count": observability_samples,
+    }
+    for key in (
+        "teacher_forced_terminal_eos_probability_mean",
+        "teacher_forced_terminal_eos_rank_mean",
+        "teacher_forced_terminal_eos_top1_rate",
+        "teacher_forced_generated_eos_probability_mean",
+        "teacher_forced_generated_eos_rank_mean",
+        "teacher_forced_generated_eos_top1_rate",
+        "free_running_termination_rate",
+        "free_running_first_slice_termination_rate",
+        "free_running_unicode_valid_rate",
+        "free_running_decision_count_mean",
+        "free_running_eos_probability_first_mean",
+        "free_running_eos_probability_max_mean",
+        "free_running_generated_eos_probability_first_mean",
+        "free_running_generated_eos_rank_first_mean",
+        "free_running_invalid_transport_rate",
+    ):
+        decoder_observability[key] = weighted_mean(key)
+    for key in (
+        "teacher_forced_terminal_eos_probability_min",
+        "teacher_forced_terminal_eos_probability_max",
+    ):
+        decoder_observability[key] = (
+            observed_min(key) if key.endswith("_min") else observed_max(key)
+        )
     return {
         **counts,
         "text_exact_rate": counts["text_exact_count"] / phase_count,
@@ -289,6 +362,7 @@ def _aggregate_heldout(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "constant_text_target_histogram": dict(sorted(histogram.items())),
         "constant_text_exact_count": float(strongest),
         "constant_text_exact_floor": strongest / phase_count,
+        "decoder_observability": decoder_observability,
         "episodes": rows,
     }
 

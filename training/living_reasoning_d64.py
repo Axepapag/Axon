@@ -976,6 +976,158 @@ class LivingReasoningCoreD64(CompleteField64D):
                     )
                 yield "", False
 
+    @torch.no_grad()
+    def decode_transport_diagnostic(
+        self,
+        output: LivingReasoningForward,
+        *,
+        work_units: int,
+        max_decisions: int,
+    ) -> dict[str, Any]:
+        """Record bounded free-run EOS and Unicode evidence without authority."""
+
+        if work_units < 1 or max_decisions < 1:
+            raise ValueError("diagnostic work_units and max_decisions must be positive")
+        summary = output.reader_state.mean(dim=1)
+        head_vec = self.decoder_head_embedding(torch.tensor([1], device=self.device))
+        hidden = torch.tanh(
+            self.decoder_init(torch.cat((summary, head_vec), dim=-1))
+        ).unsqueeze(0)
+        token = torch.full(
+            (1, 1), self.bos_index, dtype=torch.long, device=self.device
+        )
+        transport: list[int] = []
+        eos_probabilities: list[float] = []
+        eos_ranks: list[int] = []
+        generated_eos_probabilities: list[float] = []
+        generated_eos_logits: list[float] = []
+        generated_eos_ranks: list[int] = []
+        generate_route_probabilities: list[float] = []
+        invalid_category: int | None = None
+        terminated = False
+        unicode_valid = True
+        emitted_text = ""
+        with torch.no_grad():
+            for _decision in range(max_decisions):
+                decoded, hidden = self.decoder(
+                    self.decoder_embedding(token), hidden
+                )
+                mixed, alignment = self._decoder_logits(
+                    decoded[:, -1:], output.complete_memory, return_alignment=True
+                )
+                mixed_probabilities = mixed.exp().squeeze(0).squeeze(0)
+                generated_logits = alignment["generated_logits"].squeeze(0).squeeze(0)
+                generated_probabilities = F.softmax(generated_logits, dim=-1)
+                eos_probability = float(mixed_probabilities[self.eos_index].item())
+                generated_eos_probability = float(
+                    generated_probabilities[self.eos_index].item()
+                )
+                eos_probabilities.append(eos_probability)
+                generated_eos_probabilities.append(generated_eos_probability)
+                generated_eos_logits.append(
+                    float(generated_logits[self.eos_index].item())
+                )
+                eos_ranks.append(
+                    int(
+                        (mixed_probabilities > mixed_probabilities[self.eos_index])
+                        .sum()
+                        .item()
+                    )
+                    + 1
+                )
+                generated_eos_ranks.append(
+                    int(
+                        (
+                            generated_probabilities
+                            > generated_probabilities[self.eos_index]
+                        )
+                        .sum()
+                        .item()
+                    )
+                    + 1
+                )
+                route_logits = alignment.get("generate_gate_logits")
+                if route_logits is None:
+                    generate_route_probabilities.append(1.0)
+                else:
+                    generate_route_probabilities.append(
+                        float(torch.sigmoid(route_logits[0, 0]).item())
+                    )
+                category = int(mixed.argmax(dim=-1).item())
+                if category == self.eos_index:
+                    terminated = True
+                    try:
+                        emitted_text = decode_unicode_tokens(transport)
+                    except ValueError:
+                        unicode_valid = False
+                    break
+                if category >= TRANSPORT_VOCAB_SIZE:
+                    invalid_category = category
+                    unicode_valid = False
+                    break
+                transport.append(category)
+                token = torch.tensor(
+                    [[category]], dtype=torch.long, device=self.device
+                )
+        if not transport:
+            unicode_valid = unicode_valid and terminated
+        else:
+            try:
+                decode_unicode_tokens(transport)
+            except ValueError:
+                unicode_valid = False
+        decision_count = len(eos_probabilities)
+        return {
+            "work_units": int(work_units),
+            "max_decisions": int(max_decisions),
+            "decision_count": decision_count,
+            "transport_categories": list(transport),
+            "transport_unit_count": len(transport),
+            "terminated": terminated,
+            "first_slice_terminated": bool(terminated and decision_count <= work_units),
+            "work_slice_exhausted": bool(
+                not terminated and decision_count >= work_units
+            ),
+            "max_decisions_exhausted": bool(
+                not terminated and decision_count >= max_decisions
+            ),
+            "invalid_transport_category": invalid_category,
+            "emitted_text": emitted_text if terminated and unicode_valid else "",
+            "unicode_valid": unicode_valid,
+            "eos_probability_first": eos_probabilities[0] if eos_probabilities else None,
+            "eos_probability_last": eos_probabilities[-1] if eos_probabilities else None,
+            "eos_probability_max": max(eos_probabilities, default=None),
+            "eos_rank_first": eos_ranks[0] if eos_ranks else None,
+            "eos_rank_last": eos_ranks[-1] if eos_ranks else None,
+            "generated_eos_probability_first": (
+                generated_eos_probabilities[0] if generated_eos_probabilities else None
+            ),
+            "generated_eos_probability_last": (
+                generated_eos_probabilities[-1] if generated_eos_probabilities else None
+            ),
+            "generated_eos_probability_max": max(
+                generated_eos_probabilities, default=None
+            ),
+            "generated_eos_logit_first": (
+                generated_eos_logits[0] if generated_eos_logits else None
+            ),
+            "generated_eos_logit_last": (
+                generated_eos_logits[-1] if generated_eos_logits else None
+            ),
+            "generated_eos_rank_first": (
+                generated_eos_ranks[0] if generated_eos_ranks else None
+            ),
+            "generated_eos_rank_last": (
+                generated_eos_ranks[-1] if generated_eos_ranks else None
+            ),
+            "generate_route_probability_first": (
+                generate_route_probabilities[0] if generate_route_probabilities else None
+            ),
+            "generate_route_probability_last": (
+                generate_route_probabilities[-1] if generate_route_probabilities else None
+            ),
+        }
+
     def forward_request(
         self,
         request: ReasoningPassRequest,
