@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-20T09:59:55.924062Z
+Updated: 2026-09-20T10:36:02.5023306Z
 current_through_event_id:
-`evt-20260920T095955924062Z-chatgpt-stage0a-eos-diagnosis`
+`evt-20260920T1036025023306Z-codex-stage0a-step16-continuation`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -12,8 +12,8 @@ Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
-Identity stamp: ChatGPT / GPT-5.6 Sol / 2026-09-20 America/Chicago
-(previous revision: Codex / GPT-5 / 2026-09-20; older revisions are superseded,
+Identity stamp: Codex / GPT-5 / 2026-09-20 America/Chicago
+(previous revision: ChatGPT / GPT-5.6 Sol / 2026-09-20; older revisions are superseded,
 not erased; canonical events remain the authority)
 
 ## Current English-substrate integration
@@ -27,7 +27,7 @@ Codex's 2026-09-20 follow-up audit is recorded in event
 `evt-20260920T083628797793Z-codex-launcher-gpu-tranche`. The launcher lineage repair
 and standalone `LivingReasoningCoreD64` refactor are now pushed in commits `9956e82`
 and `a7d493f`. The first fresh local CUDA tranche completed durably but failed the
-production heldout gate; optimizer continuation is paused for decoder diagnosis.
+production heldout gate.
 
 ChatGPT's read-only EOS diagnosis is recorded in event
 `evt-20260920T095955924062Z-chatgpt-stage0a-eos-diagnosis` and proposal
@@ -38,6 +38,17 @@ proposal is to make that evidence permanent, preserve the exact step-8 parameter
 lineage and unchanged objective for one 8-step continuation to global step 16, then stop
 and re-evaluate. No new termination anatomy, Soul reset, cloud run, or gate weakening is
 proposed. Commit `570e15c` is pushed to `origin/main`.
+
+Codex independently implemented the observability and executed the exact bounded
+continuation. Commit `45372da` added permanent EOS/rank/generated-logit/free-run
+Unicode diagnostics and commit `b5080ab` repaired resume validation against the
+checkpoint's plan and learning-policy lineage. The continuation ran on local CUDA
+from the accepted step-8 bundle and Soul through global step 16, with eight accepted
+bundles and durable tranche/continuation receipts. Loss moved **6.05049 -> 4.79683**;
+heldout content moved **0.0876923 -> 0.1107692**, but exact output remained **0.0**,
+terminal EOS remained **0.0**, free-running termination remained **0.0**, and mastery
+remained false. No objective/anatomy change, Soul reset, promotion, or Kaggle run was
+made. The experiment is stopped for objective-interaction diagnosis.
 
 - The first fresh English-native CUDA v1 run remains **diagnostic failure evidence**:
   candidate `english-candidate-53f4ad04ba58c4d27348`, 64 optimizer steps / 512
@@ -67,8 +78,8 @@ proposed. Commit `570e15c` is pushed to `origin/main`.
   Its heldout exact rate was **0.0**, teacher-forced content **57/650 = 0.0876923**,
   EOS **0/64 = 0.0**, complete-field coverage **1.0**, and mastery **false**.
   Production FIRST/REFINED decoder passes repeatedly failed to terminate within the
-  renewable work slice. The report and tranche artifact are durable; no continuation
-  tranche or Kaggle job is authorized from this evidence.
+  renewable work slice. The report and tranche artifact are durable; the later bounded
+  continuation and its stop decision are recorded above, with no Kaggle job launched.
 - The launcher now emits final reports through UTF-8 bytes, fixing a Windows CP1252
   console failure that occurred after the first CUDA report had already been durably
   written.
