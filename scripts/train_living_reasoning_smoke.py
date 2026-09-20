@@ -18,6 +18,7 @@ import argparse
 import json
 import os
 import random
+import sys
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -88,6 +89,19 @@ def _immutable_json(path: Path, value: Mapping[str, Any]) -> None:
             raise RuntimeError(f"immutable evaluation evidence differs at {path}")
         return
     _atomic_json(path, value)
+
+
+def _print_json_utf8(value: Mapping[str, Any]) -> None:
+    """Emit canonical JSON without depending on the Windows console code page."""
+
+    data = json.dumps(value, ensure_ascii=False, sort_keys=True) + "\n"
+    buffer = getattr(sys.stdout, "buffer", None)
+    if buffer is not None:
+        buffer.write(data.encode("utf-8"))
+        buffer.flush()
+        return
+    sys.stdout.write(data)
+    sys.stdout.flush()
 
 
 def _recover_resume_boundary(
@@ -460,7 +474,7 @@ def main() -> int:
         if args.preflight_only:
             report["status"] = "preflight_only"
             _atomic_json(report_path, report)
-            print(json.dumps(report, ensure_ascii=False, sort_keys=True))
+            _print_json_utf8(report)
             return 0
 
         grant = ParameterMutationGrant(
@@ -626,7 +640,7 @@ def main() -> int:
             }
         )
         _atomic_json(report_path, report)
-        print(json.dumps(report, ensure_ascii=False, sort_keys=True))
+        _print_json_utf8(report)
     return 0
 
 
