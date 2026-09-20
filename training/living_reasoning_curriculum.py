@@ -19,8 +19,23 @@ from typing import Any, Mapping, Sequence
 import torch
 
 from runtime.field import D64FieldCompiler, LogicalRegion, SharedFieldSnapshot, canonical_json_bytes, canonical_sha256
-from runtime.heart import TechnicalFinalVerdict
-from runtime.soul import SoulSnapshot, SoulTemperature
+from runtime.heart import (
+    CoreDescriptor,
+    D64ProposalWorkspaceRenderer,
+    EnglishProposal,
+    FrozenTickImage,
+    ParticipantRecord,
+    ParticipantState,
+    ProposalBoard,
+    ProposalPass,
+    ProposalWorkspace,
+    RailRuntimeView,
+    ReasoningPassRequest,
+    ReasoningPassResult,
+    TechnicalFinalVerdict,
+    TickIdentity,
+)
+from runtime.soul import SoulSnapshot, SoulTemperature, apply_soul_transition
 from substrate import encode_unicode_text
 
 from .complete_field_64d import sequence_cross_entropy
@@ -468,6 +483,260 @@ def _decode_one_slice(model: LivingReasoningCoreD64, output: LivingReasoningForw
     return model.decode_transport_greedy(output, work_units=256)
 
 
+@dataclass(frozen=True, slots=True)
+class LivingRuntimePhase:
+    """One isolated pass using the active Heart request and emission contracts.
+
+    ``diagnostic_forward`` is a second, no-grad replay of the exact request for
+    teacher-forced diagnostics and coverage accounting.  The public output and
+    Soul successor always come from ``model.emit`` first, so the pass's control
+    behavior is the production decoder behavior rather than a training helper.
+    """
+
+    phase: str
+    request: ReasoningPassRequest
+    before_soul: SoulSnapshot
+    after_soul: SoulSnapshot
+    state: ParticipantState
+    detail: str
+    output: EnglishProposal | TechnicalFinalVerdict | None
+    diagnostic_forward: LivingReasoningForward | None
+
+    @property
+    def emitted_text(self) -> str:
+        return "" if self.output is None else self.output.text
+
+    @property
+    def terminated(self) -> bool:
+        # Active emit rejects unterminated and blank strings before returning.
+        return self.output is not None
+
+
+@dataclass(frozen=True, slots=True)
+class LivingRuntimeTick:
+    """An isolated, nonpersistent execution of the real three-pass runtime."""
+
+    descriptor: CoreDescriptor
+    image: FrozenTickImage
+    initial_soul: SoulSnapshot
+    final_soul: SoulSnapshot
+    phases: tuple[LivingRuntimePhase, ...]
+    first_records: tuple[ParticipantRecord, ...]
+    refined_records: tuple[ParticipantRecord, ...]
+    first_workspace: ProposalWorkspace
+    refined_workspace: ProposalWorkspace
+
+    def phase(self, name: str) -> LivingRuntimePhase:
+        for item in self.phases:
+            if item.phase == name:
+                return item
+        raise KeyError(name)
+
+
+def _assert_runtime_output_binding(
+    output: EnglishProposal | TechnicalFinalVerdict,
+    descriptor: CoreDescriptor,
+    image: FrozenTickImage,
+    phase: str,
+) -> None:
+    """Mirror the Heart's output-envelope checks without opening a transaction."""
+
+    identity = image.identity
+    if output.author_core_id != descriptor.core_id:
+        raise ValueError("reasoning output author differs from the invoked core")
+    if output.rail_d_model != descriptor.d_model:
+        raise ValueError("reasoning output names the wrong home rail")
+    if output.base_field_id != identity.base_field_id or output.base_tick_id != identity.base_tick_id:
+        raise ValueError("reasoning output is stale for the frozen tick")
+    if phase in {ProposalPass.FIRST.value, ProposalPass.REFINED.value}:
+        if not isinstance(output, EnglishProposal) or output.pass_id != phase:
+            raise ValueError("FIRST/REFINED output is not bound to its English proposal pass")
+    elif not isinstance(output, TechnicalFinalVerdict):
+        raise ValueError("CONSOLIDATED output is not a tagged FINAL verdict")
+
+
+def _assert_runtime_transition_binding(
+    request: ReasoningPassRequest,
+    result: ReasoningPassResult,
+) -> None:
+    """Mirror the Heart's private-Soul successor checks before isolated apply."""
+
+    transition = result.soul_transition
+    if (
+        transition.core_id != request.descriptor.core_id
+        or transition.architecture_id != request.descriptor.architecture_id
+        or transition.parameter_generation != request.descriptor.parameter_generation
+    ):
+        raise ValueError("Soul transition belongs to another core generation")
+    if transition.before_soul_id != request.soul.soul_id:
+        raise ValueError("Soul transition is stale for the inhale snapshot")
+    if transition.before_generation != request.soul.generation:
+        raise ValueError("Soul transition generation is stale")
+    if transition.tick_uid != request.image.identity.tick_uid:
+        raise ValueError("Soul transition names the wrong tick")
+    if transition.request_id != request.request_id or transition.phase != request.phase:
+        raise ValueError("Soul transition names the wrong request or phase")
+
+
+@torch.no_grad()
+def run_living_runtime_tick(
+    model: LivingReasoningCoreD64,
+    snapshot: SharedFieldSnapshot,
+    initial_soul: SoulSnapshot,
+    *,
+    core_id: str,
+    parameter_generation: str,
+    tick_sequence: int = 1,
+    heartbeat_id: int = 1,
+) -> LivingRuntimeTick:
+    """Execute FIRST → REFINED → CONSOLIDATED through the production seam.
+
+    This intentionally does not open a Heart transaction or persist a Soul.
+    It is an evaluator seam: the field, rail binding, request envelopes,
+    production proposal renderer, ``emit`` decoder, failure accounting, and
+    transition validation are all the active runtime implementations.
+
+    A failed FIRST does *not* suppress REFINED.  The active Heart instead
+    renders the failed accounting row into the proposal workspace, lets the
+    participant see that exact board, and preserves the prior Soul.  The same
+    rule applies to REFINED before consolidation.
+    """
+
+    if not isinstance(model, LivingReasoningCoreD64):
+        raise TypeError("runtime tick requires a LivingReasoningCoreD64")
+    if not isinstance(snapshot, SharedFieldSnapshot):
+        raise TypeError("runtime tick requires a SharedFieldSnapshot")
+    if not isinstance(initial_soul, SoulSnapshot):
+        raise TypeError("runtime tick requires a SoulSnapshot")
+    compiled = D64FieldCompiler().compile(snapshot)
+    compiled.verify_roundtrip(snapshot)
+    image = FrozenTickImage.from_compiled(
+        TickIdentity(
+            tick_sequence=tick_sequence,
+            heartbeat_id=heartbeat_id,
+            base_field_id=snapshot.field_id,
+            base_tick_id=snapshot.tick_id,
+        ),
+        {64: compiled},
+    )
+    descriptor = CoreDescriptor(
+        core_id=core_id,
+        d_model=64,
+        architecture_id=model.architecture_id,
+        parameter_generation=parameter_generation,
+    )
+    rail = RailRuntimeView(
+        binding=image.require_rail(64),
+        exact_surface=compiled,
+        semantic_surface=None,
+    )
+    board = ProposalBoard(image, (descriptor,))
+    renderer = D64ProposalWorkspaceRenderer()
+    soul = initial_soul
+
+    def run_phase(
+        phase: str,
+        proposal_rails: tuple[Any, ...],
+    ) -> LivingRuntimePhase:
+        nonlocal soul
+        request = ReasoningPassRequest(
+            descriptor=descriptor,
+            image=image,
+            phase=phase,
+            rail=rail,
+            soul=soul,
+            proposal_rails=proposal_rails,
+        )
+        before = soul
+        after = before
+        state = ParticipantState.FAILED
+        detail = ""
+        output: EnglishProposal | TechnicalFinalVerdict | None = None
+        try:
+            result = model.emit(request)
+            if not isinstance(result, ReasoningPassResult):
+                raise TypeError("core returned a value other than ReasoningPassResult")
+            candidate = result.output
+            _assert_runtime_output_binding(candidate, descriptor, image, phase)
+            _assert_runtime_transition_binding(request, result)
+            # The active Heart validates FINAL materialization before it may
+            # commit the final private transition.  Do the same in this
+            # isolated evaluator, without mutating canonical state.
+            if phase == "consolidated":
+                if not isinstance(candidate, TechnicalFinalVerdict):
+                    raise ValueError("CONSOLIDATED output is not a tagged FINAL verdict")
+                candidate.materialize(snapshot)
+            after = apply_soul_transition(before, result.soul_transition)
+            soul = after
+            output = candidate
+            state = ParticipantState.RETURNED
+        except TimeoutError as exc:
+            detail = f"{type(exc).__name__}: {exc}"
+            state = ParticipantState.TIMED_OUT
+        except Exception as exc:
+            detail = f"{type(exc).__name__}: {exc}"
+            state = ParticipantState.FAILED
+
+        # ``emit`` internally calls forward_request. Replay that exact request
+        # only for diagnostics; it has no authority and cannot affect the
+        # output, workspace, or Soul lineage recorded above.
+        diagnostic_forward: LivingReasoningForward | None = None
+        try:
+            diagnostic_forward = model.forward_request(request)
+        except Exception as exc:
+            forward_detail = f"diagnostic {type(exc).__name__}: {exc}"
+            detail = forward_detail if not detail else f"{detail}; {forward_detail}"
+        return LivingRuntimePhase(
+            phase=phase,
+            request=request,
+            before_soul=before,
+            after_soul=after,
+            state=state,
+            detail=detail,
+            output=output,
+            diagnostic_forward=diagnostic_forward,
+        )
+
+    first = run_phase("first", ())
+    if first.state is ParticipantState.RETURNED and isinstance(first.output, EnglishProposal):
+        board.submit(first.output)
+    elif first.state is ParticipantState.TIMED_OUT:
+        board.mark_timed_out(core_id, ProposalPass.FIRST, first.detail)
+    else:
+        board.mark_failed(core_id, ProposalPass.FIRST, first.detail)
+    board.close_first_pass()
+    first_records = board.participant_states(ProposalPass.FIRST)
+    first_workspace = renderer.render(image, ProposalPass.FIRST, first_records)
+
+    refined = run_phase("refined", (first_workspace.require_rail(64),))
+    if refined.state is ParticipantState.RETURNED and isinstance(refined.output, EnglishProposal):
+        board.submit(refined.output)
+    elif refined.state is ParticipantState.TIMED_OUT:
+        board.mark_timed_out(core_id, ProposalPass.REFINED, refined.detail)
+    else:
+        board.mark_failed(core_id, ProposalPass.REFINED, refined.detail)
+    board.close_refinement()
+    board.assert_ready_for_consolidation()
+    refined_records = board.participant_states(ProposalPass.REFINED)
+    refined_workspace = renderer.render(image, ProposalPass.REFINED, refined_records)
+
+    consolidated = run_phase(
+        "consolidated",
+        (first_workspace.require_rail(64), refined_workspace.require_rail(64)),
+    )
+    return LivingRuntimeTick(
+        descriptor=descriptor,
+        image=image,
+        initial_soul=initial_soul,
+        final_soul=soul,
+        phases=(first, refined, consolidated),
+        first_records=first_records,
+        refined_records=refined_records,
+        first_workspace=first_workspace,
+        refined_workspace=refined_workspace,
+    )
+
+
 @torch.no_grad()
 def evaluate_living_episode(
     model: LivingReasoningCoreD64,
@@ -480,18 +749,25 @@ def evaluate_living_episode(
     transcript_sink: list[dict[str, Any]] | None = None,
     transcript_sink_cap: int | None = 3,
 ) -> dict[str, Any]:
-    """Measure exact English emission, transport learning, EOS, and FINAL syntax."""
+    """Measure held-out free-running runtime behavior and diagnostics.
 
-    compiled = D64FieldCompiler().compile(episode.snapshot)
-    unroll = model.unroll_runtime_phases(
-        initial_soul=initial_soul,
-        expected_core_id=core_id,
+    The evaluation path never feeds ``first_workspace_text`` or
+    ``refined_workspace_text`` into the Core. Those authored strings are
+    training-only credit-assignment context; runtime refinement must attend the
+    actual accepted FIRST proposal.
+    """
+
+    if ablate_temperatures:
+        raise ValueError(
+            "free-running runtime evaluation does not support Soul ablation; "
+            "use a separate counterfactual diagnostic rather than changing the live emit path"
+        )
+    runtime_tick = run_living_runtime_tick(
+        model,
+        episode.snapshot,
+        initial_soul,
+        core_id=core_id,
         parameter_generation=parameter_generation,
-        tick_uid=f"english-evaluation-episode:{episode.episode_id}",
-        canonical=compiled,
-        first_workspace_text=episode.first_workspace_text,
-        refined_workspace_text=episode.refined_workspace_text,
-        ablate_temperatures=ablate_temperatures,
     )
     supervised = 0
     exact = 0
@@ -508,74 +784,81 @@ def evaluate_living_episode(
     target_histogram: dict[str, int] = {}
     phase_diagnostics: list[dict[str, Any]] = []
 
-    for output, target in zip(unroll.outputs, episode.targets, strict=True):
+    for runtime_phase, target in zip(runtime_tick.phases, episode.targets, strict=True):
+        output = runtime_phase.diagnostic_forward
+        predicted = runtime_phase.emitted_text
+        terminated = runtime_phase.terminated
+        final_is_valid: bool | None = None
+        if target.phase == "consolidated":
+            final_count += 1
+            final_is_valid = bool(
+                runtime_phase.state is ParticipantState.RETURNED
+                and isinstance(runtime_phase.output, TechnicalFinalVerdict)
+            )
+            final_valid += int(final_is_valid)
+
         if target.supervision_weight <= 0.0:
             continue
         supervised += 1
         target_histogram[target.text] = target_histogram.get(target.text, 0) + 1
-        predicted, terminated = _decode_one_slice(model, output)
         is_exact = bool(terminated and predicted == target.text)
         exact += int(is_exact)
         terminated_count += int(terminated)
 
-        teacher = model.decode_teacher(
-            output.reader_state,
-            target.text,
-            head=1,
-            memory=output.complete_memory,
-            return_alignment=target.text_alignment is not None,
-        )
-        if target.text_alignment is None:
-            logits, targets = teacher
-            learned_mask = torch.ones_like(targets, dtype=torch.bool)
-        else:
-            logits, targets, decoder_alignment = teacher
-            alignment = model.alignment_supervision(
-                target_text=target.text,
+        if output is not None:
+            teacher = model.decode_teacher(
+                output.reader_state,
+                target.text,
+                head=1,
                 memory=output.complete_memory,
-                decoder_alignment=decoder_alignment,
-                specification=target.text_alignment,
+                return_alignment=target.text_alignment is not None,
             )
-            learned_mask = alignment["learned_decision_mask"]
-        predictions = logits.argmax(dim=-1)
-        learned_targets = targets[learned_mask]
-        learned_predictions = predictions[learned_mask]
-        token_count += int(learned_targets.numel())
-        token_correct += int(learned_predictions.eq(learned_targets).sum().item())
-        target_counts += torch.bincount(learned_targets.reshape(-1), minlength=model.eos_index + 1)
-
-        content_mask = learned_mask[:, :-1]
-        content_targets = targets[:, :-1][content_mask]
-        content_predictions = predictions[:, :-1][content_mask]
-        content_count += int(content_targets.numel())
-        content_correct += int(content_predictions.eq(content_targets).sum().item())
-        eos_count += int(targets.shape[0])
-        eos_correct += int(predictions[:, -1].eq(targets[:, -1]).sum().item())
-
-        final_is_valid: bool | None = None
-        if target.phase == "consolidated":
-            final_count += 1
-            try:
-                verdict = TechnicalFinalVerdict(
-                    base_field_id=episode.snapshot.field_id,
-                    base_tick_id=episode.snapshot.tick_id,
-                    author_core_id=core_id,
-                    rail_d_model=64,
-                    text=predicted,
+            if target.text_alignment is None:
+                logits, targets = teacher
+                learned_mask = torch.ones_like(targets, dtype=torch.bool)
+            else:
+                logits, targets, decoder_alignment = teacher
+                alignment = model.alignment_supervision(
+                    target_text=target.text,
+                    memory=output.complete_memory,
+                    decoder_alignment=decoder_alignment,
+                    specification=target.text_alignment,
                 )
-                verdict.materialize(episode.snapshot)
-                final_is_valid = True
-                final_valid += 1
-            except (TypeError, ValueError):
-                final_is_valid = False
+                learned_mask = alignment["learned_decision_mask"]
+            predictions = logits.argmax(dim=-1)
+            learned_targets = targets[learned_mask]
+            learned_predictions = predictions[learned_mask]
+            token_count += int(learned_targets.numel())
+            token_correct += int(learned_predictions.eq(learned_targets).sum().item())
+            target_counts += torch.bincount(learned_targets.reshape(-1), minlength=model.eos_index + 1)
+
+            content_mask = learned_mask[:, :-1]
+            content_targets = targets[:, :-1][content_mask]
+            content_predictions = predictions[:, :-1][content_mask]
+            content_count += int(content_targets.numel())
+            content_correct += int(content_predictions.eq(content_targets).sum().item())
+            eos_count += int(targets.shape[0])
+            eos_correct += int(predictions[:, -1].eq(targets[:, -1]).sum().item())
 
         diagnostic = {
             "phase": target.phase,
+            "attempted": True,
+            "proposal_context": [item.text for item in runtime_phase.request.proposal_rails],
             "expected_text": target.text,
             "predicted_text": predicted,
-            "terminated": bool(terminated),
+            "terminated": terminated,
+            "proposal_accepted": bool(
+                runtime_phase.state is ParticipantState.RETURNED
+                and isinstance(runtime_phase.output, EnglishProposal)
+            ),
             "text_exact": is_exact,
             "final_verdict_valid": final_is_valid,
+            "participant_state": runtime_phase.state.value,
+            "before_soul_id": runtime_phase.before_soul.soul_id,
+            "after_soul_id": runtime_phase.after_soul.soul_id,
+            "before_soul_generation": runtime_phase.before_soul.generation,
+            "after_soul_generation": runtime_phase.after_soul.generation,
+            "runtime_detail": runtime_phase.detail or None,
         }
         phase_diagnostics.append(diagnostic)
         if transcript_sink is not None and (
@@ -583,7 +866,11 @@ def evaluate_living_episode(
         ):
             transcript_sink.append({"episode_id": episode.episode_id, **diagnostic})
 
-    coverage_count = sum(item.canonical_coverage.complete for item in unroll.outputs)
+    coverage_count = sum(
+        item.diagnostic_forward.canonical_coverage.complete
+        for item in runtime_tick.phases
+        if item.diagnostic_forward is not None
+    )
     floors = constant_baseline_floors(
         target_histogram,
         supervised_phase_count=float(supervised),
@@ -610,9 +897,26 @@ def evaluate_living_episode(
         "final_verdict_count": float(final_count),
         "final_verdict_valid_count": float(final_valid),
         "final_verdict_valid_rate": final_valid / max(1, final_count),
-        "phase_output_count": float(len(unroll.outputs)),
+        "phase_output_count": float(sum(item.output is not None for item in runtime_tick.phases)),
+        "phase_returned_count": float(
+            sum(item.state is ParticipantState.RETURNED for item in runtime_tick.phases)
+        ),
+        "phase_expected_count": float(len(episode.targets)),
         "complete_field_coverage_count": float(coverage_count),
-        "complete_field_coverage_rate": coverage_count / max(1, len(unroll.outputs)),
+        "complete_field_coverage_rate": coverage_count / max(1, len(episode.targets)),
+        "runtime_image_id": runtime_tick.image.image_id,
+        "initial_soul_id": runtime_tick.initial_soul.soul_id,
+        "final_soul_id": runtime_tick.final_soul.soul_id,
+        "first_workspace_id": runtime_tick.first_workspace.workspace_id,
+        "first_workspace_text_sha256": canonical_sha256(
+            {"text": runtime_tick.first_workspace.readable_text()}
+        ),
+        "refined_workspace_id": runtime_tick.refined_workspace.workspace_id,
+        "refined_workspace_text_sha256": canonical_sha256(
+            {"text": runtime_tick.refined_workspace.readable_text()}
+        ),
+        "refinement_context": "production_first_workspace",
+        "authored_workspace_text_used": False,
         "phase_diagnostics": phase_diagnostics,
         **floors,
     }
@@ -623,8 +927,15 @@ def decide_living_reasoning_mastery(metrics: Mapping[str, Any]) -> dict[str, Any
 
     failures: list[dict[str, Any]] = []
     for metric, threshold in ENGLISH_REASONING_GATE_REQUIREMENTS.items():
-        observed = metrics.get(metric)
-        if not isinstance(observed, (int, float)) or float(observed) < threshold:
+        raw_observed = metrics.get(metric)
+        observed = (
+            None
+            if isinstance(raw_observed, bool) or not isinstance(raw_observed, (int, float))
+            else float(raw_observed)
+        )
+        if observed is not None and (not math.isfinite(observed) or not 0.0 <= observed <= 1.0):
+            observed = None
+        if observed is None or observed < threshold:
             failures.append(
                 {
                     "metric": metric,
@@ -632,9 +943,31 @@ def decide_living_reasoning_mastery(metrics: Mapping[str, Any]) -> dict[str, Any
                     "required_minimum": threshold,
                 }
             )
-    exact = metrics.get("text_exact_rate")
-    floor = metrics.get("constant_text_exact_floor")
-    if not isinstance(exact, (int, float)) or not isinstance(floor, (int, float)) or float(exact) <= float(floor):
+    raw_exact = metrics.get("text_exact_rate")
+    raw_floor = metrics.get("constant_text_exact_floor")
+    exact = (
+        None
+        if isinstance(raw_exact, bool) or not isinstance(raw_exact, (int, float))
+        else float(raw_exact)
+    )
+    if exact is not None and (not math.isfinite(exact) or not 0.0 <= exact <= 1.0):
+        exact = None
+    floor = (
+        None
+        if isinstance(raw_floor, bool) or not isinstance(raw_floor, (int, float))
+        else float(raw_floor)
+    )
+    if floor is not None and (not math.isfinite(floor) or not 0.0 <= floor <= 1.0):
+        floor = None
+    if (
+        exact is None
+        or floor is None
+        or not math.isfinite(exact)
+        or not math.isfinite(floor)
+        or not 0.0 <= exact <= 1.0
+        or not 0.0 <= floor <= 1.0
+        or exact <= floor
+    ):
         failures.append(
             {
                 "metric": "text_exact_rate_vs_constant",
@@ -763,6 +1096,8 @@ __all__ = [
     "LivingReasoningCurriculum",
     "LivingReasoningEpisode",
     "LivingReasoningTarget",
+    "LivingRuntimePhase",
+    "LivingRuntimeTick",
     "build_living_reasoning_smoke_curriculum",
     "constant_baseline_floors",
     "constant_baseline_target_key",
@@ -773,4 +1108,5 @@ __all__ = [
     "living_phase_breakdown",
     "living_phase_objective",
     "living_source_counterfactuals",
+    "run_living_runtime_tick",
 ]

@@ -1,23 +1,57 @@
-# Axon Engineer's Ledger — Rolling Summary
+# Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-19T23:55:14+00:00
+Updated: 2026-09-20T03:50:33.160846+00:00
 current_through_event_id:
-`evt-20260919T235514609806Z-chatgpt-substrate-lifelong-soul-ready`
+`evt-20260920T035033160846Z-chatgpt-codex-integration`
 
-Append order note: several events sit *earlier* in the file than events carrying
-later timestamps, because corrections are appended **after** the verdicts they
-correct (`19:10` and `19:30` after the `20:00` launch; `04:00` after `01:00`).
-The canonical file is authority in **append** order; these are all correct events
-appended in a non-monotonic timestamp sequence. The line above names the last
-physical line.
+Append order note: canonical authority is append order, not timestamp order. Earlier
+correction events may carry timestamps older than events physically above them. The
+canonical JSONL tail named above is the current historical boundary.
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
-Identity stamp: ChatGPT / GPT-5.6 Sol / 2026-09-19
-(previous revision: GitHub Copilot CLI / deepseek-v4.1-flash:cloud / 2026-09-19;
-older revisions are superseded, not erased; canonical events remain the authority)
+Identity stamp: ChatGPT / GPT-5.6 Sol / 2026-09-20
+(previous revision: Codex / GPT-6 / 2026-09-19; older revisions are superseded,
+not erased; canonical events remain the authority)
+
+## Current English-substrate integration
+
+Codex's strict review is preserved at
+`roundtable/reviews/CODEX_ENGLISH_SUBSTRATE_REVIEW_20260920.md`. ChatGPT completed
+and verified the uncommitted follow-through in event
+`evt-20260920T035033160846Z-chatgpt-codex-integration`.
+
+- The first fresh English-native CUDA v1 run remains **diagnostic failure evidence**:
+  candidate `english-candidate-53f4ad04ba58c4d27348`, 64 optimizer steps / 512
+  lived experiences, heldout exact **0/24**, teacher-forced content **8/118**, EOS
+  **11/24**, complete-field coverage **100%**, mastery false, no promotion.
+- Corrected Stage-0A v2 is exact-copy substrate education only: **267 train / 32
+  exact-text-disjoint heldout** experiences, mixed symbol/sequence/Unicode work,
+  relations deferred, ordinary generated EOS loss weight **4.0**. Its current
+  evidence is preflight only; no v2 learning claim is authorized yet.
+- Heldout grading now runs the production-facing FIRST ? actual proposal board ?
+  REFINED ? actual refined board ? CONSOLIDATED seam. Authored workspace strings
+  remain training credit-assignment scaffolding and are not mastery evidence.
+  Failed/timed-out passes stay visible in the board and do not advance private Soul.
+- The substrate and English mastery gates now reject missing, nonnumeric, nonfinite,
+  and out-of-range probabilities **and** sanitize failure evidence before canonical
+  hashing. The integration tests caught and repaired the second-order NaN/hash bug.
+- Trainer restart now calls pending-step recovery under the writer lease before
+  selecting the accepted resume boundary. Completed heldout evaluations are immutable,
+  content-addressed, and tied to the exact accepted bundle and candidate Soul; a
+  mastery landmark is written only on a real pass.
+- `training/soul_delayed_recall_probe.py` is now an active evaluator with eight
+  arbitrary cue/reply cases and intact/reset/swapped/irrelevant controls after neutral
+  intervening ticks. It proves nothing merely by existing: no trained Core has passed
+  this behavioral Soul-memory probe yet.
+- Verification for this integration: **55** English runtime/core/curriculum/Soul/
+  hygiene tests passed, plus **26** Trainer recovery/session/remediation tests;
+  repository collection completed cleanly; changed-file Ruff, py_compile, and
+  `git diff --check` passed; Source of Truth mirrors are byte-identical. A fresh
+  full-shape CPU `--preflight-only` for corrected Stage-0A passed. **No optimizer
+  training, promotion, cloud job, or persistent process was launched this turn.**
 
 ## Current doctrine correction and next work
 
@@ -33,7 +67,7 @@ The older decision-head forensic result remains useful architectural evidence: i
 
 **THE ACTIVE RUNTIME CIRCULATION IS NOW ENGLISH-NATIVE.** Commit `729d55d` introduced exact English proposals, `5a80465` simplified the consolidator to tagged desired-region text, and commit `924547b` removes the typed-delta/NO_OP/ABSTAIN success path from `ProposalBoard`, `ProposalWorkspace`, and `ReasoningCirculation`. Every successful FIRST and REFINED participant now returns a nonempty `EnglishProposal`; only failure/timeout may complete runtime accounting without one. Proposal workspaces expose readable exact English and repack it losslessly across rail widths. The rotating consolidator emits only tagged desired-region FINAL text such as `#responseDraft# Hello Jeff.` and `#scratch# remember this`; Heart binds field/tick/author metadata out of band and alone materializes/validates internal `FieldDelta` transactions. Runtime autobiography/recovery now supports circulation v3 while preserving historical v2 evidence. Focused migration verification is 42/42 tests green plus ruff, py_compile, and `git diff --check`; `924547b` is pushed to `origin/main`. **No training was launched.** The remaining obsolete decision-head anatomy is confined to the pre-amendment training candidate/curriculum, remains non-serving, and is unauthorized for optimizer steps until the next bounded migration replaces it.
 
-**SCRATCH SUBSTRATE TRAINING IS READY TO LAUNCH.** `evt-20260919T235514609806Z-chatgpt-substrate-lifelong-soul-ready`. The active English D64 decoder now treats EOS as ordinary generated sequence termination independent of the content copy/generate gate and rejects the retired receipt/termination-head routes. `training/substrate_literacy_curriculum.py` provides 228 train and 12 held-out Stage-0 experiences over the frozen native symbol bank, exact ordering/sequence use, whitespace/punctuation/case, and Unicode compositions. The first durable lineage is fresh parameters ? **no step-720 donor** ? with D64, one 64D attention head, two layers, FFN 16384, four state tokens, page size 32 and neutral copy/generate bias. Soul is present from birth with HOT/WARM/COLD/DEEP_COLD and persists across experiences and optimizer steps: eight lived experiences run under fixed weights, each performs FIRST/REFINED/CONSOLIDATED Soul transitions, then one optimizer update is accepted atomically with all 24 Soul receipts. A one-step GTX 1650 shape proof succeeded end-to-end in 86.28 seconds; focused verification is 52 tests green, full pytest collection is clean, and changed-file Ruff/py_compile/diff checks pass. The planned first durable local tranche is 64 optimizer steps / 512 lived experiences, competency-gated afterward, with no promotion attempt.
+**HISTORICAL SCRATCH LAUNCH PLAN (superseded by the current review above).** `evt-20260919T235514609806Z-chatgpt-substrate-lifelong-soul-ready`. The active English D64 decoder now treats EOS as ordinary generated sequence termination independent of the content copy/generate gate and rejects the retired receipt/termination-head routes. `training/substrate_literacy_curriculum.py` provides 228 train and 12 held-out Stage-0 experiences over the frozen native symbol bank, exact ordering/sequence use, whitespace/punctuation/case, and Unicode compositions. The first durable lineage is fresh parameters ? **no step-720 donor** ? with D64, one 64D attention head, two layers, FFN 16384, four state tokens, page size 32 and neutral copy/generate bias. Soul is present from birth with HOT/WARM/COLD/DEEP_COLD and persists across experiences and optimizer steps: eight lived experiences run under fixed weights, each performs FIRST/REFINED/CONSOLIDATED Soul transitions, then one optimizer update is accepted atomically with all 24 Soul receipts. A one-step GTX 1650 shape proof succeeded end-to-end in 86.28 seconds; focused verification is 52 tests green, full pytest collection is clean, and changed-file Ruff/py_compile/diff checks pass. The planned first durable local tranche is 64 optimizer steps / 512 lived experiences, competency-gated afterward, with no promotion attempt.
 
 ## Current mission and honest status
 

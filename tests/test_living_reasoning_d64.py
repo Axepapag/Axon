@@ -8,6 +8,7 @@ import torch
 
 import training.living_reasoning_curriculum as living_curriculum
 from runtime.field import D64FieldCompiler, LogicalRegion, SharedFieldSnapshot
+from runtime.heart import EnglishProposal, ReasoningPassResult, TechnicalFinalVerdict
 from runtime.soul import (
     SoulSnapshot,
     SoulTemperature,
@@ -417,6 +418,111 @@ def test_teacher_forced_gate_uses_the_strongest_constant_category_floor() -> Non
     )
 
 
+def test_heldout_refinement_reads_the_production_first_workspace(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The mastery evaluator must not substitute authored gold for a live pass."""
+
+    model = _small_model()
+    episode = build_living_reasoning_smoke_curriculum().split("heldout")[0]
+    requests = []
+
+    def scripted_emit(self: LivingReasoningCoreD64, request):
+        requests.append(request)
+        forward = self.forward_request(request)
+        transition = self.exhale_transition(
+            before=request.soul,
+            exhaled_state=forward.exhaled_state,
+            tick_uid=request.image.identity.tick_uid,
+            request_id=request.request_id,
+            phase=request.phase,
+        )
+        common = {
+            "base_field_id": request.image.identity.base_field_id,
+            "base_tick_id": request.image.identity.base_tick_id,
+            "author_core_id": request.descriptor.core_id,
+            "rail_d_model": request.descriptor.d_model,
+        }
+        if request.phase == "first":
+            output = EnglishProposal(pass_id="first", text="actual first", **common)
+        elif request.phase == "refined":
+            output = EnglishProposal(pass_id="refined", text="actual refined", **common)
+        else:
+            output = TechnicalFinalVerdict(text="#responseDraft# done", **common)
+        return ReasoningPassResult(output=output, soul_transition=transition)
+
+    monkeypatch.setattr(LivingReasoningCoreD64, "emit", scripted_emit)
+    result = evaluate_living_episode(
+        model,
+        episode,
+        _soul(model),
+        core_id="core-a",
+        parameter_generation="g0",
+    )
+
+    assert [request.phase for request in requests] == ["first", "refined", "consolidated"]
+    refined_request = requests[1]
+    assert refined_request.soul.generation == 1
+    assert len(refined_request.proposal_rails) == 1
+    rendered_first = refined_request.proposal_rails[0].text
+    assert rendered_first.startswith("FIRST PROPOSALS\n\n[core-a]\nactual first")
+    assert episode.first_workspace_text not in rendered_first
+    assert result["refinement_context"] == "production_first_workspace"
+    assert result["authored_workspace_text_used"] is False
+    assert result["phase_diagnostics"][1]["proposal_context"] == [rendered_first]
+
+
+def test_failed_first_is_visible_to_refinement_and_does_not_advance_soul(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    model = _small_model()
+    episode = build_living_reasoning_smoke_curriculum().split("heldout")[0]
+    requests = []
+
+    def scripted_emit(self: LivingReasoningCoreD64, request):
+        requests.append(request)
+        if request.phase == "first":
+            raise RuntimeError("planned first-pass failure")
+        forward = self.forward_request(request)
+        transition = self.exhale_transition(
+            before=request.soul,
+            exhaled_state=forward.exhaled_state,
+            tick_uid=request.image.identity.tick_uid,
+            request_id=request.request_id,
+            phase=request.phase,
+        )
+        common = {
+            "base_field_id": request.image.identity.base_field_id,
+            "base_tick_id": request.image.identity.base_tick_id,
+            "author_core_id": request.descriptor.core_id,
+            "rail_d_model": request.descriptor.d_model,
+        }
+        if request.phase == "refined":
+            output = EnglishProposal(pass_id="refined", text="recovery proposal", **common)
+        else:
+            output = TechnicalFinalVerdict(text="#responseDraft# done", **common)
+        return ReasoningPassResult(output=output, soul_transition=transition)
+
+    monkeypatch.setattr(LivingReasoningCoreD64, "emit", scripted_emit)
+    result = evaluate_living_episode(
+        model,
+        episode,
+        _soul(model),
+        core_id="core-a",
+        parameter_generation="g0",
+    )
+
+    refined_request = requests[1]
+    assert refined_request.phase == "refined"
+    assert refined_request.soul.generation == 0
+    assert "FIRST PROPOSALS" in refined_request.proposal_rails[0].text
+    assert "FAILED" in refined_request.proposal_rails[0].text
+    first_row, refined_row = result["phase_diagnostics"][:2]
+    assert first_row["participant_state"] == "failed"
+    assert first_row["after_soul_generation"] == 0
+    assert refined_row["before_soul_generation"] == 0
+
+
 def test_the_transcript_sink_cap_is_display_only() -> None:
     """Capping the sink removes display rows and nothing else.
 
@@ -606,3 +712,18 @@ def test_typed_checkpoint_migrates_by_exact_subset_without_obsolete_heads() -> N
         or name == "boundary_seed"
         for name in target_state
     )
+
+
+def test_living_reasoning_gate_rejects_nonfinite_metrics_without_hash_failure() -> None:
+    report = {
+        "text_exact_rate": float("nan"),
+        "text_teacher_forced_content_accuracy": 1.0,
+        "text_teacher_forced_eos_accuracy": 1.0,
+        "complete_field_coverage_rate": 1.0,
+        "final_verdict_valid_rate": 1.0,
+        "constant_text_exact_floor": 0.25,
+    }
+    decision = living_curriculum.decide_living_reasoning_mastery(report)
+    assert decision["passed"] is False
+    assert decision["failures"]
+    assert decision["gate_id"]

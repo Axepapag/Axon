@@ -12,6 +12,8 @@ from .living_reasoning_curriculum import (
     LivingReasoningCurriculum,
     LivingReasoningEpisode,
     LivingReasoningTarget,
+    LivingRuntimePhase,
+    LivingRuntimeTick,
     build_living_reasoning_smoke_curriculum,
     constant_baseline_floors,
     constant_baseline_target_key,
@@ -22,6 +24,7 @@ from .living_reasoning_curriculum import (
     living_phase_breakdown,
     living_phase_objective,
     living_source_counterfactuals,
+    run_living_runtime_tick,
 )
 from .living_reasoning_d64 import (
     D64_DECODER_EXECUTION_STATE_SCHEMA,
@@ -52,6 +55,15 @@ from .living_reasoning_preflight import (
     LIVING_REASONING_PREFLIGHT_SCHEMA,
     build_living_reasoning_preflight,
 )
+from .soul_delayed_recall_probe import (
+    SOUL_DELAYED_RECALL_CASE_SCHEMA,
+    SOUL_DELAYED_RECALL_GATE_SCHEMA,
+    SOUL_DELAYED_RECALL_PROBE_SCHEMA,
+    SoulDelayedRecallCase,
+    build_delayed_soul_recall_cases,
+    decide_delayed_soul_recall_probe,
+    run_delayed_soul_recall_probe,
+)
 from .substrate_literacy_curriculum import (
     SUBSTRATE_LITERACY_GATE_REQUIREMENTS,
     SUBSTRATE_LITERACY_SCHEMA,
@@ -76,6 +88,9 @@ __all__ = [
     "LIVING_REASONING_PREFLIGHT_SCHEMA",
     "LIVING_REASONING_RECEIPT_ARCHITECTURE_SCHEMA",
     "LIVING_REASONING_TARGET_SCHEMA",
+    "SOUL_DELAYED_RECALL_CASE_SCHEMA",
+    "SOUL_DELAYED_RECALL_GATE_SCHEMA",
+    "SOUL_DELAYED_RECALL_PROBE_SCHEMA",
     "SUBSTRATE_LITERACY_GATE_REQUIREMENTS",
     "SUBSTRATE_LITERACY_SCHEMA",
     "SUBSTRATE_LITERACY_SOURCE_ID",
@@ -95,7 +110,11 @@ __all__ = [
     "LivingReasoningEpisode",
     "LivingReasoningForward",
     "LivingReasoningTarget",
+    "LivingRuntimePhase",
+    "LivingRuntimeTick",
+    "SoulDelayedRecallCase",
     "TensorCopyReceipt",
+    "build_delayed_soul_recall_cases",
     "build_living_reasoning_preflight",
     "build_living_reasoning_smoke_curriculum",
     "build_substrate_literacy_curriculum",
@@ -103,6 +122,7 @@ __all__ = [
     "constant_baseline_floors",
     "constant_baseline_target_key",
     "curriculum_manifest_bytes",
+    "decide_delayed_soul_recall_probe",
     "decide_living_reasoning_mastery",
     "decide_substrate_literacy_mastery",
     "evaluate_living_episode",
@@ -112,4 +132,6 @@ __all__ = [
     "living_source_counterfactuals",
     "migrate_legacy_weights_to_receipt_variant",
     "migrate_typed_checkpoint_state_to_english_variant",
+    "run_delayed_soul_recall_probe",
+    "run_living_runtime_tick",
 ]

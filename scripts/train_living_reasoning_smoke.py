@@ -52,12 +52,14 @@ from training import (
 
 ROOT = Path(__file__).resolve().parent.parent
 TRAINER_SCHEMA = "axon-english-reasoning-smoke-trainer-v1"
+TEXT_EOS_WEIGHT = 4.0
 OBJECTIVE_PROGRAM_ID = canonical_sha256(
     {
         "schema": "axon-english-reasoning-objective-program-v1",
         "public_output_contract": "english-proposal-tagged-final-v1",
         "phases": ["first", "refined", "consolidated"],
         "losses": ["text", "alignment_position", "alignment_copy_gate", "alignment_eos_gate"],
+        "text_eos_weight": TEXT_EOS_WEIGHT,
         "retired": ["decision", "operation", "region", "start_address", "end_address"],
     }
 )
@@ -72,6 +74,38 @@ def _atomic_json(path: Path, value: Mapping[str, Any]) -> None:
         handle.flush()
         os.fsync(handle.fileno())
     os.replace(temporary, path)
+
+
+def _immutable_json(path: Path, value: Mapping[str, Any]) -> None:
+    """Publish evidence once, or verify the exact preexisting bytes under the lease."""
+
+    data = json.dumps(dict(value), ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+    if path.exists():
+        observed = path.read_text(encoding="utf-8")
+        if observed != data:
+            raise RuntimeError(f"immutable evaluation evidence differs at {path}")
+        return
+    _atomic_json(path, value)
+
+
+def _recover_resume_boundary(
+    step_bundles: CandidateStepBundleCoordinator,
+    module_id: str,
+    candidate_generation: str,
+    *,
+    resume: bool,
+) -> tuple[tuple[Any, ...], Any | None]:
+    """Recover pending atomic work before selecting the resumable boundary."""
+
+    recovered = step_bundles.recover_pending(module_id, candidate_generation)
+    latest = step_bundles.latest_bundle(module_id, candidate_generation)
+    if latest is not None and not resume:
+        raise RuntimeError(
+            "English candidate already has accepted work; pass --resume or change its governed lineage"
+        )
+    if resume and latest is None:
+        raise RuntimeError("--resume was requested but no accepted English candidate bundle exists")
+    return recovered, latest
 
 
 def _device(name: str) -> torch.device:
@@ -168,6 +202,7 @@ def _aggregate_heldout(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "final_verdict_count": sum(float(row["final_verdict_count"]) for row in rows),
         "final_verdict_valid_count": sum(float(row["final_verdict_valid_count"]) for row in rows),
         "phase_output_count": sum(float(row["phase_output_count"]) for row in rows),
+        "phase_expected_count": sum(float(row["phase_expected_count"]) for row in rows),
         "complete_field_coverage_count": sum(float(row["complete_field_coverage_count"]) for row in rows),
     }
     histogram: dict[str, int] = {}
@@ -176,7 +211,7 @@ def _aggregate_heldout(rows: list[dict[str, Any]]) -> dict[str, Any]:
             histogram[text] = histogram.get(text, 0) + int(count)
     phase_count = max(1.0, counts["supervised_phase_count"])
     final_count = max(1.0, counts["final_verdict_count"])
-    output_count = max(1.0, counts["phase_output_count"])
+    expected_phase_count = max(1.0, counts["phase_expected_count"])
     strongest = max(histogram.values(), default=0)
     return {
         **counts,
@@ -186,7 +221,7 @@ def _aggregate_heldout(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "text_teacher_forced_eos_accuracy": counts["text_teacher_forced_eos_correct"]
         / max(1, counts["text_teacher_forced_eos_count"]),
         "final_verdict_valid_rate": counts["final_verdict_valid_count"] / final_count,
-        "complete_field_coverage_rate": counts["complete_field_coverage_count"] / output_count,
+        "complete_field_coverage_rate": counts["complete_field_coverage_count"] / expected_phase_count,
         "constant_text_target_histogram": dict(sorted(histogram.items())),
         "constant_text_exact_count": float(strongest),
         "constant_text_exact_floor": strongest / phase_count,
@@ -283,15 +318,18 @@ def main() -> int:
 
     state_root = args.state_root.resolve()
     step_bundles = CandidateStepBundleCoordinator(state_root)
-    latest = step_bundles.latest_bundle(args.module_id, candidate_generation)
-    if latest is not None and not args.resume:
-        raise RuntimeError(
-            "English candidate already has accepted work; pass --resume or change its governed lineage"
-        )
-    if args.resume and latest is None:
-        raise RuntimeError("--resume was requested but no accepted English candidate bundle exists")
 
     with TrainerControlPlane.active(state_root=state_root) as control:
+        # Recovery is a writer action because it may publish a rebuilt pointer
+        # and finalize a pending atomic parameter/Soul step.  Acquire the
+        # Trainer lease first, then perform it before choosing tranche lineage
+        # or restoring a checkpoint.
+        recovered, latest = _recover_resume_boundary(
+            step_bundles,
+            args.module_id,
+            candidate_generation,
+            resume=args.resume,
+        )
         control.declare_expected((descriptor,))
         control.register(descriptor, model)
         inventory = control.snapshot_inventory(exact_value_hashes=True)
@@ -337,12 +375,15 @@ def main() -> int:
             "curriculum_kind": args.curriculum,
             "experiences_per_step": args.experiences_per_step,
             "objective_program_id": OBJECTIVE_PROGRAM_ID,
+            "text_eos_weight": TEXT_EOS_WEIGHT,
             "learning_policy": policy.to_canonical_dict(),
             "plan": plan.to_canonical_dict(),
             "tranche": tranche.to_canonical_dict(),
             "preflight": preflight.to_canonical_dict(),
             "typed_donor_migration": None if migration is None else migration.to_canonical_dict(),
             "device": str(device),
+            "recovered_bundle_ids": [item.bundle_id for item in recovered],
+            "recovered_bundle_steps": [item.step for item in recovered],
             "optimizer_steps": [],
             "accepted_bundles": [],
             "promotion_attempted": False,
@@ -431,7 +472,7 @@ def main() -> int:
                         soul,
                         core_id=args.module_id,
                         parameter_generation=candidate_generation,
-                        text_eos_weight=1.0,
+                        text_eos_weight=TEXT_EOS_WEIGHT,
                     )
                     losses.append(loss)
                     transitions.extend(unroll.transitions)
@@ -472,14 +513,57 @@ def main() -> int:
         ]
         heldout = _aggregate_heldout(heldout_rows)
         gate = mastery_decider(heldout)
+        accepted_boundary = step_bundles.latest_bundle(args.module_id, candidate_generation)
+        if accepted_boundary is None:
+            raise RuntimeError("English heldout evaluation requires an accepted parameter/Soul boundary")
+        candidate_soul_id = soul_branch.load_head().soul_id
+        if candidate_soul_id != accepted_boundary.after_soul_id:
+            raise RuntimeError("English heldout evaluation Soul disagrees with accepted parameter boundary")
+        evaluation_body = {
+            "schema": "axon-english-reasoning-heldout-evaluation-v1",
+            "module_id": args.module_id,
+            "architecture_id": model.architecture_id,
+            "candidate_generation": candidate_generation,
+            "curriculum_id": curriculum.curriculum_id,
+            "curriculum_kind": args.curriculum,
+            "plan_id": plan.plan_id,
+            "tranche_id": tranche.tranche_id,
+            "accepted_bundle_id": accepted_boundary.bundle_id,
+            "candidate_soul_id": candidate_soul_id,
+            "heldout": heldout,
+            "mastery_gate": gate,
+            "assignment_completed": bool(gate["passed"]),
+        }
+        evaluation_id = canonical_sha256(evaluation_body)
+        evaluation_path = (
+            state_root
+            / "training"
+            / "reasoning"
+            / "english"
+            / candidate_generation
+            / "evaluations"
+            / f"{evaluation_id}.json"
+        )
+        _immutable_json(evaluation_path, {**evaluation_body, "evaluation_id": evaluation_id})
+        mastery_landmark_id = None
+        if bool(gate["passed"]):
+            mastery_landmark_id = step_bundles.mark_landmark(
+                accepted_boundary,
+                label="heldout-mastery-passed",
+                evidence_ids=(evaluation_id, canonical_sha256(gate)),
+            )
         session.complete(reason=f"English-native {args.curriculum} tranche complete; no promotion attempted")
         report.update(
             {
                 "status": "completed",
                 "final_global_step": int(report["accepted_bundles"][-1]["step"]),
-                "candidate_soul_id": soul_branch.load_head().soul_id,
+                "candidate_soul_id": candidate_soul_id,
                 "heldout": heldout,
                 "mastery_gate": gate,
+                "assignment_completed": bool(gate["passed"]),
+                "heldout_evaluation_id": evaluation_id,
+                "heldout_evaluation_path": str(evaluation_path),
+                "mastery_landmark_id": mastery_landmark_id,
             }
         )
         _atomic_json(report_path, report)
