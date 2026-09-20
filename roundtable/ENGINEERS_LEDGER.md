@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-20T03:50:33.160846+00:00
+Updated: 2026-09-20T07:49:05.0222579Z
 current_through_event_id:
-`evt-20260920T035033160846Z-chatgpt-codex-integration`
+`evt-20260920T074905022257Z-codex-kimmy-progress-audit`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -12,8 +12,8 @@ Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
-Identity stamp: ChatGPT / GPT-5.6 Sol / 2026-09-20
-(previous revision: Codex / GPT-6 / 2026-09-19; older revisions are superseded,
+Identity stamp: Codex / GPT-5 / 2026-09-20 America/Chicago
+(previous revision: ChatGPT / GPT-5.6 Sol / 2026-09-20; older revisions are superseded,
 not erased; canonical events remain the authority)
 
 ## Current English-substrate integration
@@ -22,6 +22,12 @@ Codex's strict review is preserved at
 `roundtable/reviews/CODEX_ENGLISH_SUBSTRATE_REVIEW_20260920.md`. ChatGPT completed
 and verified the uncommitted follow-through in event
 `evt-20260920T035033160846Z-chatgpt-codex-integration`.
+
+Codex's 2026-09-20 follow-up audit is recorded in event
+`evt-20260920T074905022257Z-codex-kimmy-progress-audit`. The committed integration
+remains verified, while Kimmy's direct `LivingReasoningCoreD64` refactor is still
+uncommitted. It passes the current focused suites and a fresh CPU preflight, but no
+optimizer run was launched from that code.
 
 - The first fresh English-native CUDA v1 run remains **diagnostic failure evidence**:
   candidate `english-candidate-53f4ad04ba58c4d27348`, 64 optimizer steps / 512
@@ -42,16 +48,23 @@ and verified the uncommitted follow-through in event
   selecting the accepted resume boundary. Completed heldout evaluations are immutable,
   content-addressed, and tied to the exact accepted bundle and candidate Soul; a
   mastery landmark is written only on a real pass.
+- The current smoke launcher still does not persist its in-memory `ResourceTranche`
+  through `TrancheStore.write_tranche()` or create a `TrancheContinuation` receipt.
+  Durable renewable tranche lineage is therefore a launch blocker even though
+  checkpoint/step-bundle recovery is wired and tested.
 - `training/soul_delayed_recall_probe.py` is now an active evaluator with eight
   arbitrary cue/reply cases and intact/reset/swapped/irrelevant controls after neutral
   intervening ticks. It proves nothing merely by existing: no trained Core has passed
   this behavioral Soul-memory probe yet.
-- Verification for this integration: **55** English runtime/core/curriculum/Soul/
-  hygiene tests passed, plus **26** Trainer recovery/session/remediation tests;
+- Verification for the committed integration was **55** English runtime/core/curriculum/Soul/
+  hygiene tests plus **26** Trainer recovery/session/remediation tests. The current
+  Kimmy follow-up audit passes **52** focused current-core/evaluator/probe/hygiene
+  tests plus **34** Trainer/tranche/session/remediation tests;
   repository collection completed cleanly; changed-file Ruff, py_compile, and
   `git diff --check` passed; Source of Truth mirrors are byte-identical. A fresh
-  full-shape CPU `--preflight-only` for corrected Stage-0A passed. **No optimizer
-  training, promotion, cloud job, or persistent process was launched this turn.**
+  current-code CPU `--preflight-only` passed with zero optimizer steps and no
+  accepted bundles. **No optimizer training, promotion, cloud job, or persistent
+  process was launched by the audit.**
 
 ## Current doctrine correction and next work
 

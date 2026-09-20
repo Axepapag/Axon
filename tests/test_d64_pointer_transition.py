@@ -23,7 +23,7 @@ from training.complete_field_64d import (
     MemoryCellReceipt,
     sequence_cross_entropy,
 )
-from training.living_reasoning_d64 import (
+from training.legacy_typed_reasoning_d64 import (
     D64_DECODER_EXECUTION_STATE_SCHEMA,
     DecoderEmissionRoute,
     DecoderExecutionState,

@@ -36,6 +36,8 @@ from runtime.trainer import (
     ParameterMutationPolicy,
     ResourceTranche,
     TrainerControlPlane,
+    TrancheContinuation,
+    TrancheStore,
 )
 from training import (
     LivingReasoningCoreConfig,
@@ -106,6 +108,54 @@ def _recover_resume_boundary(
     if resume and latest is None:
         raise RuntimeError("--resume was requested but no accepted English candidate bundle exists")
     return recovered, latest
+
+
+def _persist_tranche_lineage(
+    tranche_store: TrancheStore,
+    tranche: ResourceTranche,
+    latest: Any | None,
+) -> tuple[Path, Path | None, TrancheContinuation | None]:
+    """Publish the tranche and, for resumes, its exact continuation receipt."""
+
+    tranche_path = tranche_store.write_tranche(tranche)
+    if latest is None:
+        if tranche.base_global_step != 0 or tranche.parent_bundle_id is not None:
+            raise RuntimeError("a fresh English tranche must begin at global step zero")
+        return tranche_path, None, None
+
+    if (
+        tranche.base_global_step != latest.step
+        or tranche.parent_bundle_id != latest.bundle_id
+    ):
+        raise RuntimeError("English continuation tranche does not bind the accepted parent")
+    prior = tuple(
+        item
+        for item in tranche_store.tranches_for(
+            tranche.module_id,
+            tranche.candidate_generation_id,
+        )
+        if item.tranche_id != tranche.tranche_id
+        and item.final_global_step == tranche.base_global_step
+    )
+    if len(prior) != 1:
+        raise RuntimeError(
+            "English continuation requires exactly one durable prior tranche reaching its parent"
+        )
+    continuation = TrancheContinuation(
+        tranche_id=tranche.tranche_id,
+        module_id=tranche.module_id,
+        candidate_generation_id=tranche.candidate_generation_id,
+        plan_id=tranche.plan_id,
+        learning_policy_id=tranche.learning_policy_id,
+        parent_bundle_id=latest.bundle_id,
+        parent_checkpoint_id=latest.checkpoint_id,
+        parent_optimizer_receipt_id=latest.optimization_receipt_id,
+        parent_soul_id=latest.after_soul_id,
+        parent_global_step=latest.step,
+        prior_tranche_id=prior[0].tranche_id,
+    )
+    continuation_path = tranche_store.write_continuation(continuation)
+    return tranche_path, continuation_path, continuation
 
 
 def _device(name: str) -> torch.device:
@@ -318,6 +368,7 @@ def main() -> int:
 
     state_root = args.state_root.resolve()
     step_bundles = CandidateStepBundleCoordinator(state_root)
+    tranche_store = TrancheStore(state_root / "training" / "trainer")
 
     with TrainerControlPlane.active(state_root=state_root) as control:
         # Recovery is a writer action because it may publish a rebuilt pointer
@@ -355,6 +406,11 @@ def main() -> int:
             parent_bundle_id=None if latest is None else latest.bundle_id,
             purpose=f"bounded English-native {args.curriculum} lived-experience tranche",
         )
+        tranche_path, continuation_path, continuation = _persist_tranche_lineage(
+            tranche_store,
+            tranche,
+            latest,
+        )
         preflight = build_living_reasoning_preflight(
             model=model,
             curriculum=curriculum,
@@ -379,6 +435,9 @@ def main() -> int:
             "learning_policy": policy.to_canonical_dict(),
             "plan": plan.to_canonical_dict(),
             "tranche": tranche.to_canonical_dict(),
+            "tranche_artifact_path": str(tranche_path),
+            "continuation": None if continuation is None else continuation.to_canonical_dict(),
+            "continuation_artifact_path": None if continuation_path is None else str(continuation_path),
             "preflight": preflight.to_canonical_dict(),
             "typed_donor_migration": None if migration is None else migration.to_canonical_dict(),
             "device": str(device),

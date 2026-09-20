@@ -338,7 +338,6 @@ def living_phase_objective(
     component_weights: Mapping[str, float] | None = None,
     alignment_position_reduction: str = "mean",
     text_eos_weight: float = 4.0,
-    termination_continue_supervision: bool = False,
 ) -> tuple[torch.Tensor, dict[str, float | None]]:
     """Supervise exactly one variable-length English/tagged-text emission."""
 
@@ -367,7 +366,6 @@ def living_phase_objective(
             decoder_alignment=decoder_alignment,
             specification=target.text_alignment,
             position_reduction=alignment_position_reduction,
-            supervise_termination_continue=termination_continue_supervision,
         )
     learned_mask = None if alignment is None else alignment["learned_decision_mask"]
     text_loss = sequence_cross_entropy(
@@ -421,7 +419,6 @@ def living_episode_objective(
     component_weights: Mapping[str, float] | None = None,
     alignment_position_reduction: str = "mean",
     text_eos_weight: float = 4.0,
-    termination_continue_supervision: bool = False,
 ) -> tuple[torch.Tensor, CausalLivingUnroll, tuple[dict[str, float | None], ...]]:
     compiled = D64FieldCompiler().compile(episode.snapshot)
     compiled.verify_roundtrip(episode.snapshot)
@@ -443,7 +440,6 @@ def living_episode_objective(
             component_weights=component_weights,
             alignment_position_reduction=alignment_position_reduction,
             text_eos_weight=text_eos_weight,
-            termination_continue_supervision=termination_continue_supervision,
         )
         for output, target in zip(unroll.outputs, episode.targets, strict=True)
     )
@@ -476,10 +472,6 @@ def constant_baseline_floors(
 
 
 def _decode_one_slice(model: LivingReasoningCoreD64, output: LivingReasoningForward) -> tuple[str, bool]:
-    if model.living_config.receipt_continuation:
-        state = model.initial_decoder_execution_state(output)
-        result = model.advance_decoder_execution(output, state, work_units=256)
-        return result.text, result.complete
     return model.decode_transport_greedy(output, work_units=256)
 
 

@@ -23,6 +23,7 @@ from runtime.trainer import (
     PreflightEvidenceKind,
 )
 from substrate import TRANSPORT_VOCAB_SIZE, encode_unicode_text
+from training.complete_field_64d import CompleteField64D
 from training.legacy_typed_reasoning_d64 import (
     LivingReasoningCoreConfig as LegacyTypedLivingReasoningCoreConfig,
 )
@@ -628,13 +629,28 @@ class _StubMemory:
         )
 
 
-def test_active_config_rejects_retired_termination_routes() -> None:
-    with pytest.raises(ValueError, match="retired receipt/termination-head routes"):
-        LivingReasoningCoreConfig(receipt_continuation=True)
-    with pytest.raises(ValueError, match="retired receipt/termination-head routes"):
-        LivingReasoningCoreConfig(receipt_continuation=True, eos_generate_head_route=True)
-    with pytest.raises(ValueError, match="retired receipt/termination-head routes"):
-        LivingReasoningCoreConfig(receipt_continuation=True, termination_head_route=True)
+def test_active_core_mechanically_severs_legacy_typed_anatomy() -> None:
+    assert LivingReasoningCoreD64.__bases__ == (CompleteField64D,)
+    fields = LivingReasoningCoreConfig.__dataclass_fields__
+    for retired in (
+        "receipt_continuation",
+        "eos_generate_head_route",
+        "termination_head_route",
+    ):
+        assert retired not in fields
+        with pytest.raises(TypeError, match="unexpected keyword argument"):
+            LivingReasoningCoreConfig(**{retired: True})
+
+    assert LivingReasoningCoreConfig().architecture_id == "living-d64-english-33e7107432217c64a6b0f5fe"
+    intended = LivingReasoningCoreConfig(
+        n_heads=1,
+        n_layers=2,
+        ffn_dim=16384,
+        state_tokens=4,
+        page_size=32,
+        generate_gate_bias=0.0,
+    )
+    assert intended.architecture_id == "living-d64-english-023f4b5e7d43d59968c9b133"
 
 
 def test_generated_eos_is_independent_of_content_copy_gate() -> None:

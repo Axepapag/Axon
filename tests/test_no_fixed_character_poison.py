@@ -10,6 +10,12 @@ ACTIVE_NEURAL_AND_CORPUS_ROOTS = (
     ROOT / "Cortext",
 )
 
+# Quarantined historical evidence: the legacy typed-reasoning module is kept
+# inside training/ only as a frozen migration donor for state_dict bridging
+# and transition tests.  It is not part of the active English-native
+# runtime/training surface, so hygiene scans of active sources skip it.
+QUARANTINED_LEGACY_MODULE_NAMES = frozenset({"legacy_typed_reasoning_d64.py"})
+
 FORBIDDEN_ARCHITECTURE_LIMITS = (
     "max_source_chars",
     "max_input_chars",
@@ -40,7 +46,9 @@ def _active_python_sources() -> tuple[Path, ...]:
         path
         for root in ACTIVE_NEURAL_AND_CORPUS_ROOTS
         for path in root.rglob("*.py")
-        if "archive" not in path.parts and "__pycache__" not in path.parts
+        if "archive" not in path.parts
+        and "__pycache__" not in path.parts
+        and path.name not in QUARANTINED_LEGACY_MODULE_NAMES
     )
 
 
@@ -61,5 +69,12 @@ def test_retired_reasoning_identity_marker_is_the_only_legacy_budget_name() -> N
         for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             if term in line:
                 occurrences.append(f"{path.relative_to(ROOT).as_posix()}:{line_number}")
-    assert len(occurrences) == 1
-    assert occurrences[0].startswith("training/living_reasoning_d64.py:")
+    assert occurrences == []
+
+    legacy_module = ROOT / "training" / "legacy_typed_reasoning_d64.py"
+    legacy_occurrences = [
+        line_number
+        for line_number, line in enumerate(legacy_module.read_text(encoding="utf-8").splitlines(), 1)
+        if term in line
+    ]
+    assert len(legacy_occurrences) == 1

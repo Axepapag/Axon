@@ -1,69 +1,74 @@
-"""English-native D64 reasoning tissue.
+"""Standalone English-native D64 reasoning tissue.
 
-The active learned surface is deliberately small: the Core reads the frozen
-Shared Field, proposal boards, and its private Soul, then emits variable-length
-Unicode text with the already-proven transport decoder.  FIRST and REFINED are
-free English proposals.  CONSOLIDATED is compact tagged-region English.  Heart
-alone turns the latter into an internal typed FieldDelta.
+The active Core reads the frozen Shared Field, proposal workspaces, and its
+private Soul, then emits variable-length Unicode. FIRST and REFINED are free
+English proposals. CONSOLIDATED is compact tagged-region English; Heart alone
+turns that desired-state text into internal typed FieldDelta mutations.
 
-The pre-2026-09-19 typed decision/operation/address anatomy is retained only in
-``legacy_typed_reasoning_d64`` so immutable checkpoints can be inspected and
-used as governed donors.  Active instances contain none of those learned heads.
+The pre-2026-09-19 typed decision/operation/address implementation remains in
+``legacy_typed_reasoning_d64`` only as historical checkpoint evidence. This
+module neither imports nor subclasses that executable implementation.
 """
 
 from __future__ import annotations
 
 import hashlib
+import math
+import struct
 from dataclasses import asdict, dataclass, field
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Iterator, Mapping
 
 import torch
 import torch.nn.functional as F
+from torch import nn
 
-from runtime.field import CompiledD64Field, canonical_sha256
+from runtime.field import (
+    IDENTITY_SCHEMA_VERSION,
+    SCHEMA_VERSION,
+    CompiledD64Field,
+    D64FieldCompiler,
+    LogicalRegion,
+    SharedFieldSnapshot,
+    canonical_region_order,
+    canonical_sha256,
+)
 from runtime.heart import (
     EnglishProposal,
     ReasoningPassRequest,
     ReasoningPassResult,
     TechnicalFinalVerdict,
 )
-from runtime.soul import SoulSnapshot, SoulTemperature
+from runtime.soul import (
+    SOUL_TEMPERATURE_ORDER,
+    SoulLayer,
+    SoulSnapshot,
+    SoulTemperature,
+    SoulTransition,
+    apply_soul_transition,
+)
+from runtime.source_of_truth import capacity_policy
+from substrate import TRANSPORT_VOCAB_SIZE, decode_unicode_tokens, encode_unicode_text
 
-from .complete_field_64d import AddressableMemory, CompleteField64D, CoverageManifest
-from .legacy_typed_reasoning_d64 import (
-    D64_DECODER_EXECUTION_STATE_SCHEMA,
-    D64_DECODER_TRACE_SCHEMA,
-    D64_RECEIPT_MIGRATION_SCHEMA,
-    D64_SOUL_CODEC_VERSION,
-    D64_SOUL_MEDIA_TYPE,
-    CausalDecoderStep,
-    CausalLivingUnroll,
-    D64ReceiptMigrationReceipt,
-    D64SoulCodec,
-    DecoderEmissionRoute,
-    DecoderExecutionState,
-    DecoderSliceResult,
-    TensorCopyReceipt,
-    _join_memory,
-    migrate_legacy_weights_to_receipt_variant,
-)
-from .legacy_typed_reasoning_d64 import (
-    LivingReasoningCoreConfig as LegacyTypedLivingReasoningCoreConfig,
-)
-from .legacy_typed_reasoning_d64 import (
-    LivingReasoningCoreD64 as LegacyTypedLivingReasoningCoreD64,
+from .complete_field_64d import (
+    AddressableMemory,
+    CompleteField64D,
+    CoverageManifest,
+    ReaderConfig,
 )
 
 LIVING_REASONING_ARCHITECTURE_SCHEMA = "axon-living-reasoning-english-architecture-v1"
-LIVING_REASONING_RECEIPT_ARCHITECTURE_SCHEMA = (
-    "axon-living-reasoning-english-receipt-architecture-v1"
-)
 ENGLISH_REASONING_OUTPUT_CONTRACT = "english-proposal-tagged-final-v1"
 ENGLISH_REASONING_TERMINATION_CONTRACT = "generated-eos-independent-of-content-gate-v1"
 D64_ENGLISH_MIGRATION_SCHEMA = "axon-d64-english-reasoning-migration-v1"
+D64_SOUL_CODEC_VERSION = "axon-d64-recurrent-soul-codec-v1"
+D64_SOUL_MEDIA_TYPE = "application/x-axon-d64-recurrent-state"
+_SOUL_MAGIC = b"AXSLD641"
+_SOUL_HEADER = struct.Struct("<8sII")
+_PHASE_TO_ID = {"first": 0, "refined": 1, "consolidated": 2}
 
-# The only learned tensors that may exist in a pre-amendment donor but may not
-# exist in an English-native target.  Everything else must match exactly.
+# Historical donor-only names. They are not active modules or routing concepts;
+# this allowlist merely proves which extra tensors may be discarded when an old
+# typed checkpoint is copied into the English topology.
 LEGACY_TYPED_OUTPUT_TENSOR_PREFIXES = (
     "decision_head.",
     "operation_head.",
@@ -75,40 +80,159 @@ LEGACY_TYPED_OUTPUT_TENSOR_PREFIXES = (
 
 
 @dataclass(frozen=True, slots=True)
-class LivingReasoningCoreConfig(LegacyTypedLivingReasoningCoreConfig):
-    """Active D64 config with an identity-distinct English output contract."""
+class LivingReasoningCoreConfig:
+    """Current D64 anatomy; no retired typed or termination-route switches."""
 
+    d_model: int = 64
+    n_heads: int = 1
+    n_layers: int = 2
+    ffn_dim: int = 131072
+    state_tokens: int = 4
+    page_size: int = 32
+    dropout: float = 0.05
+    soul_codec_version: str = D64_SOUL_CODEC_VERSION
+    lift_seed: int = 7
+    generate_gate_bias: float = 1.5
+    field_schema_version: str = SCHEMA_VERSION
     reasoning_output_contract: str = ENGLISH_REASONING_OUTPUT_CONTRACT
+    architecture_id: str = field(init=False)
 
     def __post_init__(self) -> None:
-        # Reuse every reader/decoder/Soul invariant from the proven D64 body,
-        # then deliberately sever architecture identity from the retired typed
-        # output topology.
-        LegacyTypedLivingReasoningCoreConfig.__post_init__(self)
-        if self.receipt_continuation or self.eos_generate_head_route or self.termination_head_route:
-            raise ValueError(
-                "English-native reasoning retired receipt/termination-head routes; "
-                "EOS is always the generated text terminator"
-            )
+        canonical_region_order(self.field_schema_version)
+        for name in ("d_model", "n_heads", "n_layers", "ffn_dim", "state_tokens", "page_size"):
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+                raise ValueError(f"{name} must be a positive integer")
+        if self.d_model != 64:
+            raise ValueError("living D64 reasoning is locked to d_model=64")
+        if self.d_model % self.n_heads:
+            raise ValueError("d_model must be divisible by n_heads")
+        if not isinstance(self.dropout, (int, float)) or isinstance(self.dropout, bool):
+            raise TypeError("dropout must be numeric")
+        dropout = float(self.dropout)
+        if not math.isfinite(dropout) or not 0.0 <= dropout < 1.0:
+            raise ValueError("dropout must be finite in [0, 1)")
+        if not isinstance(self.generate_gate_bias, (int, float)) or isinstance(self.generate_gate_bias, bool):
+            raise TypeError("generate_gate_bias must be numeric")
+        generate_gate_bias = float(self.generate_gate_bias)
+        if not math.isfinite(generate_gate_bias):
+            raise ValueError("generate_gate_bias must be finite")
+        if not isinstance(self.soul_codec_version, str) or not self.soul_codec_version:
+            raise ValueError("soul_codec_version must be non-empty")
         if self.reasoning_output_contract != ENGLISH_REASONING_OUTPUT_CONTRACT:
             raise ValueError(
                 "LivingReasoningCoreConfig supports only the English proposal/tagged FINAL contract"
             )
-        prefix = "living-d64-english-"
+        object.__setattr__(self, "dropout", dropout)
+        object.__setattr__(self, "generate_gate_bias", generate_gate_bias)
         object.__setattr__(
             self,
             "architecture_id",
-            prefix + canonical_sha256(self.to_canonical_dict(include_id=False))[:24],
+            "living-d64-english-"
+            + canonical_sha256(self.to_canonical_dict(include_id=False))[:24],
+        )
+
+    def reader_config(self) -> ReaderConfig:
+        return ReaderConfig(
+            d_model=self.d_model,
+            n_heads=self.n_heads,
+            n_layers=self.n_layers,
+            ffn_dim=self.ffn_dim,
+            state_tokens=self.state_tokens,
+            page_size=self.page_size,
+            dropout=self.dropout,
+            lift_seed=self.lift_seed,
+            generate_gate_bias=self.generate_gate_bias,
+            field_schema_version=self.field_schema_version,
         )
 
     def to_canonical_dict(self, include_id: bool = True) -> dict[str, Any]:
-        value = LegacyTypedLivingReasoningCoreConfig.to_canonical_dict(self, include_id=False)
-        value["schema"] = LIVING_REASONING_ARCHITECTURE_SCHEMA
+        # Keep the already-published English architecture identity stable across
+        # this implementation refactor. generate_gate_bias is initialization,
+        # not topology, and historically was not part of architecture identity.
+        value: dict[str, Any] = {
+            "schema": LIVING_REASONING_ARCHITECTURE_SCHEMA,
+            "d_model": self.d_model,
+            "n_heads": self.n_heads,
+            "n_layers": self.n_layers,
+            "ffn_dim": self.ffn_dim,
+            "state_tokens": self.state_tokens,
+            "page_size": self.page_size,
+            "dropout": self.dropout,
+            "soul_codec_version": self.soul_codec_version,
+            "lift_seed": self.lift_seed,
+        }
+        if self.field_schema_version not in {SCHEMA_VERSION, IDENTITY_SCHEMA_VERSION}:
+            value["field_schema_version"] = self.field_schema_version
+            value["canonical_region_order"] = [
+                region.value for region in canonical_region_order(self.field_schema_version)
+            ]
         value["reasoning_output_contract"] = self.reasoning_output_contract
         value["termination_contract"] = ENGLISH_REASONING_TERMINATION_CONTRACT
         if include_id:
             value["architecture_id"] = self.architecture_id
         return value
+
+
+class D64SoulCodec:
+    """Exact architecture-owned codec for opaque recurrent Soul tensors."""
+
+    def __init__(self, config: LivingReasoningCoreConfig) -> None:
+        self.config = config
+        self.tensor_layout = (
+            f"{config.soul_codec_version}:{config.architecture_id}:"
+            f"f32le[{config.state_tokens},{config.d_model}]"
+        )
+
+    def encode(self, state: torch.Tensor, temperature: SoulTemperature) -> SoulLayer:
+        expected = (1, self.config.state_tokens, self.config.d_model)
+        if tuple(state.shape) != expected:
+            raise ValueError(f"Soul exhale state must have shape {expected}")
+        array = state.detach().to(device="cpu", dtype=torch.float32).contiguous().numpy()
+        payload = _SOUL_HEADER.pack(
+            _SOUL_MAGIC,
+            self.config.state_tokens,
+            self.config.d_model,
+        ) + array.astype("<f4", copy=False).tobytes(order="C")
+        return SoulLayer(
+            temperature=temperature,
+            payload=payload,
+            media_type=D64_SOUL_MEDIA_TYPE,
+            tensor_layout=self.tensor_layout,
+        )
+
+    def decode(
+        self,
+        layer: SoulLayer,
+        *,
+        device: torch.device,
+        dtype: torch.dtype,
+    ) -> torch.Tensor | None:
+        if not layer.payload:
+            return None
+        if layer.media_type != D64_SOUL_MEDIA_TYPE or layer.tensor_layout != self.tensor_layout:
+            raise ValueError("opaque Soul layer does not use this architecture's tensor dialect")
+        expected_bytes = (
+            _SOUL_HEADER.size
+            + self.config.state_tokens * self.config.d_model * torch.float32.itemsize
+        )
+        if len(layer.payload) != expected_bytes:
+            raise ValueError("opaque Soul recurrent payload has the wrong byte length")
+        magic, state_tokens, d_model = _SOUL_HEADER.unpack(layer.payload[: _SOUL_HEADER.size])
+        if (
+            magic != _SOUL_MAGIC
+            or state_tokens != self.config.state_tokens
+            or d_model != self.config.d_model
+        ):
+            raise ValueError("opaque Soul recurrent payload header is incompatible")
+        values = torch.frombuffer(
+            bytearray(layer.payload[_SOUL_HEADER.size :]),
+            dtype=torch.float32,
+        ).clone()
+        state = values.reshape(1, self.config.state_tokens, self.config.d_model)
+        if not torch.isfinite(state).all():
+            raise ValueError("opaque Soul recurrent payload contains non-finite values")
+        return state.to(device=device, dtype=dtype)
 
 
 @dataclass(slots=True)
@@ -134,13 +258,50 @@ class LivingReasoningForward:
 
 
 @dataclass(frozen=True, slots=True)
-class D64EnglishMigrationReceipt:
-    """Exact proof that a typed donor became an English-native candidate.
+class CausalLivingUnroll:
+    """Exact FIRST -> REFINED -> CONSOLIDATED training-time Soul chain."""
 
-    The migration has no forgiving load and initializes no new learned tensors:
-    the target is the donor body/decoder/Soul tissue with only the superseded
-    typed decision/operation/address parameters removed.
-    """
+    outputs: tuple[LivingReasoningForward, ...]
+    souls: tuple[SoulSnapshot, ...]
+    transitions: tuple[SoulTransition, ...]
+
+    def __post_init__(self) -> None:
+        if len(self.outputs) != 3 or len(self.souls) != 4 or len(self.transitions) != 3:
+            raise ValueError("causal living unroll requires three phases and four Soul snapshots")
+        for index, transition in enumerate(self.transitions):
+            if transition.before_soul_id != self.souls[index].soul_id:
+                raise ValueError("training unroll transition does not inhale its causal predecessor")
+            if self.souls[index + 1].parent_soul_id != self.souls[index].soul_id:
+                raise ValueError("training unroll Soul lineage is discontinuous")
+
+
+@dataclass(frozen=True, slots=True)
+class TensorCopyReceipt:
+    name: str
+    shape: tuple[int, ...]
+    dtype: str
+    source_sha256: str
+    target_sha256: str
+
+    def __post_init__(self) -> None:
+        if not self.name or not self.dtype or not self.source_sha256 or not self.target_sha256:
+            raise ValueError("tensor copy receipt fields must be non-empty")
+        if self.source_sha256 != self.target_sha256:
+            raise ValueError("tensor copy receipt is not byte exact")
+
+    def to_canonical_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "shape": list(self.shape),
+            "dtype": self.dtype,
+            "source_sha256": self.source_sha256,
+            "target_sha256": self.target_sha256,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class D64EnglishMigrationReceipt:
+    """Exact proof that a typed donor became an English-native candidate."""
 
     source_architecture_id: str
     target_architecture_id: str
@@ -202,106 +363,80 @@ def _tensor_sha256(tensor: torch.Tensor) -> str:
 
 
 def _is_retired_typed_tensor(name: str) -> bool:
-    return any(name == prefix or name.startswith(prefix) for prefix in LEGACY_TYPED_OUTPUT_TENSOR_PREFIXES)
-
-
-def migrate_typed_checkpoint_state_to_english_variant(
-    source_state: Mapping[str, torch.Tensor],
-    target: "LivingReasoningCoreD64",
-    *,
-    source_architecture_id: str,
-    source_parameter_generation: str,
-    target_parameter_generation: str,
-) -> D64EnglishMigrationReceipt:
-    """Strictly transplant an old typed checkpoint into the English topology.
-
-    Every target tensor must exist in the donor with identical shape and dtype.
-    The donor may contain extra tensors only when their names are one of the
-    explicitly retired typed-output families.  This is therefore a governed
-    donor transition, never a checkpoint resume.
-    """
-
-    if not isinstance(target, LivingReasoningCoreD64):
-        raise TypeError("target must be an English-native LivingReasoningCoreD64")
-    if not source_architecture_id or not source_parameter_generation or not target_parameter_generation:
-        raise ValueError("migration identities and generations must be non-empty")
-    target_state = target.state_dict()
-    source_names = set(source_state)
-    target_names = set(target_state)
-    missing = sorted(target_names - source_names)
-    if missing:
-        raise ValueError("typed donor is missing target tensors: " + ", ".join(missing))
-    extras = sorted(source_names - target_names)
-    invalid_extras = [name for name in extras if not _is_retired_typed_tensor(name)]
-    if invalid_extras:
-        raise ValueError(
-            "typed donor contains unexplained tensors outside the retired interface: "
-            + ", ".join(invalid_extras)
-        )
-    if not extras:
-        raise ValueError("typed donor does not contain the retired output tensors")
-
-    copied_state: dict[str, torch.Tensor] = {}
-    receipts: list[TensorCopyReceipt] = []
-    for name in sorted(target_names):
-        source_tensor = source_state[name]
-        target_tensor = target_state[name]
-        if not isinstance(source_tensor, torch.Tensor):
-            raise TypeError(f"typed donor state {name!r} is not a tensor")
-        if source_tensor.shape != target_tensor.shape:
-            raise ValueError(f"typed donor tensor shape differs for {name}")
-        if source_tensor.dtype != target_tensor.dtype:
-            raise ValueError(f"typed donor tensor dtype differs for {name}")
-        copied_state[name] = source_tensor.detach().clone()
-
-    target.load_state_dict(copied_state, strict=True)
-    migrated_state = target.state_dict()
-    for name in sorted(target_names):
-        source_digest = _tensor_sha256(source_state[name])
-        target_digest = _tensor_sha256(migrated_state[name])
-        receipts.append(
-            TensorCopyReceipt(
-                name=name,
-                shape=tuple(source_state[name].shape),
-                dtype=str(source_state[name].dtype),
-                source_sha256=source_digest,
-                target_sha256=target_digest,
-            )
-        )
-
-    return D64EnglishMigrationReceipt(
-        source_architecture_id=source_architecture_id,
-        target_architecture_id=target.architecture_id,
-        source_parameter_generation=source_parameter_generation,
-        target_parameter_generation=target_parameter_generation,
-        copied_tensors=tuple(receipts),
-        retired_tensors=tuple(extras),
+    return any(
+        name == prefix or name.startswith(prefix)
+        for prefix in LEGACY_TYPED_OUTPUT_TENSOR_PREFIXES
     )
 
 
-class LivingReasoningCoreD64(LegacyTypedLivingReasoningCoreD64):
-    """D64 Core whose only learned public output is variable-length text."""
+def _join_memory(items: Iterable[AddressableMemory]) -> AddressableMemory:
+    memories = tuple(items)
+    if not memories:
+        raise ValueError("at least one addressable memory is required")
+    return AddressableMemory(
+        states=torch.cat([item.states for item in memories], dim=1),
+        char_indices=torch.cat([item.char_indices for item in memories], dim=1),
+        region_ids=torch.cat([item.region_ids for item in memories], dim=1),
+        region_positions=torch.cat([item.region_positions for item in memories], dim=1),
+        receipts=tuple(receipt for item in memories for receipt in item.receipts),
+        segments=tuple(segment for item in memories for segment in item.segments),
+    )
+
+
+class LivingReasoningCoreD64(CompleteField64D):
+    """Standalone D64 Core whose learned public surface is Unicode text."""
 
     def __init__(self, config: LivingReasoningCoreConfig | None = None) -> None:
         active_config = config or LivingReasoningCoreConfig()
         if not isinstance(active_config, LivingReasoningCoreConfig):
-            raise TypeError("English-native LivingReasoningCoreD64 requires LivingReasoningCoreConfig")
-        super().__init__(active_config)
+            raise TypeError(
+                "English-native LivingReasoningCoreD64 requires LivingReasoningCoreConfig"
+            )
+        self.living_config = active_config
+        super().__init__(active_config.reader_config())
+        cfg = active_config
+        self.soul_codec = D64SoulCodec(cfg)
 
-        # The parent is the frozen pre-amendment implementation used solely to
-        # reuse the proven reader/decoder/Soul mechanics.  Delete every learned
-        # typed-output parameter immediately; active state_dicts therefore have
-        # no decision/operation/region/address head to train or accidentally use.
-        for name in (
-            "decision_head",
-            "operation_head",
-            "region_head",
-            "start_query",
-            "end_query",
-            "boundary_seed",
-        ):
-            delattr(self, name)
+        # Replace the base native-only text surface with the permanent exact
+        # 351-category Unicode transport plus EMPTY/EOS; BOS is input-only.
+        self.vocab_size = TRANSPORT_VOCAB_SIZE
+        self.empty_index = TRANSPORT_VOCAB_SIZE
+        self.eos_index = TRANSPORT_VOCAB_SIZE + 1
+        self.bos_index = TRANSPORT_VOCAB_SIZE + 2
+        self.decoder_embedding = nn.Embedding(self.bos_index + 1, cfg.d_model)
+        self.decoder_output = nn.Linear(cfg.d_model, self.eos_index + 1)
 
+        self.phase_embedding = nn.Embedding(len(_PHASE_TO_ID), cfg.d_model)
+        self.soul_projection = nn.ModuleDict(
+            {
+                temperature.value: nn.Linear(cfg.d_model, cfg.d_model, bias=False)
+                for temperature in SOUL_TEMPERATURE_ORDER
+            }
+        )
+        self.soul_gate_logits = nn.Parameter(torch.zeros(len(SOUL_TEMPERATURE_ORDER)))
+
+    @property
+    def architecture_id(self) -> str:
+        return self.living_config.architecture_id
+
+    def _copy_token_id(self, transport_token_id: int) -> int:
+        return transport_token_id
+
+    def _target_indices(self, text: str) -> torch.Tensor:
+        return torch.tensor(
+            [*encode_unicode_text(text), self.eos_index],
+            dtype=torch.long,
+            device=self.device,
+        )
+
+    def _initial_decoder_hidden(self, reader_state: torch.Tensor, head: int) -> torch.Tensor:
+        if head not in (0, 1):
+            raise ValueError("decoder head must be zero or one")
+        summary = reader_state.mean(dim=1)
+        head_vec = self.decoder_head_embedding(torch.tensor([head], device=self.device))
+        return torch.tanh(
+            self.decoder_init(torch.cat((summary, head_vec), dim=-1))
+        ).unsqueeze(0)
 
     def _decoder_logits(
         self,
@@ -310,19 +445,17 @@ class LivingReasoningCoreD64(LegacyTypedLivingReasoningCoreD64):
         *,
         return_alignment: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]:
-        """Use ordinary generated EOS while the copy gate routes content only.
-
-        The retired motor trainer coupled termination to the copy/generate gate.
-        English-native reasoning does not: EOS probability comes directly from
-        the generated text distribution, while the copy pointer may still route
-        non-EOS substrate content.  Training and free-running decoding consume
-        this same normalized distribution.
-        """
+        """Use ordinary generated EOS while the copy gate routes content only."""
 
         mixed_logits, alignment = CompleteField64D._decoder_logits(
-            self, output, memory, return_alignment=True
+            self,
+            output,
+            memory,
+            return_alignment=True,
         )
-        generated_log_probabilities = F.log_softmax(alignment["generated_logits"], dim=-1)
+        generated_log_probabilities = F.log_softmax(
+            alignment["generated_logits"], dim=-1
+        )
         if memory is None:
             mixed_logits = generated_log_probabilities
         else:
@@ -337,10 +470,279 @@ class LivingReasoningCoreD64(LegacyTypedLivingReasoningCoreD64):
             mixed_logits[..., : self.eos_index] = (
                 mixed_logits[..., : self.eos_index] + content_scale.unsqueeze(-1)
             )
-            mixed_logits[..., self.eos_index] = generated_log_probabilities[..., self.eos_index]
+            mixed_logits[..., self.eos_index] = generated_log_probabilities[
+                ..., self.eos_index
+            ]
         if return_alignment:
             return mixed_logits, alignment
         return mixed_logits
+
+    def alignment_supervision(
+        self,
+        *,
+        target_text: str,
+        memory: AddressableMemory,
+        decoder_alignment: Mapping[str, torch.Tensor],
+        specification: Mapping[str, Any],
+        position_reduction: str = "mean",
+    ) -> dict[str, Any]:
+        """Supervise every exact Unicode transport cell and ordinary EOS routing."""
+
+        if specification.get("schema") != "axon-r0-target-alignment-v1":
+            raise ValueError("unsupported R0 target-alignment schema")
+        segments = specification.get("segments", [])
+        if not isinstance(segments, list):
+            raise ValueError("alignment segments must be a list")
+        position_logits = decoder_alignment["position_logits"]
+        gate_logits = decoder_alignment["generate_gate_logits"]
+        if position_logits.ndim != 3 or gate_logits.ndim != 2:
+            raise ValueError("decoder alignment tensors have invalid rank")
+        if position_logits.shape[:2] != gate_logits.shape:
+            raise ValueError("decoder alignment tensor lengths disagree")
+
+        scalar_offsets: list[int] = []
+        transport_count = 0
+        for character in target_text:
+            scalar_offsets.append(transport_count)
+            transport_count += len(encode_unicode_text(character))
+        if gate_logits.shape[1] != transport_count + 1:
+            raise ValueError(
+                "decoder alignment length does not match Unicode transport plus EOS"
+            )
+
+        zero = gate_logits.sum() * 0.0
+        position_losses: list[torch.Tensor] = []
+        copy_gate_losses: list[torch.Tensor] = []
+        eos_gate_losses: list[torch.Tensor] = []
+        position_correct = 0
+        copy_gate_correct = 0
+        supervised_copy_positions = 0
+        learned_decision_mask = torch.ones(
+            (1, transport_count + 1),
+            dtype=torch.bool,
+            device=self.device,
+        )
+        region_to_id = {
+            region.value: index for index, region in enumerate(self.region_order)
+        }
+        required = {
+            "target_start",
+            "target_end",
+            "source_region",
+            "source_start",
+            "source_end",
+            "text_sha256",
+            "authority",
+        }
+        for segment in segments:
+            if not isinstance(segment, Mapping) or set(segment) != required:
+                raise ValueError("alignment segment fields are invalid")
+            target_start = int(segment["target_start"])
+            target_end = int(segment["target_end"])
+            source_start = int(segment["source_start"])
+            source_end = int(segment["source_end"])
+            source_region = str(segment["source_region"])
+            if source_region not in region_to_id:
+                raise ValueError(f"unknown alignment source region {source_region}")
+            if (
+                target_start < 0
+                or target_end > len(target_text)
+                or target_end <= target_start
+                or source_start < 0
+                or source_end <= source_start
+                or target_end - target_start != source_end - source_start
+            ):
+                raise ValueError("alignment segment bounds are invalid or unequal")
+            target_fragment = target_text[target_start:target_end]
+            if (
+                hashlib.sha256(target_fragment.encode("utf-8")).hexdigest()
+                != segment["text_sha256"]
+            ):
+                raise ValueError("alignment target fragment hash mismatch")
+
+            for scalar_offset, source_position in enumerate(
+                range(source_start, source_end)
+            ):
+                target_scalar_position = target_start + scalar_offset
+                expected_tokens = tuple(
+                    encode_unicode_text(target_text[target_scalar_position])
+                )
+                matches = (
+                    (
+                        (memory.region_ids[0] == region_to_id[source_region])
+                        & (memory.region_positions[0] == source_position)
+                        & memory.char_indices[0].ge(0)
+                    )
+                    .nonzero(as_tuple=False)
+                    .flatten()
+                )
+                if matches.numel() != len(expected_tokens):
+                    raise ValueError(
+                        "alignment source scalar does not resolve to its exact transport cells"
+                    )
+                observed_tokens = tuple(
+                    int(memory.char_indices[0, int(memory_index)].item())
+                    for memory_index in matches
+                )
+                if observed_tokens != expected_tokens:
+                    raise ValueError(
+                        "alignment source transport does not equal supervised target"
+                    )
+                decoder_start = scalar_offsets[target_scalar_position]
+                for token_offset, memory_index in enumerate(matches):
+                    target_position = decoder_start + token_offset
+                    expected_source = torch.tensor(
+                        [int(memory_index.item())],
+                        dtype=torch.long,
+                        device=self.device,
+                    )
+                    source_logits = position_logits[:, target_position, :]
+                    position_losses.append(
+                        F.cross_entropy(source_logits, expected_source)
+                    )
+                    predicted_source = int(source_logits[0].argmax(dim=-1).item())
+                    position_correct += int(
+                        predicted_source == int(memory_index.item())
+                    )
+                    copy_target = torch.zeros(
+                        (1,), device=self.device, dtype=gate_logits.dtype
+                    )
+                    copy_gate_losses.append(
+                        F.binary_cross_entropy_with_logits(
+                            gate_logits[:, target_position], copy_target
+                        )
+                    )
+                    copy_gate_correct += int(
+                        float(gate_logits[0, target_position].item()) < 0.0
+                    )
+                    supervised_copy_positions += 1
+
+        eos_supervised = bool(specification.get("supervise_eos_generate", True))
+        eos_gate_correct = 0
+        if eos_supervised:
+            eos_target = torch.ones((1,), device=self.device, dtype=gate_logits.dtype)
+            eos_gate_losses.append(
+                F.binary_cross_entropy_with_logits(
+                    gate_logits[:, transport_count], eos_target
+                )
+            )
+            eos_gate_correct = int(
+                float(gate_logits[0, transport_count].item()) >= 0.0
+            )
+
+        if not position_losses:
+            position_loss = zero
+        elif position_reduction == "mean":
+            position_loss = torch.stack(position_losses).mean()
+        elif position_reduction == "sum":
+            position_loss = torch.stack(position_losses).sum()
+        else:
+            raise ValueError(
+                f"unsupported alignment position reduction {position_reduction!r}"
+            )
+        copy_gate_loss = (
+            torch.stack(copy_gate_losses).mean() if copy_gate_losses else zero
+        )
+        eos_gate_loss = (
+            torch.stack(eos_gate_losses).mean() if eos_gate_losses else zero
+        )
+        gate_losses = copy_gate_losses + eos_gate_losses
+        gate_loss = torch.stack(gate_losses).mean() if gate_losses else zero
+        eos_gate_supervised = int(eos_supervised)
+        gate_count = supervised_copy_positions + eos_gate_supervised
+        gate_correct = copy_gate_correct + eos_gate_correct
+        return {
+            "position_loss": position_loss,
+            "gate_loss": gate_loss,
+            "copy_gate_loss": copy_gate_loss,
+            "eos_gate_loss": eos_gate_loss,
+            "copy_positions": supervised_copy_positions,
+            "deterministic_continuation_positions": 0,
+            "learned_decision_mask": learned_decision_mask,
+            "position_correct": position_correct,
+            "gate_supervised_positions": gate_count,
+            "gate_correct": gate_correct,
+            "copy_gate_correct": copy_gate_correct,
+            "eos_gate_supervised_positions": eos_gate_supervised,
+            "eos_gate_correct": eos_gate_correct,
+            "position_accuracy": (
+                position_correct / supervised_copy_positions
+                if supervised_copy_positions
+                else 1.0
+            ),
+            "copy_gate_accuracy": (
+                copy_gate_correct / supervised_copy_positions
+                if supervised_copy_positions
+                else 1.0
+            ),
+            "eos_gate_accuracy": (
+                eos_gate_correct / eos_gate_supervised
+                if eos_gate_supervised
+                else 1.0
+            ),
+            "gate_accuracy": gate_correct / gate_count if gate_count else 1.0,
+        }
+
+    def inhale(
+        self,
+        soul: SoulSnapshot,
+        *,
+        expected_core_id: str,
+        parameter_generation: str,
+        phase: str,
+        ablate_temperatures: Iterable[SoulTemperature | str] = (),
+    ) -> tuple[torch.Tensor, Mapping[str, float]]:
+        if soul.core_id != expected_core_id:
+            raise ValueError("a living core cannot inhale another core's private Soul")
+        if soul.architecture_id != self.architecture_id:
+            raise ValueError("private Soul architecture does not match the living core")
+        if soul.parameter_generation != parameter_generation:
+            raise ValueError(
+                "private Soul parameter generation does not match the living core"
+            )
+        if phase not in _PHASE_TO_ID:
+            raise ValueError(f"unsupported living reasoning phase {phase!r}")
+        ablated = {
+            item if isinstance(item, SoulTemperature) else SoulTemperature(item)
+            for item in ablate_temperatures
+        }
+        baseline = self.initial_state.unsqueeze(0)
+        state = baseline
+        decoded_count = 0
+        contribution_l2 = 0.0
+        gates = torch.sigmoid(self.soul_gate_logits)
+        for index, temperature in enumerate(SOUL_TEMPERATURE_ORDER):
+            if temperature in ablated:
+                continue
+            decoded = self.soul_codec.decode(
+                soul.layer(temperature),
+                device=self.device,
+                dtype=baseline.dtype,
+            )
+            if decoded is None:
+                continue
+            contribution = (
+                self.soul_projection[temperature.value](decoded) * gates[index]
+            )
+            state = state + contribution
+            contribution_l2 += float(contribution.detach().norm().item())
+            decoded_count += 1
+        phase_vector = self.phase_embedding(
+            torch.tensor(_PHASE_TO_ID[phase], device=self.device)
+        ).reshape(1, 1, -1)
+        state = state + phase_vector
+        return state, {
+            "decoded_soul_layers": float(decoded_count),
+            "soul_contribution_l2": contribution_l2,
+            "inhaled_state_l2": float(state.detach().norm().item()),
+        }
+
+    def _proposal_compiled(self, text: str, index: int) -> CompiledD64Field:
+        snapshot = SharedFieldSnapshot.from_texts(
+            {LogicalRegion.ADVISOR_INPUT: text},
+            source_manifest_ids=(f"derived-proposal-rail:{index}",),
+        )
+        return D64FieldCompiler().compile(snapshot)
 
     def forward_surfaces(
         self,
@@ -387,7 +789,9 @@ class LivingReasoningCoreD64(LegacyTypedLivingReasoningCoreD64):
                 (state.detach() - self.initial_state.unsqueeze(0)).norm().item()
             ),
             "canonical_pages": float(canonical_coverage.page_count),
-            "proposal_pages": float(sum(item.page_count for item in proposal_coverages)),
+            "proposal_pages": float(
+                sum(item.page_count for item in proposal_coverages)
+            ),
         }
         complete_memory = _join_memory(memories)
         resolved_view_id = canonical.rail_id if view_id is None else view_id
@@ -424,14 +828,176 @@ class LivingReasoningCoreD64(LegacyTypedLivingReasoningCoreD64):
             surface_id=surface_id,
         )
 
-    def boundary_logits(self, *_args: Any, **_kwargs: Any) -> None:
-        raise RuntimeError(
-            "typed region/address heads were retired; English-native reasoning has no boundary logits"
+    def exhale_transition(
+        self,
+        *,
+        before: SoulSnapshot,
+        exhaled_state: torch.Tensor,
+        tick_uid: str,
+        request_id: str,
+        phase: str,
+    ) -> SoulTransition:
+        return SoulTransition(
+            core_id=before.core_id,
+            architecture_id=before.architecture_id,
+            parameter_generation=before.parameter_generation,
+            before_soul_id=before.soul_id,
+            before_generation=before.generation,
+            tick_uid=tick_uid,
+            request_id=request_id,
+            phase=phase,
+            updates=(
+                self.soul_codec.encode(exhaled_state, SoulTemperature.HOT),
+            ),
+        )
+
+    def unroll_runtime_phases(
+        self,
+        *,
+        initial_soul: SoulSnapshot,
+        expected_core_id: str,
+        parameter_generation: str,
+        tick_uid: str,
+        canonical: CompiledD64Field,
+        first_workspace_text: str,
+        refined_workspace_text: str,
+        ablate_temperatures: Iterable[SoulTemperature | str] = (),
+    ) -> CausalLivingUnroll:
+        """Run the service phase order with persisted Soul at each boundary."""
+
+        phase_inputs = (
+            ("first", ()),
+            ("refined", (first_workspace_text,)),
+            ("consolidated", (first_workspace_text, refined_workspace_text)),
+        )
+        soul = initial_soul
+        souls = [soul]
+        outputs: list[LivingReasoningForward] = []
+        transitions: list[SoulTransition] = []
+        for phase, proposal_texts in phase_inputs:
+            output = self.forward_surfaces(
+                soul=soul,
+                expected_core_id=expected_core_id,
+                parameter_generation=parameter_generation,
+                phase=phase,
+                canonical=canonical,
+                proposal_texts=proposal_texts,
+                ablate_temperatures=ablate_temperatures,
+            )
+            request_id = canonical_sha256(
+                {
+                    "schema": "axon-training-runtime-request-v1",
+                    "architecture_id": self.architecture_id,
+                    "core_id": expected_core_id,
+                    "parameter_generation": parameter_generation,
+                    "tick_uid": tick_uid,
+                    "phase": phase,
+                    "field_id": canonical.source_field_id,
+                    "before_soul_id": soul.soul_id,
+                    "proposal_text_sha256": [
+                        canonical_sha256({"text": text}) for text in proposal_texts
+                    ],
+                }
+            )
+            transition = self.exhale_transition(
+                before=soul,
+                exhaled_state=output.exhaled_state,
+                tick_uid=tick_uid,
+                request_id=request_id,
+                phase=phase,
+            )
+            soul = apply_soul_transition(soul, transition)
+            outputs.append(output)
+            transitions.append(transition)
+            souls.append(soul)
+        return CausalLivingUnroll(
+            outputs=tuple(outputs),
+            souls=tuple(souls),
+            transitions=tuple(transitions),
+        )
+
+    @torch.no_grad()
+    def decode_transport_greedy(
+        self,
+        output: LivingReasoningForward,
+        *,
+        work_units: int | None = None,
+    ) -> tuple[str, bool]:
+        return next(self.iter_decode_transport(output, work_units=work_units))
+
+    def iter_decode_transport(
+        self,
+        output: LivingReasoningForward,
+        *,
+        work_units: int | None = None,
+    ) -> Iterator[tuple[str, bool]]:
+        """Yield at renewable work slices; EOS alone terminates generated text."""
+
+        work_slice = (
+            capacity_policy().integer(
+                "reasoning.emission_work_slice_transport_units"
+            )
+            if work_units is None
+            else int(work_units)
+        )
+        if work_slice < 1:
+            raise ValueError("work_units must be positive")
+        summary = output.reader_state.mean(dim=1)
+        head_vec = self.decoder_head_embedding(torch.tensor([1], device=self.device))
+        hidden = torch.tanh(
+            self.decoder_init(torch.cat((summary, head_vec), dim=-1))
+        ).unsqueeze(0)
+        token = torch.full(
+            (1, 1), self.bos_index, dtype=torch.long, device=self.device
+        )
+        transport: list[int] = []
+        with torch.no_grad():
+            while True:
+                for _ in range(work_slice):
+                    decoded, hidden = self.decoder(
+                        self.decoder_embedding(token), hidden
+                    )
+                    logits = self._decoder_logits(
+                        decoded[:, -1:], output.complete_memory
+                    ).squeeze(1)
+                    category = int(logits.argmax(dim=-1).item())
+                    if category == self.eos_index:
+                        try:
+                            yield decode_unicode_tokens(transport), True
+                        except ValueError:
+                            yield "", False
+                        return
+                    if category >= TRANSPORT_VOCAB_SIZE:
+                        yield "", False
+                        return
+                    transport.append(category)
+                    token = torch.tensor(
+                        [[category]], dtype=torch.long, device=self.device
+                    )
+                yield "", False
+
+    def forward_request(
+        self,
+        request: ReasoningPassRequest,
+        *,
+        ablate_temperatures: Iterable[SoulTemperature | str] = (),
+    ) -> LivingReasoningForward:
+        if request.descriptor.d_model != 64:
+            raise ValueError("LivingReasoningCoreD64 requires a D64 home rail")
+        return self.forward_surfaces(
+            soul=request.soul,
+            expected_core_id=request.descriptor.core_id,
+            parameter_generation=request.descriptor.parameter_generation,
+            phase=request.phase,
+            canonical=request.rail.exact_surface,
+            proposal_texts=(item.text for item in request.proposal_rails),
+            ablate_temperatures=ablate_temperatures,
+            view_id=request.image.view_id,
         )
 
     @torch.no_grad()
     def emit(self, request: ReasoningPassRequest) -> ReasoningPassResult:
-        """Emit one English proposal or tagged FINAL using the shared text decoder."""
+        """Emit one English proposal or tagged FINAL through the shared decoder."""
 
         output = self.forward_request(request)
         transition = self.exhale_transition(
@@ -443,10 +1009,11 @@ class LivingReasoningCoreD64(LegacyTypedLivingReasoningCoreD64):
         )
         text, terminated = self.decode_transport_greedy(output)
         if not terminated:
-            raise RuntimeError("English reasoning decoder did not terminate within its renewable work slice")
+            raise RuntimeError(
+                "English reasoning decoder did not terminate within its renewable work slice"
+            )
         if not text.strip():
             raise RuntimeError("English reasoning decoder returned empty text")
-
         common = {
             "base_field_id": request.image.identity.base_field_id,
             "base_tick_id": request.image.identity.base_tick_id,
@@ -458,27 +1025,114 @@ class LivingReasoningCoreD64(LegacyTypedLivingReasoningCoreD64):
             public_output = EnglishProposal(pass_id=request.phase, **common)
         elif request.phase == "consolidated":
             public_output = TechnicalFinalVerdict(**common)
-        else:  # ReasoningPassRequest already rejects this; retain fail-closed locality.
+        else:
             raise RuntimeError(f"unsupported English reasoning phase {request.phase!r}")
-        return ReasoningPassResult(output=public_output, soul_transition=transition)
+        return ReasoningPassResult(
+            output=public_output,
+            soul_transition=transition,
+        )
 
     def architecture_report(self) -> dict[str, Any]:
-        report = super().architecture_report()
-        report.pop("eos_generate_head_route", None)
-        report.pop("termination_head_route", None)
-        report["reasoning_output_contract"] = ENGLISH_REASONING_OUTPUT_CONTRACT
-        report["termination_contract"] = ENGLISH_REASONING_TERMINATION_CONTRACT
-        report["retired_learned_heads"] = [
-            "decision",
-            "operation",
-            "region",
-            "start_address",
-            "end_address",
-        ]
-        report["public_output"] = "variable_length_unicode_text"
-        report["first_refined_surface"] = "EnglishProposal"
-        report["consolidated_surface"] = "TechnicalFinalVerdict"
-        return report
+        parameters = sum(parameter.numel() for parameter in self.parameters())
+        trainable = sum(
+            parameter.numel()
+            for parameter in self.parameters()
+            if parameter.requires_grad
+        )
+        return {
+            **self.living_config.to_canonical_dict(),
+            "parameter_count": parameters,
+            "trainable_parameter_count": trainable,
+            "parameter_bytes_fp32": parameters * 4,
+            "parameter_bytes_fp16": parameters * 2,
+            "reasoning_output_contract": ENGLISH_REASONING_OUTPUT_CONTRACT,
+            "termination_contract": ENGLISH_REASONING_TERMINATION_CONTRACT,
+            "retired_learned_heads": [
+                "decision",
+                "operation",
+                "region",
+                "start_address",
+                "end_address",
+            ],
+            "public_output": "variable_length_unicode_text",
+            "first_refined_surface": "EnglishProposal",
+            "consolidated_surface": "TechnicalFinalVerdict",
+        }
+
+
+def migrate_typed_checkpoint_state_to_english_variant(
+    source_state: Mapping[str, torch.Tensor],
+    target: LivingReasoningCoreD64,
+    *,
+    source_architecture_id: str,
+    source_parameter_generation: str,
+    target_parameter_generation: str,
+) -> D64EnglishMigrationReceipt:
+    """Strict state_dict-only transplant from an old typed checkpoint."""
+
+    if not isinstance(target, LivingReasoningCoreD64):
+        raise TypeError("target must be an English-native LivingReasoningCoreD64")
+    if (
+        not source_architecture_id
+        or not source_parameter_generation
+        or not target_parameter_generation
+    ):
+        raise ValueError("migration identities and generations must be non-empty")
+    target_state = target.state_dict()
+    source_names = set(source_state)
+    target_names = set(target_state)
+    missing = sorted(target_names - source_names)
+    if missing:
+        raise ValueError(
+            "typed donor is missing target tensors: " + ", ".join(missing)
+        )
+    extras = sorted(source_names - target_names)
+    invalid_extras = [
+        name for name in extras if not _is_retired_typed_tensor(name)
+    ]
+    if invalid_extras:
+        raise ValueError(
+            "typed donor contains unexplained tensors outside the retired interface: "
+            + ", ".join(invalid_extras)
+        )
+    if not extras:
+        raise ValueError("typed donor does not contain the retired output tensors")
+
+    copied_state: dict[str, torch.Tensor] = {}
+    receipts: list[TensorCopyReceipt] = []
+    for name in sorted(target_names):
+        source_tensor = source_state[name]
+        target_tensor = target_state[name]
+        if not isinstance(source_tensor, torch.Tensor):
+            raise TypeError(f"typed donor state {name!r} is not a tensor")
+        if source_tensor.shape != target_tensor.shape:
+            raise ValueError(f"typed donor tensor shape differs for {name}")
+        if source_tensor.dtype != target_tensor.dtype:
+            raise ValueError(f"typed donor tensor dtype differs for {name}")
+        copied_state[name] = source_tensor.detach().clone()
+
+    target.load_state_dict(copied_state, strict=True)
+    migrated_state = target.state_dict()
+    for name in sorted(target_names):
+        source_digest = _tensor_sha256(source_state[name])
+        target_digest = _tensor_sha256(migrated_state[name])
+        receipts.append(
+            TensorCopyReceipt(
+                name=name,
+                shape=tuple(source_state[name].shape),
+                dtype=str(source_state[name].dtype),
+                source_sha256=source_digest,
+                target_sha256=target_digest,
+            )
+        )
+    return D64EnglishMigrationReceipt(
+        source_architecture_id=source_architecture_id,
+        target_architecture_id=target.architecture_id,
+        source_parameter_generation=source_parameter_generation,
+        target_parameter_generation=target_parameter_generation,
+        copied_tensors=tuple(receipts),
+        retired_tensors=tuple(extras),
+    )
 
 
 def candidate_a_config(**overrides: Any) -> LivingReasoningCoreConfig:
@@ -489,30 +1143,20 @@ def candidate_a_config(**overrides: Any) -> LivingReasoningCoreConfig:
 
 
 __all__ = [
-    "D64_DECODER_EXECUTION_STATE_SCHEMA",
-    "D64_DECODER_TRACE_SCHEMA",
     "D64_ENGLISH_MIGRATION_SCHEMA",
-    "D64_RECEIPT_MIGRATION_SCHEMA",
     "D64_SOUL_CODEC_VERSION",
     "D64_SOUL_MEDIA_TYPE",
     "ENGLISH_REASONING_OUTPUT_CONTRACT",
     "ENGLISH_REASONING_TERMINATION_CONTRACT",
     "LEGACY_TYPED_OUTPUT_TENSOR_PREFIXES",
     "LIVING_REASONING_ARCHITECTURE_SCHEMA",
-    "LIVING_REASONING_RECEIPT_ARCHITECTURE_SCHEMA",
-    "CausalDecoderStep",
     "CausalLivingUnroll",
     "D64EnglishMigrationReceipt",
-    "D64ReceiptMigrationReceipt",
     "D64SoulCodec",
-    "DecoderEmissionRoute",
-    "DecoderExecutionState",
-    "DecoderSliceResult",
     "LivingReasoningCoreConfig",
     "LivingReasoningCoreD64",
     "LivingReasoningForward",
     "TensorCopyReceipt",
     "candidate_a_config",
-    "migrate_legacy_weights_to_receipt_variant",
     "migrate_typed_checkpoint_state_to_english_variant",
 ]
