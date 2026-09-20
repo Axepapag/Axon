@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-20T10:36:02.5023306Z
+Updated: 2026-09-20T10:54:45.873983Z
 current_through_event_id:
-`evt-20260920T1036025023306Z-codex-stage0a-step16-continuation`
+`evt-20260920T105445873983Z-chatgpt-codex-step16-audit`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -12,8 +12,8 @@ Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
-Identity stamp: Codex / GPT-5 / 2026-09-20 America/Chicago
-(previous revision: ChatGPT / GPT-5.6 Sol / 2026-09-20; older revisions are superseded,
+Identity stamp: ChatGPT / GPT-5.6 Sol / 2026-09-20 America/Chicago
+(previous revision: Codex / GPT-5 / 2026-09-20; older revisions are superseded,
 not erased; canonical events remain the authority)
 
 ## Current English-substrate integration
@@ -49,6 +49,13 @@ heldout content moved **0.0876923 -> 0.1107692**, but exact output remained **0.
 terminal EOS remained **0.0**, free-running termination remained **0.0**, and mastery
 remained false. No objective/anatomy change, Soul reset, promotion, or Kaggle run was
 made. The experiment is stopped for objective-interaction diagnosis.
+
+ChatGPT independently audited that work in event `evt-20260920T105445873983Z-chatgpt-codex-step16-audit`. The code and
+lineage are sound. The strongest new diagnostic is that generated EOS is already top-1
+on **59/64** teacher-forced terminal samples, while mixed EOS is top-1 on **0/64**;
+the terminal generate-route probability stays slightly copy-biased at **0.4901-0.4948**
+for every supervised heldout phase. The next work is therefore read-only objective/
+route-gradient diagnosis at the exact step-16 boundary, not another training tranche.
 
 - The first fresh English-native CUDA v1 run remains **diagnostic failure evidence**:
   candidate `english-candidate-53f4ad04ba58c4d27348`, 64 optimizer steps / 512
