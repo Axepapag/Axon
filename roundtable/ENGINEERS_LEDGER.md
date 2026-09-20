@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-20T10:54:45.873983Z
+Updated: 2026-09-20T11:27:33.2085272Z
 current_through_event_id:
-`evt-20260920T105445873983Z-chatgpt-codex-step16-audit`
+`evt-20260920T1127332085272Z-codex-terminal-route-repair`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -12,8 +12,8 @@ Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
-Identity stamp: ChatGPT / GPT-5.6 Sol / 2026-09-20 America/Chicago
-(previous revision: Codex / GPT-5 / 2026-09-20; older revisions are superseded,
+Identity stamp: Codex / GPT-6 / 2026-09-20 America/Chicago
+(previous revision: ChatGPT / GPT-5.6 Sol / 2026-09-20; older revisions are superseded,
 not erased; canonical events remain the authority)
 
 ## Current English-substrate integration
@@ -54,8 +54,29 @@ ChatGPT independently audited that work in event `evt-20260920T105445873983Z-cha
 lineage are sound. The strongest new diagnostic is that generated EOS is already top-1
 on **59/64** teacher-forced terminal samples, while mixed EOS is top-1 on **0/64**;
 the terminal generate-route probability stays slightly copy-biased at **0.4901-0.4948**
-for every supervised heldout phase. The next work is therefore read-only objective/
-route-gradient diagnosis at the exact step-16 boundary, not another training tranche.
+for every supervised heldout phase.
+
+Codex performed that read-only diagnosis at the exact step-16 checkpoint and Soul
+boundary. Text and position gradients were much larger than route gradients, but the
+key result was more specific: content copy-route versus terminal generate-route cosine
+was **-0.95537** (L2 **4.8259** versus **5.1312**). The default gate mean was therefore
+not merely weak at termination; it was averaging two actively opposed route objectives.
+Commit `42b9c5f` introduces the separately content-addressed
+`terminal-route-balanced-v1` objective, which gives the copy-route mean and terminal
+generate-route mean equal independent weight while preserving the existing Core,
+candidate generation, optimizer state, accepted step-16 checkpoint, and candidate Soul.
+Commit `6eae529` constrains the explicit transition path so it may change only the
+versioned objective-program identity; all optimizer and safety policy fields must match.
+
+The bounded local CUDA continuation from **step 16 to 24** completed with eight accepted
+bundles and immutable transition/tranche/continuation artifacts. It improved heldout
+teacher-forced content from **0.110769** to **0.144615**, terminal EOS from **0/64** to
+**1/64**, production phase outputs from **0/96** to **13/96**, bounded free-running
+termination from **0.0** to **0.375**, and Unicode-valid traces from **0.78125** to
+**0.921875**. This is early route-health evidence only: exact heldout output is still
+**0.0**, many terminations are empty, the strict mastery gate remains false, and the
+candidate is not competent or promoted. The run is stopped; no Kaggle or further
+optimizer tranche is authorized until a focused review of the immutable step-24 episodes.
 
 - The first fresh English-native CUDA v1 run remains **diagnostic failure evidence**:
   candidate `english-candidate-53f4ad04ba58c4d27348`, 64 optimizer steps / 512
@@ -64,7 +85,8 @@ route-gradient diagnosis at the exact step-16 boundary, not another training tra
 - Corrected Stage-0A v2 is exact-copy substrate education only: **267 train / 32
   exact-text-disjoint heldout** experiences, mixed symbol/sequence/Unicode work,
   relations deferred, ordinary generated EOS loss weight **4.0**. Its current
-  evidence is preflight only; no v2 learning claim is authorized yet.
+  evidence now includes two bounded local CUDA segments through global step **24**;
+  no competence or mastery claim is authorized yet.
 - Heldout grading now runs the production-facing FIRST ? actual proposal board ?
   REFINED ? actual refined board ? CONSOLIDATED seam. Authored workspace strings
   remain training credit-assignment scaffolding and are not mastery evidence.
@@ -86,7 +108,7 @@ route-gradient diagnosis at the exact step-16 boundary, not another training tra
   EOS **0/64 = 0.0**, complete-field coverage **1.0**, and mastery **false**.
   Production FIRST/REFINED decoder passes repeatedly failed to terminate within the
   renewable work slice. The report and tranche artifact are durable; the later bounded
-  continuation and its stop decision are recorded above, with no Kaggle job launched.
+  continuations and their stop decisions are recorded above, with no Kaggle job launched.
 - The launcher now emits final reports through UTF-8 bytes, fixing a Windows CP1252
   console failure that occurred after the first CUDA report had already been durably
   written.
