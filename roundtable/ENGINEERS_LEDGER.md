@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-20T08:36:28.7977931Z
+Updated: 2026-09-20T09:59:55.924062Z
 current_through_event_id:
-`evt-20260920T083628797793Z-codex-launcher-gpu-tranche`
+`evt-20260920T095955924062Z-chatgpt-stage0a-eos-diagnosis`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -12,8 +12,8 @@ Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
-Identity stamp: Codex / GPT-5 / 2026-09-20 America/Chicago
-(previous revision: ChatGPT / GPT-5.6 Sol / 2026-09-20; older revisions are superseded,
+Identity stamp: ChatGPT / GPT-5.6 Sol / 2026-09-20 America/Chicago
+(previous revision: Codex / GPT-5 / 2026-09-20; older revisions are superseded,
 not erased; canonical events remain the authority)
 
 ## Current English-substrate integration
@@ -28,6 +28,16 @@ Codex's 2026-09-20 follow-up audit is recorded in event
 and standalone `LivingReasoningCoreD64` refactor are now pushed in commits `9956e82`
 and `a7d493f`. The first fresh local CUDA tranche completed durably but failed the
 production heldout gate; optimizer continuation is paused for decoder diagnosis.
+
+ChatGPT's read-only EOS diagnosis is recorded in event
+`evt-20260920T095955924062Z-chatgpt-stage0a-eos-diagnosis` and proposal
+`roundtable/proposals/CHATGPT_STAGE0A_EOS_DIAGNOSIS_PROPOSAL_2026-09-20.md`.
+The ordinary generated EOS path is connected and receives nonzero gradient, but retained
+steps 5-8 keep heldout terminal EOS probability near one percent and never top-1. The
+proposal is to make that evidence permanent, preserve the exact step-8 parameter+Soul
+lineage and unchanged objective for one 8-step continuation to global step 16, then stop
+and re-evaluate. No new termination anatomy, Soul reset, cloud run, or gate weakening is
+proposed. Commit `570e15c` is pushed to `origin/main`.
 
 - The first fresh English-native CUDA v1 run remains **diagnostic failure evidence**:
   candidate `english-candidate-53f4ad04ba58c4d27348`, 64 optimizer steps / 512
