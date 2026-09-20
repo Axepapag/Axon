@@ -252,6 +252,58 @@ def test_checkpoint_policy_lineage_mismatch_fails_closed(tmp_path: Path) -> None
     control.close()
 
 
+def test_explicit_policy_transition_can_change_only_the_objective_program(tmp_path: Path) -> None:
+    control, _live, inventory, grant, plan = _setup(tmp_path, optimizer="SGD", learning_rate=0.01)
+    baseline = GovernedLearningPolicy(
+        optimizer="sgd",
+        learning_rate=0.01,
+        weight_decay=0.0,
+        objective_program_id="a" * 64,
+    )
+    session = control.begin_candidate(
+        inventory,
+        grant,
+        plan,
+        preflight_receipt=unit_preflight_receipt(inventory, plan),
+        policy=baseline,
+    )
+    session.step(_loss(torch.ones(1, 4)))
+    checkpoint = session.checkpoint(include_optimizer=True)
+
+    revised_objective = GovernedLearningPolicy(
+        optimizer="sgd",
+        learning_rate=0.01,
+        weight_decay=0.0,
+        objective_program_id="b" * 64,
+    )
+    transition = control.begin_candidate(
+        inventory,
+        grant,
+        plan,
+        preflight_receipt=unit_preflight_receipt(inventory, plan),
+        policy=revised_objective,
+    )
+    transition.restore_checkpoint(checkpoint, allow_learning_policy_transition=True)
+    assert transition.step_index == checkpoint.step
+
+    unsafe = GovernedLearningPolicy(
+        optimizer="sgd",
+        learning_rate=0.01,
+        weight_decay=0.1,
+        objective_program_id="c" * 64,
+    )
+    unsafe_transition = control.begin_candidate(
+        inventory,
+        grant,
+        plan,
+        preflight_receipt=unit_preflight_receipt(inventory, plan),
+        policy=unsafe,
+    )
+    with pytest.raises(TrainerExecutionError, match="may change only objective_program_id"):
+        unsafe_transition.restore_checkpoint(checkpoint, allow_learning_policy_transition=True)
+    control.close()
+
+
 def test_cpu_bf16_autocast_is_governed_and_inspectable(tmp_path: Path) -> None:
     control, _live, inventory, grant, plan = _setup(tmp_path, optimizer="SGD", learning_rate=0.01)
     policy = GovernedLearningPolicy(

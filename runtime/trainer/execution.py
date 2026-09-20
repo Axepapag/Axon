@@ -588,8 +588,11 @@ class CandidateOptimizationSession:
             prior_authorization = self.store.read_authorization(record.authorization_id)
             if prior_authorization.resume_scope() != self.authorization.resume_scope():
                 raise TrainerExecutionError("checkpoint authorization resume scope mismatch")
-        if record.learning_policy_id != self.policy.policy_id and not allow_learning_policy_transition:
-            raise TrainerExecutionError("checkpoint learning-policy lineage mismatch")
+        payload = self.store.load_verified_candidate_checkpoint(record)
+        if record.learning_policy_id != self.policy.policy_id:
+            if not allow_learning_policy_transition:
+                raise TrainerExecutionError("checkpoint learning-policy lineage mismatch")
+            self._assert_objective_only_policy_transition(payload.get("learning_policy"))
         if (record.step > 0 or record.accumulation_index > 0) and not record.optimizer_included:
             raise TrainerExecutionError("exact resume after learning has begun requires optimizer state")
         if record.accumulation_index > 0 and not record.gradient_state_included:
@@ -597,7 +600,6 @@ class CandidateOptimizationSession:
         if self._scaler is not None and not record.scaler_included:
             raise TrainerExecutionError("fp16 exact resume requires AMP scaler state")
 
-        payload = self.store.load_verified_candidate_checkpoint(record)
         self.candidate_module.load_state_dict(payload["module_state_dict"], strict=True)
         if record.optimizer_included and payload["optimizer_state_dict"] is not None:
             self.optimizer.load_state_dict(payload["optimizer_state_dict"])
@@ -615,6 +617,30 @@ class CandidateOptimizationSession:
         self._previous_checkpoint_id = record.checkpoint_id
         self._restored_parent_record = record
         self._assert_live_base_unchanged()
+
+    def _assert_objective_only_policy_transition(self, historical_policy: object) -> None:
+        """Allow the explicit escape hatch to change one durable policy field.
+
+        A checkpoint carries its complete historical policy.  An objective
+        transition may preserve the exact optimizer and candidate state only
+        when every governed optimizer/safety field remains identical and the
+        two policies name distinct, versioned objective programs.
+        """
+        if not isinstance(historical_policy, dict):
+            raise TrainerExecutionError("checkpoint lacks a verifiable historical learning policy")
+        current_policy = self.policy.to_canonical_dict()
+        historical_objective = historical_policy.get("objective_program_id")
+        current_objective = current_policy.get("objective_program_id")
+        if not isinstance(historical_objective, str) or not isinstance(current_objective, str):
+            raise TrainerExecutionError("learning-policy transition requires versioned objective programs")
+        if historical_objective == current_objective:
+            raise TrainerExecutionError("learning-policy transition requires a changed objective program")
+
+        ignored = {"policy_id", "objective_program_id"}
+        historical_other = {key: value for key, value in historical_policy.items() if key not in ignored}
+        current_other = {key: value for key, value in current_policy.items() if key not in ignored}
+        if historical_other != current_other:
+            raise TrainerExecutionError("learning-policy transition may change only objective_program_id")
 
     def complete(self, *, reason: str = "candidate optimization completed") -> CandidateLifecycleEvent:
         self._assert_open()
