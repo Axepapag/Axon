@@ -566,7 +566,19 @@ class CandidateOptimizationSession:
         self.store.prune_candidate_checkpoints(record.module_id, record.candidate_generation_id)
         return record
 
-    def restore_checkpoint(self, record: CandidateCheckpointRecord) -> None:
+    def restore_checkpoint(
+        self,
+        record: CandidateCheckpointRecord,
+        *,
+        allow_learning_policy_transition: bool = False,
+    ) -> None:
+        """Restore an accepted checkpoint, optionally across an explicit objective transition.
+
+        The transition escape hatch keeps the exact parameter/optimizer/Soul
+        parent while allowing a separately versioned objective policy to begin
+        at the next accepted step.  The caller must make that transition
+        explicit; ordinary resumes remain strict policy matches.
+        """
         self._assert_open()
         if record.module_id != self.base_descriptor.module_id or record.candidate_generation_id != self.candidate_descriptor.generation_id:
             raise TrainerExecutionError("checkpoint belongs to another candidate generation")
@@ -576,7 +588,7 @@ class CandidateOptimizationSession:
             prior_authorization = self.store.read_authorization(record.authorization_id)
             if prior_authorization.resume_scope() != self.authorization.resume_scope():
                 raise TrainerExecutionError("checkpoint authorization resume scope mismatch")
-        if record.learning_policy_id != self.policy.policy_id:
+        if record.learning_policy_id != self.policy.policy_id and not allow_learning_policy_transition:
             raise TrainerExecutionError("checkpoint learning-policy lineage mismatch")
         if (record.step > 0 or record.accumulation_index > 0) and not record.optimizer_included:
             raise TrainerExecutionError("exact resume after learning has begun requires optimizer state")

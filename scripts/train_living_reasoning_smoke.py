@@ -56,7 +56,7 @@ from training import (
 ROOT = Path(__file__).resolve().parent.parent
 TRAINER_SCHEMA = "axon-english-reasoning-smoke-trainer-v1"
 TEXT_EOS_WEIGHT = 4.0
-OBJECTIVE_PROGRAM_ID = canonical_sha256(
+BASE_OBJECTIVE_PROGRAM_ID = canonical_sha256(
     {
         "schema": "axon-english-reasoning-objective-program-v1",
         "public_output_contract": "english-proposal-tagged-final-v1",
@@ -66,6 +66,35 @@ OBJECTIVE_PROGRAM_ID = canonical_sha256(
         "retired": ["decision", "operation", "region", "start_address", "end_address"],
     }
 )
+BALANCED_OBJECTIVE_COMPONENT_WEIGHTS = {
+    "text": 1.0,
+    "alignment_position": 1.0,
+    "alignment_copy_gate": 1.0,
+    "alignment_eos_gate": 1.0,
+}
+BALANCED_OBJECTIVE_PROGRAM_ID = canonical_sha256(
+    {
+        "schema": "axon-english-reasoning-objective-program-v2",
+        "parent_program_id": BASE_OBJECTIVE_PROGRAM_ID,
+        "public_output_contract": "english-proposal-tagged-final-v1",
+        "phases": ["first", "refined", "consolidated"],
+        "losses": ["text", "alignment_position", "alignment_copy_gate", "alignment_eos_gate"],
+        "text_eos_weight": TEXT_EOS_WEIGHT,
+        "component_weights": BALANCED_OBJECTIVE_COMPONENT_WEIGHTS,
+        "gate_semantics": "copy_gate_mean_plus_terminal_generate_gate_mean",
+        "retired": ["decision", "operation", "region", "start_address", "end_address"],
+    }
+)
+OBJECTIVE_VARIANTS = {
+    "baseline-v1": {
+        "program_id": BASE_OBJECTIVE_PROGRAM_ID,
+        "component_weights": None,
+    },
+    "terminal-route-balanced-v1": {
+        "program_id": BALANCED_OBJECTIVE_PROGRAM_ID,
+        "component_weights": BALANCED_OBJECTIVE_COMPONENT_WEIGHTS,
+    },
+}
 
 
 def _atomic_json(path: Path, value: Mapping[str, Any]) -> None:
@@ -102,6 +131,14 @@ def _print_json_utf8(value: Mapping[str, Any]) -> None:
         return
     sys.stdout.write(data)
     sys.stdout.flush()
+
+
+def _objective_variant(name: str) -> tuple[str, Mapping[str, float] | None]:
+    try:
+        value = OBJECTIVE_VARIANTS[name]
+    except KeyError as exc:
+        raise ValueError(f"unknown English objective variant {name!r}") from exc
+    return str(value["program_id"]), value["component_weights"]
 
 
 def _recover_resume_boundary(
@@ -203,8 +240,19 @@ def _arguments() -> argparse.Namespace:
     parser.add_argument("--generate-gate-bias", type=float, default=0.0)
     parser.add_argument("--experiences-per-step", type=int, default=8)
     parser.add_argument("--curriculum", choices=("substrate", "reasoning"), default="substrate")
+    parser.add_argument(
+        "--objective-variant",
+        choices=tuple(OBJECTIVE_VARIANTS),
+        default="baseline-v1",
+        help="versioned English loss composition; balanced terminal routing is an explicit experiment",
+    )
     parser.add_argument("--preflight-only", action="store_true")
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument(
+        "--objective-transition-from",
+        default=None,
+        help="reuse this accepted candidate generation as the exact parent of a versioned objective transition",
+    )
     parser.add_argument(
         "--typed-donor-checkpoint",
         type=Path,
@@ -375,6 +423,14 @@ def main() -> int:
         raise ValueError("--learning-rate must be positive and finite")
     if args.experiences_per_step < 1:
         raise ValueError("--experiences-per-step must be positive")
+    objective_program_id, objective_component_weights = _objective_variant(args.objective_variant)
+    if args.objective_transition_from is not None:
+        if not args.resume:
+            raise ValueError("--objective-transition-from requires --resume")
+        if args.objective_variant == "baseline-v1":
+            raise ValueError("an objective transition must select a non-baseline objective variant")
+        if not str(args.objective_transition_from).strip():
+            raise ValueError("--objective-transition-from must be non-empty")
     _seed_everything(args.seed)
     device = _device(args.device)
 
@@ -433,19 +489,24 @@ def main() -> int:
     policy = GovernedLearningPolicy(
         optimizer="adamw",
         learning_rate=args.learning_rate,
-        objective_program_id=OBJECTIVE_PROGRAM_ID,
+        objective_program_id=objective_program_id,
     )
-    candidate_generation = "english-candidate-" + canonical_sha256(
-        {
-            "module_id": args.module_id,
-            "base_generation": base_generation,
-            "architecture_id": model.architecture_id,
-            "curriculum_id": curriculum.curriculum_id,
-            "learning_policy_id": policy.policy_id,
-            "curriculum_kind": args.curriculum,
-            "experiences_per_step": args.experiences_per_step,
-        }
-    )[:20]
+    candidate_generation = (
+        str(args.objective_transition_from)
+        if args.objective_transition_from is not None
+        else "english-candidate-"
+        + canonical_sha256(
+            {
+                "module_id": args.module_id,
+                "base_generation": base_generation,
+                "architecture_id": model.architecture_id,
+                "curriculum_id": curriculum.curriculum_id,
+                "learning_policy_id": policy.policy_id,
+                "curriculum_kind": args.curriculum,
+                "experiences_per_step": args.experiences_per_step,
+            }
+        )[:20]
+    )
     descriptor = ParameterModuleDescriptor(
         module_id=args.module_id,
         organ_kind=OrganKind.REASONING_CORE,
@@ -488,10 +549,43 @@ def main() -> int:
                 raise RuntimeError(
                     "accepted English candidate belongs to a different mutation plan"
                 )
-            if latest_checkpoint.learning_policy_id != policy.policy_id:
+            if (
+                latest_checkpoint.learning_policy_id != policy.policy_id
+                and args.objective_transition_from is None
+            ):
                 raise RuntimeError(
                     "accepted English candidate belongs to a different learning policy"
                 )
+        elif args.objective_transition_from is not None:
+            raise RuntimeError(
+                "objective transition requires an accepted parent bundle in the named candidate"
+            )
+        objective_transition = None
+        objective_transition_path = None
+        if args.objective_transition_from is not None:
+            if latest is None:
+                raise RuntimeError("objective transition parent bundle is missing")
+            if latest_checkpoint.learning_policy_id == policy.policy_id:
+                raise RuntimeError("objective transition must change the learning policy identity")
+            transition_body = {
+                "schema": "axon-english-objective-transition-v1",
+                "candidate_generation_id": candidate_generation,
+                "module_id": args.module_id,
+                "parent_bundle_id": latest.bundle_id,
+                "parent_checkpoint_id": latest_checkpoint.checkpoint_id,
+                "parent_soul_id": latest.after_soul_id,
+                "parent_global_step": latest.step,
+                "parent_learning_policy_id": latest_checkpoint.learning_policy_id,
+                "objective_variant": args.objective_variant,
+                "objective_program_id": objective_program_id,
+                "new_learning_policy_id": policy.policy_id,
+            }
+            transition_id = canonical_sha256(transition_body)
+            objective_transition = {**transition_body, "transition_id": transition_id}
+            objective_transition_path = (
+                state_root / "training" / "trainer" / "objective_transitions" / f"{transition_id}.json"
+            )
+            _immutable_json(objective_transition_path, objective_transition)
         tranche = ResourceTranche(
             module_id=args.module_id,
             candidate_generation_id=candidate_generation,
@@ -500,7 +594,10 @@ def main() -> int:
             base_global_step=0 if latest is None else latest.step,
             steps=args.tranche_steps,
             parent_bundle_id=None if latest is None else latest.bundle_id,
-            purpose=f"bounded English-native {args.curriculum} lived-experience tranche",
+            purpose=(
+                f"bounded English-native {args.curriculum} lived-experience tranche "
+                f"({args.objective_variant})"
+            ),
         )
         tranche_path, continuation_path, continuation = _persist_tranche_lineage(
             tranche_store,
@@ -526,7 +623,11 @@ def main() -> int:
             "curriculum_id": curriculum.curriculum_id,
             "curriculum_kind": args.curriculum,
             "experiences_per_step": args.experiences_per_step,
-            "objective_program_id": OBJECTIVE_PROGRAM_ID,
+            "objective_variant": args.objective_variant,
+            "objective_program_id": objective_program_id,
+            "objective_component_weights": None
+            if objective_component_weights is None
+            else dict(objective_component_weights),
             "text_eos_weight": TEXT_EOS_WEIGHT,
             "learning_policy": policy.to_canonical_dict(),
             "plan": plan.to_canonical_dict(),
@@ -534,6 +635,10 @@ def main() -> int:
             "tranche_artifact_path": str(tranche_path),
             "continuation": None if continuation is None else continuation.to_canonical_dict(),
             "continuation_artifact_path": None if continuation_path is None else str(continuation_path),
+            "objective_transition": objective_transition,
+            "objective_transition_artifact_path": (
+                None if objective_transition_path is None else str(objective_transition_path)
+            ),
             "preflight": preflight.to_canonical_dict(),
             "typed_donor_migration": None if migration is None else migration.to_canonical_dict(),
             "device": str(device),
@@ -593,7 +698,10 @@ def main() -> int:
         )
         soul_branch = soul_workspace.branch(candidate_generation, args.module_id)
         if latest is not None:
-            session.restore_checkpoint(step_bundles.checkpoint_for_bundle(latest))
+            session.restore_checkpoint(
+                step_bundles.checkpoint_for_bundle(latest),
+                allow_learning_policy_transition=args.objective_transition_from is not None,
+            )
             if soul_branch.load_head().soul_id != latest.after_soul_id:
                 raise RuntimeError("accepted English checkpoint and candidate Soul HEAD disagree")
 
@@ -627,6 +735,7 @@ def main() -> int:
                         soul,
                         core_id=args.module_id,
                         parameter_generation=candidate_generation,
+                        component_weights=objective_component_weights,
                         text_eos_weight=TEXT_EOS_WEIGHT,
                     )
                     losses.append(loss)
