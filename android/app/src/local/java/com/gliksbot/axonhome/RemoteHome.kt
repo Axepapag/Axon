@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
@@ -50,18 +51,21 @@ fun RemoteHome() {
                 Text(status)
 
                 if (enrollment == null) {
-                    Text("Enroll this phone once. Axon Home will keep the control-plane credential in Android Keystore and reconnect automatically.")
+                    Text("Enroll this phone once. Axon Home stores the control credential with Android Keystore and reconnects automatically after that.")
                     OutlinedTextField(
                         value = endpoint,
                         onValueChange = { endpoint = it },
                         label = { Text("VM control URL (https://…)") },
                         modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
                     )
                     OutlinedTextField(
                         value = token,
                         onValueChange = { token = it },
-                        label = { Text("Control token") },
+                        label = { Text("One-time control token") },
+                        visualTransformation = PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
                     )
                     Button(onClick = {
                         try {
@@ -77,16 +81,23 @@ fun RemoteHome() {
                     Text(enrollment!!.baseUrl, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
                     summary?.let { s ->
                         HorizontalDivider()
-                        Text("Heart", style = MaterialTheme.typography.titleLarge)
+                        Text("Heart / body", style = MaterialTheme.typography.titleLarge)
                         Metric("Status", s.controlStatus)
                         Metric("Heartbeat", s.heartbeatSequence?.toString() ?: "—")
                         Metric("Reasoning tick", s.tickSequence?.toString() ?: "—")
-                        Metric("Canonical field", s.fieldId ?: "—", mono = true)
+                        Metric("Canonical field", compactId(s.fieldId), mono = true)
+                        Metric("Attended D64 view", compactId(s.viewId), mono = true)
+
+                        HorizontalDivider()
+                        Text("Cortex / ingress", style = MaterialTheme.typography.titleLarge)
+                        Metric("Dormant index", compactId(s.dormantIndexId), mono = true)
+                        Metric("Ingress quarantined", s.ingressQuarantineCount?.toString() ?: "—")
+                        Metric("Ingress rejected", s.ingressRejectionCount?.toString() ?: "—")
 
                         HorizontalDivider()
                         Text("Trainer", style = MaterialTheme.typography.titleLarge)
                         Metric("Lifecycle", s.trainerStatus)
-                        Metric("Candidate", s.candidateGeneration ?: "—", mono = true)
+                        Metric("Candidate", compactId(s.candidateGeneration), mono = true)
                         Metric("Accepted step", s.trainingStep?.toString() ?: "—")
                         Metric("Loss", s.loss?.let { "%.6f".format(it) } ?: "—", mono = true)
                         Metric("Progress", s.trainingProgressStatus ?: "—")
@@ -108,12 +119,18 @@ fun RemoteHome() {
 
                 error?.let { Text("Connection: $it", color = MaterialTheme.colorScheme.error) }
                 Text(
-                    "This app is a window into the server-authoritative organism. Heart, canonical state, Rails, Cortex and Trainer remain on the VM.",
+                    "Server authoritative: Heart, canonical State, D16/D64 Rails, Cortex, Souls and Trainer stay on the cloud VM. Axon Home observes and controls through governed APIs rather than SSH.",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
         }
     }
+}
+
+private fun compactId(value: String?): String = when {
+    value.isNullOrBlank() -> "—"
+    value.length <= 20 -> value
+    else -> value.take(10) + "…" + value.takeLast(8)
 }
 
 @Composable
