@@ -30,9 +30,7 @@ class RemoteConnectionStore(context: Context) {
 
     fun save(baseUrl: String, token: String) {
         val url = baseUrl.trim().trimEnd('/')
-        require(url.startsWith("https://") || url.startsWith("http://10.") || url.startsWith("http://192.168.")) {
-            "Use HTTPS for remote VMs"
-        }
+        require(url.startsWith("https://")) { "Use HTTPS for the cloud VM" }
         require(token.isNotBlank()) { "Control token is required" }
         val (ciphertext, iv) = encrypt(token.trim())
         prefs.edit()
@@ -49,10 +47,7 @@ class RemoteConnectionStore(context: Context) {
         (store.getKey(alias, null) as? SecretKey)?.let { return it }
         val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
         generator.init(
-            KeyGenParameterSpec.Builder(
-                alias,
-                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
-            )
+            KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                 .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
                 .setKeySize(256)
@@ -65,17 +60,12 @@ class RemoteConnectionStore(context: Context) {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, secretKey())
         val ciphertext = cipher.doFinal(value.encodeToByteArray())
-        return Base64.encodeToString(ciphertext, Base64.NO_WRAP) to
-            Base64.encodeToString(cipher.iv, Base64.NO_WRAP)
+        return Base64.encodeToString(ciphertext, Base64.NO_WRAP) to Base64.encodeToString(cipher.iv, Base64.NO_WRAP)
     }
 
     private fun decrypt(ciphertext: String, iv: String): String {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(
-            Cipher.DECRYPT_MODE,
-            secretKey(),
-            GCMParameterSpec(128, Base64.decode(iv, Base64.NO_WRAP)),
-        )
+        cipher.init(Cipher.DECRYPT_MODE, secretKey(), GCMParameterSpec(128, Base64.decode(iv, Base64.NO_WRAP)))
         return cipher.doFinal(Base64.decode(ciphertext, Base64.NO_WRAP)).decodeToString()
     }
 }
