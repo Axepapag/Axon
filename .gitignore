@@ -43,3 +43,9 @@ ssh_helper.py
 # Operational state is local. Existing tracked table fixtures remain tracked,
 # but new machine-local runtime/acceptance artifacts are not promoted by default.
 ops/
+
+# Android machine-local build state
+.gradle/
+local.properties
+*.apk
+*.jks

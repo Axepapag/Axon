@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axon.gliksbot.com/schemas/controlplane/v1/agents.json",
+  "title": "Axon Control Plane — engineering agent routing",
+  "description": "Agent registry and routed messages (arch §5.5, §7 AgentProvider, §10.Q/R). NEVER carries secrets: model/auth material is referenced by vault key reference, never raw keys.",
+  "$defs": {
+    "agentRecord": {
+      "type": "object",
+      "required": ["agent_id", "name", "provider", "model", "online", "capabilities"],
+      "properties": {
+        "agent_id": {"type": "string"},
+        "name": {"type": "string"},
+        "provider": {"type": "string", "description": "AgentProvider adapter id (e.g. openai-compatible, generic-rest). No hardcoded model brands implied."},
+        "model": {"type": ["string", "null"]},
+        "online": {"type": "boolean"},
+        "role": {"type": ["string", "null"]},
+        "active_task": {"type": ["string", "null"]},
+        "capabilities": {
+          "type": "object",
+          "properties": {
+            "supportsStreaming": {"type": "boolean"},
+            "supportsTools": {"type": "boolean"},
+            "supportsSystemPrompt": {"type": "boolean"},
+            "supportsModelList": {"type": "boolean"}
+          },
+          "additionalProperties": false
+        },
+        "vault_key_ref": {"type": ["string", "null"], "description": "REFERENCE to a vault entry; never a raw key."}
+      },
+      "additionalProperties": false
+    },
+    "agentList": {
+      "type": "object",
+      "required": ["schema", "freshness", "observed_at", "agents"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-agent-list-v1"},
+        "freshness": {"$ref": "common.json#/$defs/freshness"},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "agents": {"type": "array", "items": {"$ref": "#/$defs/agentRecord"}}
+      },
+      "additionalProperties": false
+    },
+    "registerAgentRequest": {
+      "type": "object",
+      "required": ["schema", "name", "provider"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-agent-register-v1"},
+        "name": {"type": "string"},
+        "provider": {"type": "string"},
+        "base_url": {"type": ["string", "null"]},
+        "model": {"type": ["string", "null"]},
+        "role": {"type": ["string", "null"]},
+        "vault_key_ref": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "agentMessage": {
+      "type": "object",
+      "required": ["schema", "message_id", "agent_id", "from", "body", "sent_at"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-agent-message-v1"},
+        "message_id": {"type": "string"},
+        "agent_id": {"type": "string"},
+        "from": {"type": "string", "description": "Sender identity (operator or agent id)."},
+        "body": {"type": "string", "description": "Message text. Secrets are never carried."},
+        "sent_at": {"type": "string", "format": "date-time"},
+        "in_reply_to": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "agentMessageRequest": {
+      "type": "object",
+      "required": ["schema", "body"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-agent-message-request-v1"},
+        "body": {"type": "string"},
+        "in_reply_to": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    }
+  }
+}

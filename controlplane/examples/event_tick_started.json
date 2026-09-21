@@ -1,0 +1,16 @@
+{
+  "schema": "axon-home-event-v1",
+  "event_id": "evt-01J8XK9Z3WQK2M4N6P8R0T2V4Y",
+  "seq": 10234,
+  "timestamp": "2026-09-21T00:00:00.000000Z",
+  "type": "TickStarted",
+  "payload": {
+    "schema": "axon-heart-tick-identity-v1",
+    "tick_sequence": 1189,
+    "heartbeat_id": "hb-0004103",
+    "base_field_id": "field-8b2c1a9f0e",
+    "base_tick_id": 1188,
+    "view_id": "view-71aa02c4",
+    "participants": ["core-alpha", "core-beta", "core-gamma", "core-delta"]
+  }
+}

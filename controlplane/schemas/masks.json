@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axon.gliksbot.com/schemas/controlplane/v1/masks.json",
+  "title": "Axon Control Plane — region mask policy",
+  "description": "Masks are a DERIVED VIEW, never canonical state (arch §2.4, §5.5, §10.F). PUT is two-step: first PUT returns a proposed state with a confirm_token; a second PUT with confirm_token + confirmed=true applies via HeartHost.set_region_mask_policy and advances mask revision -> new view_id. Never mutates on first touch.",
+  "$defs": {
+    "maskPolicy": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": {"type": "string", "enum": ["all", "none", "last_n_spans", "tail_percent"]},
+        "tail_percent": {"type": "integer", "minimum": 0, "maximum": 100, "description": "Newest-suffix slider (operational control). Required iff kind=tail_percent."},
+        "n": {"type": "integer", "minimum": 0, "description": "Required iff kind=last_n_spans."}
+      },
+      "additionalProperties": false
+    },
+    "maskState": {
+      "type": "object",
+      "required": ["schema", "freshness", "observed_at", "mask_schema", "revision", "state_id", "view_id", "policies"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-mask-state-v1"},
+        "freshness": {"$ref": "common.json#/$defs/freshness"},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "mask_schema": {"const": "axon-heart-region-masks-v3", "description": "The durable record at active/heart/region_masks.json."},
+        "revision": {"type": "integer", "minimum": 0, "description": "Monotonic mask revision (axon-heart-region-masks-v3)."},
+        "state_id": {"type": "string"},
+        "view_id": {"type": "string", "description": "derive_view_id(masks); the frozen-tick view this mask state produces."},
+        "policies": {
+          "type": "object",
+          "description": "Region id -> mask policy. All 13 canonical regions present; identity is always {kind: all} (IDENTITY_MASK_POLICY).",
+          "additionalProperties": {"$ref": "#/$defs/maskPolicy"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "putMasksRequest": {
+      "type": "object",
+      "required": ["policies"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-mask-update-v1"},
+        "policies": {
+          "type": "object",
+          "additionalProperties": {"$ref": "#/$defs/maskPolicy"}
+        },
+        "confirm_token": {"type": ["string", "null"], "description": "From a prior proposal response. Required when confirmed=true."},
+        "confirmed": {"type": "boolean", "default": false, "description": "Must be true (with confirm_token) for the change to apply. confirm semantics are mandatory."}
+      },
+      "additionalProperties": false
+    },
+    "putMasksResponse": {
+      "type": "object",
+      "required": ["schema", "freshness", "observed_at", "applied", "proposed"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-mask-update-result-v1"},
+        "freshness": {"$ref": "common.json#/$defs/freshness"},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "applied": {"type": "boolean", "description": "false for a proposal (first touch); true only after a confirmed second PUT."},
+        "confirm_token": {"type": ["string", "null"], "description": "Present on a proposal; single-use, short-lived."},
+        "proposed": {"$ref": "#/$defs/maskState", "description": "The proposed (unapplied) or resulting (applied) mask state, including the new view_id and revision."}
+      },
+      "additionalProperties": false
+    }
+  }
+}

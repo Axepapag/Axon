@@ -1,0 +1,14 @@
+{
+  "schema": "axon-controlplane-audit-entry-v1",
+  "audit_id": "aud-01J8XKQ0B7",
+  "who": "jeff",
+  "device": "pixel-8-pro-enrolled-2026-09-21",
+  "command": "POST /v1/trainer/commands",
+  "target": "trainer:pause",
+  "timestamp": "2026-09-21T00:01:12.000000Z",
+  "previous_state": "running",
+  "requested_state": "paused",
+  "result": "unavailable",
+  "error": "no governed handler; no action was taken",
+  "idempotency_key": "9c4f1e2a-7b3d-4e5f-8a0b-1c2d3e4f5a6b"
+}

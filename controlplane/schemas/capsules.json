@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axon.gliksbot.com/schemas/controlplane/v1/capsules.json",
+  "title": "Axon Control Plane — recovery capsules",
+  "description": "Recovery capsule catalog and verification (arch §9). A capsule is the minimum complete state to continue the organism on a fresh worker; the manifest mirrors the axon-cloud-bundle-manifest-v1 philosophy: per-member {path: {sha256, bytes}} + archive digest, manifest written LAST. Restore verification is fail-closed per arch §9.3.",
+  "$defs": {
+    "capsuleManifest": {
+      "type": "object",
+      "required": ["schema", "capsule_id", "archive_sha256", "archive_bytes", "members", "git_commit", "created_at"],
+      "properties": {
+        "schema": {"const": "axon-cloud-bundle-manifest-v1", "description": "Deliberately compatible with runtime/trainer/cloud_bundle.py detached manifests."},
+        "capsule_id": {"type": "string"},
+        "kind": {"type": "string", "enum": ["full_organism", "checkpoint", "code"], "description": "The three things the app must never let the operator confuse (arch §9.1)."},
+        "archive_name": {"type": "string"},
+        "archive_sha256": {"type": "string"},
+        "archive_bytes": {"type": "integer", "minimum": 0},
+        "members": {
+          "type": "object",
+          "description": "Per-member map: archive path -> {sha256, bytes}. Written LAST (arch §9.2).",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["sha256", "bytes"],
+            "properties": {
+              "sha256": {"type": "string"},
+              "bytes": {"type": "integer", "minimum": 0}
+            },
+            "additionalProperties": false
+          }
+        },
+        "architecture_id": {"type": ["string", "null"]},
+        "base_generation_id": {"type": ["string", "null"]},
+        "candidate_generation_id": {"type": ["string", "null"]},
+        "checkpoint_id": {"type": ["string", "null"]},
+        "soul_ids": {"type": "array", "items": {"type": "string"}},
+        "git_commit": {"type": "string", "description": "HEAD sha at export."},
+        "created_at": {"type": "string", "format": "date-time"},
+        "storage": {
+          "type": ["object", "null"],
+          "properties": {
+            "provider": {"type": "string"},
+            "path": {"type": "string"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "capsuleList": {
+      "type": "object",
+      "required": ["schema", "freshness", "observed_at", "capsules"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-capsule-list-v1"},
+        "freshness": {"$ref": "common.json#/$defs/freshness"},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "capsules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["capsule_id", "kind", "archive_sha256", "created_at", "verification_status"],
+            "properties": {
+              "capsule_id": {"type": "string"},
+              "kind": {"type": "string", "enum": ["full_organism", "checkpoint", "code"]},
+              "archive_sha256": {"type": "string"},
+              "archive_bytes": {"type": ["integer", "null"], "minimum": 0},
+              "created_at": {"type": "string", "format": "date-time"},
+              "verification_status": {"type": "string", "enum": ["unverified", "verified", "quarantined"]}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "capsuleExportRequest": {
+      "type": "object",
+      "required": ["schema", "kind"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-capsule-export-v1"},
+        "kind": {"type": "string", "enum": ["full_organism", "checkpoint", "code"]},
+        "module_id": {"type": ["string", "null"]},
+        "candidate_generation_id": {"type": ["string", "null"]},
+        "storage_provider": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "capsuleVerificationReport": {
+      "type": "object",
+      "description": "Mirrors axon-cloud-bundle-verification-v1 discipline (arch §9.3): verify every sha256 (archive then per-member, member-set equality both directions), then architecture identity, candidate generation, optimizer policy, soul/checkpoint pairing, lineage. ANY mismatch quarantines the whole capsule; nothing half-verified reaches canonical State.",
+      "required": ["schema", "capsule_id", "ok", "checks", "verified_at"],
+      "properties": {
+        "schema": {"const": "axon-cloud-bundle-verification-v1"},
+        "capsule_id": {"type": "string"},
+        "ok": {"type": "boolean"},
+        "checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "ok"],
+            "properties": {
+              "name": {"type": "string", "enum": ["archive_sha256", "member_set", "member_sha256", "architecture_identity", "candidate_generation", "optimizer_policy", "soul_checkpoint_pairing", "lineage"]},
+              "ok": {"type": "boolean"},
+              "detail": {"type": ["string", "null"]}
+            },
+            "additionalProperties": false
+          }
+        },
+        "mismatches": {"type": "array", "items": {"type": "string"}},
+        "quarantine_dir": {"type": ["string", "null"], "description": "Set when ok=false: all members routed to quarantine."},
+        "verified_at": {"type": "string", "format": "date-time"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

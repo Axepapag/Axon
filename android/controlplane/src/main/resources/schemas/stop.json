@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axon.gliksbot.com/schemas/controlplane/v1/stop.json",
+  "title": "Axon Control Plane — stop semantics",
+  "description": "Four distinct stops, each honest about its boundary (arch §13). The emergency result is a per-component ack map: all_stopped is true ONLY if every registered component acknowledged (confirmed_stopped) or is provably_gone. Any 'unreachable' component forces all_stopped=false. Never fakes successful cancellation.",
+  "$defs": {
+    "stopScope": {
+      "type": "string",
+      "enum": ["pause_axon", "stop_training", "stop_compute", "emergency"],
+      "description": "pause_axon: finish/abort current beat at the atomic runtime boundary (Heart host BeatState idle). stop_training: stop at a recoverable Trainer tranche boundary (mid-segment interactive pause is a FUTURE organ handler; until wired the organ returns UNAVAILABLE and the ack says so). stop_compute: terminate a selected worker/provider job (only when the provider advertises supportsStop). emergency: attempt to halt organism execution + training immediately with full ack accounting."
+    },
+    "componentAckStatus": {
+      "type": "string",
+      "enum": ["confirmed_stopped", "unreachable", "provably_gone", "refused", "unavailable"]
+    },
+    "componentAck": {
+      "type": "object",
+      "required": ["component_id", "component_kind", "status"],
+      "properties": {
+        "component_id": {"type": "string"},
+        "component_kind": {"type": "string", "enum": ["heart_host", "trainer", "compute_worker", "control_plane"]},
+        "status": {"$ref": "#/$defs/componentAckStatus"},
+        "detail": {"type": ["string", "null"], "description": "Verbatim upstream answer where applicable, e.g. Trainer UNAVAILABLE message."}
+      },
+      "additionalProperties": false
+    },
+    "stopRequest": {
+      "type": "object",
+      "required": ["schema", "scope"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-stop-request-v1"},
+        "scope": {"$ref": "#/$defs/stopScope"},
+        "target": {"type": ["string", "null"], "description": "Required for stop_compute (worker id); optional elsewhere."}
+      },
+      "additionalProperties": false
+    },
+    "stopResponse": {
+      "type": "object",
+      "required": ["schema", "freshness", "observed_at", "scope", "all_stopped", "components", "audit_id"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-stop-result-v1"},
+        "freshness": {"$ref": "common.json#/$defs/freshness"},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "scope": {"$ref": "#/$defs/stopScope"},
+        "all_stopped": {
+          "type": "boolean",
+          "description": "HONEST accounting (arch §13): true ONLY when every registered component acked confirmed_stopped or provably_gone. The server MUST NOT set this true while any component is unreachable."
+        },
+        "components": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/componentAck"},
+          "minItems": 1
+        },
+        "audit_id": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    }
+  }
+}

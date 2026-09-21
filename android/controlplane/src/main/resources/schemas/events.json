@@ -1,0 +1,287 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axon.gliksbot.com/schemas/controlplane/v1/events.json",
+  "title": "Axon Control Plane — typed event stream (axon-home-event-v1)",
+  "description": "Typed, versioned, replayable event stream derived from State-root journals (arch §6). seq is a monotonic per-stream sequence; on reconnect the client sends last_seq and the server replays from the retained ring buffer; if last_seq is older than retention the server responds SEQ_GAP and the client re-syncs via REST. A visible seq gap is never silently skipped. Payloads reference existing Axon schemas rather than inventing parallel ones.",
+  "$defs": {
+    "eventType": {
+      "type": "string",
+      "enum": [
+        "TickStarted", "CoreFirstReturned", "FirstBarrierComplete",
+        "CoreRefinedReturned", "RefinedBarrierComplete", "ConsolidatorSelected",
+        "FinalReturned", "HeartValidationStarted", "FieldCommitted",
+        "SoulTransitionAccepted", "TrainerStepAccepted", "CheckpointWritten",
+        "HeldoutEvaluationCompleted", "ComputeWorkerConnected",
+        "ComputeWorkerLost", "RecoveryCapsulePublished",
+        "AgentMessageReceived", "AlertRaised"
+      ]
+    },
+    "envelope": {
+      "type": "object",
+      "required": ["schema", "event_id", "seq", "timestamp", "type", "payload"],
+      "properties": {
+        "schema": {"const": "axon-home-event-v1"},
+        "event_id": {"type": "string", "pattern": "^evt-"},
+        "seq": {"type": "integer", "minimum": 0},
+        "timestamp": {"type": "string", "format": "date-time"},
+        "type": {"$ref": "#/$defs/eventType"},
+        "payload": {"type": "object"}
+      },
+      "additionalProperties": false
+    },
+    "TickStarted": {
+      "type": "object",
+      "description": "Payload refs axon-heart-tick-identity-v1 (runtime/heart/tick.py).",
+      "required": ["schema", "tick_sequence", "heartbeat_id", "base_field_id"],
+      "properties": {
+        "schema": {"const": "axon-heart-tick-identity-v1"},
+        "tick_sequence": {"type": "integer", "minimum": 0},
+        "heartbeat_id": {"type": "string"},
+        "base_field_id": {"type": "string"},
+        "base_tick_id": {"type": ["integer", "null"]},
+        "view_id": {"type": ["string", "null"]},
+        "participants": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "CoreFirstReturned": {
+      "type": "object",
+      "description": "Payload refs axon-english-proposal-v1 + participant record (runtime/heart/english_reasoning.py, board.py).",
+      "required": ["schema", "tick_sequence", "core_id", "proposal_id", "participant_state"],
+      "properties": {
+        "schema": {"const": "axon-english-proposal-v1"},
+        "tick_sequence": {"type": "integer", "minimum": 0},
+        "core_id": {"type": "string"},
+        "proposal_id": {"type": "string"},
+        "participant_state": {"type": "string", "enum": ["pending", "returned", "failed", "timed_out"]},
+        "elapsed_ms": {"type": ["integer", "null"], "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "FirstBarrierComplete": {
+      "type": "object",
+      "description": "Payload refs axon-heart-english-proposal-workspace-v2 (runtime/heart/proposal_workspace.py).",
+      "required": ["schema", "tick_sequence", "workspace_id", "returned_core_ids"],
+      "properties": {
+        "schema": {"const": "axon-heart-english-proposal-workspace-v2"},
+        "tick_sequence": {"type": "integer", "minimum": 0},
+        "workspace_id": {"type": "string"},
+        "pass": {"const": "first"},
+        "returned_core_ids": {"type": "array", "items": {"type": "string"}},
+        "failed_core_ids": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "CoreRefinedReturned": {
+      "type": "object",
+      "description": "Payload refs axon-english-proposal-v1 (refined pass).",
+      "required": ["schema", "tick_sequence", "core_id", "proposal_id", "participant_state"],
+      "properties": {
+        "schema": {"const": "axon-english-proposal-v1"},
+        "tick_sequence": {"type": "integer", "minimum": 0},
+        "core_id": {"type": "string"},
+        "proposal_id": {"type": "string"},
+        "participant_state": {"type": "string", "enum": ["pending", "returned", "failed", "timed_out"]},
+        "elapsed_ms": {"type": ["integer", "null"], "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "RefinedBarrierComplete": {
+      "type": "object",
+      "description": "Payload refs axon-heart-english-proposal-workspace-v2 (refined pass).",
+      "required": ["schema", "tick_sequence", "workspace_id", "returned_core_ids"],
+      "properties": {
+        "schema": {"const": "axon-heart-english-proposal-workspace-v2"},
+        "tick_sequence": {"type": "integer", "minimum": 0},
+        "workspace_id": {"type": "string"},
+        "pass": {"const": "refined"},
+        "returned_core_ids": {"type": "array", "items": {"type": "string"}},
+        "failed_core_ids": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "ConsolidatorSelected": {
+      "type": "object",
+      "description": "Round-robin derivation: participants[(tick_sequence - 1) % len(participants)].",
+      "required": ["tick_sequence", "core_id", "participant_count"],
+      "properties": {
+        "tick_sequence": {"type": "integer", "minimum": 0},
+        "core_id": {"type": "string"},
+        "participant_count": {"type": "integer", "minimum": 1}
+      },
+      "additionalProperties": false
+    },
+    "FinalReturned": {
+      "type": "object",
+      "description": "Payload refs axon-tagged-final-verdict-v2 (runtime/heart/english_reasoning.py). FINAL is tagged desired-state language; Heart derives typed mutations.",
+      "required": ["schema", "tick_sequence", "consolidator_core_id", "verdict_id"],
+      "properties": {
+        "schema": {"const": "axon-tagged-final-verdict-v2"},
+        "tick_sequence": {"type": "integer", "minimum": 0},
+        "consolidator_core_id": {"type": "string"},
+        "verdict_id": {"type": "string"},
+        "region_tags": {"type": "array", "items": {"type": "string"}, "description": "e.g. #responseDraft#, #scratch#, #journal#."}
+      },
+      "additionalProperties": false
+    },
+    "HeartValidationStarted": {
+      "type": "object",
+      "description": "Payload refs axon-heart-frozen-tick-image-v2 (runtime/heart/tick.py).",
+      "required": ["schema", "tick_sequence", "frozen_image_id", "view_id"],
+      "properties": {
+        "schema": {"const": "axon-heart-frozen-tick-image-v2"},
+        "tick_sequence": {"type": "integer", "minimum": 0},
+        "frozen_image_id": {"type": "string"},
+        "view_id": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "FieldCommitted": {
+      "type": "object",
+      "description": "Payload refs axon-heart-commit-v1 + axon-canonical-state-branch-event-v1. The ONLY canonical commit path is HeartTransactionBoundary.",
+      "required": ["schema", "tick_sequence", "base_field_id", "successor_field_id", "delta_ids", "commit_id"],
+      "properties": {
+        "schema": {"const": "axon-heart-commit-v1"},
+        "tick_sequence": {"type": "integer", "minimum": 0},
+        "base_field_id": {"type": "string"},
+        "successor_field_id": {"type": "string"},
+        "delta_ids": {"type": "array", "items": {"type": "string"}, "description": "shared-field-delta-v1 ids."},
+        "commit_id": {"type": "string"},
+        "journal_generation": {"type": ["integer", "null"], "minimum": 0, "description": "Generation in the branch journal (axon-canonical-state-branch-event-v1)."}
+      },
+      "additionalProperties": false
+    },
+    "SoulTransitionAccepted": {
+      "type": "object",
+      "description": "Payload refs axon-private-soul-commit-receipt-v1 (runtime/soul/contracts.py).",
+      "required": ["schema", "core_id", "receipt_id", "before_soul_id", "after_soul_id", "generation", "phase"],
+      "properties": {
+        "schema": {"const": "axon-private-soul-commit-receipt-v1"},
+        "core_id": {"type": "string"},
+        "receipt_id": {"type": "string"},
+        "transition_id": {"type": ["string", "null"]},
+        "before_soul_id": {"type": "string"},
+        "after_soul_id": {"type": "string"},
+        "generation": {"type": "integer", "minimum": 0},
+        "phase": {"type": "string", "enum": ["first", "refined", "consolidated", "outcome", "training", "merge"]},
+        "tick_uid": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "TrainerStepAccepted": {
+      "type": "object",
+      "description": "Payload refs axon-accepted-reasoning-training-step-v1 + pointer axon-accepted-training-step-pointer-v1 (runtime/trainer/step_bundle.py).",
+      "required": ["schema", "bundle_id", "module_id", "candidate_generation_id", "step", "pointer_id"],
+      "properties": {
+        "schema": {"const": "axon-accepted-reasoning-training-step-v1"},
+        "bundle_id": {"type": "string"},
+        "pointer_id": {"type": "string", "description": "axon-accepted-training-step-pointer-v1 id."},
+        "module_id": {"type": "string"},
+        "candidate_generation_id": {"type": "string"},
+        "core_id": {"type": ["string", "null"]},
+        "step": {"type": "integer", "minimum": 0},
+        "checkpoint_id": {"type": ["string", "null"]},
+        "before_soul_id": {"type": ["string", "null"]},
+        "after_soul_id": {"type": ["string", "null"]},
+        "previous_bundle_id": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "CheckpointWritten": {
+      "type": "object",
+      "description": "Payload refs the axon-trainer-candidate-checkpoint-v2 RECORD (not the payload).",
+      "required": ["schema", "checkpoint_id", "module_id", "candidate_generation_id", "step", "artifact_sha256"],
+      "properties": {
+        "schema": {"const": "axon-trainer-candidate-checkpoint-v2"},
+        "checkpoint_id": {"type": "string"},
+        "module_id": {"type": "string"},
+        "candidate_generation_id": {"type": "string"},
+        "step": {"type": "integer", "minimum": 0},
+        "artifact_relpath": {"type": ["string", "null"]},
+        "artifact_sha256": {"type": "string"},
+        "artifact_bytes": {"type": ["integer", "null"], "minimum": 0},
+        "optimizer_included": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "HeldoutEvaluationCompleted": {
+      "type": "object",
+      "description": "Evaluation record id + gate requirements result (arch §6.2 #13; gate requirements per training/living_reasoning_curriculum.py).",
+      "required": ["evaluation_id", "candidate_generation_id", "gate_passed"],
+      "properties": {
+        "evaluation_id": {"type": "string"},
+        "candidate_generation_id": {"type": "string"},
+        "module_id": {"type": ["string", "null"]},
+        "gate_passed": {"type": "boolean"},
+        "metrics": {"type": "object", "additionalProperties": {"type": "number"}},
+        "failed_requirements": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "ComputeWorkerConnected": {
+      "type": "object",
+      "description": "Worker registry record + capabilities (arch §6.2 #14).",
+      "required": ["worker_id", "provider"],
+      "properties": {
+        "worker_id": {"type": "string"},
+        "provider": {"type": "string"},
+        "endpoint": {"type": ["string", "null"]},
+        "capabilities": {"type": "object", "additionalProperties": {"type": "boolean"}},
+        "worker_version": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "ComputeWorkerLost": {
+      "type": "object",
+      "description": "Worker id + last heartbeat + active job (arch §6.2 #15).",
+      "required": ["worker_id"],
+      "properties": {
+        "worker_id": {"type": "string"},
+        "provider": {"type": ["string", "null"]},
+        "last_heartbeat_at": {"type": ["string", "null"], "format": "date-time"},
+        "active_job_id": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "RecoveryCapsulePublished": {
+      "type": "object",
+      "description": "Capsule manifest ref, axon-cloud-bundle-manifest-v1-compatible (arch §6.2 #16, §9).",
+      "required": ["schema", "capsule_id", "archive_sha256", "archive_bytes", "member_count"],
+      "properties": {
+        "schema": {"const": "axon-cloud-bundle-manifest-v1"},
+        "capsule_id": {"type": "string"},
+        "kind": {"type": "string", "enum": ["full_organism", "checkpoint", "code"]},
+        "archive_sha256": {"type": "string"},
+        "archive_bytes": {"type": "integer", "minimum": 0},
+        "member_count": {"type": "integer", "minimum": 0},
+        "git_commit": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "AgentMessageReceived": {
+      "type": "object",
+      "description": "Roundtable message ref; NEVER carries secrets (arch §6.2 #17).",
+      "required": ["message_id", "agent_id", "from"],
+      "properties": {
+        "message_id": {"type": "string"},
+        "agent_id": {"type": "string"},
+        "from": {"type": "string"},
+        "preview": {"type": ["string", "null"]},
+        "in_reply_to": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "AlertRaised": {
+      "type": "object",
+      "description": "Severity, source, message, related event ids (arch §6.2 #18).",
+      "required": ["severity", "source", "message"],
+      "properties": {
+        "severity": {"type": "string", "enum": ["info", "warning", "critical"]},
+        "source": {"type": "string"},
+        "message": {"type": "string"},
+        "related_event_ids": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    }
+  }
+}
