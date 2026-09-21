@@ -1,8 +1,12 @@
-"""Minimal authenticated control plane for a cloud-hosted Axon body.
+"""Authenticated control plane for whichever machine currently hosts Axon.
 
-This server is intentionally transport-only. It reads canonical runtime/trainer
-surfaces and exposes them to Axon Home; it does not bypass Heart or Trainer
-mutation authority and never falls back to shell commands.
+The control plane is transport-only.  On the phone-sovereign path it normally
+runs inside Termux/Ubuntu beside HeartHost and listens on loopback for Axon
+Home.  The same process can later run on any optional external host.
+
+It reads canonical runtime/trainer surfaces and exposes them to Axon Home; it
+does not bypass Heart or Trainer mutation authority and never falls back to
+shell commands.
 """
 from __future__ import annotations
 
@@ -18,12 +22,41 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from runtime.trainer.organ import TrainerCommandKind, TrainerOrgan, TrainerOrganCommand
 
 STARTED = time.monotonic()
-STATE_ROOT = Path(os.environ.get("AXON_STATE_ROOT", r"D:\Axon\State")).resolve(strict=False)
-TOKEN = os.environ.get("AXON_CONTROL_TOKEN", "").strip()
-if not TOKEN:
-    raise RuntimeError("AXON_CONTROL_TOKEN must be set before starting the control plane")
 
-app = FastAPI(title="Axon Control Plane", version="1.0.0")
+
+def _default_state_root() -> Path:
+    explicit = os.environ.get("AXON_STATE_ROOT", "").strip()
+    if explicit:
+        return Path(explicit).expanduser().resolve(strict=False)
+    if os.name == "nt":
+        return Path(r"D:\Axon\State").resolve(strict=False)
+    return (Path.home() / ".axon" / "State").resolve(strict=False)
+
+
+STATE_ROOT = _default_state_root()
+
+
+def _control_token() -> str:
+    direct = os.environ.get("AXON_CONTROL_TOKEN", "").strip()
+    if direct:
+        return direct
+    token_file = Path(
+        os.environ.get("AXON_CONTROL_TOKEN_FILE", str(Path.home() / ".axon" / "control-token"))
+    ).expanduser()
+    if token_file.is_file():
+        try:
+            token = token_file.read_text(encoding="utf-8").strip()
+        except OSError:
+            token = ""
+        if token:
+            return token
+    raise RuntimeError(
+        "set AXON_CONTROL_TOKEN or create ~/.axon/control-token before starting the control plane"
+    )
+
+
+TOKEN = _control_token()
+app = FastAPI(title="Axon Control Plane", version="1.1.0-phone-sovereign")
 trainer = TrainerOrgan(state_root=STATE_ROOT)
 
 
@@ -76,6 +109,7 @@ def health() -> dict[str, Any]:
             "version": app.version,
             "api_versions": ["v1"],
             "uptime_seconds": int(time.monotonic() - STARTED),
+            "host_mode": "phone-local" if os.name != "nt" else "windows",
         },
         "state_root": str(STATE_ROOT),
         "heart": heart,
@@ -93,7 +127,11 @@ def field_head() -> dict[str, Any]:
 @app.get("/v1/trainer/status", dependencies=[Depends(_auth)])
 def trainer_status() -> dict[str, Any]:
     result = trainer.dispatch(
-        TrainerOrganCommand(kind=TrainerCommandKind.STATUS, arguments={"detail": "summary"}, requested_by="axon-home")
+        TrainerOrganCommand(
+            kind=TrainerCommandKind.STATUS,
+            arguments={"detail": "summary"},
+            requested_by="axon-home",
+        )
     )
     return result.to_canonical_dict()
 
@@ -111,7 +149,11 @@ def training_progress() -> dict[str, Any]:
 @app.get("/v1/runtime/summary", dependencies=[Depends(_auth)])
 def runtime_summary() -> dict[str, Any]:
     status = trainer.dispatch(
-        TrainerOrganCommand(kind=TrainerCommandKind.STATUS, arguments={"detail": "summary"}, requested_by="axon-home")
+        TrainerOrganCommand(
+            kind=TrainerCommandKind.STATUS,
+            arguments={"detail": "summary"},
+            requested_by="axon-home",
+        )
     )
     return {
         "schema": "axon-runtime-summary-v1",
