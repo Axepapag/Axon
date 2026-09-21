@@ -10,6 +10,7 @@ plugins {
 android {
     namespace = "com.gliksbot.axonhome"
     compileSdk = 35
+    buildToolsVersion = "35.0.0"
 
     defaultConfig {
         applicationId = "com.gliksbot.axonhome"
@@ -23,7 +24,10 @@ android {
 
     flavorDimensions += "runtime"
     productFlavors {
-        create("local") { dimension = "runtime" }
+        create("local") {
+            dimension = "runtime"
+            applicationIdSuffix = ".local"
+        }
         create("simulation") {
             dimension = "runtime"
             applicationIdSuffix = ".simulation"
