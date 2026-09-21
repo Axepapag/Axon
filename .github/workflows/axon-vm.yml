@@ -7,18 +7,22 @@ on:
       - 'runtime/**'
       - 'training/**'
       - 'substrate/**'
+      - 'Cortext/**'
       - 'scripts/axon_control_server.py'
       - 'ops/windows_vm/**'
       - 'tests/test_trainer_organ.py'
       - 'tests/test_no_fixed_character_poison.py'
+      - 'tests/test_active_training_not_legacy.py'
       - '.github/workflows/axon-vm.yml'
   pull_request:
     paths:
       - 'runtime/**'
       - 'training/**'
       - 'substrate/**'
+      - 'Cortext/**'
       - 'scripts/axon_control_server.py'
       - 'ops/windows_vm/**'
+      - 'tests/test_active_training_not_legacy.py'
       - '.github/workflows/axon-vm.yml'
   workflow_dispatch:
 
@@ -40,7 +44,7 @@ jobs:
         run: python -m py_compile scripts/axon_control_server.py
 
       - name: Trainer authority and active-training hygiene
-        run: python -m pytest tests/test_trainer_organ.py tests/test_no_fixed_character_poison.py -q
+        run: python -m pytest tests/test_trainer_organ.py tests/test_no_fixed_character_poison.py tests/test_active_training_not_legacy.py -q
 
       - name: Parse Windows bootstrap
         shell: pwsh
