@@ -1,0 +1,54 @@
+name: Axon VM Readiness
+
+on:
+  push:
+    branches: ["cloud-vm-control-*"]
+    paths:
+      - 'runtime/**'
+      - 'training/**'
+      - 'substrate/**'
+      - 'scripts/axon_control_server.py'
+      - 'ops/windows_vm/**'
+      - 'tests/test_trainer_organ.py'
+      - 'tests/test_no_fixed_character_poison.py'
+      - '.github/workflows/axon-vm.yml'
+  pull_request:
+    paths:
+      - 'runtime/**'
+      - 'training/**'
+      - 'substrate/**'
+      - 'scripts/axon_control_server.py'
+      - 'ops/windows_vm/**'
+      - '.github/workflows/axon-vm.yml'
+  workflow_dispatch:
+
+jobs:
+  python-readiness:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install Axon + test dependencies
+        run: python -m pip install -e ".[dev]"
+
+      - name: Compile VM control server
+        run: python -m py_compile scripts/axon_control_server.py
+
+      - name: Trainer authority and active-training hygiene
+        run: python -m pytest tests/test_trainer_organ.py tests/test_no_fixed_character_poison.py -q
+
+      - name: Parse Windows bootstrap
+        shell: pwsh
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path ops/windows_vm/bootstrap_axon_vm.ps1),
+            [ref]$null,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }
