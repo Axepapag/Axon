@@ -4,6 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import java.net.URI
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -11,9 +12,11 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 /**
- * Stores the VM endpoint plus bearer token without asking the operator to paste
- * credentials every launch. The token is encrypted with a non-exportable key in
- * Android Keystore; clearing app data intentionally removes enrollment.
+ * Stores the active Axon host endpoint plus bearer token without asking the
+ * operator to paste credentials every launch. The normal phone-sovereign
+ * endpoint is loopback (Termux/Python); HTTPS remains valid for an optional
+ * remote host. The token is encrypted with a non-exportable Android Keystore
+ * key. Clearing app data intentionally removes enrollment.
  */
 class RemoteConnectionStore(context: Context) {
     private val prefs = context.getSharedPreferences("axon-home-remote", Context.MODE_PRIVATE)
@@ -30,7 +33,9 @@ class RemoteConnectionStore(context: Context) {
 
     fun save(baseUrl: String, token: String) {
         val url = baseUrl.trim().trimEnd('/')
-        require(url.startsWith("https://")) { "Use HTTPS for the cloud VM" }
+        require(isAllowedEndpoint(url)) {
+            "Use HTTPS for remote hosts; HTTP is allowed only on phone loopback"
+        }
         require(token.isNotBlank()) { "Control token is required" }
         val (ciphertext, iv) = encrypt(token.trim())
         prefs.edit()
@@ -41,6 +46,14 @@ class RemoteConnectionStore(context: Context) {
     }
 
     fun clear() = prefs.edit().clear().apply()
+
+    private fun isAllowedEndpoint(value: String): Boolean {
+        val uri = runCatching { URI(value) }.getOrNull() ?: return false
+        val scheme = uri.scheme?.lowercase() ?: return false
+        val host = uri.host?.lowercase() ?: return false
+        if (scheme == "https") return true
+        return scheme == "http" && host in setOf("127.0.0.1", "localhost", "::1")
+    }
 
     private fun secretKey(): SecretKey {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
