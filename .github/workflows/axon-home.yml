@@ -2,7 +2,7 @@ name: Axon Home (Android)
 
 on:
   push:
-    branches: [main, "phone-runtime-*"]
+    branches: [main, "phone-runtime-*", "cloud-vm-control-*"]
     paths:
       - 'android/**'
       - 'controlplane/**'
@@ -37,9 +37,6 @@ jobs:
         with:
           gradle-version: "8.10.2"
 
-      # gradle-wrapper.jar is intentionally not committed (binary artifact; the
-      # mission push transport is text-only). The wrapper is materialized here
-      # from the pinned Gradle distribution, then used for hermetic builds.
       - name: Generate Gradle wrapper
         working-directory: android
         run: gradle wrapper --gradle-version 8.10.2 --distribution-type bin --no-daemon
