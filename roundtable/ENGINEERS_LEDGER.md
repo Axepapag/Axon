@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-22T17:21:33.6409257Z
+Updated: 2026-09-22T18:00:23.0631962Z
 current_through_event_id:
-`evt-20260922T1721336409257Z-codex-pointer-geometry-publication`
+`evt-20260922T1800230631962Z-codex-refined-pointer-plan`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -12,8 +12,8 @@ Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
-Identity stamp: Codex / GPT-5 / 2026-09-22 America/Chicago
-(previous revision: ChatGPT / GPT-5.6 Sol / 2026-09-20; older revisions are superseded,
+Identity stamp: Codex / GPT-6 / 2026-09-22 America/Chicago
+(previous revision: Codex / GPT-5 / 2026-09-22; older revisions are superseded,
 not erased; canonical events remain the authority)
 
 ## Current pointer-bootstrap boundary
@@ -55,6 +55,20 @@ heldout. Four prompt-number swaps changed the pointer distribution by at most
 stopped. `roundtable/flags/CODEX_POINTER_BOOTSTRAP_V2_RATIFICATION_FLAG_20260922.md`
 blocks another optimizer step until Jeff/table ratifies a replacement
 curriculum and finite gate.
+
+Jeff then supplied refined ChatGPT and GLM proposals. Codex's design review is
+recorded in
+`roundtable/reviews/CODEX_REFINED_POINTER_PROPOSALS_REVIEW_20260922.md`.
+The revised recommendation begins with a read-only three-way causal trace
+(normal pointer, receipt-certified oracle pointer, and oracle pointer plus
+forced copy route), then treats explicit canonical address geometry as a new
+architecture generation with step 24 as a governed donor rather than an exact
+resume. The gate is split by skill while complete-field coverage remains a
+universal fail-closed precondition. Structured addressing, one-cell emission,
+Unicode/EOS, multi-cell work, scheduled sampling, and natural language follow
+only after the address motor passes. Every stage carries a developmental-stage
+appropriate causal Soul probe. No optimizer or architecture change was made;
+the existing block remains in force pending ratification.
 
 ## GitHub/local reconciliation and phone monitor boundary
 
