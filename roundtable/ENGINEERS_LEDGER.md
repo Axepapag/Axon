@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-22T04:55:23.0611060Z
+Updated: 2026-09-22T05:33:13.7110756Z
 current_through_event_id:
-`evt-20260922T0455230611060Z-codex-pointer-bootstrap-flag`
+`evt-20260922T0533137110756Z-codex-pointer-bootstrap-smoke`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -18,7 +18,8 @@ not erased; canonical events remain the authority)
 
 ## Current pointer-bootstrap boundary
 
-The step-24 candidate remains stopped and intact. Its real heldout defect is
+The step-24 candidate was preserved as the parent of one strictly bounded
+pointer-bootstrap local CUDA smoke. Its real heldout defect is
 source-address pointer generalization, not EOS, copy/generate routing, or Soul
 continuity. Codex re-read the active public target and frozen Unicode transport
 contracts before implementation and found one material constraint: a lone
@@ -29,12 +30,18 @@ public FIRST/REFINED target contract requires exact nonempty Unicode.
 records the resulting governed choice: first train exact native one-cell scalar
 copying at variable designated Cortex positions, then train complete Unicode
 scalars so every one-to-four-cell transport spelling remains exact and public
-responses remain valid Unicode. The document also supplies ratification text
-for the new manifest and report surface. No curriculum, objective, gate,
-parameter, Soul, checkpoint, Heart, GPU, or cloud state changed while that
-ratification is absent. A global GitHub CLI installation was attempted from
-the official winget package but Windows Installer recorded status 1602 and no
-`gh.exe` is present; no untracked local substitute was used.
+responses remain valid Unicode. Jeff ratified that resolution on 2026-09-22.
+Commits `cad3b4e`, `fa03b12`, and `2e9308c` implement the native one-cell
+curriculum, its exact pointer/free-run evidence, curriculum-plan transition,
+and Soul-branch binding. All preflight checks passed; the single accepted
+step-25 smoke nevertheless failed its heldout gate: exact-source pointer
+top-1 was 0/48, first transport accuracy 2/48, and valid nonempty output
+3/48. `roundtable/reviews/CODEX_POINTER_BOOTSTRAP_STEP25_SMOKE_20260922.md`
+records the durable checkpoint/Soul identities and the small read-only parent
+comparison. No further local or Kaggle work is authorized until a new
+mechanism diagnosis exists. A global GitHub CLI installation was attempted
+from the official winget package but Windows Installer recorded status 1602
+and no `gh.exe` is present; no untracked local substitute was used.
 
 ## GitHub/local reconciliation and phone monitor boundary
 
