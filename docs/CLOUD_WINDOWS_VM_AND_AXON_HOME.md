@@ -1,10 +1,17 @@
 # Cloud Windows VM + Axon Home
 
+> **Deployment status (2026-09-21):** This is a tested optional-host design,
+> not the selected authority target. `PHONE_SOVEREIGN_AXON.md` now defines the
+> intended topology. The control server, secure enrollment, bootstrap lessons,
+> and disposable-worker separation remain reusable. No cloud VM is presently
+> authoritative, and the verified organism remains at `D:\Axon`.
+
 **Status:** deployment plan and implementation scaffold for the next Axon host. This does not amend locked Axon doctrine.
 
 ## Target topology
 
-The cloud Windows VM is the authoritative runtime host. It runs the existing Python organism:
+If explicitly promoted after recovery and single-writer checks, a cloud Windows
+VM can serve as an authoritative runtime host. It runs the existing Python organism:
 
 - `HeartHost` and the one canonical `State` root;
 - exact Shared Field / D16 substrate / D64 rail compiler;

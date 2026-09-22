@@ -2,7 +2,7 @@ name: Axon Home (Android)
 
 on:
   push:
-    branches: [main, "phone-runtime-*", "cloud-vm-control-*"]
+    branches: [main, "phone-*", "cloud-vm-control-*", "codex/**"]
     paths:
       - 'android/**'
       - 'controlplane/**'

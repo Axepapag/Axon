@@ -2,7 +2,7 @@ name: Axon VM Readiness
 
 on:
   push:
-    branches: ["cloud-vm-control-*"]
+    branches: ["cloud-vm-control-*", "phone-sovereign-*", "codex/**"]
     paths:
       - 'runtime/**'
       - 'training/**'

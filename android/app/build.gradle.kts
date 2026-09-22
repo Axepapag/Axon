@@ -5,8 +5,9 @@ plugins {
     kotlin("plugin.serialization")
 }
 
-// Native Android UI for Axon Home. Runs on the deterministic simulator in
-// :core behind the :controlplane client contract; NO network libraries in v1.
+// Native Android UI for Axon Home. The local flavor is a client of the real
+// Python control plane. The deterministic :core simulator is compiled only
+// into the visibly separate simulation flavor.
 android {
     namespace = "com.gliksbot.axonhome"
     compileSdk = 35
@@ -82,7 +83,7 @@ android {
 }
 
 dependencies {
-    implementation(project(":core"))
+    "simulationImplementation"(project(":core"))
     implementation(project(":controlplane"))
 
     val composeBom = platform("androidx.compose:compose-bom:2024.12.01")

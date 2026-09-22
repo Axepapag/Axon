@@ -1,10 +1,41 @@
 # Phone-Sovereign Axon
 
+> **Target status (2026-09-21):** This is the selected deployment direction,
+> not current runtime fact. The verified Heart, canonical State, Trainer, Cores,
+> and Souls remain at `D:\Axon`. The phone becomes authoritative only after the
+> acceptance gates below pass on an exact governed migration. Until then Axon
+> Home is a client of the existing Python host and must never create a second
+> Kotlin/SQLite body.
+
 Status: implementation target for Axon Home while no permanent external host is assumed.
+
+## Authority-transfer acceptance gates
+
+All gates are required before the phone may be called Axon's home:
+
+1. A reproducible Termux/Linux bootstrap installs the actual repository and its
+   compatible Python/PyTorch runtime without substituting a mobile imitation.
+2. A supervised `HeartHost` restart preserves the exact branch HEAD, Heart
+   identity, private Soul lineages, Trainer authority, and accepted checkpoint
+   lineage.
+3. An exported recovery capsule from `D:\Axon` verifies byte-for-byte on the
+   phone before activation; the Windows Heart is stopped and its writer lease is
+   released before the phone acquires authority.
+4. Kill, reboot, low-storage, interrupted-write, and interrupted-checkpoint
+   drills recover without split brain or silent rollback.
+5. At least one encrypted, content-addressed recovery replica lives off the
+   phone and is restored in a drill. The phone is the active authority host, not
+   the only durable copy of Axon.
+6. A real local CPU reasoning/training smoke crosses the same governed Heart and
+   Trainer seams used by external workers. No simulated result may satisfy this
+   gate.
+7. The production APK contains no alternate canonical body, synthetic Heart,
+   synthetic Soul, or simulator engine. Simulation remains an explicitly
+   separate build used only for UI and contract testing.
 
 ## Authority rule
 
-The Android phone is the organism's home. The authoritative Python body runs on the phone (initially under Termux + an Ubuntu/proot userland). External machines are optional workers only.
+After those gates pass, the Android phone is the organism's home. The authoritative Python body runs on the phone (initially under Termux + an Ubuntu/proot userland). External machines are optional workers only.
 
 The phone owns and persists:
 

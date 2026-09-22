@@ -47,15 +47,15 @@ fun RemoteHome() {
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text("Axon Home", style = MaterialTheme.typography.headlineLarge)
-                Text("CLOUD VM CONTROL CENTER", color = MaterialTheme.colorScheme.primary)
+                Text("AXON RUNTIME CONTROL", color = MaterialTheme.colorScheme.primary)
                 Text(status)
 
                 if (enrollment == null) {
-                    Text("Enroll this phone once. Axon Home stores the control credential with Android Keystore and reconnects automatically after that.")
+                    Text("Enroll this phone once. Axon Home stores the host credential with Android Keystore and reconnects automatically after that.")
                     OutlinedTextField(
                         value = endpoint,
                         onValueChange = { endpoint = it },
-                        label = { Text("VM control URL (https://…)") },
+                        label = { Text("Axon control URL (HTTPS or http://localhost)") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                     )
@@ -76,7 +76,7 @@ fun RemoteHome() {
                         } catch (t: Throwable) {
                             error = t.message
                         }
-                    }) { Text("Enroll VM") }
+                    }) { Text("Enroll host") }
                 } else {
                     Text(enrollment!!.baseUrl, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
                     summary?.let { s ->
@@ -114,7 +114,7 @@ fun RemoteHome() {
                         enrollment = null
                         summary = null
                         status = "Not connected"
-                    }) { Text("Forget VM enrollment") }
+                    }) { Text("Forget host enrollment") }
                 }
 
                 error?.let { Text("Connection: $it", color = MaterialTheme.colorScheme.error) }

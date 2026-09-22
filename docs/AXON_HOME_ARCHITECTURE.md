@@ -1,5 +1,12 @@
 # Axon Home — Architecture (Phase 0)
 
+> **Deployment status (2026-09-21):** This document remains the control-plane
+> and operator-surface baseline. Its original cloud-authoritative deployment is
+> superseded as the intended target by `PHONE_SOVEREIGN_AXON.md`. The verified
+> organism still lives at `D:\Axon` today. Authority must not move until the
+> phone-host acceptance gates in that document pass against an exact recovery
+> copy. The Android APK is always a client; it never owns a parallel body.
+
 **Status: WORKING ARCHITECTURE — product architecture, not ratified Axon doctrine. `docs/SOURCE_OF_TRUTH.md` remains the only locked doctrine.**
 
 - **Date:** 2026-09-21
@@ -15,9 +22,9 @@ Axon Home is a native Android APK that becomes Jeff's permanent operator console
 
 - **The phone is the permanent surface; everything else is disposable.** A cloud worker, a VM, a Kaggle kernel, even the current Windows host (`D:\Axon`) may vanish tomorrow. The expected response to losing a worker is "provision another one," never "we lost Axon."
 - **Disposable compute.** Training and runtime execution happen on whatever provider is available (local PC, Kaggle, Colab, VM, TPU, future providers) behind provider-neutral adapter contracts (§7). No Axon identity or state may depend on one machine surviving.
-- **Durable state lives in content-addressed, self-verifying cloud storage.** Recovery capsules (§9) carry the complete organism continuation boundary with per-member SHA-256 manifests, verifiable offline, restorable on any fresh worker.
+- **Durable state is primary plus verified replicas.** The active Heart host owns the one canonical branch. Content-addressed, self-verifying recovery capsules (§9) carry the complete organism continuation boundary to at least one independent encrypted replica with per-member SHA-256 manifests, verifiable offline and restorable on a fresh host.
 - **GitHub is the engineering home.** Code, doctrine, ledger, and Roundtable collaboration live in the repo; the app is a client of that repo, not a parallel record.
-- **The phone is not a compute node.** The APK observes, commands, and verifies. Heavy neural computation stays on workers.
+- **The APK is not a compute node or canonical body.** In the phone-sovereign target, the real Python organism runs in a separate phone-local Linux service and the APK observes, commands, and verifies it over loopback. Heavy neural computation may remain on disposable workers.
 
 This document is Phase 0 of the mission sequence (§18). It designs boundaries for the eventual system — dozens of heterogeneous Cores, terabytes of Dormant material, multiple training workers, several engineering agents — while the delivered slice stays small and honest. Everything described here that does not exist yet is labeled **designed, not built**.
 

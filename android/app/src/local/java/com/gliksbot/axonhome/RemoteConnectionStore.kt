@@ -33,8 +33,8 @@ class RemoteConnectionStore(context: Context) {
 
     fun save(baseUrl: String, token: String) {
         val url = baseUrl.trim().trimEnd('/')
-        require(isAllowedEndpoint(url)) {
-            "Use HTTPS for remote hosts; HTTP is allowed only on phone loopback"
+        require(isAllowedControlEndpoint(url)) {
+            "Use HTTPS for remote hosts; HTTP is allowed only at http://localhost"
         }
         require(token.isNotBlank()) { "Control token is required" }
         val (ciphertext, iv) = encrypt(token.trim())
@@ -46,14 +46,6 @@ class RemoteConnectionStore(context: Context) {
     }
 
     fun clear() = prefs.edit().clear().apply()
-
-    private fun isAllowedEndpoint(value: String): Boolean {
-        val uri = runCatching { URI(value) }.getOrNull() ?: return false
-        val scheme = uri.scheme?.lowercase() ?: return false
-        val host = uri.host?.lowercase() ?: return false
-        if (scheme == "https") return true
-        return scheme == "http" && host in setOf("127.0.0.1", "localhost", "::1")
-    }
 
     private fun secretKey(): SecretKey {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
@@ -81,4 +73,13 @@ class RemoteConnectionStore(context: Context) {
         cipher.init(Cipher.DECRYPT_MODE, secretKey(), GCMParameterSpec(128, Base64.decode(iv, Base64.NO_WRAP)))
         return cipher.doFinal(Base64.decode(ciphertext, Base64.NO_WRAP)).decodeToString()
     }
+}
+
+internal fun isAllowedControlEndpoint(value: String): Boolean {
+    val uri = runCatching { URI(value) }.getOrNull() ?: return false
+    val scheme = uri.scheme?.lowercase() ?: return false
+    val host = uri.host?.lowercase() ?: return false
+    if (uri.userInfo != null || uri.rawQuery != null || uri.rawFragment != null) return false
+    if (scheme == "https") return true
+    return scheme == "http" && host == "localhost"
 }

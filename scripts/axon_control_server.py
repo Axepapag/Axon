@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import os
 import secrets
+import stat
 import time
 from pathlib import Path
 from typing import Any
@@ -44,6 +45,15 @@ def _control_token() -> str:
         os.environ.get("AXON_CONTROL_TOKEN_FILE", str(Path.home() / ".axon" / "control-token"))
     ).expanduser()
     if token_file.is_file():
+        if os.name != "nt":
+            try:
+                mode = stat.S_IMODE(token_file.stat().st_mode)
+            except OSError as exc:
+                raise RuntimeError(f"cannot inspect control-token permissions: {exc}") from exc
+            if mode & 0o077:
+                raise RuntimeError(
+                    f"control-token permissions must be owner-only (chmod 600): {token_file}"
+                )
         try:
             token = token_file.read_text(encoding="utf-8").strip()
         except OSError:

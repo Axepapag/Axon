@@ -3,7 +3,8 @@ plugins {
     kotlin("plugin.serialization")
 }
 
-// Pure Kotlin/JVM domain + simulation core for Axon Home.
+// Pure Kotlin/JVM simulation and UI-contract test fixture for Axon Home.
+// The production local APK does not depend on this module.
 // NO Android imports, NO network calls. Java 17 toolchain.
 kotlin {
     jvmToolchain(17)

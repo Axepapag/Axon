@@ -9,11 +9,12 @@
         android:theme="@style/Theme.AxonHome"
         android:allowBackup="false"
         android:fullBackupContent="false"
-        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:usesCleartextTraffic="false"
         android:supportsRtl="true">
 
-        <!-- The app code permits cleartext endpoints only on phone loopback
-             (127.0.0.1/localhost/::1). Remote enrollments must use HTTPS. -->
+        <!-- Network Security Config permits cleartext only for localhost.
+             Remote enrollments must use HTTPS. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
