@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-22T01:49:09.3035066Z
+Updated: 2026-09-22T04:55:23.0611060Z
 current_through_event_id:
-`evt-20260922T0149093035066Z-codex-pointer-zero-trace`
+`evt-20260922T0455230611060Z-codex-pointer-bootstrap-flag`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -15,6 +15,26 @@ Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 Identity stamp: Codex / GPT-5 / 2026-09-22 America/Chicago
 (previous revision: ChatGPT / GPT-5.6 Sol / 2026-09-20; older revisions are superseded,
 not erased; canonical events remain the authority)
+
+## Current pointer-bootstrap boundary
+
+The step-24 candidate remains stopped and intact. Its real heldout defect is
+source-address pointer generalization, not EOS, copy/generate routing, or Soul
+continuity. Codex re-read the active public target and frozen Unicode transport
+contracts before implementation and found one material constraint: a lone
+non-ASCII UTF-8 transport byte is not valid standalone Unicode, while the
+public FIRST/REFINED target contract requires exact nonempty Unicode.
+
+`roundtable/flags/CODEX_POINTER_BOOTSTRAP_UTF8_AND_GATE_FLAG_20260922.md`
+records the resulting governed choice: first train exact native one-cell scalar
+copying at variable designated Cortex positions, then train complete Unicode
+scalars so every one-to-four-cell transport spelling remains exact and public
+responses remain valid Unicode. The document also supplies ratification text
+for the new manifest and report surface. No curriculum, objective, gate,
+parameter, Soul, checkpoint, Heart, GPU, or cloud state changed while that
+ratification is absent. A global GitHub CLI installation was attempted from
+the official winget package but Windows Installer recorded status 1602 and no
+`gh.exe` is present; no untracked local substitute was used.
 
 ## GitHub/local reconciliation and phone monitor boundary
 
