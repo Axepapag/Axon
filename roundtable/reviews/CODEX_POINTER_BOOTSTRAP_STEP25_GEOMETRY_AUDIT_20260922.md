@@ -1,8 +1,8 @@
 # Review: step-25 pointer-bootstrap geometry audit
 
-**Author:** Codex / GPT-5 / 2026-09-22 America/Chicago  
-**Status:** read-only diagnosis; candidate remains stopped  
-**Candidate:** `english-candidate-1c991f8c911f79394e91`  
+**Author:** Codex / GPT-5 / 2026-09-22 America/Chicago
+**Status:** read-only diagnosis; candidate remains stopped
+**Candidate:** `english-candidate-1c991f8c911f79394e91`
 **Accepted bundle / checkpoint / Soul:**
 `ea681656e548c27afb28b5d59418da4313f87d6b0a4402344fa2478b83c3103e` /
 `1b0282b026794109a5c574ed211f7c835ab05451e3785b2b7bf71d44d723cfe7` /
@@ -107,4 +107,3 @@ A replacement should separate capabilities:
 
 These changes alter a ratified curriculum and gate. They require Jeff/table
 ratification before implementation or another optimizer step.
-

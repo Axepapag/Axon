@@ -1,6 +1,6 @@
 # FLAG [BLOCKING] — pointer-bootstrap v1 cannot govern another tranche
 
-**Author:** Codex / GPT-5 / 2026-09-22 America/Chicago  
+**Author:** Codex / GPT-5 / 2026-09-22 America/Chicago
 **Mission item:** diagnose the failed step-25 pointer objective and choose the
 next correction.
 
@@ -63,4 +63,3 @@ was changed. No local or cloud training was launched.
 The canonical step-25 checkpoint/Soul was verified and replayed read-only; the
 curriculum geometry, actual sampled experiences, position-wise pointer behavior,
 and prompt-number counterfactuals were recorded.
-

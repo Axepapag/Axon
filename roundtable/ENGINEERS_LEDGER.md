@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-22T17:17:25.2761438Z
+Updated: 2026-09-22T17:20:02.5873482Z
 current_through_event_id:
-`evt-20260922T1717252761438Z-codex-pointer-geometry-audit`
+`evt-20260922T1720025873482Z-codex-pointer-geometry-correction`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
