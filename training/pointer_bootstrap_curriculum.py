@@ -83,7 +83,10 @@ def _episode(*, label: str, split: str, character: str, position: int, ordinal: 
             LivingReasoningTarget("refined", character, text_alignment=alignment),
             LivingReasoningTarget("consolidated", "#scratch# Pointer exercise complete.", supervision_weight=0.0),
         ),
-        mechanism_tags=("english", "pointer_bootstrap", "native_one_cell", "exact_address", "persistent_soul"),
+        mechanism_tags=(
+            "english", "proposal", "refinement", "tagged_final",
+            "pointer_bootstrap", "native_one_cell", "exact_address", "persistent_soul",
+        ),
         target_basis=POINTER_BOOTSTRAP_SCHEMA,
     )
 
@@ -92,18 +95,21 @@ def build_pointer_bootstrap_curriculum() -> LivingReasoningCurriculum:
     """Build disjoint exact-address native scalar practice across page edges."""
 
     characters = _FILLER
+    edge_indices = tuple(range(len(_POSITIONS)))
     heldout_characters = tuple(characters[index] for index in range(0, len(characters), 4))
     train_characters = tuple(character for character in characters if character not in heldout_characters)
     episodes: list[LivingReasoningEpisode] = []
     for ordinal, character in enumerate(train_characters):
         for repeat in range(2):
-            position = _POSITIONS[(ordinal * 3 + repeat) % len(_POSITIONS)]
+            edge_index = (ordinal * 3 + repeat) % len(edge_indices)
+            position = _POSITIONS[edge_indices[edge_index]]
             episodes.append(_episode(
                 label=f"pointer-native-train-{ordinal:03d}-{repeat}", split="train",
                 character=character, position=position, ordinal=ordinal * 2 + repeat,
             ))
     for ordinal, character in enumerate(heldout_characters):
-        position = _POSITIONS[(ordinal * 5 + 1) % len(_POSITIONS)]
+        edge_index = (ordinal * 5 + 1) % len(edge_indices)
+        position = _POSITIONS[edge_indices[edge_index]]
         episodes.append(_episode(
             label=f"pointer-native-heldout-{ordinal:03d}", split="heldout",
             character=character, position=position, ordinal=10_000 + ordinal,

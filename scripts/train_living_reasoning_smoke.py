@@ -660,11 +660,6 @@ def main() -> int:
                 f"({args.objective_variant})"
             ),
         )
-        tranche_path, continuation_path, continuation = _persist_tranche_lineage(
-            tranche_store,
-            tranche,
-            latest,
-        )
         preflight = build_living_reasoning_preflight(
             model=model,
             curriculum=curriculum,
@@ -673,6 +668,21 @@ def main() -> int:
             state_root=state_root,
             repo_root=ROOT,
             resource_tranche=tranche,
+            required_curriculum_tags=(
+                "english",
+                "proposal",
+                "refinement",
+                "tagged_final",
+                "pointer_bootstrap",
+                "native_one_cell",
+                "exact_address",
+                "persistent_soul",
+            ) if args.curriculum == "pointer-bootstrap" else None,
+        )
+        tranche_path, continuation_path, continuation = _persist_tranche_lineage(
+            tranche_store,
+            tranche,
+            latest,
         )
 
         report: dict[str, Any] = {

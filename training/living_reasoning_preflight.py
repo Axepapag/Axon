@@ -80,6 +80,7 @@ def _curriculum_distribution(
     curriculum: LivingReasoningCurriculum,
     page_size: int,
     sequential_curricula: Sequence[Any] = (),
+    required_tags: Sequence[str] | None = None,
 ) -> dict[str, Any]:
     tags = {
         split: sorted({tag for episode in curriculum.split(split) for tag in episode.mechanism_tags})
@@ -93,13 +94,13 @@ def _curriculum_distribution(
         for split in ("train", "heldout")
     }
     all_tags = set(tags["train"]) | set(tags["heldout"])
-    required = {
+    required = set(required_tags or {
         "english",
         "proposal",
         "refinement",
         "tagged_final",
         "unicode",
-    }
+    })
     passed = required.issubset(all_tags) and all(
         any(length > page_size for length in lengths[split]) for split in lengths
     )
@@ -341,6 +342,7 @@ def build_living_reasoning_preflight(
     repo_root: Path | str,
     batch_size: int = 1,
     sequential_curricula: Sequence[Any] = (),
+    required_curriculum_tags: Sequence[str] | None = None,
     resource_tranche: ResourceTranche | None = None,
     evaluation_only: bool = False,
 ) -> TrainingPreflightReceipt:
@@ -365,6 +367,7 @@ def build_living_reasoning_preflight(
             curriculum,
             model.living_config.page_size,
             sequential_curricula,
+            required_curriculum_tags,
         ),
         PreflightEvidenceKind.BOUNDARY_COVERAGE: _boundary_coverage(model),
         PreflightEvidenceKind.COUNTERFACTUAL_DEPENDENCE: _counterfactual_dependence(
