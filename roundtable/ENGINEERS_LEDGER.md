@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-22T01:37:56.1796553Z
+Updated: 2026-09-22T01:49:09.3035066Z
 current_through_event_id:
-`evt-20260922T0137561796553Z-codex-publish-reconciliation`
+`evt-20260922T0149093035066Z-codex-pointer-zero-trace`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -119,8 +119,15 @@ fixed 32-episode seen comparison reaches **64.0625%** first-token accuracy but
 still 0% exact complete strings. The candidate therefore partially retains seen
 starts but does not generalize the source-to-first-cell copy mechanism. It
 remains stopped; no arbitrary EOS, capacity, or curriculum change has been
-made. Full evidence is
-`roundtable/reviews/CODEX_STAGE0A_STEP24_PREFIX_DIAGNOSIS_20260922.md`.
+made. The follow-up position-zero trace isolates the cause: its pointer chooses
+the exact Cortex source position on **4/64 held-out** phases versus **42/64** in
+the fixed seen comparison; copy-route probability is effectively unchanged
+(**52.06%** versus **52.10%**) and generated target probability is negligible
+on both. The blocked mechanism is source-address selection, not EOS or the
+copy/generate gate. Full evidence is
+`roundtable/reviews/CODEX_STAGE0A_STEP24_PREFIX_DIAGNOSIS_20260922.md`; the
+bounded, no-architecture-change next experiment is proposed in
+`roundtable/proposals/CODEX_STAGE0A_POINTER_BOOTSTRAP_PROPOSAL_20260922.md`.
 
 - The first fresh English-native CUDA v1 run remains **diagnostic failure evidence**:
   candidate `english-candidate-53f4ad04ba58c4d27348`, 64 optimizer steps / 512

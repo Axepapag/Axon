@@ -45,6 +45,27 @@ bounded trace. The mean terminating length is 0.75 transport cells for targets
 averaging 10.16 cells. This confirms the earlier premature-EOS observation, but
 also rules out an EOS-only explanation.
 
+## Position-zero mechanism trace
+
+The follow-up trace measured the actual source pointer, copy/generate mixture,
+and generated-token probabilities at the first decoder decision. It uses the
+same 64 held-out and 64 seen phases as the measurements above.
+
+| Measurement at first cell | Held-out | Seen comparison |
+| --- | ---: | ---: |
+| Exact required Cortex source position is pointer top-1 | 6.25% | 65.625% |
+| Pointer probability at that exact source position | 11.07% | 31.35% |
+| Pointer mass on any source with the target token | 11.65% | 32.37% |
+| Copy-route probability | 52.06% | 52.10% |
+| Generated target-token probability | 0.284% | 0.317% |
+
+The copy gate has effectively the same slightly copy-favoring value on both
+surfaces, and the generated path assigns negligible probability to either target.
+The generalization gap is therefore the **source-position pointer**, whose
+selection improves only for retained examples. This is direct evidence against
+changing EOS pressure, decoder size, Soul behavior, or copy/generate-gate weight
+as the first repair.
+
 ## Interpretation
 
 The core has learned some decoder behavior for supplied target history and has
@@ -61,15 +82,14 @@ not test the identified failure directly.
 
 ## Governed next step
 
-Do not launch another optimizer tranche from this candidate yet. First run one
-more read-only, position-zero trace that separates (1) source-position selection,
-(2) copy-versus-generate mixture, and (3) generated token probability for the
-required Cortex position-0 cell on matched seen and held-out examples. It will
-identify which mechanism fails before any new objective-program or curriculum
-variant is proposed.
+Do not launch another optimizer tranche from this candidate yet. The next
+proposal should isolate the existing position-pointer mechanism with a
+curriculum whose only learned task is to select the exact `cortex` source cell
+and emit its transport unit across varied, held-out text. It should retain the
+normal Heart/runtime/Soul circulation, use one versioned curriculum and
+objective transition, and require free-running first-cell and pointer-position
+success before returning to multi-character copy.
 
-Any subsequent repair should be one controlled, versioned intervention with a
-free-running first-cell and nonempty-prefix gate. It must preserve the current
-parameter/Soul lineage until the table explicitly chooses a new objective
-program. No promotion, Kaggle run, or architecture expansion is authorized by
-this diagnosis.
+No promotion, Kaggle run, or architecture expansion is authorized by this
+diagnosis. The current parameter/Soul lineage remains preserved until the table
+chooses the controlled pointer-bootstrap transition.
