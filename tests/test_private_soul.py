@@ -135,6 +135,7 @@ def test_candidate_soul_is_exact_fork_and_live_advancement_requires_replay(tmp_p
         soul_trajectory_ids=("a" * 64,),
         candidate_parameter_generation="g1-candidate",
     )
+    assert workspace.load_manifest("candidate-a", "core64") == manifest
     candidate = workspace.branch("candidate-a", "core64")
     assert candidate.load_head().soul_id == manifest.candidate_initial_soul_id
     assert candidate.load_head().soul_id != first.after_soul_id

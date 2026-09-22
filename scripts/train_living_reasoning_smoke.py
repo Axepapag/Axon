@@ -763,14 +763,36 @@ def main() -> int:
             parameter_generation=base_generation,
         )
         soul_workspace = CandidateSoulWorkspace(state_root)
-        soul_manifest = soul_workspace.prepare(
-            candidate_id=candidate_generation,
-            core_id=args.module_id,
-            runtime_episode_session_id=f"english-{args.curriculum}:{curriculum.curriculum_id}",
-            whole_episode_split="train",
-            soul_trajectory_ids=tuple(item.episode_id for item in curriculum.split("train")),
-            candidate_parameter_generation=candidate_generation,
-        )
+        soul_curriculum_transition = None
+        soul_curriculum_transition_path = None
+        if args.curriculum_transition_from is not None:
+            soul_manifest = soul_workspace.load_manifest(candidate_generation, args.module_id)
+            soul_transition_body = {
+                "schema": "axon-candidate-soul-curriculum-transition-v1",
+                "curriculum_transition_id": curriculum_transition["transition_id"],
+                "candidate_soul_manifest_id": soul_manifest.manifest_id,
+                "candidate_generation_id": candidate_generation,
+                "core_id": args.module_id,
+                "parent_soul_id": latest.after_soul_id,
+                "runtime_episode_session_id": f"english-{args.curriculum}:{curriculum.curriculum_id}",
+                "whole_episode_split": "train",
+                "soul_trajectory_ids": sorted(item.episode_id for item in curriculum.split("train")),
+            }
+            soul_transition_id = canonical_sha256(soul_transition_body)
+            soul_curriculum_transition = {**soul_transition_body, "soul_curriculum_transition_id": soul_transition_id}
+            soul_curriculum_transition_path = (
+                state_root / "training" / "trainer" / "soul_curriculum_transitions" / f"{soul_transition_id}.json"
+            )
+            _immutable_json(soul_curriculum_transition_path, soul_curriculum_transition)
+        else:
+            soul_manifest = soul_workspace.prepare(
+                candidate_id=candidate_generation,
+                core_id=args.module_id,
+                runtime_episode_session_id=f"english-{args.curriculum}:{curriculum.curriculum_id}",
+                whole_episode_split="train",
+                soul_trajectory_ids=tuple(item.episode_id for item in curriculum.split("train")),
+                candidate_parameter_generation=candidate_generation,
+            )
         soul_branch = soul_workspace.branch(candidate_generation, args.module_id)
         if latest is not None:
             session.restore_checkpoint(
@@ -780,6 +802,10 @@ def main() -> int:
             )
             if soul_branch.load_head().soul_id != latest.after_soul_id:
                 raise RuntimeError("accepted English checkpoint and candidate Soul HEAD disagree")
+        report["soul_curriculum_transition"] = soul_curriculum_transition
+        report["soul_curriculum_transition_artifact_path"] = (
+            None if soul_curriculum_transition_path is None else str(soul_curriculum_transition_path)
+        )
 
         train = curriculum.split("train")
         for _local_index in range(args.tranche_steps):

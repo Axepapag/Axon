@@ -194,6 +194,20 @@ class CandidateSoulWorkspace:
             branch_id=safe_candidate,
         )
 
+    def load_manifest(self, candidate_id: str, core_id: str) -> CandidateSoulManifest:
+        """Read the immutable branch-identity manifest without altering it."""
+
+        candidate_id = _safe_component(candidate_id, "candidate_id")
+        core_id = _safe_component(core_id, "core_id")
+        path = self.root / candidate_id / core_id / "manifest.json"
+        if not path.is_file():
+            raise SoulIntegrityError("candidate Soul manifest is missing")
+        manifest = CandidateSoulManifest.from_mapping(
+            json.loads(path.read_text(encoding="utf-8"))
+        )
+        self.branch(candidate_id, core_id).load_head()
+        return manifest
+
     def prepare(
         self,
         *,
