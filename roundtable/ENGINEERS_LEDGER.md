@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-22T05:33:13.7110756Z
+Updated: 2026-09-22T17:17:25.2761438Z
 current_through_event_id:
-`evt-20260922T0533137110756Z-codex-pointer-bootstrap-smoke`
+`evt-20260922T1717252761438Z-codex-pointer-geometry-audit`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -42,6 +42,19 @@ comparison. No further local or Kaggle work is authorized until a new
 mechanism diagnosis exists. A global GitHub CLI installation was attempted
 from the official winget package but Windows Installer recorded status 1602
 and no `gh.exe` is present; no untracked local substitute was used.
+
+The required read-only follow-up is now recorded in
+`roundtable/reviews/CODEX_POINTER_BOOTSTRAP_STEP25_GEOMETRY_AUDIT_20260922.md`.
+It verifies that v1 does not isolate the pointer primitive: train reaches only
+positions 0, 1, 15, 31, 33, and 47 while heldout additionally requires 7, 32,
+and 63; the task depends on untrained English decimal-address grounding; and
+the gate requires exact-source mean softmax probability `1.0`. An exact
+step-25 CUDA FIRST-pass trace scored 0/12 on a balanced seen sample and 0/24
+heldout. Four prompt-number swaps changed the pointer distribution by at most
+0.000096 and never moved its argmax from Cortex 64/65. The candidate remains
+stopped. `roundtable/flags/CODEX_POINTER_BOOTSTRAP_V2_RATIFICATION_FLAG_20260922.md`
+blocks another optimizer step until Jeff/table ratifies a replacement
+curriculum and finite gate.
 
 ## GitHub/local reconciliation and phone monitor boundary
 
