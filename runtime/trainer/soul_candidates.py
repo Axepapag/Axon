@@ -18,6 +18,7 @@ from runtime.field import canonical_sha256
 from runtime.soul import (
     SoulBranch,
     SoulIntegrityError,
+    SoulLayer,
     SoulSnapshot,
     SoulStore,
     SoulTemperature,
@@ -270,6 +271,105 @@ class CandidateSoulWorkspace:
                     "inheritance": "exact_layers_rebound_to_candidate_parameter_generation",
                 },
             )
+        manifest = CandidateSoulManifest(
+            candidate_id=candidate_id,
+            core_id=core_id,
+            branch_id=candidate.branch_id,
+            architecture_id=fork.architecture_id,
+            base_live_parameter_generation=live_head.parameter_generation,
+            candidate_parameter_generation=fork.parameter_generation,
+            base_live_soul_id=live_head.soul_id,
+            base_live_generation=live_head.generation,
+            candidate_initial_soul_id=fork.soul_id,
+            deep_cold_payload_sha256=fork.layer(SoulTemperature.DEEP_COLD).payload_sha256,
+            runtime_episode_session_id=runtime_episode_session_id,
+            whole_episode_split=whole_episode_split,
+            soul_trajectory_ids=tuple(soul_trajectory_ids),
+        )
+        _atomic_json(path, manifest.to_canonical_dict())
+        return manifest
+
+    def prepare_rebound(
+        self,
+        *,
+        candidate_id: str,
+        core_id: str,
+        runtime_episode_session_id: str,
+        whole_episode_split: str,
+        soul_trajectory_ids: Iterable[str],
+        source_soul: SoulSnapshot,
+        target_architecture_id: str,
+        target_parameter_generation: str,
+        rebound_layers: Iterable[SoulLayer],
+    ) -> CandidateSoulManifest:
+        """Create a candidate Soul whose opaque layers were explicitly rebound.
+
+        A parameter-architecture migration cannot silently reuse a live Soul:
+        the Soul contract binds every snapshot to its architecture and
+        parameter generation.  The architecture owner supplies the rebound
+        layers (for example, a D64 codec can preserve the recurrent bytes while
+        changing its architecture-local tensor dialect); this workspace only
+        records the exact lineage and publishes the isolated branch.
+        """
+
+        candidate_id = _safe_component(candidate_id, "candidate_id")
+        core_id = _safe_component(core_id, "core_id")
+        target_architecture_id = _required(target_architecture_id, "target_architecture_id")
+        target_parameter_generation = _required(
+            target_parameter_generation,
+            "target_parameter_generation",
+        )
+        if not isinstance(source_soul, SoulSnapshot):
+            raise TypeError("source_soul must be a SoulSnapshot")
+        if source_soul.core_id != core_id:
+            raise SoulIntegrityError("rebound Soul source belongs to another core")
+        layers = tuple(rebound_layers)
+        if len(layers) != len(source_soul.layers) or not all(
+            isinstance(layer, SoulLayer) for layer in layers
+        ):
+            raise TypeError("rebound_layers must contain exactly one SoulLayer per source layer")
+        path = self.root / candidate_id / core_id / "manifest.json"
+        if path.exists():
+            existing = CandidateSoulManifest.from_mapping(
+                json.loads(path.read_text(encoding="utf-8"))
+            )
+            requested_trajectories = tuple(sorted(set(map(str, soul_trajectory_ids))))
+            if (
+                existing.runtime_episode_session_id != runtime_episode_session_id
+                or existing.whole_episode_split != whole_episode_split
+                or existing.soul_trajectory_ids != requested_trajectories
+                or existing.architecture_id != target_architecture_id
+                or existing.candidate_parameter_generation != target_parameter_generation
+            ):
+                raise SoulIntegrityError("rebound candidate Soul manifest is immutable")
+            self.branch(candidate_id, core_id).load_head()
+            return existing
+
+        live = self.live_store.branch(core_id)
+        live_head = live.load_head()
+        candidate = self.branch(candidate_id, core_id)
+        rebound = SoulSnapshot(
+            core_id=core_id,
+            architecture_id=target_architecture_id,
+            parameter_generation=target_parameter_generation,
+            generation=0,
+            parent_soul_id=source_soul.soul_id,
+            layers=layers,
+        )
+        fork = candidate.initialize(
+            architecture_id=target_architecture_id,
+            parameter_generation=target_parameter_generation,
+            snapshot=rebound,
+            forked_from={
+                "core_id": source_soul.core_id,
+                "branch_id": "donor",
+                "soul_id": source_soul.soul_id,
+                "generation": source_soul.generation,
+                "architecture_id": source_soul.architecture_id,
+                "parameter_generation": source_soul.parameter_generation,
+                "inheritance": "explicit_architecture_owned_layer_rebind",
+            },
+        )
         manifest = CandidateSoulManifest(
             candidate_id=candidate_id,
             core_id=core_id,

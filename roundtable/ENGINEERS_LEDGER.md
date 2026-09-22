@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-22T20:12:04.9579192Z
+Updated: 2026-09-22T23:34:34.6199370Z
 current_through_event_id:
-`evt-20260922T2012049579192Z-codex-pointer-oracle-d0`
+`evt-20260922T2334346199370Z-codex-pointer-motor-a0`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -92,6 +92,35 @@ input path, not delayed recall or useful Soul mastery. Durable evidence is in
 until Jeff/table chooses the now-narrower query-side scaffold. The accepted
 candidate and Soul remain unchanged at step 25; no optimizer or cloud work was
 launched.
+
+## Current query-side pointer-motor A0 boundary
+
+Jeff ratified the D0 query-side repair. Codex implemented a new, explicitly
+versioned canonical-address query scaffold and prepared a rebound candidate
+Soul from the pinned step-24 donor. The canonical Trainer froze every donor
+parameter except the four query-scaffold tensors, ran complete
+FIRST/REFINED/CONSOLIDATED Soul transitions, and recorded exact accepted
+checkpoint and Soul receipts on the local GTX.
+
+The bounded lineage `pointer-motor-candidate-b78f14c368ed6943d5e2` reached
+accepted step 17. Its complete 68-address heldout surface had exact pointer
+top-1 `0/68`, mean target probability `0.0122075`, minimum target margin
+`-1.98360`, positive query variance `0.143629`, and target-position coverage
+`68/68`. The frozen memory-key cross-episode address score remained `0.982050`.
+The prior dense step-9 boundary was only `1/68` exact, so the later result is
+not a monotonic learning curve. The assignment and mastery gate remain false;
+the candidate is not promotable.
+
+This is a capability-gate failure, not a process or receipt failure. It leaves
+the existing keys looking usable and the request-to-query bridge unresolved.
+Focused pointer-motor, oracle, curriculum, and transition tests passed (4 and
+24 tests); the GTX is idle and no Axon trainer remains active. The durable
+review is `roundtable/reviews/CODEX_POINTER_MOTOR_A0_QUERY_REVIEW_20260922.md`.
+The blocking flag
+`roundtable/flags/CODEX_POINTER_MOTOR_QUERY_A0_GATE_FLAG_20260922.md` requires
+a read-only causal/structured-address diagnosis or an explicit new table
+decision before any more optimizer steps, architecture changes, promotion, or
+Kaggle work. No live module or cloud state was changed.
 
 ## GitHub/local reconciliation and phone monitor boundary
 

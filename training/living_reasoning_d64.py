@@ -62,6 +62,7 @@ ENGLISH_REASONING_TERMINATION_CONTRACT = "generated-eos-independent-of-content-g
 D64_ENGLISH_MIGRATION_SCHEMA = "axon-d64-english-reasoning-migration-v1"
 D64_SOUL_CODEC_VERSION = "axon-d64-recurrent-soul-codec-v1"
 D64_SOUL_MEDIA_TYPE = "application/x-axon-d64-recurrent-state"
+POINTER_ADDRESS_SCAFFOLD_VERSION = "query-scaffold-v1"
 _SOUL_MAGIC = b"AXSLD641"
 _SOUL_HEADER = struct.Struct("<8sII")
 _PHASE_TO_ID = {"first": 0, "refined": 1, "consolidated": 2}
@@ -95,6 +96,7 @@ class LivingReasoningCoreConfig:
     generate_gate_bias: float = 1.5
     field_schema_version: str = SCHEMA_VERSION
     reasoning_output_contract: str = ENGLISH_REASONING_OUTPUT_CONTRACT
+    pointer_address_scaffold_version: str = ""
     architecture_id: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -123,6 +125,10 @@ class LivingReasoningCoreConfig:
             raise ValueError(
                 "LivingReasoningCoreConfig supports only the English proposal/tagged FINAL contract"
             )
+        if not isinstance(self.pointer_address_scaffold_version, str):
+            raise TypeError("pointer_address_scaffold_version must be a string")
+        if self.pointer_address_scaffold_version not in {"", POINTER_ADDRESS_SCAFFOLD_VERSION}:
+            raise ValueError("unsupported pointer address scaffold version")
         object.__setattr__(self, "dropout", dropout)
         object.__setattr__(self, "generate_gate_bias", generate_gate_bias)
         object.__setattr__(
@@ -169,6 +175,8 @@ class LivingReasoningCoreConfig:
             ]
         value["reasoning_output_contract"] = self.reasoning_output_contract
         value["termination_contract"] = ENGLISH_REASONING_TERMINATION_CONTRACT
+        if self.pointer_address_scaffold_version:
+            value["pointer_address_scaffold_version"] = self.pointer_address_scaffold_version
         if include_id:
             value["architecture_id"] = self.architecture_id
         return value
@@ -407,6 +415,17 @@ class LivingReasoningCoreD64(CompleteField64D):
         self.decoder_output = nn.Linear(cfg.d_model, self.eos_index + 1)
 
         self.phase_embedding = nn.Embedding(len(_PHASE_TO_ID), cfg.d_model)
+        if cfg.pointer_address_scaffold_version == POINTER_ADDRESS_SCAFFOLD_VERSION:
+            self.pointer_address_feature_dim = (
+                len(canonical_region_order(cfg.field_schema_version)) + 2 * 10 + 2
+            )
+            self.pointer_address_query = nn.Sequential(
+                nn.Linear(self.pointer_address_feature_dim, cfg.d_model * 2),
+                nn.GELU(),
+                nn.Linear(cfg.d_model * 2, cfg.d_model),
+            )
+        else:
+            self.pointer_address_feature_dim = 0
         self.soul_projection = nn.ModuleDict(
             {
                 temperature.value: nn.Linear(cfg.d_model, cfg.d_model, bias=False)
@@ -421,6 +440,89 @@ class LivingReasoningCoreD64(CompleteField64D):
 
     def _copy_token_id(self, transport_token_id: int) -> int:
         return transport_token_id
+
+    def _pointer_address_features(
+        self,
+        region: LogicalRegion | str,
+        position: int,
+        *,
+        device: torch.device,
+        dtype: torch.dtype,
+    ) -> torch.Tensor:
+        """Encode an unbounded canonical address without a content ceiling."""
+
+        if self.living_config.pointer_address_scaffold_version != POINTER_ADDRESS_SCAFFOLD_VERSION:
+            raise RuntimeError("the living core has no pointer address scaffold")
+        if isinstance(region, str):
+            region = LogicalRegion(region)
+        if isinstance(position, bool) or not isinstance(position, int) or position < 0:
+            raise ValueError("canonical address position must be a non-negative integer")
+        regions = tuple(canonical_region_order(self.living_config.field_schema_version))
+        try:
+            region_index = regions.index(region)
+        except ValueError as exc:
+            raise ValueError(f"region {region.value!r} is not in the active canonical registry") from exc
+        region_one_hot = torch.zeros(len(regions), device=device, dtype=dtype)
+        region_one_hot[region_index] = 1.0
+        log_position = torch.log1p(torch.tensor(float(position), device=device, dtype=dtype))
+        frequencies = torch.arange(1, 11, device=device, dtype=dtype)
+        angles = log_position / frequencies
+        return torch.cat(
+            (
+                region_one_hot,
+                torch.sin(angles),
+                torch.cos(angles),
+                log_position.reshape(1),
+                torch.sqrt(log_position + 1.0).reshape(1),
+            )
+        )
+
+    def canonical_pointer_query(
+        self,
+        region: LogicalRegion | str,
+        position: int,
+        *,
+        device: torch.device | None = None,
+        dtype: torch.dtype | None = None,
+    ) -> torch.Tensor:
+        """Project a canonical address into the existing pointer-key space."""
+
+        if not hasattr(self, "pointer_address_query"):
+            raise RuntimeError("the living core has no pointer address scaffold")
+        target_device = self.device if device is None else device
+        target_dtype = self.initial_state.dtype if dtype is None else dtype
+        features = self._pointer_address_features(
+            region,
+            position,
+            device=target_device,
+            dtype=target_dtype,
+        )
+        return self.pointer_address_query(features)
+
+    def pointer_motor_logits(
+        self,
+        memory: AddressableMemory,
+        *,
+        region: LogicalRegion | str,
+        position: int,
+    ) -> torch.Tensor:
+        """Score the exact existing memory keys from a scaffolded address query."""
+
+        if not hasattr(self, "pointer_address_query"):
+            raise RuntimeError("the living core has no pointer address scaffold")
+        if memory.states.ndim != 3 or memory.states.shape[0] != 1:
+            raise ValueError("pointer motor expects one addressable memory batch")
+        query = self.canonical_pointer_query(
+            region,
+            position,
+            device=memory.states.device,
+            dtype=memory.states.dtype,
+        ).reshape(1, 1, -1)
+        keys = self.position_key(memory.states)
+        logits = torch.matmul(query, keys.transpose(-2, -1)).squeeze(1)
+        logits = logits / math.sqrt(self.cfg.d_model)
+        valid_sources = memory.char_indices.ge(0)
+        return logits.masked_fill(~valid_sources, torch.finfo(logits.dtype).min)
 
     def _target_indices(self, text: str) -> torch.Tensor:
         return torch.tensor(
@@ -1202,6 +1304,7 @@ class LivingReasoningCoreD64(CompleteField64D):
             "parameter_bytes_fp16": parameters * 2,
             "reasoning_output_contract": ENGLISH_REASONING_OUTPUT_CONTRACT,
             "termination_contract": ENGLISH_REASONING_TERMINATION_CONTRACT,
+            "pointer_address_scaffold": self.living_config.pointer_address_scaffold_version or None,
             "retired_learned_heads": [
                 "decision",
                 "operation",
