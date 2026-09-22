@@ -45,8 +45,10 @@ from training import (
     LivingReasoningCoreD64,
     build_living_reasoning_preflight,
     build_living_reasoning_smoke_curriculum,
+    build_pointer_bootstrap_curriculum,
     build_substrate_literacy_curriculum,
     decide_living_reasoning_mastery,
+    decide_pointer_bootstrap_mastery,
     decide_substrate_literacy_mastery,
     evaluate_living_episode,
     living_episode_objective,
@@ -239,7 +241,7 @@ def _arguments() -> argparse.Namespace:
     parser.add_argument("--state-tokens", type=int, default=4)
     parser.add_argument("--generate-gate-bias", type=float, default=0.0)
     parser.add_argument("--experiences-per-step", type=int, default=8)
-    parser.add_argument("--curriculum", choices=("substrate", "reasoning"), default="substrate")
+    parser.add_argument("--curriculum", choices=("substrate", "pointer-bootstrap", "reasoning"), default="substrate")
     parser.add_argument(
         "--objective-variant",
         choices=tuple(OBJECTIVE_VARIANTS),
@@ -252,6 +254,11 @@ def _arguments() -> argparse.Namespace:
         "--objective-transition-from",
         default=None,
         help="reuse this accepted candidate generation as the exact parent of a versioned objective transition",
+    )
+    parser.add_argument(
+        "--curriculum-transition-from",
+        default=None,
+        help="reuse this accepted candidate generation as the exact parent of a versioned curriculum-manifest transition",
     )
     parser.add_argument(
         "--typed-donor-checkpoint",
@@ -316,6 +323,12 @@ def _aggregate_heldout(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "phase_output_count": sum(float(row["phase_output_count"]) for row in rows),
         "phase_expected_count": sum(float(row["phase_expected_count"]) for row in rows),
         "complete_field_coverage_count": sum(float(row["complete_field_coverage_count"]) for row in rows),
+        "pointer_first_source_count": sum(int(row["pointer_first_source_count"]) for row in rows),
+        "pointer_first_source_top1_count": sum(int(row["pointer_first_source_top1_count"]) for row in rows),
+        "pointer_first_source_probability_sum": sum(float(row["pointer_first_source_probability_sum"]) for row in rows),
+        "free_running_first_transport_count": sum(int(row["free_running_first_transport_count"]) for row in rows),
+        "free_running_first_transport_correct": sum(int(row["free_running_first_transport_correct"]) for row in rows),
+        "free_running_nonempty_valid_unicode_count": sum(int(row["free_running_nonempty_valid_unicode_count"]) for row in rows),
     }
     histogram: dict[str, int] = {}
     for row in rows:
@@ -407,6 +420,10 @@ def _aggregate_heldout(rows: list[dict[str, Any]]) -> dict[str, Any]:
         / max(1, counts["text_teacher_forced_eos_count"]),
         "final_verdict_valid_rate": counts["final_verdict_valid_count"] / final_count,
         "complete_field_coverage_rate": counts["complete_field_coverage_count"] / expected_phase_count,
+        "pointer_first_source_top1_rate": counts["pointer_first_source_top1_count"] / max(1, counts["pointer_first_source_count"]),
+        "pointer_first_source_probability_mean": counts["pointer_first_source_probability_sum"] / max(1, counts["pointer_first_source_count"]),
+        "free_running_first_transport_accuracy": counts["free_running_first_transport_correct"] / max(1, counts["free_running_first_transport_count"]),
+        "free_running_nonempty_valid_unicode_rate": counts["free_running_nonempty_valid_unicode_count"] / max(1, counts["free_running_first_transport_count"]),
         "constant_text_target_histogram": dict(sorted(histogram.items())),
         "constant_text_exact_count": float(strongest),
         "constant_text_exact_floor": strongest / phase_count,
@@ -431,6 +448,15 @@ def main() -> int:
             raise ValueError("an objective transition must select a non-baseline objective variant")
         if not str(args.objective_transition_from).strip():
             raise ValueError("--objective-transition-from must be non-empty")
+    if args.curriculum_transition_from is not None:
+        if not args.resume:
+            raise ValueError("--curriculum-transition-from requires --resume")
+        if args.curriculum != "pointer-bootstrap":
+            raise ValueError("a curriculum transition currently authorizes only pointer-bootstrap")
+        if not str(args.curriculum_transition_from).strip():
+            raise ValueError("--curriculum-transition-from must be non-empty")
+    if args.objective_transition_from is not None and args.curriculum_transition_from is not None:
+        raise ValueError("objective and curriculum transitions must be separate governed runs")
     _seed_everything(args.seed)
     device = _device(args.device)
 
@@ -483,6 +509,9 @@ def main() -> int:
     if args.curriculum == "substrate":
         curriculum = build_substrate_literacy_curriculum()
         mastery_decider = decide_substrate_literacy_mastery
+    elif args.curriculum == "pointer-bootstrap":
+        curriculum = build_pointer_bootstrap_curriculum()
+        mastery_decider = decide_pointer_bootstrap_mastery
     else:
         curriculum = build_living_reasoning_smoke_curriculum()
         mastery_decider = decide_living_reasoning_mastery
@@ -492,8 +521,8 @@ def main() -> int:
         objective_program_id=objective_program_id,
     )
     candidate_generation = (
-        str(args.objective_transition_from)
-        if args.objective_transition_from is not None
+        str(args.objective_transition_from or args.curriculum_transition_from)
+        if args.objective_transition_from is not None or args.curriculum_transition_from is not None
         else "english-candidate-"
         + canonical_sha256(
             {
@@ -545,10 +574,12 @@ def main() -> int:
         )
         if latest is not None:
             latest_checkpoint = step_bundles.checkpoint_for_bundle(latest)
-            if latest_checkpoint.plan_id != plan.plan_id:
+            if latest_checkpoint.plan_id != plan.plan_id and args.curriculum_transition_from is None:
                 raise RuntimeError(
                     "accepted English candidate belongs to a different mutation plan"
                 )
+            if args.curriculum_transition_from is not None and latest_checkpoint.plan_id == plan.plan_id:
+                raise RuntimeError("curriculum transition must change the mutation plan identity")
             if (
                 latest_checkpoint.learning_policy_id != policy.policy_id
                 and args.objective_transition_from is None
@@ -556,12 +587,14 @@ def main() -> int:
                 raise RuntimeError(
                     "accepted English candidate belongs to a different learning policy"
                 )
-        elif args.objective_transition_from is not None:
+        elif args.objective_transition_from is not None or args.curriculum_transition_from is not None:
             raise RuntimeError(
                 "objective transition requires an accepted parent bundle in the named candidate"
             )
         objective_transition = None
         objective_transition_path = None
+        curriculum_transition = None
+        curriculum_transition_path = None
         if args.objective_transition_from is not None:
             if latest is None:
                 raise RuntimeError("objective transition parent bundle is missing")
@@ -586,6 +619,34 @@ def main() -> int:
                 state_root / "training" / "trainer" / "objective_transitions" / f"{transition_id}.json"
             )
             _immutable_json(objective_transition_path, objective_transition)
+        if args.curriculum_transition_from is not None:
+            if latest is None:
+                raise RuntimeError("curriculum transition parent bundle is missing")
+            if latest_checkpoint.learning_policy_id != policy.policy_id:
+                raise RuntimeError("curriculum transition must preserve the learning policy identity")
+            transition_body = {
+                "schema": "axon-english-curriculum-transition-v1",
+                "candidate_generation_id": candidate_generation,
+                "module_id": args.module_id,
+                "parent_bundle_id": latest.bundle_id,
+                "parent_checkpoint_id": latest_checkpoint.checkpoint_id,
+                "parent_soul_id": latest.after_soul_id,
+                "parent_global_step": latest.step,
+                "parent_plan_id": latest_checkpoint.plan_id,
+                "parent_learning_policy_id": latest_checkpoint.learning_policy_id,
+                "curriculum_kind": args.curriculum,
+                "curriculum_id": curriculum.curriculum_id,
+                "train_manifest_id": curriculum.train_manifest_id,
+                "heldout_manifest_id": curriculum.heldout_manifest_id,
+                "new_plan_id": plan.plan_id,
+                "new_learning_policy_id": policy.policy_id,
+            }
+            transition_id = canonical_sha256(transition_body)
+            curriculum_transition = {**transition_body, "transition_id": transition_id}
+            curriculum_transition_path = (
+                state_root / "training" / "trainer" / "curriculum_transitions" / f"{transition_id}.json"
+            )
+            _immutable_json(curriculum_transition_path, curriculum_transition)
         tranche = ResourceTranche(
             module_id=args.module_id,
             candidate_generation_id=candidate_generation,
@@ -638,6 +699,10 @@ def main() -> int:
             "objective_transition": objective_transition,
             "objective_transition_artifact_path": (
                 None if objective_transition_path is None else str(objective_transition_path)
+            ),
+            "curriculum_transition": curriculum_transition,
+            "curriculum_transition_artifact_path": (
+                None if curriculum_transition_path is None else str(curriculum_transition_path)
             ),
             "preflight": preflight.to_canonical_dict(),
             "typed_donor_migration": None if migration is None else migration.to_canonical_dict(),
@@ -701,6 +766,7 @@ def main() -> int:
             session.restore_checkpoint(
                 step_bundles.checkpoint_for_bundle(latest),
                 allow_learning_policy_transition=args.objective_transition_from is not None,
+                allow_curriculum_plan_transition=args.curriculum_transition_from is not None,
             )
             if soul_branch.load_head().soul_id != latest.after_soul_id:
                 raise RuntimeError("accepted English checkpoint and candidate Soul HEAD disagree")

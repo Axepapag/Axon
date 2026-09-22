@@ -61,6 +61,13 @@ from .substrate_literacy_curriculum import (
     build_substrate_literacy_curriculum,
     decide_substrate_literacy_mastery,
 )
+from .pointer_bootstrap_curriculum import (
+    POINTER_BOOTSTRAP_GATE_REQUIREMENTS,
+    POINTER_BOOTSTRAP_SCHEMA,
+    POINTER_BOOTSTRAP_SOURCE_ID,
+    build_pointer_bootstrap_curriculum,
+    decide_pointer_bootstrap_mastery,
+)
 
 __all__ = [
     "D64_ENGLISH_MIGRATION_SCHEMA",
@@ -80,6 +87,9 @@ __all__ = [
     "SUBSTRATE_LITERACY_GATE_REQUIREMENTS",
     "SUBSTRATE_LITERACY_SCHEMA",
     "SUBSTRATE_LITERACY_SOURCE_ID",
+    "POINTER_BOOTSTRAP_GATE_REQUIREMENTS",
+    "POINTER_BOOTSTRAP_SCHEMA",
+    "POINTER_BOOTSTRAP_SOURCE_ID",
     "CausalLivingUnroll",
     "D64EnglishMigrationReceipt",
     "D64SoulCodec",
@@ -99,6 +109,7 @@ __all__ = [
     "build_living_reasoning_preflight",
     "build_living_reasoning_smoke_curriculum",
     "build_substrate_literacy_curriculum",
+    "build_pointer_bootstrap_curriculum",
     "candidate_a_config",
     "constant_baseline_floors",
     "constant_baseline_target_key",
@@ -106,6 +117,7 @@ __all__ = [
     "decide_delayed_soul_recall_probe",
     "decide_living_reasoning_mastery",
     "decide_substrate_literacy_mastery",
+    "decide_pointer_bootstrap_mastery",
     "evaluate_living_episode",
     "living_episode_objective",
     "living_phase_breakdown",

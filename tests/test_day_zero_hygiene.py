@@ -135,6 +135,7 @@ def test_day_zero_active_python_surface_is_narrow() -> None:
         "lived_reasoning_curriculum.py",
         "soul_delayed_recall_probe.py",
         "substrate_literacy_curriculum.py",
+        "pointer_bootstrap_curriculum.py",
         "train_complete_field_64d.py",
     }
 

@@ -571,6 +571,7 @@ class CandidateOptimizationSession:
         record: CandidateCheckpointRecord,
         *,
         allow_learning_policy_transition: bool = False,
+        allow_curriculum_plan_transition: bool = False,
     ) -> None:
         """Restore an accepted checkpoint, optionally across an explicit objective transition.
 
@@ -582,11 +583,13 @@ class CandidateOptimizationSession:
         self._assert_open()
         if record.module_id != self.base_descriptor.module_id or record.candidate_generation_id != self.candidate_descriptor.generation_id:
             raise TrainerExecutionError("checkpoint belongs to another candidate generation")
-        if record.plan_id != self.plan.plan_id:
+        if record.plan_id != self.plan.plan_id and not allow_curriculum_plan_transition:
             raise TrainerExecutionError("checkpoint plan lineage mismatch")
         if record.authorization_id != self.authorization.authorization_id:
             prior_authorization = self.store.read_authorization(record.authorization_id)
-            if prior_authorization.resume_scope() != self.authorization.resume_scope():
+            if allow_curriculum_plan_transition and record.plan_id != self.plan.plan_id:
+                self._assert_curriculum_only_plan_transition(prior_authorization)
+            elif prior_authorization.resume_scope() != self.authorization.resume_scope():
                 raise TrainerExecutionError("checkpoint authorization resume scope mismatch")
         payload = self.store.load_verified_candidate_checkpoint(record)
         if record.learning_policy_id != self.policy.policy_id:
@@ -641,6 +644,28 @@ class CandidateOptimizationSession:
         current_other = {key: value for key, value in current_policy.items() if key not in ignored}
         if historical_other != current_other:
             raise TrainerExecutionError("learning-policy transition may change only objective_program_id")
+
+    def _assert_curriculum_only_plan_transition(
+        self, prior_authorization: AuthorizedParameterMutation
+    ) -> None:
+        """Permit an explicitly governed curriculum manifest change only.
+
+        The caller is responsible for publishing the immutable curriculum
+        transition receipt.  This lower layer verifies that the checkpoint
+        still names the same candidate, base inventory, and exact trainable
+        tensor scope; a changed plan may therefore reflect only new data
+        manifests, never a widened mutation authority.
+        """
+
+        prior = prior_authorization.resume_scope()
+        current = self.authorization.resume_scope()
+        for key in ("grant_id", "plan_id"):
+            prior.pop(key, None)
+            current.pop(key, None)
+        if prior != current:
+            raise TrainerExecutionError(
+                "curriculum plan transition changes parameter authority scope"
+            )
 
     def complete(self, *, reason: str = "candidate optimization completed") -> CandidateLifecycleEvent:
         self._assert_open()

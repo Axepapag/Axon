@@ -517,6 +517,7 @@ class LivingReasoningCoreD64(CompleteField64D):
         position_correct = 0
         copy_gate_correct = 0
         supervised_copy_positions = 0
+        source_memory_indices: list[int] = []
         learned_decision_mask = torch.ones(
             (1, transport_count + 1),
             dtype=torch.bool,
@@ -601,6 +602,7 @@ class LivingReasoningCoreD64(CompleteField64D):
                         F.cross_entropy(source_logits, expected_source)
                     )
                     predicted_source = int(source_logits[0].argmax(dim=-1).item())
+                    source_memory_indices.append(int(memory_index.item()))
                     position_correct += int(
                         predicted_source == int(memory_index.item())
                     )
@@ -657,6 +659,7 @@ class LivingReasoningCoreD64(CompleteField64D):
             "copy_gate_loss": copy_gate_loss,
             "eos_gate_loss": eos_gate_loss,
             "copy_positions": supervised_copy_positions,
+            "source_memory_indices": tuple(source_memory_indices),
             "deterministic_continuation_positions": 0,
             "learned_decision_mask": learned_decision_mask,
             "position_correct": position_correct,

@@ -783,6 +783,12 @@ def evaluate_living_episode(
     generated_eos_ranks: list[int] = []
     generated_eos_top1 = 0
     free_run_traces: list[dict[str, Any]] = []
+    first_pointer_count = 0
+    first_pointer_top1 = 0
+    first_pointer_probability_sum = 0.0
+    free_first_transport_count = 0
+    free_first_transport_correct = 0
+    free_nonempty_valid_unicode = 0
 
     for runtime_phase, target in zip(runtime_tick.phases, episode.targets, strict=True):
         output = runtime_phase.diagnostic_forward
@@ -862,6 +868,19 @@ def evaluate_living_episode(
                     specification=target.text_alignment,
                 )
                 learned_mask = alignment["learned_decision_mask"]
+                source_memory_indices = tuple(alignment["source_memory_indices"])
+                if source_memory_indices:
+                    expected_source = source_memory_indices[0]
+                    pointer_probabilities = F.softmax(
+                        decoder_alignment["position_logits"][0, 0], dim=-1
+                    )
+                    first_pointer_count += 1
+                    first_pointer_top1 += int(
+                        int(pointer_probabilities.argmax(dim=-1).item()) == expected_source
+                    )
+                    first_pointer_probability_sum += float(
+                        pointer_probabilities[expected_source].item()
+                    )
             predictions = logits.argmax(dim=-1)
             learned_targets = targets[learned_mask]
             learned_predictions = predictions[learned_mask]
@@ -902,6 +921,15 @@ def evaluate_living_episode(
                         ).item()
                     ),
                 }
+            )
+            expected_first_transport = encode_unicode_text(target.text)[0]
+            transport = tuple(int(item) for item in decoder_trace["transport_categories"])
+            free_first_transport_count += 1
+            free_first_transport_correct += int(bool(transport) and transport[0] == expected_first_transport)
+            free_nonempty_valid_unicode += int(
+                bool(decoder_trace["terminated"])
+                and bool(decoder_trace["unicode_valid"])
+                and bool(decoder_trace["emitted_text"])
             )
             free_run_traces.append(decoder_trace)
         else:
@@ -980,6 +1008,16 @@ def evaluate_living_episode(
         "phase_expected_count": float(len(episode.targets)),
         "complete_field_coverage_count": float(coverage_count),
         "complete_field_coverage_rate": coverage_count / max(1, len(episode.targets)),
+        "pointer_first_source_count": first_pointer_count,
+        "pointer_first_source_top1_count": first_pointer_top1,
+        "pointer_first_source_top1_rate": first_pointer_top1 / max(1, first_pointer_count),
+        "pointer_first_source_probability_sum": first_pointer_probability_sum,
+        "pointer_first_source_probability_mean": first_pointer_probability_sum / max(1, first_pointer_count),
+        "free_running_first_transport_count": free_first_transport_count,
+        "free_running_first_transport_correct": free_first_transport_correct,
+        "free_running_first_transport_accuracy": free_first_transport_correct / max(1, free_first_transport_count),
+        "free_running_nonempty_valid_unicode_count": free_nonempty_valid_unicode,
+        "free_running_nonempty_valid_unicode_rate": free_nonempty_valid_unicode / max(1, free_first_transport_count),
         "decoder_observability": {
             "sample_count": len(free_run_traces),
             "teacher_forced_terminal_eos_probability_mean": _mean(

@@ -304,6 +304,37 @@ def test_explicit_policy_transition_can_change_only_the_objective_program(tmp_pa
     control.close()
 
 
+def test_explicit_curriculum_plan_transition_preserves_parameter_authority(tmp_path: Path) -> None:
+    control, _live, inventory, grant, plan = _setup(tmp_path, optimizer="SGD", learning_rate=0.01)
+    policy = GovernedLearningPolicy(optimizer="sgd", learning_rate=0.01, weight_decay=0.0)
+    session = control.begin_candidate(
+        inventory, grant, plan, preflight_receipt=unit_preflight_receipt(inventory, plan), policy=policy
+    )
+    session.step(_loss(torch.ones(1, 4)))
+    checkpoint = session.checkpoint(include_optimizer=True)
+    transitioned_plan = ParameterMutationPlan(
+        base_inventory_id=plan.base_inventory_id,
+        module_id=plan.module_id,
+        base_generation_id=plan.base_generation_id,
+        candidate_generation_id=plan.candidate_generation_id,
+        tensor_names=plan.tensor_names,
+        optimizer_name=plan.optimizer_name,
+        learning_rate=plan.learning_rate,
+        max_steps=plan.max_steps,
+        source_manifest_ids=("pointer-source",),
+        holdout_manifest_ids=("pointer-heldout",),
+    )
+    transitioned = control.begin_candidate(
+        inventory, grant, transitioned_plan,
+        preflight_receipt=unit_preflight_receipt(inventory, transitioned_plan), policy=policy,
+    )
+    with pytest.raises(TrainerExecutionError, match="checkpoint plan lineage"):
+        transitioned.restore_checkpoint(checkpoint)
+    transitioned.restore_checkpoint(checkpoint, allow_curriculum_plan_transition=True)
+    assert transitioned.step_index == checkpoint.step
+    control.close()
+
+
 def test_cpu_bf16_autocast_is_governed_and_inspectable(tmp_path: Path) -> None:
     control, _live, inventory, grant, plan = _setup(tmp_path, optimizer="SGD", learning_rate=0.01)
     policy = GovernedLearningPolicy(
