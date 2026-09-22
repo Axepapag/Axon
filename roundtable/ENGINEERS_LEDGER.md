@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-22T01:35:31.7120309Z
+Updated: 2026-09-22T01:37:56.1796553Z
 current_through_event_id:
-`evt-20260922T0135317120309Z-codex-reconcile-prefix-diagnosis`
+`evt-20260922T0137561796553Z-codex-publish-reconciliation`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -40,11 +40,12 @@ cleartext only for exact `localhost`. A local FastAPI smoke against real
 schemas, for health, field-head, Trainer status, training progress, and runtime
 summary when authenticated.
 
-`axon-vm.yml` now needs its normal `main` push trigger preserved so the merged
-mainline receives VM-readiness checks; the small workflow correction is pending
-the current turn's verification and ledger commit. No phone authority, remote
-server, State, checkpoint, Soul, training process, GPU run, or cloud job was
-created by this integration work.
+Commit `a10779a` restores the normal `main` push trigger for VM readiness and
+is pushed to `origin/main`. The configured browser-extension inventory has no
+available browser profile and this environment has no GitHub CLI, so the
+post-push Actions result remains unverified from this session. No phone
+authority, remote server, State, checkpoint, Soul, training process, GPU run,
+or cloud job was created by this integration work.
 ## Current English-substrate integration
 
 Codex's strict review is preserved at
