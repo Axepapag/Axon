@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-22T00:23:40.7147539Z
+Updated: 2026-09-22T01:35:31.7120309Z
 current_through_event_id:
-`evt-20260922T002340714754Z-codex-phone-stack-draft-pr`
+`evt-20260922T0135317120309Z-codex-reconcile-prefix-diagnosis`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -12,44 +12,39 @@ Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
-Identity stamp: Codex / GPT-6 / 2026-09-21 America/Chicago
+Identity stamp: Codex / GPT-5 / 2026-09-22 America/Chicago
 (previous revision: ChatGPT / GPT-5.6 Sol / 2026-09-20; older revisions are superseded,
 not erased; canonical events remain the authority)
 
-## GitHub phone/control-plane integration boundary
+## GitHub/local reconciliation and phone monitor boundary
 
-Jeff reported a concurrent ChatGPT session creating a stacked GitHub branch set
-while `D:\Axon` was unavailable. Codex audited `phone-runtime-20260921`
-(`eb60db2`), `cloud-vm-control-20260921` (`8d364ad`), and
-`phone-sovereign-20260921` (`5c2f823`) in an isolated worktree. The provider-neutral
-one-Heart/one-Trainer direction is retained, but the imported stack was not safe
-to merge unchanged: it contained contradictory cloud/phone authority claims and
-a parallel Kotlin/SQLite “authoritative body” in the production app graph.
+Codex audited the stacked phone/cloud branches while `D:\Axon` was unavailable.
+The supplied direction — one Python Heart and Trainer authority, with disposable
+remote workers — is retained. The unsafe Kotlin/SQLite parallel body and
+contradictory authority claims were removed in `0a81581`.
 
-The correction is committed and pushed on
-`origin/codex/phone-stack-integration-20260921` at `0a81581`. It removes the
-parallel phone body, makes `:core` simulation-flavor-only, restricts cleartext to
-exact localhost, checks phone token-file permissions, reconciles deployment
-status, and establishes seven evidence gates before phone authority can replace
-the verified `D:\Axon` host. GitHub Android run `35670840301` and VM-readiness run
-`35670839894` both passed, including Android unit tests, lint/assembly, APK upload,
-Python compile, Trainer/hygiene tests, and Windows bootstrap parsing. Detailed
-evidence is in
-`roundtable/reviews/CODEX_GITHUB_PHONE_STACK_AUDIT_20260921.md`.
+Reviewed PR [#3](https://github.com/Axepapag/Axon/pull/3) was merged as
+`fe14105bd8407c43bf30d587a9fad39c5da5b777`; `D:\Axon\main` was
+fast-forwarded to that exact commit and a fresh fetch confirmed it equals
+`origin/main`. PR checks on the exact reviewed tip passed: Android unit tests,
+lint/assembly and APK upload; Python compile, Trainer/hygiene tests, and the
+Windows VM bootstrap parse. Red Cloudflare-worker checks are unrelated to Axon
+and remain untouched. The redundant stacked PR was closed without deleting any
+branch.
 
-The reviewed branch is published as draft PR
-[#3](https://github.com/Axepapag/Axon/pull/3), base `main`, head `77f9958`.
-It is a review boundary only and is not merged. PR creation triggered exact-tip
-Android and VM-readiness checks; the code-changing parent `0a81581` already has
-green push checks.
+The Android artifact is a read-only monitor of the real Python control-plane
+API, not a phone-hosted Axon body. A live remote phone test still requires a
+verified HTTPS/private-network route to the host; the app intentionally permits
+cleartext only for exact `localhost`. A local FastAPI smoke against real
+`D:\Axon\State` returned 401 without a bearer token and 200, with the expected
+schemas, for health, field-head, Trainer status, training progress, and runtime
+summary when authenticated.
 
-**SYNC BLOCK:** do not fast-forward `main` to the uncorrected sovereign branch.
-Jeff said another GitHub writer is active. Existing refs did not move during the
-audit, but confirm that writer's final tip, reconcile any delta with `0a81581`,
-then merge the reviewed stack once and update `D:\Axon` and `origin/main`
-together. No canonical State, checkpoint, Soul, training process, GPU run, or
-cloud job changed during this infrastructure audit.
-
+`axon-vm.yml` now needs its normal `main` push trigger preserved so the merged
+mainline receives VM-readiness checks; the small workflow correction is pending
+the current turn's verification and ledger commit. No phone authority, remote
+server, State, checkpoint, Soul, training process, GPU run, or cloud job was
+created by this integration work.
 ## Current English-substrate integration
 
 Codex's strict review is preserved at
@@ -113,6 +108,18 @@ candidate is not competent or promoted. The run is stopped; no Kaggle or further
 optimizer tranche is authorized until a focused review of the immutable step-24 episodes.
 
 ChatGPT independently audited that step-24 work in event `evt-20260920T114522613814Z-chatgpt-codex-step24-audit`. The implementation and lineage are sound, but the behavioral gain is currently dominated by **premature termination**: all 13 returned heldout outputs are only 1-2 characters against 5-15 character targets, with 11 additional empty EOS failures. Terminal generate-route probability remains below 0.5 on all 64 supervised phases (mean **0.48796**), so the next work is prefix/length/EOS-position diagnosis rather than another optimizer tranche.
+
+Codex completed that exact read-only prefix diagnosis on 2026-09-22. It shows a
+more fundamental bootstrap failure: held-out first-token accuracy is **2/64 =
+3.125%**, and every nonempty held-out output starts with the wrong character.
+Under teacher forcing positions 1 and 2 rise to **39.0625%** and **35.9375%**,
+respectively, because the decoder is supplied a correct prior target token. A
+fixed 32-episode seen comparison reaches **64.0625%** first-token accuracy but
+still 0% exact complete strings. The candidate therefore partially retains seen
+starts but does not generalize the source-to-first-cell copy mechanism. It
+remains stopped; no arbitrary EOS, capacity, or curriculum change has been
+made. Full evidence is
+`roundtable/reviews/CODEX_STAGE0A_STEP24_PREFIX_DIAGNOSIS_20260922.md`.
 
 - The first fresh English-native CUDA v1 run remains **diagnostic failure evidence**:
   candidate `english-candidate-53f4ad04ba58c4d27348`, 64 optimizer steps / 512
