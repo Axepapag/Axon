@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-22T00:16:57.3452181Z
+Updated: 2026-09-22T00:23:40.7147539Z
 current_through_event_id:
-`evt-20260922T001657345218Z-codex-github-phone-stack-audit`
+`evt-20260922T002340714754Z-codex-phone-stack-draft-pr`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -36,6 +36,12 @@ the verified `D:\Axon` host. GitHub Android run `35670840301` and VM-readiness r
 Python compile, Trainer/hygiene tests, and Windows bootstrap parsing. Detailed
 evidence is in
 `roundtable/reviews/CODEX_GITHUB_PHONE_STACK_AUDIT_20260921.md`.
+
+The reviewed branch is published as draft PR
+[#3](https://github.com/Axepapag/Axon/pull/3), base `main`, head `77f9958`.
+It is a review boundary only and is not merged. PR creation triggered exact-tip
+Android and VM-readiness checks; the code-changing parent `0a81581` already has
+green push checks.
 
 **SYNC BLOCK:** do not fast-forward `main` to the uncorrected sovereign branch.
 Jeff said another GitHub writer is active. Existing refs did not move during the
