@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-22T18:00:23.0631962Z
+Updated: 2026-09-22T20:12:04.9579192Z
 current_through_event_id:
-`evt-20260922T1800230631962Z-codex-refined-pointer-plan`
+`evt-20260922T2012049579192Z-codex-pointer-oracle-d0`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -69,6 +69,29 @@ Unicode/EOS, multi-cell work, scheduled sampling, and natural language follow
 only after the address motor passes. Every stage carries a developmental-stage
 appropriate causal Soul probe. No optimizer or architecture change was made;
 the existing block remains in force pending ratification.
+
+Jeff ratified the refined plan, and Codex completed D0 without training. The
+exact step-24 and step-25 checkpoints/Souls were evaluated on all 24 heldout
+FIRST assignments. Normal exact-source pointer top-1 was 0/24 at both
+boundaries and normal first-cell accuracy was 1/24. Substituting only the
+compiler-certified pointer raised first-cell accuracy to 24/24 through the
+unchanged learned copy route; forced copy was also 24/24. Existing Cortex keys
+classified 68 canonical positions across other episodes at 93.995% (step 24)
+and 91.605% (step 25), while pointer queries classified the nine requested
+addresses at 0%. The immediate failure is therefore the request-to-query
+address bridge, not key geometry, copy routing, EOS, or transport readout.
+
+The causal Soul control showed one decoded Soul layer and a real but small
+effect on the pointer distribution; all-layer ablation did not change the 0/24
+pointer verdict or usefully improve target probability. This proves an active
+input path, not delayed recall or useful Soul mastery. Durable evidence is in
+`roundtable/reviews/CODEX_POINTER_ORACLE_D0_REVIEW_20260922.md` and raw report
+`roundtable/reports/CODEX_POINTER_ORACLE_D0_20260922.json` (SHA256
+`9ce7043b86d38b2195a20a8573b81099dc8baaa22f68a3db0c925b2ecd190ce4`).
+`roundtable/flags/CODEX_POINTER_D0_QUERY_GEOMETRY_FLAG_20260922.md` blocks A0
+until Jeff/table chooses the now-narrower query-side scaffold. The accepted
+candidate and Soul remain unchanged at step 25; no optimizer or cloud work was
+launched.
 
 ## GitHub/local reconciliation and phone monitor boundary
 
