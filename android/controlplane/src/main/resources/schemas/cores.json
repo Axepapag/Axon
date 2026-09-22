@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axon.gliksbot.com/schemas/controlplane/v1/cores.json",
+  "title": "Axon Control Plane — Core registry views",
+  "description": "CoreRegistry descriptors + bindings (arch §5.5, recon B §6). Read-only; cores never self-register and enter/exit offline training only under Trainer authority.",
+  "$defs": {
+    "coreDescriptor": {
+      "type": "object",
+      "required": ["core_id", "d_model", "status", "architecture_id", "parameter_generation", "writable_regions"],
+      "properties": {
+        "core_id": {"type": "string"},
+        "d_model": {"const": 64, "description": "Hard-locked D64 (LivingReasoningCoreConfig)."},
+        "status": {"type": "string", "enum": ["active", "offline_training", "disabled"]},
+        "architecture_id": {"type": "string", "description": "e.g. living-d64-english-<sha256(config)[:24]>, or untrained-reasoning-core-v1."},
+        "parameter_generation": {"type": "string", "description": "'untrained' or a candidate/base generation id."},
+        "writable_regions": {
+          "type": "array",
+          "items": {"type": "string", "enum": ["scratch", "response_draft"]},
+          "description": "Only scratch and response_draft are core-writable (and only via Heart-validated deltas)."
+        },
+        "soul_id": {"type": ["string", "null"]},
+        "soul_generation": {"type": ["integer", "null"], "minimum": 0},
+        "optimizer_generation": {"type": ["string", "null"]},
+        "mode": {"type": ["string", "null"], "description": "CoreBinding mode."}
+      },
+      "additionalProperties": false
+    },
+    "coreList": {
+      "type": "object",
+      "required": ["schema", "freshness", "observed_at", "cores"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-core-list-v1"},
+        "freshness": {"$ref": "common.json#/$defs/freshness"},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "cores": {"type": "array", "items": {"$ref": "#/$defs/coreDescriptor"}}
+      },
+      "additionalProperties": false
+    },
+    "coreDetail": {
+      "type": "object",
+      "required": ["schema", "freshness", "observed_at", "core"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-core-detail-v1"},
+        "freshness": {"$ref": "common.json#/$defs/freshness"},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "core": {"$ref": "#/$defs/coreDescriptor"},
+        "anatomy": {
+          "type": ["object", "null"],
+          "description": "Living core anatomy when architecture is a LivingReasoningCoreConfig (locked: d_model=64, n_heads=1, n_layers=2, ffn_dim=131072, state_tokens=4, page_size=32).",
+          "properties": {
+            "d_model": {"const": 64},
+            "n_heads": {"type": "integer"},
+            "n_layers": {"type": "integer"},
+            "ffn_dim": {"type": "integer"},
+            "state_tokens": {"type": "integer"},
+            "page_size": {"type": "integer"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

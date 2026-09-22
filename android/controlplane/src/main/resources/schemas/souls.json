@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axon.gliksbot.com/schemas/controlplane/v1/souls.json",
+  "title": "Axon Control Plane — Soul metadata views",
+  "description": "Soul Observatory data (arch §5.5, §10.H). METADATA ONLY: soul payloads are doctrine-opaque; only ids, generations, sizes, hashes, and receipt chains are exposed. Never renders latent tensors as semantics.",
+  "$defs": {
+    "soulSummary": {
+      "type": "object",
+      "required": ["schema", "freshness", "observed_at", "core_id", "branch_id", "head", "layers", "receipts_tail"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-soul-summary-v1"},
+        "freshness": {"$ref": "common.json#/$defs/freshness"},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "core_id": {"type": "string"},
+        "branch_id": {"type": "string", "description": "Soul branch, typically 'live'."},
+        "head": {
+          "type": "object",
+          "description": "Soul branch HEAD (durable record schema axon-private-soul-head-v1).",
+          "required": ["schema", "soul_id", "generation"],
+          "properties": {
+            "schema": {"const": "axon-private-soul-head-v1"},
+            "soul_id": {"type": "string"},
+            "generation": {"type": "integer", "minimum": 0},
+            "parent_soul_id": {"type": ["string", "null"]},
+            "parameter_generation": {"type": ["string", "null"]},
+            "architecture_id": {"type": ["string", "null"]}
+          },
+          "additionalProperties": false
+        },
+        "layers": {
+          "type": "array",
+          "description": "Exactly four layers, one per temperature, fixed order. Payload bytes are opaque: only media type, size and hash are exposed (axon-private-soul-layer-v1 metadata).",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "required": ["temperature", "media_type", "payload_bytes", "payload_sha256"],
+            "properties": {
+              "temperature": {"type": "string", "enum": ["hot", "warm", "cold", "deep_cold"]},
+              "media_type": {"type": "string", "description": "e.g. application/x-axon-d64-recurrent-state (codec axon-d64-recurrent-soul-codec-v1)."},
+              "payload_bytes": {"type": "integer", "minimum": 0},
+              "payload_sha256": {"type": "string"},
+              "opaque": {"type": "boolean", "const": true, "description": "Always true: payloads are never interpreted by this API."}
+            },
+            "additionalProperties": false
+          }
+        },
+        "receipts_tail": {
+          "type": "array",
+          "description": "Tail of the exact linear receipt chain (records are axon-private-soul-commit-receipt-v1).",
+          "items": {
+            "type": "object",
+            "required": ["schema", "receipt_id", "transition_id", "before_soul_id", "after_soul_id", "generation", "phase"],
+            "properties": {
+              "schema": {"const": "axon-private-soul-commit-receipt-v1"},
+              "receipt_id": {"type": "string"},
+              "transition_id": {"type": "string"},
+              "before_soul_id": {"type": "string"},
+              "after_soul_id": {"type": "string"},
+              "generation": {"type": "integer", "minimum": 0},
+              "phase": {"type": "string", "enum": ["first", "refined", "consolidated", "outcome", "training", "merge"]},
+              "tick_uid": {"type": ["string", "null"]},
+              "commit_binding": {"type": ["string", "null"], "description": "e.g. canonical-field:{successor.field_id} for the consolidator."}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

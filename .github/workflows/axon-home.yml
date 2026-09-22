@@ -1,0 +1,57 @@
+name: Axon Home (Android)
+
+on:
+  push:
+    branches: [main, "phone-*", "cloud-vm-control-*", "codex/**"]
+    paths:
+      - 'android/**'
+      - 'controlplane/**'
+      - '.github/workflows/axon-home.yml'
+  pull_request:
+    paths:
+      - 'android/**'
+      - 'controlplane/**'
+      - '.github/workflows/axon-home.yml'
+  workflow_dispatch:
+
+jobs:
+  build-test-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-35 build-tools;35.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Generate Gradle wrapper
+        working-directory: android
+        run: gradle wrapper --gradle-version 8.10.2 --distribution-type bin --no-daemon
+
+      - name: Unit tests (:core, :controlplane, :app)
+        working-directory: android
+        run: ./gradlew :core:test :controlplane:test :app:testLocalDebugUnitTest :app:testSimulationDebugUnitTest --no-daemon --stacktrace
+
+      - name: Assemble debug APK
+        working-directory: android
+        run: ./gradlew :app:lintLocalDebug :app:assembleLocalDebug --no-daemon
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: axon-home-local-debug-apk
+          path: android/app/build/outputs/apk/local/debug/*.apk
+          if-no-files-found: error

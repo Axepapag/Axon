@@ -1,0 +1,26 @@
+{
+  "schema": "axon-cloud-bundle-manifest-v1",
+  "capsule_id": "cap-01J8XKZ0AA",
+  "kind": "full_organism",
+  "archive_name": "axon_capsule_cap-01J8XKZ0AA.tar.gz",
+  "archive_sha256": "9f2c4a1b7d3e8f0a6c5b2d1e4f7a0c3b6d9e2f5a8c1b4d7e0f3a6c9b2d5e8f1a",
+  "archive_bytes": 48211317,
+  "members": {
+    "checkpoint/checkpoint_record.json": {"sha256": "1111111111111111111111111111111111111111111111111111111111111111", "bytes": 2048},
+    "checkpoint/checkpoints/9abc...def.pt": {"sha256": "2222222222222222222222222222222222222222222222222222222222222222", "bytes": 47185920},
+    "soul/snapshot.json": {"sha256": "3333333333333333333333333333333333333333333333333333333333333333", "bytes": 4096},
+    "soul/receipts.json": {"sha256": "4444444444444444444444444444444444444444444444444444444444444444", "bytes": 8192},
+    "trainer/learning_policy.json": {"sha256": "5555555555555555555555555555555555555555555555555555555555555555", "bytes": 1024},
+    "trainer/mutation_plan.json": {"sha256": "6666666666666666666666666666666666666666666666666666666666666666", "bytes": 1536},
+    "lineage/tranche.json": {"sha256": "7777777777777777777777777777777777777777777777777777777777777777", "bytes": 1216},
+    "run_report.json": {"sha256": "8888888888888888888888888888888888888888888888888888888888888888", "bytes": 5120}
+  },
+  "architecture_id": "living-d64-english-a1b2c3d4e5f60718293a4b5c",
+  "base_generation_id": "english-init-7c2e1a9b04f83d6e5a1c",
+  "candidate_generation_id": "english-candidate-3f9a1c2e8b4d6071a2b3",
+  "checkpoint_id": "ckpt-01J8XKY9ZZ",
+  "soul_ids": ["soul-5aa1c0", "soul-5aa1c1"],
+  "git_commit": "843bbedd25347d367da1f979488a6ecb77128ab7",
+  "created_at": "2026-09-20T23:58:41.000000Z",
+  "storage": {"provider": "drive", "path": "Axon/capsules/axon_capsule_cap-01J8XKZ0AA.tar.gz"}
+}

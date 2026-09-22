@@ -1,0 +1,26 @@
+{
+  "schema": "axon-controlplane-health-v1",
+  "freshness": "LIVE",
+  "observed_at": "2026-09-21T00:00:04.250000Z",
+  "control_plane": {
+    "status": "ok",
+    "version": "0.1.0",
+    "api_versions": ["v1"],
+    "uptime_seconds": 3621
+  },
+  "heart": {
+    "schema": "axon-heart-health-v2",
+    "heart_epoch_id": "epoch-3f9c1e",
+    "heartbeat_sequence": 4102,
+    "tick_sequence": 1188,
+    "head_field_id": "field-8b2c1a9f0e",
+    "tick_in_flight": false,
+    "last_beat_ok": true,
+    "last_failure": null,
+    "mask_revision": 7,
+    "last_view_id": "view-71aa02c4",
+    "dormant_index_id": "dix-55e1b0",
+    "ingress_quarantine_count": 0,
+    "ingress_rejection_count": 2
+  }
+}

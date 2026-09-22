@@ -1,0 +1,34 @@
+{
+  "schema": "axon-controlplane-stop-result-v1",
+  "freshness": "LIVE",
+  "observed_at": "2026-09-21T00:02:30.500000Z",
+  "scope": "emergency",
+  "all_stopped": false,
+  "components": [
+    {
+      "component_id": "heart-host-local",
+      "component_kind": "heart_host",
+      "status": "confirmed_stopped",
+      "detail": "beat aborted at atomic boundary; BeatState idle"
+    },
+    {
+      "component_id": "trainer-local",
+      "component_kind": "trainer",
+      "status": "unavailable",
+      "detail": "no governed handler; no action was taken"
+    },
+    {
+      "component_id": "worker-kaggle-01",
+      "component_kind": "compute_worker",
+      "status": "unreachable",
+      "detail": "no heartbeat for 312s; provider stop call timed out"
+    },
+    {
+      "component_id": "worker-vm-old",
+      "component_kind": "compute_worker",
+      "status": "provably_gone",
+      "detail": "provider reports instance terminated 2026-09-20T18:11:02Z"
+    }
+  ],
+  "audit_id": "aud-01J8XKR2C9"
+}

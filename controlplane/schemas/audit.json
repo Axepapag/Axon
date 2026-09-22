@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axon.gliksbot.com/schemas/controlplane/v1/audit.json",
+  "title": "Axon Control Plane — operational audit",
+  "description": "Operational audit entries (arch §14). This is NOT the Engineer's Ledger: ledger writes happen only via scripts/append_engineers-ledger_event.py by a participating agent, never from this API.",
+  "$defs": {
+    "auditEntry": {
+      "type": "object",
+      "required": ["schema", "audit_id", "who", "device", "command", "target", "timestamp", "previous_state", "requested_state", "result"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-audit-entry-v1"},
+        "audit_id": {"type": "string"},
+        "who": {"type": "string", "description": "Authenticated identity."},
+        "device": {"type": "string", "description": "Enrolled device identifier."},
+        "command": {"type": "string", "description": "Endpoint + operation, e.g. 'PUT /v1/masks' or 'trainer:pause'."},
+        "target": {"type": ["string", "null"], "description": "Affected resource, e.g. region, core id, worker id, capsule id."},
+        "timestamp": {"type": "string", "format": "date-time"},
+        "previous_state": {"type": ["string", "null"]},
+        "requested_state": {"type": ["string", "null"]},
+        "result": {"type": "string", "enum": ["success", "failure", "partial", "unavailable", "rejected"]},
+        "error": {"type": ["string", "null"]},
+        "idempotency_key": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "auditList": {
+      "type": "object",
+      "required": ["schema", "freshness", "observed_at", "entries"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-audit-list-v1"},
+        "freshness": {"$ref": "common.json#/$defs/freshness"},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "entries": {"type": "array", "items": {"$ref": "#/$defs/auditEntry"}}
+      },
+      "additionalProperties": false
+    }
+  }
+}

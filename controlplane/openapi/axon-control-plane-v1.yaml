@@ -1,0 +1,643 @@
+openapi: 3.0.3
+info:
+  title: Axon Control Plane API
+  version: 1.0.0
+  description: |
+    v1 REST surface of the Axon Control Plane (docs/AXON_HOME_ARCHITECTURE.md §5).
+    **Status: designed, not built** — no server implementation exists yet; this
+    document pins the contract a future in-repo FastAPI service must satisfy.
+
+    Authority: the Control Plane is a CLIENT of the governed seams (Heart /
+    Trainer), never a second authority. It reads State-root JSON, dispatches
+    `TrainerOrganCommand`s, and calls `HeartHost` methods; it never commits to
+    the Shared Field itself. Governed failures (Trainer `UNAVAILABLE`,
+    `REJECTED`, stale-delta, sealed-region) pass through verbatim.
+
+    Deployment: binds localhost by default; remote access via SSH tunnel /
+    overlay only; never publicly exposed without explicit config + auth.
+    TLS is required; bearer tokens are minted during secure device enrolment.
+
+    Error model (§5.6): every error is
+    `{schema: "axon-controlplane-error-v1", error: {code, message, retryable, upstream_status?}}`.
+    Unknown schema versions are rejected with 426 + UNSUPPORTED_SCHEMA_VERSION
+    listing supported versions. All mutating endpoints accept an
+    `Idempotency-Key` header; retries never double-apply. Every mutating call
+    is audited (§14). Every stateful response carries `freshness`
+    (LIVE | CACHED | STALE | DISCONNECTED) and `observed_at`.
+
+    Streaming: `/v1/events` is WebSocket (primary) / SSE (fallback) carrying
+    `axon-home-event-v1` envelopes (schemas/events.json) with seq-gapped
+    replay; it is documented here for completeness though WS/SSE is outside
+    OpenAPI's request/response model.
+  contact:
+    name: Axon Home mission (Axepapag/Axon)
+  license:
+    name: See repository LICENSE / doctrine
+
+servers:
+  - url: https://127.0.0.1:9443
+    description: Localhost bind (default). Remote access via tunnel/overlay only.
+
+tags:
+  - name: health
+    description: Control Plane liveness + Heart health summary
+  - name: field
+    description: Shared Field reads (canonical; read-only)
+  - name: masks
+    description: Region mask policy (derived view; two-step confirm)
+  - name: cores
+    description: Core registry descriptors + bindings
+  - name: souls
+    description: Soul metadata (opaque payloads; structure/receipts only)
+  - name: trainer
+    description: Trainer organ status + fail-closed command dispatch
+  - name: compute
+    description: Provider-neutral worker registry
+  - name: storage
+    description: Artifact catalog (metadata mirror)
+  - name: capsules
+    description: Recovery capsule catalog + verification
+  - name: audit
+    description: Operational audit log (not the Engineer's Ledger)
+  - name: agents
+    description: Engineering agent registry + message routing
+  - name: stop
+    description: Stop semantics with per-component ack accounting (§13)
+  - name: events
+    description: Typed event stream (WS/SSE; axon-home-event-v1)
+
+paths:
+  /v1/health:
+    get:
+      tags: [health]
+      operationId: getHealth
+      summary: Control Plane liveness + Heart health summary (axon-heart-health-v2 distilled)
+      responses:
+        '200':
+          description: Liveness + distilled health
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/common.json#/$defs/healthResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /v1/field/head:
+    get:
+      tags: [field]
+      operationId: getFieldHead
+      summary: Active branch HEAD + health (HEAD.json + health_latest.json)
+      responses:
+        '200':
+          description: Branch head and health summary
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/field.json#/$defs/fieldHead'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /v1/field/snapshot/{fieldId}:
+    get:
+      tags: [field]
+      operationId: getFieldSnapshot
+      summary: Snapshot reference view for a field id (snapshots/<field_id>.json, shared-field-v4)
+      parameters:
+        - name: fieldId
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Snapshot reference (region sizes/hashes)
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/field.json#/$defs/fieldSnapshot'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /v1/field/ticks/{tick}:
+    get:
+      tags: [field]
+      operationId: getFieldTicks
+      summary: Last n journal entries (axon-canonical-state-branch-event-v1) with delta refs
+      parameters:
+        - name: tick
+          in: path
+          required: true
+          description: Number of most-recent journal entries to return
+          schema: {type: integer, minimum: 1}
+      responses:
+        '200':
+          description: Journal tail
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/field.json#/$defs/tickList'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /v1/masks:
+    get:
+      tags: [masks]
+      operationId: getMasks
+      summary: Current mask state (region_masks.json, axon-heart-region-masks-v3)
+      responses:
+        '200':
+          description: Current mask state incl. revision/state_id/view_id
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/masks.json#/$defs/maskState'
+        default:
+          $ref: '#/components/responses/Error'
+    put:
+      tags: [masks]
+      operationId: putMasks
+      summary: |
+        Two-step confirm semantics (arch §5.5/§10.F): a PUT without
+        `confirmed: true` returns a PROPOSED mask state plus a single-use
+        `confirm_token` and changes nothing. A second PUT with
+        `{confirm_token, confirmed: true}` applies via
+        `HeartHost.set_region_mask_policy`, advancing the mask revision and
+        producing a new `view_id`. Never mutates on first touch. Audited.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/masks.json#/$defs/putMasksRequest'
+      responses:
+        '200':
+          description: Applied (confirmed) result with new revision/view_id
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/masks.json#/$defs/putMasksResponse'
+        '202':
+          description: Proposal (not applied); confirm_token issued
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/masks.json#/$defs/putMasksResponse'
+        '409':
+          description: MASK_CONFIRMATION_REQUIRED — confirmed=true without a valid confirm_token
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/common.json#/$defs/error'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /v1/cores:
+    get:
+      tags: [cores]
+      operationId: listCores
+      summary: CoreRegistry descriptors + bindings
+      responses:
+        '200':
+          description: Core list
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/cores.json#/$defs/coreList'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /v1/cores/{coreId}:
+    get:
+      tags: [cores]
+      operationId: getCore
+      summary: Single core descriptor + binding detail
+      parameters:
+        - name: coreId
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Core detail
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/cores.json#/$defs/coreDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /v1/souls/{coreId}:
+    get:
+      tags: [souls]
+      operationId: getSoul
+      summary: Soul branch HEAD, generations, receipt chain — metadata only; payloads opaque (axon-private-soul-* family)
+      parameters:
+        - name: coreId
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Soul metadata summary
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/souls.json#/$defs/soulSummary'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /v1/trainer/status:
+    get:
+      tags: [trainer]
+      operationId: getTrainerStatus
+      summary: inspect_trainer_state (axon-trainer-inspection-v1)
+      responses:
+        '200':
+          description: Trainer status
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/trainer.json#/$defs/trainerStatus'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /v1/trainer/commands:
+    post:
+      tags: [trainer]
+      operationId: postTrainerCommand
+      summary: |
+        Dispatch a TrainerOrganCommand (fail-closed). Kinds are exactly the 13
+        TrainerCommandKind values. If the organ returns UNAVAILABLE ("no
+        governed handler; no action was taken"), the API returns **409 with the
+        status verbatim** — the app renders "Not implemented", never success.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/trainer.json#/$defs/trainerCommandRequest'
+      responses:
+        '200':
+          description: Command executed (status OK) or idempotent replay
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/trainer.json#/$defs/trainerCommandResponse'
+        '409':
+          description: |
+            Governed failure passthrough: UNAVAILABLE or REJECTED. The body is
+            the full command result with `status` verbatim.
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/trainer.json#/$defs/trainerCommandResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /v1/compute/workers:
+    get:
+      tags: [compute]
+      operationId: listWorkers
+      summary: Machine registry (provider, endpoint, capabilities, last heartbeat, active job)
+      responses:
+        '200':
+          description: Worker list
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/compute.json#/$defs/workerList'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [compute]
+      operationId: registerWorker
+      summary: Register/connect a worker (audited)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/compute.json#/$defs/registerWorkerRequest'
+      responses:
+        '201':
+          description: Registered worker
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/compute.json#/$defs/worker'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /v1/compute/workers/{workerId}/stop:
+    post:
+      tags: [compute]
+      operationId: stopWorker
+      summary: Terminate a worker/provider job. Rendered only when the provider advertises supportsStop (§7). Honest ack; never fakes cancellation.
+      parameters:
+        - name: workerId
+          in: path
+          required: true
+          schema: {type: string}
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Stop acknowledgement for this component
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/compute.json#/$defs/workerStopResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /v1/storage/artifacts:
+    get:
+      tags: [storage]
+      operationId: listArtifacts
+      summary: Artifact catalog (metadata mirror; hashes, never bulk payloads)
+      responses:
+        '200':
+          description: Artifact list
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/storage.json#/$defs/artifactList'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [storage]
+      operationId: registerArtifact
+      summary: Register an artifact in the catalog (audited)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/storage.json#/$defs/registerArtifactRequest'
+      responses:
+        '201':
+          description: Registered artifact
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/storage.json#/$defs/artifact'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /v1/capsules:
+    get:
+      tags: [capsules]
+      operationId: listCapsules
+      summary: Recovery capsule catalog (visually distinguishes full organism / checkpoint / code)
+      responses:
+        '200':
+          description: Capsule list
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/capsules.json#/$defs/capsuleList'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [capsules]
+      operationId: exportCapsule
+      summary: Request a capsule export (arch §9.2; manifest written last; audited)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/capsules.json#/$defs/capsuleExportRequest'
+      responses:
+        '201':
+          description: Exported capsule manifest (axon-cloud-bundle-manifest-v1-compatible)
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/capsules.json#/$defs/capsuleManifest'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /v1/capsules/{capsuleId}/verify:
+    post:
+      tags: [capsules]
+      operationId: verifyCapsule
+      summary: |
+        Restore-verification (arch §9.3): fail-closed order — every SHA-256
+        (archive, then per-member, member-set equality both directions),
+        architecture identity, candidate generation, optimizer policy,
+        soul/checkpoint pairing, lineage. Any mismatch quarantines the whole
+        capsule; nothing half-verified reaches canonical State.
+      parameters:
+        - name: capsuleId
+          in: path
+          required: true
+          schema: {type: string}
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Verification report (axon-cloud-bundle-verification-v1 philosophy)
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/capsules.json#/$defs/capsuleVerificationReport'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /v1/audit:
+    get:
+      tags: [audit]
+      operationId: listAudit
+      summary: Operational audit log (§14). NOT the Engineer's Ledger.
+      parameters:
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, default: 100}
+        - name: before
+          in: query
+          description: Return entries before this RFC3339 timestamp
+          schema: {type: string, format: date-time}
+      responses:
+        '200':
+          description: Audit entries (newest first)
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/audit.json#/$defs/auditList'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /v1/agents:
+    get:
+      tags: [agents]
+      operationId: listAgents
+      summary: Agent registry (provider adapters; never carries secrets)
+      responses:
+        '200':
+          description: Agent list
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/agents.json#/$defs/agentList'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [agents]
+      operationId: registerAgent
+      summary: Register an agent configuration (vault key REFERENCE only; audited)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/agents.json#/$defs/registerAgentRequest'
+      responses:
+        '201':
+          description: Registered agent
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/agents.json#/$defs/agentRecord'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /v1/agents/{agentId}/messages:
+    post:
+      tags: [agents]
+      operationId: postAgentMessage
+      summary: Route a message to an engineering agent (no secrets; audited)
+      parameters:
+        - name: agentId
+          in: path
+          required: true
+          schema: {type: string}
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/agents.json#/$defs/agentMessageRequest'
+      responses:
+        '201':
+          description: Routed message record
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/agents.json#/$defs/agentMessage'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /v1/stop:
+    post:
+      tags: [stop]
+      operationId: postStop
+      summary: |
+        Stop semantics (§13): scope = pause_axon | stop_training |
+        stop_compute | emergency. The response is a per-component ack map;
+        `all_stopped` is true ONLY when every registered component acknowledged
+        (confirmed_stopped) or is provably_gone. Any unreachable component
+        forces all_stopped=false. Never fakes successful cancellation. Audited.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/stop.json#/$defs/stopRequest'
+      responses:
+        '200':
+          description: Per-component ack map
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/stop.json#/$defs/stopResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /v1/events:
+    get:
+      tags: [events]
+      operationId: streamEvents
+      summary: |
+        Typed event stream (§6). WebSocket (primary) / SSE (fallback) — the
+        upgrade negotiation is outside the OpenAPI request/response model and
+        documented here. Messages are `axon-home-event-v1` envelopes
+        (schemas/events.json) with monotonic `seq`. On reconnect send
+        `last_seq`; the server replays from the retained ring buffer. If
+        `last_seq` is older than retention the server responds with a SEQ_GAP
+        error and the client re-syncs via REST before resuming.
+      parameters:
+        - name: last_seq
+          in: query
+          description: Last received sequence number for replay-on-reconnect
+          schema: {type: integer, minimum: 0}
+      responses:
+        '101':
+          description: WebSocket upgrade (primary transport)
+        '200':
+          description: SSE stream (fallback transport)
+          content:
+            text/event-stream:
+              schema:
+                $ref: '../schemas/events.json#/$defs/envelope'
+        '409':
+          description: SEQ_GAP — last_seq older than retention; re-sync via REST
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/common.json#/$defs/error'
+        default:
+          $ref: '#/components/responses/Error'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: token
+      description: Bearer token minted during secure device enrolment (§5.3/§8). Required on all endpoints; TLS mandatory.
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Client-generated key; retries never double-apply (§5.6)
+      schema: {type: string, minLength: 8}
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/common.json#/$defs/error'
+    Error:
+      description: |
+        Typed error envelope `{schema, error{code, message, retryable,
+        upstream_status?}}`. Governed failures pass through verbatim (§5.6).
+        Unknown schema versions → 426 UNSUPPORTED_SCHEMA_VERSION listing
+        supported versions.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/common.json#/$defs/error'
+
+security:
+  - bearerAuth: []

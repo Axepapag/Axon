@@ -1,0 +1,12 @@
+{
+  "schema": "axon-controlplane-trainer-command-result-v1",
+  "freshness": "LIVE",
+  "observed_at": "2026-09-21T00:01:12.000000Z",
+  "command_id": "cmd-01J8XKQ0A2",
+  "kind": "pause",
+  "status": "UNAVAILABLE",
+  "message": "no governed handler; no action was taken",
+  "result": null,
+  "audit_id": "aud-01J8XKQ0B7",
+  "idempotent_replay": false
+}

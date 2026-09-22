@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axon.gliksbot.com/schemas/controlplane/v1/storage.json",
+  "title": "Axon Control Plane — storage artifact catalog",
+  "description": "Provider-neutral artifact catalog (arch §5.5, §7 StorageProvider). Metadata mirror only: large artifacts stay remote and content-addressed; the catalog carries hashes, never bulk payloads (arch §12).",
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "required": ["artifact_id", "kind", "provider", "path", "sha256", "bytes", "created_at"],
+      "properties": {
+        "artifact_id": {"type": "string"},
+        "kind": {"type": "string", "enum": ["checkpoint", "capsule", "cloud_bundle", "dormant_archive", "report", "log", "other"]},
+        "provider": {"type": "string", "description": "Storage provider id: drive, sftp, s3, gcs, local, http."},
+        "path": {"type": "string"},
+        "sha256": {"type": "string"},
+        "bytes": {"type": "integer", "minimum": 0},
+        "created_at": {"type": "string", "format": "date-time"},
+        "content_addressed": {"type": "boolean", "description": "True when path derives from content hash (e.g. checkpoints/<sha256>.pt)."},
+        "verified_at": {"type": ["string", "null"], "format": "date-time", "description": "Last successful hash verification; null = never verified."}
+      },
+      "additionalProperties": false
+    },
+    "artifactList": {
+      "type": "object",
+      "required": ["schema", "freshness", "observed_at", "artifacts"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-artifact-list-v1"},
+        "freshness": {"$ref": "common.json#/$defs/freshness"},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "artifacts": {"type": "array", "items": {"$ref": "#/$defs/artifact"}}
+      },
+      "additionalProperties": false
+    },
+    "registerArtifactRequest": {
+      "type": "object",
+      "required": ["schema", "kind", "provider", "path", "sha256", "bytes"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-artifact-register-v1"},
+        "kind": {"type": "string", "enum": ["checkpoint", "capsule", "cloud_bundle", "dormant_archive", "report", "log", "other"]},
+        "provider": {"type": "string"},
+        "path": {"type": "string"},
+        "sha256": {"type": "string"},
+        "bytes": {"type": "integer", "minimum": 0},
+        "content_addressed": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

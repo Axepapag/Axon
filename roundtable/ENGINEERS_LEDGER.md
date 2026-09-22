@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-20T11:45:22.613814Z
+Updated: 2026-09-22T00:23:40.7147539Z
 current_through_event_id:
-`evt-20260920T114522613814Z-chatgpt-codex-step24-audit`
+`evt-20260922T002340714754Z-codex-phone-stack-draft-pr`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -12,9 +12,43 @@ Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
-Identity stamp: ChatGPT / GPT-5.6 Sol / 2026-09-20 America/Chicago
-(previous revision: Codex / GPT-6 / 2026-09-20; older revisions are superseded,
+Identity stamp: Codex / GPT-6 / 2026-09-21 America/Chicago
+(previous revision: ChatGPT / GPT-5.6 Sol / 2026-09-20; older revisions are superseded,
 not erased; canonical events remain the authority)
+
+## GitHub phone/control-plane integration boundary
+
+Jeff reported a concurrent ChatGPT session creating a stacked GitHub branch set
+while `D:\Axon` was unavailable. Codex audited `phone-runtime-20260921`
+(`eb60db2`), `cloud-vm-control-20260921` (`8d364ad`), and
+`phone-sovereign-20260921` (`5c2f823`) in an isolated worktree. The provider-neutral
+one-Heart/one-Trainer direction is retained, but the imported stack was not safe
+to merge unchanged: it contained contradictory cloud/phone authority claims and
+a parallel Kotlin/SQLite “authoritative body” in the production app graph.
+
+The correction is committed and pushed on
+`origin/codex/phone-stack-integration-20260921` at `0a81581`. It removes the
+parallel phone body, makes `:core` simulation-flavor-only, restricts cleartext to
+exact localhost, checks phone token-file permissions, reconciles deployment
+status, and establishes seven evidence gates before phone authority can replace
+the verified `D:\Axon` host. GitHub Android run `35670840301` and VM-readiness run
+`35670839894` both passed, including Android unit tests, lint/assembly, APK upload,
+Python compile, Trainer/hygiene tests, and Windows bootstrap parsing. Detailed
+evidence is in
+`roundtable/reviews/CODEX_GITHUB_PHONE_STACK_AUDIT_20260921.md`.
+
+The reviewed branch is published as draft PR
+[#3](https://github.com/Axepapag/Axon/pull/3), base `main`, head `77f9958`.
+It is a review boundary only and is not merged. PR creation triggered exact-tip
+Android and VM-readiness checks; the code-changing parent `0a81581` already has
+green push checks.
+
+**SYNC BLOCK:** do not fast-forward `main` to the uncorrected sovereign branch.
+Jeff said another GitHub writer is active. Existing refs did not move during the
+audit, but confirm that writer's final tip, reconcile any delta with `0a81581`,
+then merge the reviewed stack once and update `D:\Axon` and `origin/main`
+together. No canonical State, checkpoint, Soul, training process, GPU run, or
+cloud job changed during this infrastructure audit.
 
 ## Current English-substrate integration
 

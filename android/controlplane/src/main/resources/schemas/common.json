@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axon.gliksbot.com/schemas/controlplane/v1/common.json",
+  "title": "Axon Control Plane — common shapes",
+  "description": "Shared envelope, freshness, and error shapes for the Axon Control Plane v1 (arch doc §5.6, §4.3).",
+  "$defs": {
+    "freshness": {
+      "type": "string",
+      "enum": ["LIVE", "CACHED", "STALE", "DISCONNECTED"],
+      "description": "Data freshness label (arch §4.3/§12). Cached state is never presented as current. SIMULATION is a UI-side state and is never produced by this API."
+    },
+    "errorCode": {
+      "type": "string",
+      "enum": [
+        "UNAUTHENTICATED",
+        "FORBIDDEN",
+        "NOT_FOUND",
+        "CONFLICT",
+        "TRAINER_COMMAND_UNAVAILABLE",
+        "TRAINER_COMMAND_REJECTED",
+        "STALE_DELTA",
+        "SEALED_REGION",
+        "MASK_CONFIRMATION_REQUIRED",
+        "IDEMPOTENCY_REPLAY",
+        "UNSUPPORTED_SCHEMA_VERSION",
+        "SEQ_GAP",
+        "COMPONENT_UNREACHABLE",
+        "VALIDATION_FAILED",
+        "QUARANTINED",
+        "UPSTREAM_ERROR",
+        "INTERNAL"
+      ]
+    },
+    "error": {
+      "type": "object",
+      "required": ["schema", "error"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-error-v1"},
+        "error": {
+          "type": "object",
+          "required": ["code", "message", "retryable"],
+          "properties": {
+            "code": {"$ref": "#/$defs/errorCode"},
+            "message": {"type": "string"},
+            "retryable": {"type": "boolean"},
+            "upstream_status": {
+              "type": "string",
+              "description": "Governed failure passthrough (arch §5.6): e.g. TrainerCommandStatus UNAVAILABLE / REJECTED, verbatim. Absent for Control Plane-local errors."
+            },
+            "supported_versions": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Present with UNSUPPORTED_SCHEMA_VERSION (HTTP 426) listing supported versions."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "healthResponse": {
+      "type": "object",
+      "description": "GET /v1/health: Control Plane liveness + distilled Heart health summary (axon-heart-health-v2, arch §5.5).",
+      "required": ["schema", "freshness", "observed_at", "control_plane", "heart"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-health-v1"},
+        "freshness": {"$ref": "#/$defs/freshness"},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "control_plane": {
+          "type": "object",
+          "required": ["status", "version", "api_versions"],
+          "properties": {
+            "status": {"type": "string", "enum": ["ok", "degraded"]},
+            "version": {"type": "string"},
+            "api_versions": {"type": "array", "items": {"type": "string"}},
+            "uptime_seconds": {"type": ["integer", "null"], "minimum": 0}
+          },
+          "additionalProperties": false
+        },
+        "heart": {
+          "type": ["object", "null"],
+          "description": "Distilled axon-heart-health-v2 (active/heart/health_latest.json); null when the Heart host is unreachable.",
+          "required": ["schema", "heart_epoch_id", "heartbeat_sequence", "tick_sequence", "tick_in_flight", "last_beat_ok"],
+          "properties": {
+            "schema": {"const": "axon-heart-health-v2"},
+            "heart_epoch_id": {"type": "string"},
+            "heartbeat_sequence": {"type": "integer", "minimum": 0},
+            "tick_sequence": {"type": "integer", "minimum": 0},
+            "head_field_id": {"type": ["string", "null"]},
+            "tick_in_flight": {"type": "boolean"},
+            "last_beat_ok": {"type": "boolean"},
+            "last_failure": {"type": ["string", "null"]},
+            "mask_revision": {"type": ["integer", "null"], "minimum": 0},
+            "last_view_id": {"type": ["string", "null"]},
+            "dormant_index_id": {"type": ["string", "null"]},
+            "ingress_quarantine_count": {"type": ["integer", "null"], "minimum": 0},
+            "ingress_rejection_count": {"type": ["integer", "null"], "minimum": 0}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "envelope": {
+      "type": "object",
+      "required": ["schema", "freshness", "observed_at"],
+      "properties": {
+        "schema": {
+          "type": "string",
+          "description": "Version string for this payload. Repo-mirroring payloads carry the exact repo axon-*-vN string; Control Plane-native payloads carry axon-controlplane-*-v1."
+        },
+        "freshness": {"$ref": "#/$defs/freshness"},
+        "observed_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the Control Plane read/derived this state. Required on every stateful response so CACHED/STALE entries always show a timestamp."
+        }
+      }
+    }
+  }
+}

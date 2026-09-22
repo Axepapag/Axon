@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axon.gliksbot.com/schemas/controlplane/v1/compute.json",
+  "title": "Axon Control Plane — compute worker registry",
+  "description": "Provider-neutral machine/worker registry (arch §5.5, §7). Operational (non-canonical) state: full CRUD within auth + audit (arch §2.4).",
+  "$defs": {
+    "workerCapabilities": {
+      "type": "object",
+      "description": "Capability advertisement per arch §7.1 (ComputeProvider/NotebookProvider). The UI renders controls ONLY from advertised capabilities.",
+      "properties": {
+        "supportsLaunch": {"type": "boolean"},
+        "supportsStop": {"type": "boolean"},
+        "supportsStatus": {"type": "boolean"},
+        "supportsLogs": {"type": "boolean"},
+        "supportsGpuMetrics": {"type": "boolean"},
+        "supportsProvision": {"type": "boolean"},
+        "supportsDestroy": {"type": "boolean"},
+        "supportsFiles": {"type": "boolean"},
+        "supportsTerminal": {"type": "boolean"},
+        "supportsArtifacts": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "worker": {
+      "type": "object",
+      "required": ["worker_id", "provider", "endpoint", "status", "registered_at"],
+      "properties": {
+        "worker_id": {"type": "string"},
+        "provider": {"type": "string", "description": "e.g. ssh, kaggle, colab, jupyter, vm, local."},
+        "endpoint": {"type": "string"},
+        "label": {"type": ["string", "null"]},
+        "status": {"type": "string", "enum": ["registered", "connected", "busy", "lost", "stopped", "destroyed"]},
+        "capabilities": {"$ref": "#/$defs/workerCapabilities"},
+        "accelerator": {"type": ["string", "null"], "description": "e.g. 'nvidia-t4', 'tpu-v2'; null for CPU-only."},
+        "last_heartbeat_at": {"type": ["string", "null"], "format": "date-time"},
+        "active_job_id": {"type": ["string", "null"]},
+        "worker_version": {"type": ["string", "null"]},
+        "git_commit": {"type": ["string", "null"]},
+        "registered_at": {"type": "string", "format": "date-time"}
+      },
+      "additionalProperties": false
+    },
+    "workerList": {
+      "type": "object",
+      "required": ["schema", "freshness", "observed_at", "workers"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-worker-list-v1"},
+        "freshness": {"$ref": "common.json#/$defs/freshness"},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "workers": {"type": "array", "items": {"$ref": "#/$defs/worker"}}
+      },
+      "additionalProperties": false
+    },
+    "registerWorkerRequest": {
+      "type": "object",
+      "required": ["schema", "provider", "endpoint"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-worker-register-v1"},
+        "provider": {"type": "string"},
+        "endpoint": {"type": "string"},
+        "label": {"type": ["string", "null"]},
+        "capabilities": {"$ref": "#/$defs/workerCapabilities"},
+        "accelerator": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "workerStopResponse": {
+      "type": "object",
+      "required": ["schema", "freshness", "observed_at", "worker_id", "ack"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-worker-stop-v1"},
+        "freshness": {"$ref": "common.json#/$defs/freshness"},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "worker_id": {"type": "string"},
+        "ack": {"$ref": "stop.json#/$defs/componentAck"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

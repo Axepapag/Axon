@@ -1,0 +1,31 @@
+{
+  "schema": "axon-controlplane-mask-update-result-v1",
+  "freshness": "LIVE",
+  "observed_at": "2026-09-21T00:03:05.000000Z",
+  "applied": false,
+  "confirm_token": "mct-01J8XKS4D2",
+  "proposed": {
+    "schema": "axon-controlplane-mask-state-v1",
+    "freshness": "LIVE",
+    "observed_at": "2026-09-21T00:03:05.000000Z",
+    "mask_schema": "axon-heart-region-masks-v3",
+    "revision": 8,
+    "state_id": "maskstate-9e0b",
+    "view_id": "view-88cf17d9",
+    "policies": {
+      "conversation_history": {"kind": "tail_percent", "tail_percent": 50},
+      "user_input": {"kind": "all"},
+      "cortex": {"kind": "all"},
+      "situation_awareness": {"kind": "all"},
+      "tool_results": {"kind": "tail_percent", "tail_percent": 25},
+      "advisor_input": {"kind": "all"},
+      "task_state": {"kind": "all"},
+      "scratch": {"kind": "all"},
+      "response_draft": {"kind": "all"},
+      "diary": {"kind": "none"},
+      "identity": {"kind": "all"},
+      "trainer_instructions": {"kind": "none"},
+      "training_responses": {"kind": "none"}
+    }
+  }
+}

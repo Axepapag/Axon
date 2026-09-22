@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axon.gliksbot.com/schemas/controlplane/v1/field.json",
+  "title": "Axon Control Plane — Shared Field resources",
+  "description": "Field HEAD, snapshot references, and tick/journal views (arch §5.5, §3.4). Reads State-root files; the Control Plane never writes canonical field state.",
+  "$defs": {
+    "fieldHead": {
+      "type": "object",
+      "required": ["schema", "freshness", "observed_at", "head", "health"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-field-head-v1"},
+        "freshness": {"$ref": "common.json#/$defs/freshness"},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "head": {
+          "type": "object",
+          "description": "Distilled from active/branches/active/HEAD.json. The embedded canonical record carries schema axon-canonical-state-branch-head-v1.",
+          "required": ["schema", "generation", "field_id", "tick_id"],
+          "properties": {
+            "schema": {"const": "axon-canonical-state-branch-head-v1"},
+            "generation": {"type": "integer", "minimum": 0},
+            "field_id": {"type": "string"},
+            "tick_id": {"type": "integer", "minimum": 0},
+            "parent_field_id": {"type": ["string", "null"]}
+          },
+          "additionalProperties": false
+        },
+        "health": {
+          "type": "object",
+          "description": "Distilled heartbeat summary from active/heart/health_latest.json (full record schema axon-heart-health-v2).",
+          "required": ["schema", "heart_epoch_id", "heartbeat_sequence", "tick_sequence", "tick_in_flight", "last_beat_ok"],
+          "properties": {
+            "schema": {"const": "axon-heart-health-v2"},
+            "heart_epoch_id": {"type": "string"},
+            "heartbeat_sequence": {"type": "integer", "minimum": 0},
+            "tick_sequence": {"type": "integer", "minimum": 0},
+            "head_field_id": {"type": ["string", "null"]},
+            "tick_in_flight": {"type": "boolean"},
+            "last_beat_ok": {"type": "boolean"},
+            "last_failure": {"type": ["string", "null"]},
+            "mask_revision": {"type": "integer", "minimum": 0},
+            "last_view_id": {"type": ["string", "null"]},
+            "dormant_index_id": {"type": ["string", "null"]},
+            "ingress_quarantine_count": {"type": "integer", "minimum": 0},
+            "ingress_rejection_count": {"type": "integer", "minimum": 0}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "fieldSnapshot": {
+      "type": "object",
+      "required": ["schema", "freshness", "observed_at", "snapshot_schema", "field_id", "tick_id", "regions", "canonical_sha256"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-field-snapshot-ref-v1"},
+        "freshness": {"$ref": "common.json#/$defs/freshness"},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "snapshot_schema": {
+          "const": "shared-field-v4",
+          "description": "The full snapshot at snapshots/<field_id>.json carries schema shared-field-v4; this endpoint returns a reference view (region sizes/hashes), not the full tensor-free text body."
+        },
+        "field_id": {"type": "string"},
+        "tick_id": {"type": "integer", "minimum": 0},
+        "parent_field_id": {"type": ["string", "null"]},
+        "regions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["region", "span_count", "char_count", "visibility", "write_policy", "region_sha256"],
+            "properties": {
+              "region": {
+                "type": "string",
+                "enum": ["conversation_history", "user_input", "cortex", "situation_awareness", "tool_results", "advisor_input", "task_state", "scratch", "response_draft", "diary", "identity", "trainer_instructions", "training_responses"]
+              },
+              "span_count": {"type": "integer", "minimum": 0},
+              "char_count": {"type": "integer", "minimum": 0},
+              "visibility": {"type": "string", "enum": ["attended", "masked"]},
+              "write_policy": {"type": "string", "enum": ["sealed", "core_writable"]},
+              "region_sha256": {"type": "string"}
+            },
+            "additionalProperties": false
+          },
+          "minItems": 13,
+          "maxItems": 13
+        },
+        "canonical_sha256": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "tickList": {
+      "type": "object",
+      "required": ["schema", "freshness", "observed_at", "ticks"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-tick-list-v1"},
+        "freshness": {"$ref": "common.json#/$defs/freshness"},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "ticks": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/tickRecord"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "tickRecord": {
+      "type": "object",
+      "description": "One journal entry from active/branches/active/journal.jsonl with delta references. The journal line itself carries schema axon-canonical-state-branch-event-v1.",
+      "required": ["schema", "event", "generation", "tick_id", "base_field_id", "successor_field_id"],
+      "properties": {
+        "schema": {"const": "axon-canonical-state-branch-event-v1"},
+        "event": {"type": "string", "enum": ["commit", "initialize", "schema_migration"]},
+        "generation": {"type": "integer", "minimum": 0},
+        "tick_id": {"type": "integer", "minimum": 0},
+        "base_field_id": {"type": ["string", "null"]},
+        "successor_field_id": {"type": "string"},
+        "delta_ids": {"type": "array", "items": {"type": "string"}},
+        "heart_commit_id": {"type": ["string", "null"], "description": "Commit record ref (axon-heart-commit-v1)."},
+        "consolidator_core_id": {"type": ["string", "null"]},
+        "timestamp": {"type": ["string", "null"], "format": "date-time"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

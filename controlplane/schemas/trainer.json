@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axon.gliksbot.com/schemas/controlplane/v1/trainer.json",
+  "title": "Axon Control Plane — Trainer organ surface",
+  "description": "Trainer status + command dispatch (arch §5.5, recon C §2). Commands are dispatched to TrainerOrgan (runtime/trainer/organ.py), which is FAIL-CLOSED: unwired kinds return UNAVAILABLE ('no governed handler; no action was taken') and the API returns 409 with the status verbatim.",
+  "$defs": {
+    "trainerCommandKind": {
+      "type": "string",
+      "description": "Exactly the 13 TrainerCommandKind values from runtime/trainer/organ.py.",
+      "enum": ["status", "inventory", "preflight", "configure", "start", "pause", "resume", "evaluate", "export_cloud_packet", "import_cloud_result", "compare", "request_promotion", "rollback"]
+    },
+    "trainerCommandStatus": {
+      "type": "string",
+      "description": "TrainerCommandStatus values. UNAVAILABLE/REJECTED pass through verbatim; the app renders UNAVAILABLE as 'Not implemented'.",
+      "enum": ["OK", "UNAVAILABLE", "REJECTED", "FAILED"]
+    },
+    "trainerStatus": {
+      "type": "object",
+      "required": ["schema", "freshness", "observed_at", "inspection"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-trainer-status-v1"},
+        "freshness": {"$ref": "common.json#/$defs/freshness"},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "inspection": {
+          "type": "object",
+          "description": "Distilled inspect_trainer_state view (full record schema axon-trainer-inspection-v1).",
+          "required": ["schema", "writer_lease_present", "active_generations", "latest_checkpoints", "available_commands"],
+          "properties": {
+            "schema": {"const": "axon-trainer-inspection-v1"},
+            "writer_lease_present": {"type": "boolean", "description": "TrainerWriterLease at training/trainer/authority/lease.json."},
+            "lease_owner": {"type": ["string", "null"]},
+            "active_generations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["module_id", "candidate_generation_id", "lifecycle_status"],
+                "properties": {
+                  "module_id": {"type": "string"},
+                  "candidate_generation_id": {"type": "string"},
+                  "base_generation_id": {"type": ["string", "null"]},
+                  "lifecycle_status": {"type": "string", "enum": ["prepared", "running", "paused", "completed", "rejected", "gate_passed", "promotion_proposed", "promoted", "retired"]},
+                  "current_step": {"type": ["integer", "null"], "minimum": 0},
+                  "latest_loss": {"type": ["number", "null"]},
+                  "learning_rate": {"type": ["number", "null"]}
+                },
+                "additionalProperties": false
+              }
+            },
+            "latest_checkpoints": {
+              "type": "array",
+              "description": "Checkpoint RECORD summaries (axon-trainer-candidate-checkpoint-v2 records, not payloads).",
+              "items": {
+                "type": "object",
+                "required": ["schema", "checkpoint_id", "module_id", "candidate_generation_id", "step", "artifact_sha256"],
+                "properties": {
+                  "schema": {"const": "axon-trainer-candidate-checkpoint-v2"},
+                  "checkpoint_id": {"type": "string"},
+                  "module_id": {"type": "string"},
+                  "candidate_generation_id": {"type": "string"},
+                  "step": {"type": "integer", "minimum": 0},
+                  "artifact_relpath": {"type": ["string", "null"]},
+                  "artifact_sha256": {"type": "string"},
+                  "artifact_bytes": {"type": ["integer", "null"], "minimum": 0},
+                  "optimizer_included": {"type": "boolean"}
+                },
+                "additionalProperties": false
+              }
+            },
+            "available_commands": {
+              "type": "object",
+              "description": "Per-TrainerCommandKind availability map mirroring the fail-closed organ registry. Only kinds with a wired governed handler are true; everything else returns UNAVAILABLE.",
+              "additionalProperties": {"type": "boolean"}
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "trainerCommandRequest": {
+      "type": "object",
+      "required": ["schema", "kind", "args", "requested_by", "idempotency_key"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-trainer-command-v1"},
+        "kind": {"$ref": "#/$defs/trainerCommandKind"},
+        "args": {"type": "object", "description": "Kind-specific arguments, passed verbatim to TrainerOrganCommand.args."},
+        "requested_by": {"type": "string", "description": "Authenticated operator identity (audit 'who')."},
+        "idempotency_key": {"type": "string", "minLength": 8, "description": "Client-generated; retries never double-apply (also sent as Idempotency-Key header)."}
+      },
+      "additionalProperties": false
+    },
+    "trainerCommandResponse": {
+      "type": "object",
+      "required": ["schema", "freshness", "observed_at", "command_id", "kind", "status", "message"],
+      "properties": {
+        "schema": {"const": "axon-controlplane-trainer-command-result-v1"},
+        "freshness": {"$ref": "common.json#/$defs/freshness"},
+        "observed_at": {"type": "string", "format": "date-time"},
+        "command_id": {"type": "string"},
+        "kind": {"$ref": "#/$defs/trainerCommandKind"},
+        "status": {"$ref": "#/$defs/trainerCommandStatus"},
+        "message": {"type": "string", "description": "Organ message verbatim, e.g. 'no governed handler; no action was taken' for UNAVAILABLE."},
+        "result": {"type": ["object", "null"], "description": "Kind-specific result payload (e.g. axon-trainer-organ-status-summary-v1 for kind=status)."},
+        "audit_id": {"type": ["string", "null"], "description": "Audit entry recording this dispatch (arch §14)."},
+        "idempotent_replay": {"type": "boolean", "default": false, "description": "True when this response is the recorded result of an earlier Idempotency-Key, not a re-execution."}
+      },
+      "additionalProperties": false
+    }
+  }
+}
