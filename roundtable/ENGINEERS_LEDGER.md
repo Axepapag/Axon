@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-22T23:34:34.6199370Z
+Updated: 2026-09-23T03:43:33.0457046Z
 current_through_event_id:
-`evt-20260922T2334346199370Z-codex-pointer-motor-a0`
+`evt-20260923T0343330457046Z-chatgpt-transformer-rebuild-proposal`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -121,6 +121,29 @@ The blocking flag
 a read-only causal/structured-address diagnosis or an explicit new table
 decision before any more optimizer steps, architecture changes, promotion, or
 Kaggle work. No live module or cloud state was changed.
+
+## Current transformer-rebuild proposal boundary
+
+Jeff and ChatGPT reviewed the pointer failure at the architectural boundary and
+converged on a stronger hypothesis: exact substrate recognition, canonical field
+ordering, and physical Shared Field addressing should not be learned transformer
+problems. The proposal `roundtable/proposals/TRANSFORMER_REBUILD_PROPOSAL_20260922.md`
+defines a new Rail-Native Streaming Core (RNSC) direction: Heart continues to
+compile exact rails, a deterministic ingress scanner stages exact substrate
+occurrences in canonical order, learned attention/FFNs operate only after that
+boundary, complete fields stream through finite windows with recurrent/Soul
+state, and output learns which exact substrate category to emit while physical
+serialization remains mechanical.
+
+The proposal explicitly preserves Heart sovereignty, one canonical Shared Field,
+D16 substrate truth, exact packed rails, masks, receipts, Trainer governance,
+Dormant, Soul, English FIRST/REFINED, and tagged FINAL. It challenges current
+learned canonical pointer/address anatomy and therefore requires a new
+architecture generation plus explicit Source-of-Truth amendments if ratified.
+Step 24 may be considered only as a governed donor; step 25 and A0 remain
+immutable evidence. No runtime, checkpoint, Soul, State, or optimizer change was
+made in this turn. Current recommendation is to freeze pointer-motor optimizer
+work and have the RoundTable attack/refine the rebuild before implementation.
 
 ## GitHub/local reconciliation and phone monitor boundary
 
