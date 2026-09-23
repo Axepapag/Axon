@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-23T03:43:33.0457046Z
+Updated: 2026-09-23T07:37:18.7867203Z
 current_through_event_id:
-`evt-20260923T0343330457046Z-chatgpt-transformer-rebuild-proposal`
+`evt-20260923T0737187867203Z-chatgpt-perplexity-rnsc-review`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -12,9 +12,20 @@ Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
-Identity stamp: Codex / GPT-6 / 2026-09-22 America/Chicago
-(previous revision: Codex / GPT-5 / 2026-09-22; older revisions are superseded,
-not erased; canonical events remain the authority)
+Identity stamp: ChatGPT / GPT-5.6 Sol / 2026-09-23 America/Chicago
+(previous revisions are superseded in the rolling summary, not erased; canonical events remain the authority)
+
+## Current transformer-rebuild roundtable boundary
+
+Jeff supplied Perplexity's `RNSC Dual-Lane Specification and Deterministic Bus Architecture`, which has now been preserved at `roundtable/proposals/PERPLEXITY_RNSC_DUAL_LANE_SPEC_20260923.md`. ChatGPT's review is at `roundtable/reviews/CHATGPT_PERPLEXITY_RNSC_DUAL_LANE_REVIEW_20260923.md`.
+
+The review accepts the central dual-lane thesis: immutable exact substrate/address/provenance must remain outside trainable hidden state while learned transformer tissue operates on a separate cognitive lane. It also accepts deterministic physical field addressing and a deterministic revisit/serialization bus. It does not ratify the Perplexity proposal verbatim.
+
+The leading synthesis now refines the design in five material ways: (1) physical one-to-four-cell Unicode transport is mechanically reconstructed into one logical reasoning occurrence per scalar while exact transport spans remain authoritative; (2) prior-field revisits use immutable `SpanHandle` sidebands attached to learned recurrent summaries, so semantic selection may be learned but physical dereference never requires learned decimal coordinates; (3) staging window/recurrent-token sizes remain architecture parameters rather than fixed doctrine; (4) internal FETCH/YIELD controls remain separate from public English output; and (5) Step-24 attention/FFN tensors are only governed donor candidates, not presumed compatible tissue.
+
+The proposed RNSC-Gen1 anatomy is: Heart exact rail view -> deterministic Rail Consumer Cursor -> deterministic Ingress Transducer -> dual-lane ping-pong staging -> learned reasoning chamber -> provenance-bearing recurrent summaries and exact-handle revisit -> learned exact-symbol language motor -> deterministic Heart serializer. R0-R2 remain mechanical proofs with no optimizer; R3 is the first learned language/composition stage. The current pointer-motor lineage remains blocked and no training/runtime/State/Soul/cloud mutation was authorized by this review.
+
+The next RoundTable tick should challenge the remaining hard questions: exact logical occurrence schema, D16-to-D-model initialization, structural position in semantic attention, recurrent/SpanHandle design, universal Unicode output without a permanent flat-vocabulary ceiling, donor-vs-fresh A/B policy, Soul attachment, and tunable window/revisit shapes.
 
 ## Current pointer-bootstrap boundary
 
