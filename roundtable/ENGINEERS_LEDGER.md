@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-23T07:37:18.7867203Z
+Updated: 2026-09-23T08:24:27.5748925Z
 current_through_event_id:
-`evt-20260923T0737187867203Z-chatgpt-perplexity-rnsc-review`
+`evt-20260923T0824275748925Z-chatgpt-rnsc-soul-review`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -26,6 +26,20 @@ The leading synthesis now refines the design in five material ways: (1) physical
 The proposed RNSC-Gen1 anatomy is: Heart exact rail view -> deterministic Rail Consumer Cursor -> deterministic Ingress Transducer -> dual-lane ping-pong staging -> learned reasoning chamber -> provenance-bearing recurrent summaries and exact-handle revisit -> learned exact-symbol language motor -> deterministic Heart serializer. R0-R2 remain mechanical proofs with no optimizer; R3 is the first learned language/composition stage. The current pointer-motor lineage remains blocked and no training/runtime/State/Soul/cloud mutation was authorized by this review.
 
 The next RoundTable tick should challenge the remaining hard questions: exact logical occurrence schema, D16-to-D-model initialization, structural position in semantic attention, recurrent/SpanHandle design, universal Unicode output without a permanent flat-vocabulary ceiling, donor-vs-fresh A/B policy, Soul attachment, and tunable window/revisit shapes.
+
+## Current RNSC attended-Soul boundary
+
+Jeff supplied a follow-on Perplexity Soul discussion with the RNSC material. It has been preserved as `roundtable/proposals/PERPLEXITY_RNSC_ATTENDED_SOUL_PROPOSAL_20260923.md`; ChatGPT's refinement is `roundtable/reviews/CHATGPT_RNSC_ATTENDED_SOUL_REVIEW_20260923.md`. The supplied proposal argues that Soul should be private persistent temperature-layered memory, represented as independently attendable tokens inside the reasoning chamber and proven by multi-tick delayed recall, Soul swaps, and streaming-memory tests rather than by activation magnitude alone.
+
+Live-code inspection confirms a real limitation in the current `LivingReasoningCoreD64`: each Soul temperature is decoded, projected, sigmoid-gated, and additively merged into the same recurrent state before field reading; the temperature layers therefore are not independently addressable once cognition begins. `exhale_transition()` serializes only the final recurrent state into HOT. The current path is numerically active but is not yet a demonstrated episodic memory system.
+
+The review also reconciles this with `PROPOSAL_SOUL_PRIVATE_ATTENDED_SUBSTRATE_2026-09-17.md`, which had already proposed private attended Soul slots and a namespace disjoint from public `LogicalRegion`. RNSC provides a cleaner integration boundary, but the new review rejects forcing arbitrary private D64 memory through the public 16D transport basis: the exact structural substrate remains public truth, while Soul remains architecture-native private cognitive state.
+
+The leading Soul synthesis is therefore: a separately governed private native-width token bank enters the owning Core's reasoning chamber beside field cognitive tokens; exact private type/temperature/slot metadata remains structural; learned attention selects useful memories; a dedicated `SoulWriter` produces HOT successors; WARM/COLD/DEEP_COLD retain the existing evidence-vetted promotion lifecycle until separately ratified. Heart/Trainer may carry, hash, persist, validate lineage, and transport opaque Soul payloads but do not treat their latent content as canonical Shared Field truth.
+
+The review predeclares causal proof requirements: foreign/stale/interface-incompatible Soul rejection; delayed recall with the needed fact absent from current Shared Field; counterfactual compatible-Soul swaps on an identical field; temperature ablation; streaming-window memory; and restart/persistence equivalence. It also records the gradient boundary honestly: persisted Soul encode/decode is detached, so RNSC-Gen1 should first train a SoulWriter with local memory-writing objectives and use hard persisted delayed recall as the capability gate; any later differentiable multi-tick unroll must be explicitly labelled training-only anatomy.
+
+No runtime code, canonical State, live Soul, checkpoint, Trainer process, optimizer, or cloud job was changed. Step-24/25/A0 optimization remains frozen. Mechanical R0/R1 proofs still precede learned reasoning/Soul work; the first Soul implementation should be a minimal HOT-token canary after the exact RNSC body passes.
 
 ## Current pointer-bootstrap boundary
 
