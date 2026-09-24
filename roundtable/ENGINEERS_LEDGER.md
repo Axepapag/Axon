@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-24T04:22:22.4816810Z
+Updated: 2026-09-24T12:05:48.853275Z
 current_through_event_id:
-`evt-20260924T0422224816810Z-chatgpt-transformer-construction-soul-refinement`
+`evt-20260924T120548853275Z-chatgpt-event-driven-core-continuity`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -40,6 +40,14 @@ The refined lifecycle is: English HOT records the last N completed INPUT/OUTPUT 
 HOT/WARM/COLD are kept English specifically to survive parameter/adapter drift: after training changes the Core's internal representation, the new generation can reread the English through its current lexical/semantic machinery. The proposal now treats Soul inhale as private English entering the language-construction/reasoning pipeline alongside, but never as, canonical Shared Field input. Same-generation parsed caches may be tested as accelerators only; English remains the private Soul authority above DEEP_COLD.
 
 This refinement conflicts with older Soul persistence concepts and any current contracts requiring crash-safe or parameter-generation-bound Soul persistence. The proposal records the conflict but does not silently amend Source of Truth or runtime contracts. Existing Step-24/25/A0 optimization remains frozen. No runtime code, canonical State, live Soul, checkpoint, Trainer process, optimizer, or cloud job was changed.
+
+Jeff then advanced the temporal architecture further: Cores should be treated as long-running resident processes rather than stateless inference calls. ChatGPT created `roundtable/Transformer Construction/EVENT_DRIVEN_CORE_CONTINUITY_PROPOSAL_20260924.md` to open that design for review. The proposal keeps Heart as sole canonical owner while giving each Core a non-authoritative exact Field Mirror, rebuildable Core-specific language/cognitive hierarchy, and continuously resident private Soul/working cognitive state.
+
+The proposed organism cadence is now typed and event-driven. On an externally meaningful Shared Field change, Heart emits only the exact field delta; each Core updates its local mirror and affected derived structures, reasons in the context of retained cognition, and produces FIRST. After the FIRST barrier completes, Heart emits only the sibling proposal set; Cores consider those proposals without replaying the full field and produce REFINED. The designated consolidator then consumes the refined set and produces FINAL. Heart validates/commits the canonical mutation and emits a distinct `CANONICAL_SYNC` event so Cores update mirrors/internal derivatives to what the organism actually chose **without automatically starting a new reasoning round**.
+
+The proposal also challenges the need for width-specific Heart rails. Every Core may share one exact substrate/event interface while independently widening internally for lexical, sentence, proposition, and deep-reasoning organs. It recommends retaining an exact local substrate mirror alongside widened cognition so synchronization never depends on a lossy D512/D2048 latent state. Stored mirror/cognitive state consumes memory but does not continuously consume FLOPs; compute occurs when deltas, sibling proposals, resynchronization, or other events activate the Core.
+
+The proposal treats incremental cognition like incremental compilation: substrate edits invalidate only dependent word/sentence/proposition/discourse objects unless semantic consequences propagate further. It explicitly leaves Mamba/SSM, recurrent, graph, attention, hybrid, substrate width, and final Soul anatomy open for engineering competition. It includes 44 review/falsification questions and an EC-R0..EC-R5 proof ladder beginning with exact mirror/delta synchronization before any large neural training. Jeff explicitly withdrew the recursive-consolidator extension during this discussion, so it is not included. No runtime code, Source of Truth, canonical State, live Soul, checkpoint, Trainer process, optimizer, or cloud workload was changed.
 
 ## Current transformer-rebuild roundtable boundary
 
