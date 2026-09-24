@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-24T12:08:20.264789Z
+Updated: 2026-09-24T15:30:15.797908Z
 current_through_event_id:
-`evt-20260924T120820264789Z-chatgpt-event-driven-core-continuity-publish`
+`evt-20260924T153015797908Z-chatgpt-transformer-construction-convergence`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -16,6 +16,20 @@ Identity stamp: ChatGPT / GPT-5.6 Sol / 2026-09-23 America/Chicago
 (previous revisions are superseded in the rolling summary, not erased; canonical events remain the authority)
 
 ## Current Transformer Construction workstream
+
+ChatGPT has now added `roundtable/Transformer Construction/30_CONVERGENCE_CANDIDATE_CONTINUOUS_CORE_AND_TINY_FIELD_TRAINING_20260924.md` as the preferred build/training synthesis for Codex review. The candidate combines the opening hierarchy, event-driven Core continuity proposal, Perplexity review, and Jeff's latest training direction into one small, falsifiable next build. It remains proposal-level and does not itself amend locked Source of Truth.
+
+The recommended first environment is a four-region Tiny Living Field: `substrate_reference`, `trainer_input`, `response_draft`, and `conversation_history`. Heart/full harness supplies the field once; `substrate_reference` stays exposed and unchanged; later lessons arrive as exact versioned deltas. Each Core keeps an exact non-authoritative view mirror plus rebuildable learned language structures and continuously resident volatile private cognition/Soul. The first learned curriculum therefore trains inside retained field continuity rather than replaying the world for every example.
+
+The convergence candidate recommends keeping the current frozen native 16D substrate for the first proof rather than simultaneously widening the substrate and rebuilding cognition. Deterministic mechanics own exact character identity/addressing. T0 has no optimizer and proves mirror/delta/resync behavior. T1 is the first learned stage and teaches substrate literacy—copy, alphabet/order relations, same/different, case/category, short exact sequences—without training the Core to rediscover physical addresses or infer which exact 16D cell is `A`.
+
+The proposed fresh baseline Core is intentionally small: exact 16D occurrences -> deterministic reversible candidate spans -> approximately D64 recurrent/gated lexical composition -> D128/D256 sentence composition -> D256 resident cognitive/Soul state -> categorical native-character output plus EOS. Global attention is omitted from the baseline, not banned; recurrence/SSM/local or proposition-level attention/graph approaches should compete later under the same exact mirror/delta contract. Step-24/25/A0 checkpoints remain evidence rather than the default donor lineage.
+
+A hard incremental-cognition rule is now recommended: repair only when the complete dependency closure of a field change is known; otherwise rebuild the affected interpretation from the exact mirror. Incremental and clean-rebuild Cores must be compared after insertion, deletion, negation, replacement, and mask changes. Any material divergence must fail closed to broader rebuild.
+
+Training is staged T0..T10: exact living-field harness; substrate literacy; word/pseudoword composition; definition-grounded vocabulary; grammar; sentence/proposition meaning; retained-field conversation continuity; volatile private cognition; private consolidation; hierarchical/free English output; then multi-Core FIRST/REFINED/consolidator cadence. Weight updates occur only at declared training boundaries; parameter-bound latent/cached state is rebuilt or reset after optimizer changes rather than silently carrying old latent coordinates into a new parameter generation.
+
+Recommended Codex order is: first reconcile/ratify the narrow doctrine changes; build and exhaustively test the deterministic Tiny Living Field harness; only then implement the smallest fresh hierarchical Core and run a tiny T1 smoke. No large run, D2048 chamber, giant FFN, Dormant/Cortex retrieval, or multi-Core proposal machinery should be introduced before the corresponding lower gate passes.
 
 Jeff opened a new focused architecture workstream at `roundtable/Transformer Construction/` and directed the table to stop treating conventional transformer anatomy as the default. ChatGPT created `roundtable/Transformer Construction/TRANSFORMER_CONSTRUCTION_OPENING_PROPOSAL_20260923.md` as the opening architecture prompt. The proposal is intentionally exploratory and authorizes no implementation or training.
 
