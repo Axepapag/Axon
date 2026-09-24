@@ -1,6 +1,6 @@
 # Axon Source Of Truth
 
-Last updated: 2026-09-19 (scratch substrate curriculum; lifelong candidate Soul; ordinary generated EOS)
+Last updated: 2026-09-24 (D16 Core Bus; resident exact mirrors; delta-driven Core synchronization)
 
 ## Core Doctrine
 
@@ -92,11 +92,15 @@ changes the sequence's positions.
 No active exact-text path may collapse a paragraph into one opaque vector and then ask a small core to recover exact text from that vector.
 
 The **Shared Field** is exactly the currently unmasked partition of every
-canonical region. Every core pass attends that entire Shared Field. A physical
-model window may be used as one page in a complete ordered sweep, but it is not
-an attention limit and may not silently omit unmasked field characters. Every
-logical pass must produce an auditable coverage record proving that each exact
-shared-field character was visited.
+canonical region. Every active Core must have exact access to its complete
+permitted Shared Field view. A resident Core may satisfy that requirement by
+holding a Heart-verifiable non-authoritative exact D16 mirror and consuming only
+versioned deltas after initial synchronization; a reasoning pass is not required
+to replay the unchanged field. Any paging, selective activation, summary, or
+learned hidden state is derivative only and may not silently omit, replace, or
+become authority for exact unmasked field characters. Heart must be able to
+prove the Core mirror's coherence with the current field/view/mask identity
+before that Core counts as a synchronized reasoning participant.
 
 Every region has an independent governed mask adjustable from 0% through 100%.
 Policies may resolve over exact characters, lines, paragraphs, containers, or
@@ -107,12 +111,15 @@ history makes the original exact cells part of the Shared Field immediately;
 moving it forward makes them dormant-in-place. No cell is moved, copied,
 deleted, regenerated, or renumbered.
 
-Attention masks are **derived compile-time views**, not part of the canonical
-regional-body identity. The canonical `SharedFieldSnapshot` is the complete
-ordered spans. The Heart durably owns the independent per-region mask-control
-state and resolves it to attended intervals when it compiles rails or forms a
-recall query. Changing a mask produces a new derived `view_id` and new rail view
-over the same `field_id`; it never creates a new canonical body.
+Attention masks are **derived views**, not part of the canonical regional-body
+identity. The canonical `SharedFieldSnapshot` is the complete ordered spans. The
+Heart durably owns the independent per-region mask-control state and resolves it
+to attended intervals when it forms a D16 Core Bus view, a legacy packed rail,
+or a recall query. Changing a mask produces a new derived `view_id` and transport
+view over the same `field_id`; it never creates a new canonical body. A resident
+Core whose acknowledged mirror was formed under a different view/mask identity
+is not coherent until Heart proves an exact patch chain or sends a replacement
+snapshot and receives a matching acknowledgement.
 
 The initial implementation may use one movable boundary per region. The
 versioned future mask schema may additionally select multiple ordered,
@@ -415,6 +422,72 @@ section is binding doctrine.
   with exhaustive substrate roundtrip, mask-gap and provenance-boundary,
   cross-width repack, and rejection evidence before any packed-reader
   training begins.
+
+### D16 Core Bus and resident mirror coherence (ratified 2026-09-24)
+
+Jeff ratified the D16 Core Bus transition on 2026-09-24 after the
+`ContinuousCoreLab` isolation experiments and the RoundTable candidate at
+`roundtable/Transformer Construction/40_D16_DELTA_BUS_AND_CORE_MIRROR_COHERENCE_RATIFICATION_20260924.md`.
+This subsection is newer binding doctrine and **supersedes the packed-rail
+serving requirements above wherever they conflict**. The packed-rail compiler,
+codecs, receipts, tests, and checkpoints remain preserved exact legacy/specialist
+tissue; they are no longer mandatory transport for the continuous-Core family.
+
+- Heart remains the sole canonical Shared Field owner, mask/view authority,
+  validator, and writer. A Core never gains canonical write authority by
+  holding a mirror or by producing a proposal.
+- The default public reasoning-Core transport is the **D16 Core Bus**: an event
+  protocol whose exact textual payloads use the registered frozen 16D
+  substrate/Unicode transport directly. A Core's private `d_model` or recurrent
+  width is an internal architecture property and does not determine bus width.
+- Initial attach, reconnect, or repair uses `FIELD_SNAPSHOT`: one complete exact
+  permitted view bound to canonical `field_id`, tick/field sequence, `view_id`,
+  mask-policy identity, transport-schema identity, and exact view/region hashes.
+  After synchronization, unchanged field content is not resent merely because a
+  new reasoning phase begins.
+- Ordinary canonical/view changes use ordered versioned `FIELD_DELTA` events.
+  The delta must bind the exact acknowledged base identity and resulting target
+  identity. Missing sequence numbers, stale bases, changed views without a
+  proven patch chain, malformed transport, or hash disagreement fail closed.
+- Each long-running Core may maintain a **non-authoritative exact local D16
+  mirror** of the permitted Shared Field. That mirror is evidence/cache, not
+  cognition and not canonical truth. Private learned/recurrent state, Soul, and
+  derived indexes/summaries remain separate and may use any architecture-native
+  width or representation.
+- Heart owns **mirror coherence**. Each active Core's acknowledgement binds at
+  least Core identity/generation, canonical field/tick identity, view/mask
+  identity, transport schema, exact hash, and last applied bus event. Heart
+  tracks synchronization state such as `SYNCED`, `APPLYING`, `STALE`,
+  `RESYNC_REQUIRED`, and `OFFLINE`.
+- A Core that is not `SYNCED` does not count as a successful FIRST/REFINED
+  participant. Existing timeout/offline participant accounting may proceed, but
+  stale cognition may never be silently accepted as synchronized reasoning.
+  Repair replays a complete verified contiguous delta chain when one exists;
+  otherwise Heart sends a fresh exact `FIELD_SNAPSHOT`. Exact mirror truth wins
+  over stale latent interpretation.
+- FIRST and REFINED remain mandatory nonempty exact English proposals. Heart's
+  existing noncanonical proposal board remains the collection/barrier surface,
+  but sibling proposal text is transported once in exact D16 form rather than
+  repacked to each recipient's internal `d_model`. The rotating consolidator's
+  FINAL tagged-region English contract and Heart-only materialization/commit
+  semantics remain unchanged.
+- The normal continuous-Core causal cycle is:
+  `FIELD_DELTA -> FIRST barrier -> PROPOSAL_SET -> REFINED barrier -> FINAL -> Heart commit -> CANONICAL_SYNC`.
+  `CANONICAL_SYNC` updates mirrors/derived cognition to the accepted canonical
+  result but does not automatically start another FIRST round.
+- Tool/advisor/ingress results become Heart-validated canonical changes and then
+  appear to synchronized Cores through the same exact snapshot/delta contract.
+  Tool completion during an active barrier may queue for the next external
+  reasoning event rather than recursively nesting rounds.
+- Exact D64/D128/D256/D512 packed views may remain available for legacy,
+  specialist, debugging, or comparative use. New continuous Cores must not be
+  forced through those widths merely to communicate with Heart or sibling Cores.
+- The first implementation gate after this ratification is deterministic, not
+  neural: exact D16 snapshot materialization, delta/rebuild equivalence,
+  Unicode roundtrip, mask/view invalidation, event-gap rejection, stale-base
+  rejection, reconnect/resync equivalence, proposal-board roundtrip, and Heart
+  mirror-coherence exclusion of stale fake Cores must all pass before the
+  serving circulation is switched to a learned continuous Core.
 
 ### D64 receipt-continuation transport (ratified 2026-09-08)
 

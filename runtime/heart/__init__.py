@@ -31,6 +31,17 @@ from .board import (
     ProposalBoard,
     ProposalPass,
 )
+from .core_bus import (
+    CORE_BUS_SCHEMA,
+    CORE_BUS_TEXT_FRAME_SCHEMA,
+    MIRROR_ACK_SCHEMA,
+    CoreBusEventKind,
+    D16CoreMirror,
+    D16TextFrame,
+    FieldDeltaEvent,
+    FieldSnapshotEvent,
+    MirrorAck,
+)
 from .circulation import (
     REASONING_CIRCULATION_SCHEMA,
     REASONING_PASS_RESULT_SCHEMA,
@@ -132,6 +143,12 @@ from .masks import (
     HeartRegionMaskController,
     HeartRegionMaskState,
 )
+from .mirror_coherence import (
+    MirrorCoherenceError,
+    MirrorCoherenceRecord,
+    MirrorCoherenceRegistry,
+    MirrorSyncState,
+)
 from .proposal_workspace import (
     PROPOSAL_RAIL_SCHEMA,
     PROPOSAL_WORKSPACE_SCHEMA,
@@ -213,6 +230,19 @@ from .valve import (
 
 __all__ = [
     "COMMIT_SCHEMA",
+    "CORE_BUS_SCHEMA",
+    "CORE_BUS_TEXT_FRAME_SCHEMA",
+    "MIRROR_ACK_SCHEMA",
+    "CoreBusEventKind",
+    "D16CoreMirror",
+    "D16TextFrame",
+    "FieldDeltaEvent",
+    "FieldSnapshotEvent",
+    "MirrorAck",
+    "MirrorCoherenceError",
+    "MirrorCoherenceRecord",
+    "MirrorCoherenceRegistry",
+    "MirrorSyncState",
     "CONSOLIDATOR_GOVERNED_REGIONS",
     "CORE_BINDING_SCHEMA",
     "CRITICAL_SEMANTIC_CLASSES",

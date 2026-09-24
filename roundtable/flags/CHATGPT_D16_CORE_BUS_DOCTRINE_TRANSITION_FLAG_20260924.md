@@ -25,3 +25,8 @@ Work halted: Runtime code changes that would bypass or remove the current packed
 Work continued: Verified the isolated lab results, inspected current Axon governance and runtime seams, mapped reusable versus rail-bound components, and drafted the companion D16 bus/mirror-coherence ratification candidate.
 
 Important limitation: `D:\ContinuousCoreLab` used an isolated synthetic frozen 16D codebook, not Axon's canonical substrate. No lab checkpoint, model state, or lab source file has been imported into Axon.
+## Resolution — 2026-09-24
+
+RESOLVED. Jeff explicitly authorized proceeding with the documented D16 Core Bus transition. `docs/SOURCE_OF_TRUTH.md` now contains the newer binding `D16 Core Bus and resident mirror coherence (ratified 2026-09-24)` subsection, which supersedes conflicting packed-rail serving requirements for the continuous-Core family while preserving D64 legacy/specialist tissue. The formal RoundTable record is `roundtable/decisions/RESOLUTION_D16_CORE_BUS_20260924.md`.
+
+B1/B2 deterministic implementation then passed its focused and regression gates. This flag no longer blocks B1/B2. B3 remains a separate next tranche: live `ReasoningCirculation` has not yet been switched from mandatory rail bindings to the D16 bus/coherence binding.
