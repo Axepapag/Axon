@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-23T08:24:27.5748925Z
+Updated: 2026-09-24T03:20:14.0812213Z
 current_through_event_id:
-`evt-20260923T0824275748925Z-chatgpt-rnsc-soul-review`
+`evt-20260924T0320140812213Z-chatgpt-transformer-construction-opening-correction`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -14,6 +14,24 @@ Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
 Identity stamp: ChatGPT / GPT-5.6 Sol / 2026-09-23 America/Chicago
 (previous revisions are superseded in the rolling summary, not erased; canonical events remain the authority)
+
+## Current Transformer Construction workstream
+
+Jeff opened a new focused architecture workstream at `roundtable/Transformer Construction/` and directed the table to stop treating conventional transformer anatomy as the default. ChatGPT created `roundtable/Transformer Construction/TRANSFORMER_CONSTRUCTION_OPENING_PROPOSAL_20260923.md` as the opening architecture prompt. The proposal is intentionally exploratory and authorizes no implementation or training.
+
+The workstream's central question is: if Axon is designed from the frozen substrate upward rather than from an LLM inward, what Core anatomy should exist? The opening explicitly challenges one-vector-per-token assumptions, global character attention, fixed tokenizer vocabularies, next-token prediction as the governing learning objective, decoder-only stacks, and even the necessity of attention heads at the lexical stage.
+
+Jeff also made a new explicit ingress ruling for this discussion: if a character is not present in the frozen native 16D substrate, it does not exist to the developmental Core. Supported native characters are accepted exactly; unsupported Unicode such as emoji is blocked without approximation while supported neighbors remain usable. Because current `docs/SOURCE_OF_TRUTH.md` still mandates byte-transport support for all valid Unicode scalars, implementation requires a later explicit doctrine amendment; this turn records only the proposal and conflict.
+
+The opening proposal sharpens the packed-rail distinction: one D64 rail row is transport containing four disjoint 16D lanes, not one semantic token. A row containing `C`, `A`, `T`, and padding is mechanically unpacked into three ordered exact character occurrences. No learned recognizer or pointer is involved.
+
+The most material new architecture hypothesis is that exact characters may remain 16D through the first learned stage rather than being inflated immediately into one D64 neural token each. A Lexical Constructor would assemble exact character spans such as `C-A-T` into one learned word object; words then become the primary units for sentence-level semantic interaction. This creates a proposed hierarchy: exact characters -> lexical spans/words -> phrases/sentences -> paragraph/discourse -> concepts/propositions -> reasoning. Every abstraction retains immutable downward provenance through exact span handles.
+
+The opening presents competing lexical mechanisms rather than choosing one: 16D local attention, recurrence, convolution/n-gram composition, tree composition, dynamic trie plus neural semantics, state-space models, capsule-like routing, or even no learned lexical composer for known words. It further proposes a living lexicon/dictionary/thesaurus backed by Dormant/Cortex/knowledge structures so unknown words remain exactly readable before their meaning is known and can be learned from definitions and examples without requiring a tokenizer-vocabulary rebuild.
+
+Output is proposed as the reverse hierarchy: intended meaning/proposition -> sentence plan -> lexical choices -> exact native spelling -> mechanical substrate serialization. Sequential physical emission is therefore separated from making next-token prediction the governing cognitive objective.
+
+The opening defines a staged TC-R0 through TC-R10 curriculum from mechanical native-substrate ingress, exact word-span construction and lexical identity through definition grounding, grammar, sentence/paragraph meaning, reasoning, hierarchical output, and multi-tick Soul use. It gives 55 explicit review questions and a set of intentionally radical architecture options so engineers can attack assumptions before convergence. Existing Step-24/25/A0 optimization remains frozen. No runtime code, canonical State, live Soul, checkpoint, Trainer process, optimizer, or cloud job was changed.
 
 ## Current transformer-rebuild roundtable boundary
 
