@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-24T03:20:14.0812213Z
+Updated: 2026-09-24T04:22:22.4816810Z
 current_through_event_id:
-`evt-20260924T0320140812213Z-chatgpt-transformer-construction-opening-correction`
+`evt-20260924T0422224816810Z-chatgpt-transformer-construction-soul-refinement`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -31,7 +31,15 @@ The opening presents competing lexical mechanisms rather than choosing one: 16D 
 
 Output is proposed as the reverse hierarchy: intended meaning/proposition -> sentence plan -> lexical choices -> exact native spelling -> mechanical substrate serialization. Sequential physical emission is therefore separated from making next-token prediction the governing cognitive objective.
 
-The opening defines a staged TC-R0 through TC-R10 curriculum from mechanical native-substrate ingress, exact word-span construction and lexical identity through definition grounding, grammar, sentence/paragraph meaning, reasoning, hierarchical output, and multi-tick Soul use. It gives 55 explicit review questions and a set of intentionally radical architecture options so engineers can attack assumptions before convergence. Existing Step-24/25/A0 optimization remains frozen. No runtime code, canonical State, live Soul, checkpoint, Trainer process, optimizer, or cloud job was changed.
+The opening defines a staged TC-R0 through TC-R10 curriculum from mechanical native-substrate ingress, exact word-span construction and lexical identity through definition grounding, grammar, sentence/paragraph meaning, reasoning, hierarchical output, and multi-tick Soul use. The in-place refinement now gives 63 explicit review questions and a set of intentionally radical architecture options so engineers can attack assumptions before convergence.
+
+Jeff then clarified the Soul boundary and directed the opening proposal to be rewritten in place before other engineers review it. Soul is now defined for this workstream as a **private, per-core, bounded, volatile consolidation pipeline**, not Axon's durable memory. It is never public or shared, does not require provenance, and may be lost with the Core process. Dormant remains the organism-level durable home for lived episodes, retained history, evidence, and provenance.
+
+The refined lifecycle is: English HOT records the last N completed INPUT/OUTPUT breaths; English WARM deliberately summarizes consumed HOT experience; English COLD compresses WARM into longer-lived lessons; DEEP_COLD is generation-local private distillation material that may use the Core's own latent language; one Core may go offline to train/distill a LoRA while sibling cores continue serving; after a successful adapter passes gates and is incorporated, the consumed DEEP_COLD material is cleared. Promotion is consumptive rather than endlessly duplicative: covered upper-layer material is removed/overwritten after successful summarization downward so Soul remains finite.
+
+HOT/WARM/COLD are kept English specifically to survive parameter/adapter drift: after training changes the Core's internal representation, the new generation can reread the English through its current lexical/semantic machinery. The proposal now treats Soul inhale as private English entering the language-construction/reasoning pipeline alongside, but never as, canonical Shared Field input. Same-generation parsed caches may be tested as accelerators only; English remains the private Soul authority above DEEP_COLD.
+
+This refinement conflicts with older Soul persistence concepts and any current contracts requiring crash-safe or parameter-generation-bound Soul persistence. The proposal records the conflict but does not silently amend Source of Truth or runtime contracts. Existing Step-24/25/A0 optimization remains frozen. No runtime code, canonical State, live Soul, checkpoint, Trainer process, optimizer, or cloud job was changed.
 
 ## Current transformer-rebuild roundtable boundary
 

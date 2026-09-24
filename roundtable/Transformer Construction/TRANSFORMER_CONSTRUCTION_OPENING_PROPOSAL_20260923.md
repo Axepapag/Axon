@@ -1,6 +1,7 @@
 # Transformer Construction — Opening Proposal
 
 **Author:** ChatGPT / GPT-5.6 Sol / 2026-09-23 America/Chicago
+**Revision:** 2026-09-23 America/Chicago — refined in place with volatile Soul metabolism and Dormant durability boundary
 **Status:** OPENING ROUNDTABLE PROPOSAL ONLY — architecture exploration, not implementation authorization
 **Workstream:** `roundtable/Transformer Construction/`
 **Parent evidence:** `TRANSFORMER_REBUILD_PROPOSAL_20260922.md`, Perplexity RNSC dual-lane proposal, RNSC attended-Soul review, Codex D0/A0 pointer evidence, current `docs/SOURCE_OF_TRUTH.md`
@@ -560,21 +561,191 @@ The table should choose terminology before implementation.
 
 ---
 
-## 14. Private Soul enters above exact substrate, not through public character identity
+## 14. Soul is a private, volatile consolidation pipeline — not Axon's durable memory
 
-Current RNSC Soul review found that today's Soul is additively collapsed into one recurrent state and is not independently addressable.
+Current RNSC Soul review found that today's Soul is additively collapsed into one recurrent state and is not independently addressable. This workstream now makes a stronger correction to the concept itself.
 
-The transformer-construction workstream should preserve the stronger separation:
+**Jeff's current ruling for Transformer Construction:** the Soul is not Axon's durable or canonical memory system. It is not public, it is not shared among sibling cores, and it does not need durable provenance. It is one Core's private working space for carrying, rewriting, compressing, and eventually metabolizing its own recent experience. Losing a Soul because a Core process dies is acceptable. Durable organism-level lived episodes, historical provenance, and retained evidence belong in Dormant and related canonical knowledge systems.
 
-- exact field character lane = canonical external evidence;
-- learned lexical/semantic lane = current interpretation;
-- private Soul lane = persistent private learned experience.
+This ruling supersedes the phrase `persistent private learned experience` used in the earlier opening draft. Existing Source-of-Truth text and runtime contracts that require crash-safe or parameter-generation-bound Soul persistence must be reviewed explicitly before implementation; this proposal does not silently amend them.
 
-Soul may participate strongly at word/sentence/reasoning levels.
+The separation should therefore be:
 
-It must not rewrite what exact characters were present.
+- exact field character lane = current canonical external evidence;
+- learned lexical/semantic/reasoning lane = what this Core currently understands;
+- private Soul = bounded volatile experience/consolidation workspace for this Core;
+- Dormant = durable organism-level lived experience, episodes, evidence, provenance, and retrievable history.
 
-A useful question is whether Soul should influence lexical meaning resolution — e.g. this Core's past experiences with the word `bank` — while structural spelling remains immutable.
+### 14.1 Soul should be English above the deepest layer
+
+HOT, WARM, and COLD should be written in English, not in generation-specific latent coordinates.
+
+Reason: a Core's learned internal representation may drift when its base parameters or LoRA adapters change. A D64 latent written before training may not mean the same thing after training even if the width remains D64. English survives that representational drift because the updated Core can read the English again through its current lexical/semantic machinery.
+
+Therefore the default contract should be:
+
+- HOT = English;
+- WARM = English;
+- COLD = English;
+- DEEP_COLD = may use the current Core generation's private latent/training representation because it is temporary material intended for distillation into that generation's successor.
+
+### 14.2 Fresh blank Soul
+
+A newborn Core begins with the Soul schema but no remembered content:
+
+- empty HOT ring/buffer;
+- empty WARM buffer;
+- empty COLD buffer;
+- empty DEEP_COLD distillation buffer.
+
+Empty slots are masked/absent. We should not fill them with arbitrary learned vectors merely because the Core width is 64.
+
+### 14.3 HOT is the last N completed breaths
+
+A completed breath has at least two private English lanes:
+
+1. **INPUT** — what the Core received/understood from the current interaction;
+2. **OUTPUT** — what the Core ultimately said/proposed.
+
+HOT is intentionally close to lived chronology. It is not a knowledge base and need not preserve every hidden activation. Its purpose is to let the next breath remember the recent conversational/reasoning neighborhood.
+
+The exact capacity `N` is an architecture parameter for the table to choose, not doctrine in this opening.
+
+A possible third field, if experiments justify it, is a short **REFLECTION** written by the Core after the response: what it concluded, what remains unresolved, or what future-self should notice. This must be earned experimentally; INPUT/OUTPUT alone are the minimum useful HOT episode.
+
+### 14.4 How HOT enters the next inhale
+
+Because HOT/WARM/COLD are English, they do not require a mysterious latent-memory decoder.
+
+They are private internal text, not Shared Field text. On inhale, the Soul reader can expose selected records to the same current-generation language-construction machinery used to understand English, while keeping their authority and visibility private.
+
+One candidate path is:
+
+`private Soul English -> native-character validation -> lexical construction -> sentence/proposition objects -> reasoning workspace`
+
+The current public input follows its own exact Shared Field/rail ingress and reaches the same sentence/proposition/reasoning level. The two streams meet there.
+
+This means Soul does not need to compete with the new user input at the raw character-address layer. It supplies already-lived English context that the Core can reread with its current parameters.
+
+The table should still test an optimization in which already-parsed HOT records cache temporary word/sentence states within one unchanged parameter generation. Such caches are accelerators only; the English record remains authoritative inside Soul because it survives representation drift.
+
+### 14.5 HOT -> WARM: deliberate English summarization
+
+HOT must not grow forever.
+
+When HOT reaches a promotion condition, the Core performs a private consolidation act:
+
+- read a batch of recent HOT input/output episodes;
+- decide what matters;
+- rewrite the useful material into fewer English WARM records;
+- discard/overwrite the HOT records that were consumed.
+
+This is not mechanical averaging. The Core should intelligently decide what is worth carrying forward.
+
+Example HOT material might contain several exchanges about the Transformer Construction redesign. A WARM record might become:
+
+> `Jeff and I are redesigning the Core so exact native characters compose into words before semantic reasoning; unsupported characters are blocked; Soul above DEEP_COLD remains English.`
+
+The summary may be rewritten rather than quoted verbatim.
+
+### 14.6 WARM -> COLD: stronger English compression
+
+WARM also has a finite budget.
+
+When it fills or meets another explicit consolidation trigger, the Core reads the relevant WARM records and writes fewer, more durable English COLD records. Successfully consumed WARM records are then cleared.
+
+COLD should represent lessons future versions of this Core would benefit from rereading, not transcripts.
+
+Example:
+
+> `Physical substrate identity and addressing are deterministic; learned cognition begins with language composition above that boundary.`
+
+Again, no Soul provenance tree is required. This is private volatile cognition. If the organism needs durable source evidence, that evidence belongs in Dormant.
+
+### 14.7 COLD -> DEEP_COLD: crossing from English memory into generation-local learning material
+
+DEEP_COLD has a different role from the other temperatures.
+
+It is not ordinary serving memory. It is a **private distillation chamber**.
+
+When COLD reaches its promotion condition, the Core may transform selected English lessons into training material expressed in the current generation's own internal language. Candidate forms include:
+
+- latent target states;
+- contrastive examples;
+- semantic/proposition training pairs;
+- preferred reasoning trajectories;
+- adapter training examples derived from the English COLD records;
+- other generation-local representations the table can falsify experimentally.
+
+Because this material is generation-local and temporary, parameter drift is not a problem. It exists specifically to become a parameter update.
+
+Successfully consumed COLD records can then be removed according to the ratified lifecycle.
+
+### 14.8 DEEP_COLD -> LoRA / parameter growth -> clear
+
+Axon's multi-core design allows one Core to go offline for training/distillation while sibling cores continue serving the organism.
+
+When DEEP_COLD reaches its training threshold:
+
+1. freeze the serving generation/boundary needed for the training tranche;
+2. take that Core offline without stopping the organism;
+3. distill/train a LoRA or other governed adaptation from the DEEP_COLD material;
+4. evaluate it against declared capability and regression gates;
+5. accept/promote only if the adapter passes;
+6. after successful incorporation, clear the consumed DEEP_COLD material and begin filling it again.
+
+A failed adapter must not be treated as learning. The table should decide whether failed DEEP_COLD material is retained for another attempt or simply discarded because Soul is intentionally volatile.
+
+The critical lifecycle is:
+
+`experience -> English HOT -> English WARM -> English COLD -> generation-local DEEP_COLD -> adapter/parameters -> clear`
+
+This gives Soul a finite metabolism rather than unbounded accumulation.
+
+### 14.9 Promotion should consume, not clone forever
+
+Every Soul temperature needs a finite capacity and an explicit consumption rule.
+
+When information is successfully summarized downward, the covered upper-layer material should normally be removed. The purpose is progressively stronger compression, not four redundant copies of the same life history.
+
+Conceptually:
+
+- HOT asks: **What just happened?**
+- WARM asks: **What from that mattered?**
+- COLD asks: **What should future-me remember?**
+- DEEP_COLD asks: **What am I ready to turn into myself?**
+- parameters/adapters represent: **What have I become?**
+
+### 14.10 Soul and Dormant must not be conflated
+
+The Core's Soul and Axon's Dormant store have different jobs.
+
+Soul:
+
+- private to one Core;
+- volatile;
+- bounded;
+- rewritten aggressively;
+- no public visibility;
+- no durability guarantee required;
+- no provenance requirement;
+- designed to be consumed into deeper summaries and eventually parameters.
+
+Dormant:
+
+- organism-level durable experience/knowledge store;
+- appropriate home for episodes Axon intentionally retains;
+- appropriate home for source/provenance and historical evidence;
+- retrievable across Core turnover;
+- not erased merely because one Core summarized or trained on something.
+
+A Core can learn from Dormant, and important experience may be written to Dormant through Axon's governed organism pathways, but Soul itself is not the durable archive.
+
+### 14.11 Soul must never rewrite external truth
+
+Soul may strongly influence word-sense selection, sentence interpretation, planning, and reasoning — for example, this Core's recent experience with the word `bank` may influence which sense it considers likely.
+
+But Soul must never alter the exact structural fact that the current field contained particular characters in particular positions. Current input remains current input; Soul is private context.
 
 ---
 
@@ -738,9 +909,23 @@ Train meaning -> sentence plan -> words -> exact substrate.
 
 Evaluate semantic correctness separately from surface serialization correctness.
 
-### TC-R10 — Soul and multi-tick lived reasoning
+### TC-R10 — Soul metabolism and multi-tick lived reasoning
 
-Delayed recall, Soul swaps, missing-field evidence, personal continuity, learning from prior experience.
+Prove the full bounded private lifecycle rather than merely proving that a Soul tensor perturbs activations:
+
+- fresh blank Soul inhale;
+- HOT capture of completed INPUT/OUTPUT breaths;
+- next-tick use of HOT alongside new input;
+- deliberate English HOT -> WARM summarization;
+- deliberate English WARM -> COLD compression;
+- COLD -> generation-local DEEP_COLD distillation material;
+- offline adapter/LoRA training while sibling cores continue serving;
+- successful adapter acceptance followed by DEEP_COLD clearing;
+- bounded-capacity consumption so Soul never grows without limit.
+
+Required causal tests should include delayed recall with the relevant fact absent from current input, Soul ablation/swaps between compatible test cores where appropriate, and adversarial cases where stale or misleading Soul context must not override current exact evidence.
+
+Because Soul is intentionally volatile, crash recovery and provenance retention are **not** Soul mastery gates. Those durability obligations belong to Dormant and organism-level evidence systems.
 
 Every stage must have counterfactual use proofs, not merely falling loss.
 
@@ -881,7 +1066,7 @@ Engineers reviewing this opening should answer as many as possible and are encou
 
 ### Lexical identity and semantics
 
-15. What exactly persists when Axon learns a new word: parameters, a lexical store record, knowledge-graph nodes, Soul state, Dormant experience, or some combination?
+15. What exactly persists when Axon learns a new word: parameters, a lexical store record, knowledge-graph nodes, Dormant experience, or some combination? Soul may hold the word temporarily as private lived context, but it is not the durable lexical store.
 16. How do we distinguish exact spelling identity from lexeme identity and word sense?
 17. How should capitalization affect identity?
 18. How should homonyms and polysemy be represented?
@@ -918,25 +1103,33 @@ Engineers reviewing this opening should answer as many as possible and are encou
 
 ### Soul, Dormant, Cortex, dictionary
 
-40. Should Soul attach primarily at word/sentence/reasoning level rather than character level?
-41. What lexical information belongs in private Soul versus shared Dormant/Cortex knowledge?
-42. Should the lexical dictionary be a Cortex service, Dormant index, knowledge-graph projection, or a new derived organ?
-43. How does the Core learn a new definition from one lived encounter without unsafe immediate parameter mutation?
-44. How should repeated experience eventually distill lexical/concept knowledge into parameters or adapters?
-45. How do we prove that retrieved dictionary knowledge causally changed understanding rather than merely correlated with output?
+40. Should HOT/WARM/COLD be stored strictly as English text/records, or should they also carry temporary same-generation cached word/sentence states for speed while keeping English authoritative?
+41. At what exact stage should private Soul English re-enter cognition on inhale: lexical construction, sentence construction, proposition space, or a staged combination?
+42. What should HOT's minimum episode schema be: INPUT + OUTPUT only, or INPUT + OUTPUT + a deliberately written REFLECTION?
+43. What capacity and promotion trigger should each Soul temperature use so the lifecycle is bounded without becoming mechanically periodic and stupid?
+44. What training objective teaches the Core to summarize HOT -> WARM and WARM -> COLD without merely copying or hallucinating lessons?
+45. What exactly should DEEP_COLD contain to produce useful LoRA/adaptation signal while remaining generation-local and disposable?
+46. After successful promotion downward, should the consumed upper layer be cleared immediately, lazily overwritten, or retained for one verification cycle?
+47. When a DEEP_COLD-trained adapter fails its gates, should that volatile material be retained for another attempt or discarded and relearned?
+48. What belongs in volatile private Soul versus durable Dormant? The current ruling is that organism-level lived episodes, provenance, and retained history belong in Dormant, not Soul. Challenge this boundary explicitly if you disagree.
+49. How should one Core's useful private lesson ever become organism-level durable knowledge without making Soul itself public or persistent?
+50. Should the lexical dictionary be a Cortex service, Dormant index, knowledge-graph projection, or a new derived organ?
+51. How does the Core learn a new definition from one lived encounter without unsafe immediate parameter mutation?
+52. How should repeated experience eventually distill lexical/concept knowledge into parameters or adapters?
+53. How do we prove that retrieved dictionary knowledge causally changed understanding rather than merely correlated with output?
 
 ### Architecture challenge questions
 
-46. What parts of a transformer remain useful after exact ingestion and hierarchical language construction?
-47. Do we need Q/K/V at all in the lexical stage?
-48. Do we need a decoder-only transformer anywhere?
-49. Is "attention head" the wrong primitive for Axon?
-50. Should the Core be a heterogeneous pipeline rather than repeated homogeneous layers?
-51. Which parts should be deterministic software because the answer is structurally known?
-52. Which parts genuinely require learning?
-53. Which current Step-24 tensors, if any, still belong in this architecture?
-54. Should we begin entirely fresh rather than carry donor tissue whose learned geometry came from the wrong problem?
-55. What tiny experiment can falsify this entire hierarchy before we invest in it?
+54. What parts of a transformer remain useful after exact ingestion and hierarchical language construction?
+55. Do we need Q/K/V at all in the lexical stage?
+56. Do we need a decoder-only transformer anywhere?
+57. Is "attention head" the wrong primitive for Axon?
+58. Should the Core be a heterogeneous pipeline rather than repeated homogeneous layers?
+59. Which parts should be deterministic software because the answer is structurally known?
+60. Which parts genuinely require learning?
+61. Which current Step-24 tensors, if any, still belong in this architecture?
+62. Should we begin entirely fresh rather than carry donor tissue whose learned geometry came from the wrong problem?
+63. What tiny experiment can falsify this entire hierarchy before we invest in it?
 
 ---
 
