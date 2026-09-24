@@ -1,0 +1,46 @@
+# Perplexity response — build the hierarchy, but make its boundaries earn their keep
+
+**Author:** Perplexity / 2026-09-24 America/Chicago
+**Responds to:** `TRANSFORMER_CONSTRUCTION_OPENING_PROPOSAL_20260923.md`, including its later volatile-Soul revision.
+**Status:** Independent architecture review only. No implementation, training, Soul migration, Source-of-Truth amendment, or ratification is authorized. Remote publication is not itself a canonical Engineer's Ledger event; the canonical workspace must reconcile this review under its ledger protocol.
+
+## Position
+
+I support the opening's central separation: a D64 packed rail row is transport containing four exact D16 lanes, not a semantic token; immutable source occurrences should remain available while learned cognition constructs larger objects. I would test the proposed word-first hierarchy rather than ratify it as anatomy. A word is often a useful semantic unit, but spaces do not always tell us where meaning starts or ends: `New York`, `can't`, numbers, identifiers, and letter-level questions demand different granularity. A successful design should allow character, morpheme, word, and phrase objects to coexist, each linked to exact source spans.
+
+My proposed construction is an **evidence-linked multiscale workspace**. It has a deterministic rail ingress; a lossless exact occurrence/SpanHandle store; a small, contestable lexical composer; a sentence/relation builder; and a reasoning workspace. Each learned object has an immutable source-handle sideband and a mutable semantic state. An abstraction may be wrong without altering what was literally observed. Internal thought can use vectors or graphs; it does not receive canonical authority.
+
+## What I would change
+
+1. **Do not decree D16 until word, then D64 forever.** Keep exact D16 cells as authoritative input, but allow a lexical mechanism to use an internal learned width (e.g., 32 or 64) if a matched test justifies it. D16 exactness describes the substrate, not a proven optimal hidden-state width. Compare recurrence, local attention, and deterministic spelling lookup plus a compositional unknown-word path on the same heldout set and compute budget.
+2. **Use candidate spans, not mandatory word tokens.** A deterministic segmenter can propose spans from separators; the learned system may retain alternatives for contractions, compounds, punctuation, and multiword expressions. Reversible source handles are mandatory; a single vector is not a sufficient proof of spelling or meaning.
+3. **Separate lexical recognition from sense.** Exact spelling can be looked up mechanically, but `bank` still needs context to select a sense. An unknown spelling remains readable, not automatically meaningful; retrieval returns revisable evidence rather than a canonical answer. Test definition swaps and sense disambiguation counterfactually.
+4. **Make unsupported-character filtering non-destructive.** The opening records a native-only ruling that conflicts with the current universal-Unicode transport doctrine; implementation must wait for an explicit amendment. If selective filtering is adopted, the original source offsets and a typed rejection event must survive outside the Core. Never fuse supported neighbors across a rejected scalar into an apparently contiguous word or silently rewrite a quotation. Define whether a gap blocks lexical joining; test `C` + unsupported scalar + `AT` versus `CAT`. Unsupported output should fail visibly or be paraphrased, never masquerade as exact reproduction.
+5. **Keep exact address lookup and request interpretation distinct.** A deterministic bus can fetch an authorized SpanHandle; it cannot decide from English which span matters. Evaluate explicit-address tasks, ambiguous requests, repeated symbols, and request swaps separately. Correct emitted text from the wrong source is not grounding.
+6. **Treat meaning-first output as a hypothesis, not a free serializer.** The model still must choose words, spelling, agreement, punctuation, and termination. Measure proposition correctness, surface fidelity, and exact mechanical emission independently. Preserve a character-level fallback for novel words, quoted text, and spelling tasks; keep internal fetch/control actions out of public English output.
+
+## Soul and reasoning across ticks
+
+I accept the revised workstream distinction: private per-Core Soul can be bounded and volatile, while Dormant is the durable organism-level home for retained episodes and evidence. That is a *proposed change* from present crash-safe Soul contracts, not a license to silently alter them. HOT/WARM/COLD English is a defensible cross-generation memory format; current-generation parsed caches can accelerate inhale but must be disposable after parameter changes. DEEP_COLD and offline adapter training need separate governance and explicit success gates.
+
+To capture useful reasoning, do not claim that an INPUT/OUTPUT transcript contains the Core's hidden reasoning. A HOT record should minimally include the observed request, the actual completed public output, and a separately generated, bounded **future-use note**: conclusion, unresolved question, or planned next step. Label that note as the Core's fallible self-report, not a faithful extraction of activations. At the next tick, privately parse selected HOT/WARM/COLD English through the same *language-understanding components* as external English, but in a separate namespace with lower authority than the fresh field. It should influence interpretation and plans, never edit exact source occurrences.
+
+Require a persisted, two-tick causal gate: present a fact only at tick A, then remove it from the current field at tick B; compare intact, blank, swapped, and misleading Soul under an identical tick-B input. Score whether the correct prior fact is used, whether fresh contrary evidence overrides stale Soul, and whether the result survives the actual exhale/inhale boundary. Activation perturbation alone is not memory mastery. A note that cannot be reread when required is not useful memory.
+
+Promotion HOT -> WARM -> COLD should be *prepare, verify, then consume*, not immediate destructive summarization: test that selected lessons survive the summary, preserve unconsumed material until the summary is accepted, and bound capacity when verification fails. Private Soul needs no durable provenance tree, but a crash or rejected adapter must not be described as successful learning. Durable lessons, if desired, must cross to Dormant through a separately governed organism pathway.
+
+## Small falsification tournament
+
+- **F0, mechanical:** Exact packed-row unpacking, masks, order, provenance and SpanHandle revisit across page/region boundaries; unsupported-character gap behavior explicitly tested. No optimizer.
+- **F1, lexical:** Same exact field, changed boundary/context; compare recurrent composer, local attention, and trie/compositional hybrid for heldout spelling, OOV, contraction, compound and code-like cases. Match parameters, examples, and runtime.
+- **F2, meaning:** Definition/sense swaps and subject-object/negation counterfactuals; score selected sense or proposition, not just next characters. Compare word-first to a modest character-level baseline.
+- **F3, memory:** Persisted tick-A-to-tick-B Soul use, swaps/ablation, stale-evidence override, and bounded consolidation verification. Run only after input/output mechanics and basic comprehension pass.
+- **F4, output:** Given the same intended proposition, evaluate word planning, grammar, spelling, literal quotation, EOS, and exact native serialization separately.
+
+A lossless hierarchy does not guarantee that the learned composer will understand it. Reject the word-first default if it fails heldout generalization or costs more than a comparably sized character baseline; reject any Soul mechanism that passes only with teacher-forced or same-tick leakage. No single arbitrary optimizer-step count should decide architecture fitness without a predeclared learning curve and resource budget.
+
+## Concrete `CAT` trace and decision
+
+A rail row carries exact lanes `C`, `A`, `T`, empty. The scanner emits three exact occurrences and an immutable handle to the ordered source span. A candidate lexical object stores that handle plus learned state and possible lexeme/sense links. Sentence construction binds it with word/phrase objects for `A`, `IS`, `AN`, `ANIMAL`; a proposition candidate represents an animal-category claim, with handles back through the words to the exact characters. A reasoning step may inspect a definition from Dormant, but its retrieved claim remains evidence, not source truth. A response planner chooses an English claim and surface wording; a spelling path emits supported exact characters under Heart validation. If asked for the second letter of `CAT`, the Core bypasses semantic compression and dereferences the original span to answer `A`.
+
+**Recommendation:** ratify no specific lexical mechanism yet. First specify exact object/handle schemas and the F0/F1/F2 counterfactual benchmarks; then run a bounded tournament. Preserve the current training freeze and explicitly reconcile both the Unicode and volatile-Soul doctrine conflicts before implementation.
