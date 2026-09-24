@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-24T12:05:48.853275Z
+Updated: 2026-09-24T12:08:20.264789Z
 current_through_event_id:
-`evt-20260924T120548853275Z-chatgpt-event-driven-core-continuity`
+`evt-20260924T120820264789Z-chatgpt-event-driven-core-continuity-publish`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -48,6 +48,8 @@ The proposed organism cadence is now typed and event-driven. On an externally me
 The proposal also challenges the need for width-specific Heart rails. Every Core may share one exact substrate/event interface while independently widening internally for lexical, sentence, proposition, and deep-reasoning organs. It recommends retaining an exact local substrate mirror alongside widened cognition so synchronization never depends on a lossy D512/D2048 latent state. Stored mirror/cognitive state consumes memory but does not continuously consume FLOPs; compute occurs when deltas, sibling proposals, resynchronization, or other events activate the Core.
 
 The proposal treats incremental cognition like incremental compilation: substrate edits invalidate only dependent word/sentence/proposition/discourse objects unless semantic consequences propagate further. It explicitly leaves Mamba/SSM, recurrent, graph, attention, hybrid, substrate width, and final Soul anatomy open for engineering competition. It includes 44 review/falsification questions and an EC-R0..EC-R5 proof ladder beginning with exact mirror/delta synchronization before any large neural training. Jeff explicitly withdrew the recursive-consolidator extension during this discussion, so it is not included. No runtime code, Source of Truth, canonical State, live Soul, checkpoint, Trainer process, optimizer, or cloud workload was changed.
+
+Publication encountered one benign concurrency event: while ChatGPT was drafting, `origin/main` advanced from `70b32cc` to `af538bb` with `roundtable/Transformer Construction/10_PERPLEXITY_RESPONSE_20260924.md`. The first push was correctly rejected as non-fast-forward. ChatGPT fetched and inspected that single remote commit, merged it without conflict or force-push, preserved the Perplexity response unchanged, and then published the continuity proposal on top. Remote main reached merge commit `9d5c1f0` before this ledger follow-up.
 
 ## Current transformer-rebuild roundtable boundary
 
