@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-24T15:30:15.797908Z
+Updated: 2026-09-24T15:38:56.229740-05:00
 current_through_event_id:
-`evt-20260924T153015797908Z-chatgpt-transformer-construction-convergence`
+`evt-20260924T203856229740Z-chatgpt-d16-core-bus-transition`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -16,6 +16,18 @@ Identity stamp: ChatGPT / GPT-5.6 Sol / 2026-09-23 America/Chicago
 (previous revisions are superseded in the rolling summary, not erased; canonical events remain the authority)
 
 ## Current Transformer Construction workstream
+
+Jeff has now directed the next reasoning-Core serving boundary away from mandatory width-specific packed rails and toward a Heart-served exact **D16 Core Bus**. ChatGPT recorded this as `roundtable/Transformer Construction/40_D16_DELTA_BUS_AND_CORE_MIRROR_COHERENCE_RATIFICATION_20260924.md` and opened `roundtable/flags/CHATGPT_D16_CORE_BUS_DOCTRINE_TRANSITION_FLAG_20260924.md` because the current locked Source of Truth still mandates packed rails as the serving interface. No Axon runtime code or Source-of-Truth text changed in this turn.
+
+The new candidate keeps Heart as sole canonical owner/writer and keeps the existing FIRST -> REFINED -> rotating consolidator -> FINAL -> canonical commit sequence. The transport seam changes: a Core receives one complete exact permitted D16 field/view on initial synchronization and then exact versioned deltas; each long-running Core holds a non-authoritative exact local D16 mirror plus a separate architecture-native private cognitive state. Heart tracks **mirror coherence** per Core using canonical field/tick/view/mask identities, transport schema, hashes, and event sequence. A stale/gapped/hash-mismatched Core fails closed to `RESYNC_REQUIRED` and cannot enter a successful reasoning barrier until synchronized.
+
+The existing proposal board is retained as the noncanonical collection area for FIRST/REFINED English. The candidate replaces per-`d_model` rendered proposal rails with one exact D16 proposal-frame/bus representation. The public bus width therefore no longer equals the Core's private hidden width. D64 compiler/codec/adapter/checkpoints are preserved as legacy/specialist evidence rather than deleted, but are not the intended serving dependency of the new continuous Core family after doctrine reconciliation.
+
+This direction is backed by isolated evidence from `D:\ContinuousCoreLab`, which remains outside Axon and uses a synthetic frozen 16D codebook rather than Axon's canonical substrate. No lab checkpoint or source was imported. The one-GRU/no-attention D512 baseline has 1,660,051 parameters; copy scored resident 397/400, corrected delayed recall 400/400, and replacement/correction 599/600 resident with fresh rebuild 600/600. A representative CPU benchmark ran 30 training steps in 9.708 s (3.09 steps/s); representative CUDA allocation peaked near 47.9 MiB. The untuned D2048 baseline has 25,514,131 parameters and peaked near 518 MiB PyTorch VRAM; after 300/400/500-step copy/recall/edit phases it scored 1/300, 145/400, and 581/600 respectively, confirming feasible compute but harder optimization at greater width.
+
+Runtime inspection shows the organism does not need a wholesale rewrite. `runtime/field/schema.py`, `delta.py`, `state_branch.py`, Heart authority/transaction/host/valve machinery, `board.py`, English proposal/final contracts, participant barriers, consolidator semantics, and most canonical commit/recovery machinery are reusable. The primary coupling to replace is `ReasoningPassRequest.rail: RailRuntimeView` plus `d_model` equality/frozen-rail checks in `runtime/heart/circulation.py`, and the width-specific `RenderedProposalRail` layer in `runtime/heart/proposal_workspace.py`. Recommended new seams are `runtime/heart/core_bus.py`, `runtime/heart/mirror_coherence.py`, and optionally an exact width-independent `runtime/field/d16_view.py`.
+
+The build ladder is now B0..B6: first codify the narrow doctrine amendment; then prove deterministic D16 snapshot/delta/hash/resync behavior with no neural Core; prove Heart-side mirror coherence with fake Cores; swap the circulation transport while preserving legacy D64 tests; train a fresh D512 one-chamber/no-attention Core from Axon's real canonical substrate; advance through language curriculum; then restore multi-Core organism circulation. D512 is a first development baseline, not a permanent ceiling, and internal attention/SSM/graph/multi-chamber tissue remains open to later measured competition.
 
 ChatGPT has now added `roundtable/Transformer Construction/30_CONVERGENCE_CANDIDATE_CONTINUOUS_CORE_AND_TINY_FIELD_TRAINING_20260924.md` as the preferred build/training synthesis for Codex review. The candidate combines the opening hierarchy, event-driven Core continuity proposal, Perplexity review, and Jeff's latest training direction into one small, falsifiable next build. It remains proposal-level and does not itself amend locked Source of Truth.
 
