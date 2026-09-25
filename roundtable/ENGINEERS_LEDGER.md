@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-25T15:56:31.278634-05:00
+Updated: 2026-09-25T15:57:49.009091-05:00
 current_through_event_id:
-`evt-20260925T205631278634Z-chatgpt-core-roadmap-hash-correction`
+`evt-20260925T205749009091Z-chatgpt-core-roadmap-publish`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
