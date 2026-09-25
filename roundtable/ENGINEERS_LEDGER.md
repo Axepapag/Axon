@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-24T22:34:05.319312-05:00
+Updated: 2026-09-25T02:01:15.269518-05:00
 current_through_event_id:
-`evt-20260925T033405319312Z-chatgpt-d16-b3-publish`
+`evt-20260925T070115269518Z-chatgpt-core-architecture-hash-correction`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -12,8 +12,22 @@ Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
-Identity stamp: ChatGPT / GPT-5.6 Sol / 2026-09-24 America/Chicago
+Identity stamp: ChatGPT / GPT-5.6 Sol / 2026-09-25 America/Chicago
 (previous revisions are superseded in the rolling summary, not erased; canonical events remain the authority)
+
+
+
+## Current Core Architecture workstream
+
+Jeff opened a fresh `roundtable/Core Architecture/` workstream after the D16 Core Bus and first real B4 D512 learning evidence. The opening brief is `roundtable/Core Architecture/CORE_ARCHITECTURE_OPENING_20260925.md` (SHA256 `0D6DBF0ED5F182A1093C45BF4C4EF9E5478A3CE0F46DDB06F487A09A542261E8`). It is proposal-only and authorizes no implementation or training.
+
+The desk is deliberately cleared: earlier Transformer Construction, RNSC, pointer, Soul, rail, and hierarchy proposals remain history/evidence but are not automatic active candidates. Any idea must be reintroduced with a defined cognitive job, state ownership, interfaces, curriculum, falsifiable experiment, and removal criterion.
+
+The opening functional decomposition is **exact mirror != field interpretation != deliberative cognition**. Heart remains canonical; the Core's exact D16 mirror preserves evidence mechanically; a candidate Field Interpreter maintains learned region/relevance/correction/provenance understanding with exact handles back into the mirror; a candidate Deliberation Chamber carries persistent volatile private cognition; cognitive microsteps may let that state evolve multiple times per one Heart event; crystallization converts useful latent structure into explicit propositions before exact language/action serialization.
+
+The current one-GRU D512 B4 model is preserved as **Control A**, not declared obsolete. Its first substantial 700-step local governed tranche on Axon's real registered D16 substrate completed exit 0: heldout loss ~5.87 -> ~2.36, teacher content ~0.16% -> ~28.17% versus a ~2.35% content constant floor, free-running exact sequence 0% -> 2.5%, teacher EOS 87.5%, termination 100%, valid Unicode 100%, peak PyTorch CUDA allocation 78,771,712 bytes (~75 MiB). This is substrate-literacy evidence only, not language/reasoning proof.
+
+The opening tournament proposes controlled branches rather than a grand rewrite: Control A single GRU512; two recurrent chambers; D512 interpreter plus wider D1024/D2048 deliberator; GRU interpreter plus selective SSM/Mamba-like deliberator; private pondering with K cognitive microsteps; and only later small bounded attention above interpreted propositions if evidence justifies it. The table must test whether complexity earns capability.
 
 ## Current Transformer Construction workstream
 
@@ -25,9 +39,9 @@ B1/B2 are now implemented as deterministic infrastructure. `runtime/field/d16_vi
 
 This direction is backed by isolated evidence from `D:\ContinuousCoreLab`, which remains outside Axon and uses a synthetic frozen 16D codebook rather than Axon's canonical substrate. No lab checkpoint or source was imported. The one-GRU/no-attention D512 baseline has 1,660,051 parameters; copy scored resident 397/400, corrected delayed recall 400/400, and replacement/correction 599/600 resident with fresh rebuild 600/600. A representative CPU benchmark ran 30 training steps in 9.708 s (3.09 steps/s); representative CUDA allocation peaked near 47.9 MiB. The untuned D2048 baseline has 25,514,131 parameters and peaked near 518 MiB PyTorch VRAM; after 300/400/500-step copy/recall/edit phases it scored 1/300, 145/400, and 581/600 respectively, confirming feasible compute but harder optimization at greater width.
 
-Verification is green through B3. The original B1/B2 deterministic gate is extended by a caller-buffer ownership regression: D16 integrity now passes **12/12**. Focused B3 circulation plus lived-Trainer verification passes **18/18**; mixed D16/legacy Unicode/D64/mask/circulation/Trainer regression passes **73/73**; Heart coordinator/control-plane/durable-ingress/host/mask passes **66/66**; D64 codec/intelligence/lease passes **13/13**; Heart?Trainer authority binding passes **18/18**; and training preflight passes **4/4**. `compileall` and `git diff --check` pass. Codex's independent read-only audit found and ChatGPT repaired the interrupted import/API seams plus a real D16 external-buffer aliasing flaw before B3 acceptance. No neural Axon training or cloud workload has yet been launched.
+Verification is green through B3. The original B1/B2 deterministic gate is extended by a caller-buffer ownership regression: D16 integrity now passes **12/12**. Focused B3 circulation plus lived-Trainer verification passes **18/18**; mixed D16/legacy Unicode/D64/mask/circulation/Trainer regression passes **73/73**; Heart coordinator/control-plane/durable-ingress/host/mask passes **66/66**; D64 codec/intelligence/lease passes **13/13**; Heart?Trainer authority binding passes **18/18**; and training preflight passes **4/4**. `compileall` and `git diff --check` pass. Codex's independent read-only audit found and ChatGPT repaired the interrupted import/API seams plus a real D16 external-buffer aliasing flaw before B3 acceptance. B4 neural training has now been launched locally and produced the governed 24-step mechanism smoke plus the 700-step Control A result summarized above; no cloud workload was used.
 
-The build ladder has advanced through **B0, B1, B2, and B3**. B0 doctrine is ratified; B1 exact D16 view/snapshot/delta/resync contracts pass; B2 Heart mirror coherence passes; B3 live circulation no longer requires a Core's private width to have a matching physical rail. The next explicit tranche is **B4**: fresh local D512, one recurrent chamber, zero attention, trained from Axon's real registered D16 substrate. No `ContinuousCoreLab` checkpoint is transplanted. D512 is a first development baseline, not a permanent ceiling.
+The build ladder has advanced through **B0-B3**, and **B4 Control A is now established and has completed its first substantial local training tranche**. The D512 one-GRU/no-attention model remains a development baseline, not a permanent ceiling; the new Core Architecture workstream now governs exploration of deeper/hybrid anatomy while preserving this control.
 
 ChatGPT has now added `roundtable/Transformer Construction/30_CONVERGENCE_CANDIDATE_CONTINUOUS_CORE_AND_TINY_FIELD_TRAINING_20260924.md` as the preferred build/training synthesis for Codex review. The candidate combines the opening hierarchy, event-driven Core continuity proposal, Perplexity review, and Jeff's latest training direction into one small, falsifiable next build. It remains proposal-level and does not itself amend locked Source of Truth.
 
