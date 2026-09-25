@@ -1,10 +1,22 @@
-"""Day Zero runtime-facing D64 adapter surface.
+"""Runtime-facing Axon model/adaptation surfaces.
 
-The pre-D64 ExactV4/bootstrap/projection/runtime stack is archived under
-``archive/day_zero_legacy_2026-08-20``. New runtime work must build on the
-canonical D64 compiler/state contracts rather than importing archived modules.
+The legacy D64 adapter remains preserved. Continuous reasoning Cores may instead
+consume the Heart-served exact D16 Core Bus and widen only inside private learned
+tissue.
 """
 
+from .continuous_core_d512 import (
+    CONTINUOUS_CORE_D512_ARCHITECTURE,
+    CONTINUOUS_CORE_D512_OUTPUT_SCHEMA,
+    ContinuousCoreD512,
+    ContinuousCoreD512Config,
+)
 from .d64_adapter import CanonicalD64RuntimeAdapter
 
-__all__ = ["CanonicalD64RuntimeAdapter"]
+__all__ = [
+    "CONTINUOUS_CORE_D512_ARCHITECTURE",
+    "CONTINUOUS_CORE_D512_OUTPUT_SCHEMA",
+    "CanonicalD64RuntimeAdapter",
+    "ContinuousCoreD512",
+    "ContinuousCoreD512Config",
+]

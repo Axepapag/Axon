@@ -487,7 +487,26 @@ tissue; they are no longer mandatory transport for the continuous-Core family.
   Unicode roundtrip, mask/view invalidation, event-gap rejection, stale-base
   rejection, reconnect/resync equivalence, proposal-board roundtrip, and Heart
   mirror-coherence exclusion of stale fake Cores must all pass before the
-  serving circulation is switched to a learned continuous Core.
+  serving circulation is switched to a learned continuous Core. B0-B3 have now
+  passed those deterministic/live-circulation gates; a `d_model=512` fake Core
+  has completed FIRST -> REFINED -> FINAL -> commit -> `CANONICAL_SYNC` without
+  any D512 physical rail in the frozen tick.
+- **B4 fresh D512 development baseline (ratified 2026-09-24).** The first learned
+  continuous-Core lineage is fresh exact D16 -> learned `16→512` projection ->
+  one `GRUCell(512,512)` resident chamber -> categorical transport output. It
+  has no attention/Transformer stack, no tokenizer embedding table, and no
+  learned address/pointer motor. Public output selects one of the 351 registered
+  substrate/UTF-8 transport categories and Heart/runtime serialization maps that
+  category mechanically back to its exact frozen D16 cell. One additional
+  private EOS control category governs variable-length termination and is never
+  serialized as a substrate cell. All B4 optimizer steps are Trainer-governed
+  isolated-candidate mutations under real preflight evidence, renewable resource
+  tranches, telemetry, and exact checkpoints; local compute is sufficient and
+  no cloud/Kaggle dependency is required. Opening copy/literacy success requires
+  content accuracy to move beyond a content-only constant-output floor and
+  free-running exact sequence accuracy to become nonzero; lower loss or EOS
+  mastery alone does not establish substrate literacy. Delayed recall and
+  correction/revision follow only after that first gate moves convincingly.
 
 ### D64 receipt-continuation transport (ratified 2026-09-08)
 
