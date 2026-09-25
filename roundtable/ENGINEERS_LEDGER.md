@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-25T02:01:59.154642-05:00
+Updated: 2026-09-25T02:45:00.000000-05:00
 current_through_event_id:
-`evt-20260925T070159154642Z-chatgpt-core-architecture-publish`
+`evt-20260925T074500000000Z-hermes-core-architecture-response`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -12,12 +12,20 @@ Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
-Identity stamp: ChatGPT / GPT-5.6 Sol / 2026-09-25 America/Chicago
+Identity stamp: Hermes / deepseek-v4.1-flash:cloud / 2026-09-25 America/Chicago
 (previous revisions are superseded in the rolling summary, not erased; canonical events remain the authority)
 
 
 
 ## Current Core Architecture workstream
+
+Hermes has submitted `roundtable/Core Architecture/HERMES_CORE_ARCHITECTURE_RESPONSE_20260925.md` as an independent **proposal-only** response. It endorses the evidence/interpretation/deliberation split and adds four concrete contributions: (1) a recomputed parameter-fair four-cell comparison grid — A single GRU512 = 1,765,216; B-368 (two GRU368) = 1,765,648 (+0.024% vs A); A-W716 (single GRU716) = 3,344,788 (+0.109% vs B-512); B-512 (two GRU512) = 3,341,152 — so split-vs-single is tested at matched capacity before any capacity claim (GRU724 at +2.27% and GRU1024 at +99.8% are materially mismatched and should not be the controls); (2) handle-identity binding rules grounded in live delta mechanics (canonical offsets shift under insert/delete/replace and span kind normalizes to delta_* — a handle must bind view identity + region identity + content hash + a rebuild-surviving span identity; offsets are never the binding); (3) a masks-as-attendance-not-forgetting doctrinal line (mask extension toward influence removal is a separate state-invalidation contract, never smuggled into the mask enum); (4) a zero-training resident-continuity bridge: load the existing B4 checkpoint into a resident D16 port to prove mirror synchronization plus retained hidden state across real deltas, joining B3's fixture proof to the real learned model with no optimizer step. The response also tightens the smallest-experiment package (four-cell grid at K=1, three seeds; quality-versus-transition-budget fairness for pondering curves; pre-declared advance rule at >=5 points with no seed reversal; stale-handle/identity violations fail the mechanism gate regardless of task score).
+
+Codex's response `roundtable/Core Architecture/CODEX_CORE_ARCHITECTURE_RESPONSE_20260925.md` was complete on disk with its ledger event and summary refresh already applied but never committed (its turn died at the commit step); it is landed in this sweep with Codex attribution. It supports the separation while treating two chambers and increased K as independent hypotheses, proposes the structured relational/correction task, exact evidence rereads, causal retention probes, matched resource reporting, and defers SSM/wider anatomy/separate language motor pending measured need. Gemini's `roundtable/Core Architecture/10_GEMINI_RESPONSE_20260925.md` is on disk with no ledger event yet and was left untouched for its author, per sweep protocol.
+
+The response independently checked the stored B4 report and ran the four focused B4 tests (all passed; pytest cache write warning disclosed). The 700-step report evaluates 120 of the curriculum's 240 heldout cases: 3/120 exact sequences and 28.169% teacher content accuracy. These satisfy the written minimal learning-signal conditions but do not establish dependable literacy, reasoning, or lived Soul use. The actual copy training/evaluation begins each case with zero hidden state; B3's circulation proof uses a fixture port. Joining learned cognition to resident runtime/Soul continuity remains work.
+
+Continuation boundary: the current B4 launcher intentionally supports base-zero tranches only. The withdrawn resume patch omitted the required accepted parent bundle; existing continuation contracts also bind optimizer receipt and Soul HEAD. The saved parameter/optimizer checkpoint must not be passed off as that bundle. Reconcile this with current Soul doctrine before a later resume repair. No checkpoint was altered or training restarted during the review.
 
 Jeff opened a fresh `roundtable/Core Architecture/` workstream after the D16 Core Bus and first real B4 D512 learning evidence. The opening brief is `roundtable/Core Architecture/CORE_ARCHITECTURE_OPENING_20260925.md` (SHA256 `0D6DBF0ED5F182A1093C45BF4C4EF9E5478A3CE0F46DDB06F487A09A542261E8`). It is proposal-only and authorizes no implementation or training.
 

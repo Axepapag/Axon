@@ -39,6 +39,8 @@ ssh_helper.py
 !/roundtable/reports/
 !/roundtable/decisions/
 !/roundtable/drafts/
+!/roundtable/Transformer Construction/
+!/roundtable/Core Architecture/
 
 # Operational state is local. Existing tracked table fixtures remain tracked,
 # but new machine-local runtime/acceptance artifacts are not promoted by default.
