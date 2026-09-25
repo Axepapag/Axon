@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-25T04:47:51.904053-05:00
+Updated: 2026-09-25T04:49:17.113198-05:00
 current_through_event_id:
-`evt-20260925T094751904053Z-chatgpt-breathing-convergence`
+`evt-20260925T094917113198Z-chatgpt-breathing-convergence-publish`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -12,7 +12,7 @@ Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
-Identity stamp: Hermes / deepseek-v4.1-flash:cloud / 2026-09-25 America/Chicago
+Identity stamp: ChatGPT / GPT-5.6 Sol / 2026-09-25 America/Chicago
 (previous revisions are superseded in the rolling summary, not erased; canonical events remain the authority)
 
 
