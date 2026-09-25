@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-25T02:45:00.000000-05:00
+Updated: 2026-09-25T04:47:51.904053-05:00
 current_through_event_id:
-`evt-20260925T074500000000Z-hermes-core-architecture-response`
+`evt-20260925T094751904053Z-chatgpt-breathing-convergence`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -16,6 +16,16 @@ Identity stamp: Hermes / deepseek-v4.1-flash:cloud / 2026-09-25 America/Chicago
 (previous revisions are superseded in the rolling summary, not erased; canonical events remain the authority)
 
 
+
+## Converged breathing cadence - 2026-09-25
+
+Jeff has converged the organism-level reasoning cadence on **synchronous breathing**. Heart begins each breath by proving every active Core's permitted exact D16 mirror coherent with one canonical field/view/mask identity (**inhale**). Cores then think privately in parallel. Every successful active Core emits one nonempty useful thought during **exhale**; Heart atomically appends those thoughts to canonical reasoning history. Only after that commit does the next inhale occur, so all Cores see the same completed prior breath and no Core consumes a sibling's current-breath output early.
+
+Reasoning history is **append-only lived experience**, not a set of replaceable per-Core slots. Axon does not truncate or delete older thought. Existing mask law applies unchanged: each region's governed 0-100% mask determines present attendance, while masked cells remain exact, position-stable, dormant-in-place, and later re-exposable. The complete breath history is therefore durable training material for future curricula, adapters/LoRA, distillation, specialization, critique pairs, and parameter improvement.
+
+The old FIRST -> REFINED -> rotating-consolidator temporal protocol is now superseded at the architectural-convergence level, but `docs/SOURCE_OF_TRUTH.md` still contains that binding wording. Runtime replacement is therefore **not yet authorized** until those clauses are explicitly amended. The former consolidator function is being reframed as a rotating scoped actor/steward: when granted authority by Heart it may propose updates to governed regions such as response draft, Journal, Scratch, tool/advisor requests, or task state; it does not summarize or vote over sibling proposals.
+
+Training discussion now starts from a different objective: **teach each Core to make the next breath more useful**. Control A (the measured single-GRU D512 baseline) remains the comparison anchor. The first curriculum should separate substrate/language mechanics from breath-native cognitive contribution, causal continuity, correction, evidence grounding, and eventually scoped stewardship rather than rushing directly to open-ended conversation.
 
 ## Current Core Architecture workstream
 
