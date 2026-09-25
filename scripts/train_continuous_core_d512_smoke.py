@@ -13,7 +13,6 @@ import torch
 from runtime.axon_runtime import CONTINUOUS_CORE_D512_ARCHITECTURE, ContinuousCoreD512
 from runtime.field import canonical_json_bytes, canonical_sha256
 from runtime.trainer import (
-    CandidateCheckpointRecord,
     GovernedLearningPolicy,
     OrganKind,
     ParameterModuleDescriptor,
@@ -35,7 +34,7 @@ from training.continuous_core_d512 import (
     evaluate_d512_copy,
 )
 
-D512_SMOKE_SCHEMA = "axon-continuous-core-d512-smoke-v2"
+D512_SMOKE_SCHEMA = "axon-continuous-core-d512-smoke-v1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,8 +47,6 @@ class D512SmokeResult:
     tranche_id: str
     preflight_receipt_id: str
     checkpoint_id: str
-    base_global_step: int
-    parent_checkpoint_id: str | None
     device: str
     steps: int
     batch_size: int
@@ -74,8 +71,6 @@ class D512SmokeResult:
             "tranche_id": self.tranche_id,
             "preflight_receipt_id": self.preflight_receipt_id,
             "checkpoint_id": self.checkpoint_id,
-            "base_global_step": self.base_global_step,
-            "parent_checkpoint_id": self.parent_checkpoint_id,
             "device": self.device,
             "steps": self.steps,
             "batch_size": self.batch_size,
@@ -119,7 +114,6 @@ def run_d512_smoke(
     seed: int = 20260924,
     learning_rate: float = 8e-4,
     device: str = "auto",
-    resume_latest: bool = False,
 ) -> D512SmokeResult:
     if steps < 1 or batch_size < 1:
         raise ValueError("steps and batch_size must be positive")
@@ -201,69 +195,24 @@ def run_d512_smoke(
             batch_size=batch_size,
             state_root=root,
         )
-        parent_checkpoint = None
-        base_global_step = 0
-        if resume_latest:
-            latest_path = (
-                root
-                / "training"
-                / "trainer"
-                / "candidates"
-                / module_id
-                / candidate_generation_id
-                / "latest_checkpoint.json"
-            )
-            if not latest_path.is_file():
-                raise RuntimeError(f"no latest checkpoint exists for resume at {latest_path}")
-            parent_checkpoint = CandidateCheckpointRecord.from_mapping(
-                json.loads(latest_path.read_text(encoding="utf-8"))
-            )
-            if (
-                parent_checkpoint.module_id != module_id
-                or parent_checkpoint.candidate_generation_id != candidate_generation_id
-            ):
-                raise RuntimeError("latest checkpoint belongs to another D512 candidate")
-            base_global_step = parent_checkpoint.step
-
         tranche = ResourceTranche(
             module_id=module_id,
             candidate_generation_id=candidate_generation_id,
             plan_id=plan.plan_id,
             learning_policy_id=policy.policy_id,
-            base_global_step=base_global_step,
+            base_global_step=0,
             steps=steps,
-            purpose=(
-                "B4 resumed D512 local substrate-literacy tranche"
-                if parent_checkpoint is not None
-                else "B4 fresh D512 local substrate-literacy smoke"
-            ),
+            purpose="B4 fresh D512 local substrate-literacy smoke",
         )
         TrancheStore(root / "training" / "trainer").write_tranche(tranche)
 
-        session = control.begin_candidate(
-            inventory,
-            grant,
-            plan,
-            preflight_receipt=preflight,
-            policy=policy,
-            tranche=tranche,
-        )
-        if parent_checkpoint is not None:
-            session.restore_checkpoint(parent_checkpoint)
-
-        session.candidate_module.eval()
-        baseline = evaluate_d512_copy(
-            session.candidate_module,
-            curriculum.heldout_cases,
-            device=resolved_device,
-        )
+        baseline = evaluate_d512_copy(model, curriculum.heldout_cases, device=resolved_device)
         _write_immutable(
             root / "training" / "continuous_core_d512" / "evaluations" / f"{baseline.evaluation_id}.json",
             baseline.to_canonical_dict(),
         )
         print(
             "BASELINE",
-            f"base_step={base_global_step}",
             f"loss={baseline.mean_loss:.6f}",
             f"content={baseline.teacher_content_accuracy:.6f}",
             f"eos={baseline.teacher_eos_accuracy:.6f}",
@@ -273,12 +222,20 @@ def run_d512_smoke(
             flush=True,
         )
 
+        session = control.begin_candidate(
+            inventory,
+            grant,
+            plan,
+            preflight_receipt=preflight,
+            policy=policy,
+            tranche=tranche,
+        )
         session.candidate_module.train()
         batches = deterministic_copy_batches(
             curriculum,
             batch_size=batch_size,
             steps=steps,
-            seed=seed + 17 + base_global_step,
+            seed=seed + 17,
         )
         losses: list[float] = []
         for step_index, cases in enumerate(batches, start=1):
@@ -320,8 +277,6 @@ def run_d512_smoke(
             tranche_id=tranche.tranche_id,
             preflight_receipt_id=preflight.receipt_id,
             checkpoint_id=checkpoint.checkpoint_id,
-            base_global_step=base_global_step,
-            parent_checkpoint_id=(None if parent_checkpoint is None else parent_checkpoint.checkpoint_id),
             device=str(resolved_device),
             steps=steps,
             batch_size=batch_size,
@@ -369,7 +324,6 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=20260924)
     parser.add_argument("--learning-rate", type=float, default=8e-4)
     parser.add_argument("--device", default="auto")
-    parser.add_argument("--resume-latest", action="store_true")
     args = parser.parse_args()
     result = run_d512_smoke(
         state_root=Path(args.state_root),
@@ -378,7 +332,6 @@ def main() -> None:
         seed=args.seed,
         learning_rate=args.learning_rate,
         device=args.device,
-        resume_latest=args.resume_latest,
     )
     print(json.dumps(result.to_canonical_dict(), sort_keys=True))
 
