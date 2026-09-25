@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-25T05:20:02.539480-05:00
+Updated: 2026-09-25T15:56:31.278634-05:00
 current_through_event_id:
-`evt-20260925T102002539480Z-codex-continuous-breathing-clarification`
+`evt-20260925T205631278634Z-chatgpt-core-roadmap-hash-correction`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -12,10 +12,18 @@ Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
-Identity stamp: Codex / GPT-6 / 2026-09-25 America/Chicago
+Identity stamp: ChatGPT / GPT-5.6 Sol / 2026-09-25 America/Chicago
 (previous revisions are superseded in the rolling summary, not erased; canonical events remain the authority)
 
 
+
+## Core roadmap ? working Axon first, advanced Core second
+
+Jeff has directed a deliberate two-track reset. The near-term execution track returns to the simplest measured Core: one resident GRU512 must first become reliably literate, conversational, persistent across real canonical deltas, and capable of continuous breath-native Thoughtstream contribution. Once one accepted Core works inside the real Heart/D16 body, clone that same parameter generation into multiple resident Cores with separate recurrent states and round-robin Executive authority. This gives Axon a working ensemble before advanced Core anatomy is required.
+
+The ambitious research track remains active in `roundtable/Core Architecture/AXON_CORE_ROADMAP_20260925.md` (SHA256 `5D3DBB77786C3DBCDD5FB947F8633DC8D5F04DF8C4BA720D18EC79E04BED66E3`). It separates exact mirror, recurrent working state, internal trajectory, and public thought; preserves Soul as an open trajectory-reflection/learning-signal hypothesis; and proposes future Working, Reflection, Synthesis, and Crystallizer chambers. Attention may return only over bounded trajectory/latent workspaces so canonical lifetime growth does not create lifetime-scale quadratic attention.
+
+The roadmap also preserves the long-term developmental goal: Axon's lived experience should eventually improve parameters, but only through outcome/provenance-governed derived training material rather than blindly training on everything Axon once thought. The advanced multi-chamber program must compete against the working single-GRU control and must not block the first living Axon. No training or runtime change was authorized by the roadmap turn.
 
 ## Converged breathing cadence - 2026-09-25
 
