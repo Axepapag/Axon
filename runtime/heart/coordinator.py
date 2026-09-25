@@ -219,6 +219,11 @@ class BeatCoordinator:
 
         return self.current_view_id != self._last_view_id
 
+    def region_masks(self) -> dict[LogicalRegion, RegionMaskPolicy]:
+        """Return a detached exact mask-policy set for derived transport materialization."""
+
+        return self._region_masks()
+
     def sync_to_branch_head(self) -> SharedFieldSnapshot:
         """Synchronize coordinator memory to durable canonical HEAD."""
 

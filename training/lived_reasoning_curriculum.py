@@ -27,7 +27,7 @@ from runtime.trainer import EpisodeOutcomeQuality, LoadedRuntimeEpisode
 from .living_reasoning_curriculum import LivingReasoningCurriculum, LivingReasoningEpisode, LivingReasoningTarget
 
 LIVED_REASONING_COMPILATION_SCHEMA = "axon-lived-english-reasoning-compilation-v1"
-_CURRENT_CIRCULATION_SCHEMA = "axon-reasoning-circulation-v3"
+_ENGLISH_CIRCULATION_SCHEMAS = frozenset({"axon-reasoning-circulation-v3", "axon-reasoning-circulation-v4"})
 
 
 def _workspace_text(value: Mapping[str, Any]) -> str:
@@ -153,7 +153,7 @@ class EvidenceQualifiedLivedCurriculumCompiler:
             return TechnicalFinalVerdict.from_delta(episode.pre_action_field, delta, rail_d_model=64).text
 
         circulation = episode.circulation
-        if circulation.get("schema") == _CURRENT_CIRCULATION_SCHEMA:
+        if circulation.get("schema") in _ENGLISH_CIRCULATION_SCHEMAS:
             verdict = TechnicalFinalVerdict.from_mapping(circulation["consolidator_verdict"])
             # Materialization is a second exact check that the serialized FINAL
             # remains valid against the loaded frozen base.
@@ -182,7 +182,7 @@ class EvidenceQualifiedLivedCurriculumCompiler:
         scope: str,
     ) -> tuple[LivingReasoningTarget, LivingReasoningTarget]:
         circulation = episode.circulation
-        is_v3 = circulation.get("schema") == _CURRENT_CIRCULATION_SCHEMA
+        is_v3 = circulation.get("schema") in _ENGLISH_CIRCULATION_SCHEMAS
         if is_v3:
             consolidator = str(circulation["consolidator_core_id"])
             first_proposal = _one_author_proposal(

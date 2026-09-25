@@ -5,6 +5,7 @@ import pytest
 
 from runtime.field import (
     DeleteText,
+    D16RegionView,
     D16ResyncRequired,
     D16ViewDelta,
     FieldDelta,
@@ -67,6 +68,29 @@ def test_complete_view_is_exact_registered_d16_transport() -> None:
     assert view.source_tick_id == snapshot.tick_id
     assert len(view.view_id) == 64
     assert len(view.view_hash) == 64
+
+
+def test_region_view_owns_cell_buffer_and_identity_survives_caller_mutation() -> None:
+    source = materialize_d16_view(_base_snapshot()).region(LogicalRegion.USER_INPUT)
+    backing = source.cells16.copy()
+    owned = D16RegionView(
+        region=source.region,
+        text=source.text,
+        cells16=backing,
+        addresses=source.addresses,
+    )
+    identity_before = (owned.cells_sha256, owned.region_hash)
+    cells_before = owned.cells16.copy()
+
+    # Mutate the caller's original writable buffer after construction.  The
+    # region must own a detached immutable copy or Heart could trust a stale
+    # hash/identity over changed cells.
+    backing[0, 0] = backing[0, 0] + np.float32(123.0)
+
+    assert not np.shares_memory(backing, owned.cells16)
+    assert np.array_equal(owned.cells16, cells_before)
+    assert (owned.cells_sha256, owned.region_hash) == identity_before
+    assert not owned.cells16.flags.writeable
 
 
 def test_insert_delete_replace_deltas_match_clean_rebuild_exactly() -> None:

@@ -21,7 +21,9 @@ from runtime.field import (
     D64FieldCompiler,
     FieldDelta,
     LogicalRegion,
+    RegionMaskPolicy,
     SharedFieldSnapshot,
+    materialize_d16_view,
     apply_delta,
     canonical_json_bytes,
     canonical_sha256,
@@ -31,6 +33,7 @@ from runtime.field import (
 from runtime.heart import (
     AuthorityGrant,
     CategoricalTextFrame,
+    D16TextFrame,
     EnglishProposal,
     ReasoningEmission,
     TechnicalFinalVerdict,
@@ -424,6 +427,58 @@ class RuntimeEpisodeLoader:
         circulation: Mapping[str, Any],
     ):
         view = dict(value)
+        schema = view.get("schema")
+        image = dict(circulation["image"])
+
+        if schema == "axon-runtime-attention-view-v2":
+            required = {
+                "schema", "source_field_id", "source_tick_id", "view_id",
+                "d16_view_id", "mask_id", "transport_schema", "view_hash",
+                "region_masks", "regions", "region_hashes",
+            }
+            if set(view) != required:
+                raise ValueError("runtime D16 attention view fields are invalid")
+            if view["source_field_id"] != base.field_id or view["source_tick_id"] != base.tick_id:
+                raise ValueError("runtime D16 attention view is stale for its base")
+            if view["view_id"] != image.get("view_id"):
+                raise ValueError("runtime D16 attention view identity disagrees with the tick image")
+
+            raw_masks = dict(view["region_masks"])
+            masks: dict[LogicalRegion, RegionMaskPolicy] = {}
+            for raw_region, raw_policy in raw_masks.items():
+                region = LogicalRegion(raw_region)
+                policy = dict(raw_policy)
+                if set(policy) != {"kind", "limit"}:
+                    raise ValueError("runtime D16 attention mask policy is malformed")
+                masks[region] = RegionMaskPolicy(policy["kind"], policy.get("limit", 0))
+
+            d16 = materialize_d16_view(base, region_masks=masks)
+            if (
+                view["d16_view_id"] != d16.view_id
+                or view["mask_id"] != d16.mask_id
+                or view["transport_schema"] != d16.transport_schema
+                or view["view_hash"] != d16.view_hash
+                or dict(view["region_hashes"]) != dict(d16.identity.region_hashes)
+            ):
+                raise ValueError("runtime D16 attention view identity cannot be reproduced exactly")
+
+            regions = dict(view["regions"])
+            if set(regions) != {region.value for region in CANONICAL_REGION_ORDER}:
+                raise ValueError("runtime D16 attention view does not account for every region")
+            for region in CANONICAL_REGION_ORDER:
+                expected = [
+                    {"start": start, "end": end}
+                    for start, end in sorted(
+                        {
+                            (address.attended_interval_start, address.attended_interval_end)
+                            for address in d16.region(region).addresses
+                        }
+                    )
+                ]
+                if list(regions[region.value]) != expected:
+                    raise ValueError("runtime D16 attention intervals do not reproduce the exact view")
+            return d16
+
         required = {
             "schema",
             "source_field_id",
@@ -432,14 +487,13 @@ class RuntimeEpisodeLoader:
             "rail_id",
             "regions",
         }
-        if set(view) != required or view["schema"] != "axon-runtime-attention-view-v1":
+        if set(view) != required or schema != "axon-runtime-attention-view-v1":
             raise ValueError("runtime attention view fields/schema are invalid")
         if (
             view["source_field_id"] != base.field_id
             or view["source_tick_id"] != base.tick_id
         ):
             raise ValueError("runtime attention view is stale for its base")
-        image = dict(circulation["image"])
         if view["view_id"] != image.get("view_id"):
             raise ValueError("runtime attention view identity disagrees with the tick image")
         regions = dict(view["regions"])
@@ -482,33 +536,45 @@ class RuntimeEpisodeLoader:
         workspace = dict(value)
         schema = workspace.get("schema")
         legacy = schema == "axon-heart-proposal-workspace-v1"
-        english = schema == "axon-heart-english-proposal-workspace-v2"
-        if not (legacy or english):
+        english_v2 = schema == "axon-heart-english-proposal-workspace-v2"
+        d16_v3 = schema == "axon-heart-english-proposal-workspace-v3"
+        if not (legacy or english_v2 or d16_v3):
             raise ValueError("runtime proposal workspace schema is invalid")
+
         required = {
             "schema", "image_id", "tick_uid", "pass_kind", "entries",
             "workspace_id", "rendered_rails",
         }
-        if english:
+        if english_v2 or d16_v3:
             required.add("readable_text")
+        if d16_v3:
+            required.add("d16_frame")
         if set(workspace) != required:
             raise ValueError("runtime proposal workspace fields are invalid")
         if workspace["image_id"] != image_id or workspace["tick_uid"] != tick_uid:
             raise ValueError("runtime proposal workspace is stale for its tick image")
+
         identity_keys = ["schema", "image_id", "tick_uid", "pass_kind", "entries"]
-        if english:
+        if english_v2 or d16_v3:
             identity_keys.append("readable_text")
         identity_body = {key: workspace[key] for key in identity_keys}
         if canonical_sha256(identity_body) != workspace["workspace_id"]:
             raise ValueError("runtime proposal workspace identity mismatch")
-        if english:
+
+        if english_v2 or d16_v3:
             readable = str(workspace["readable_text"])
         else:
             readable = canonical_json_bytes(
                 {**identity_body, "workspace_id": workspace["workspace_id"]}
             ).decode("utf-8")
+
+        if d16_v3:
+            frame = D16TextFrame.from_mapping(dict(workspace["d16_frame"]))
+            if frame.text != readable or frame.decode() != readable:
+                raise ValueError("runtime proposal D16 frame failed exact readable roundtrip")
+
         rails = tuple(workspace["rendered_rails"])
-        if not rails:
+        if not rails and not d16_v3:
             raise ValueError("runtime proposal workspace has no rendered rails")
         for raw_rail in rails:
             rail = dict(raw_rail)
@@ -609,7 +675,7 @@ class RuntimeEpisodeLoader:
                 image_id=image_id,
                 tick_uid=tick_uid,
             )
-            if circulation.get("schema") == "axon-reasoning-circulation-v3":
+            if circulation.get("schema") in {"axon-reasoning-circulation-v3", "axon-reasoning-circulation-v4"}:
                 first_proposals = tuple(
                     EnglishProposal.from_mapping(item) for item in circulation["first_proposals"]
                 )

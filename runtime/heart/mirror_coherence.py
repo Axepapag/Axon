@@ -7,7 +7,7 @@ from typing import Any
 
 from runtime.field.d16_view import D16ViewIdentity
 
-from .core_bus import FieldDeltaEvent, FieldSnapshotEvent, MirrorAck
+from .core_bus import CanonicalSyncEvent, FieldDeltaEvent, FieldSnapshotEvent, MirrorAck
 
 
 class MirrorCoherenceError(RuntimeError):
@@ -80,11 +80,15 @@ class MirrorCoherenceRegistry:
         except KeyError as exc:
             raise KeyError(f"unregistered Core {core_id!r}") from exc
 
-    def expect(self, core_id: str, event: FieldSnapshotEvent | FieldDeltaEvent) -> MirrorCoherenceRecord:
+    def expect(
+        self,
+        core_id: str,
+        event: FieldSnapshotEvent | FieldDeltaEvent | CanonicalSyncEvent,
+    ) -> MirrorCoherenceRecord:
         record = self.record(core_id)
         if record.state is MirrorSyncState.OFFLINE:
             raise MirrorCoherenceError(f"Core {core_id!r} is offline")
-        if isinstance(event, FieldDeltaEvent):
+        if isinstance(event, (FieldDeltaEvent, CanonicalSyncEvent)):
             if record.acknowledged_identity is None:
                 self._force_resync(record, "delta offered before initial snapshot acknowledgement")
                 raise MirrorCoherenceError(record.detail)

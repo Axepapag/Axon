@@ -529,7 +529,6 @@ class HeartHost:
         self,
         base: SharedFieldSnapshot,
         result: ReasoningCirculationResult,
-        exact_surface: CompiledD64Field,
         *,
         occurred_at: datetime,
     ):
@@ -544,10 +543,7 @@ class HeartHost:
                 "schema": "axon-runtime-reasoning-episode-v3",
                 "conversation_id": self.identity_store.identity.heart_epoch_id,
                 "pre_action_field": base.to_dict(),
-                "attention_view": attention_view_from_surface(
-                    exact_surface,
-                    view_id=result.image.view_id,
-                ),
+                "attention_view": dict(result.attention_view),
                 "circulation": result.to_canonical_dict(),
                 "response_text_sha256": hashlib.sha256(
                     response_text.encode("utf-8")
@@ -565,12 +561,10 @@ class HeartHost:
         if self._circulation is None:
             raise HostStateError("active reasoning cores have no configured runtime ports")
         base = self.coordinator.current_field
-        exact_surface = self.coordinator.rail_surface(64).exact
         result = self._circulation.run(occurred_at=occurred_at.isoformat())
         receipt = self._deposit_reasoning_episode(
             base,
             result,
-            exact_surface,
             occurred_at=occurred_at,
         )
         if self._reasoning_recovery is None:

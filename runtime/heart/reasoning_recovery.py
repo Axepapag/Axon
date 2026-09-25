@@ -13,6 +13,9 @@ from runtime.field import (
     CANONICAL_REGION_ORDER,
     CanonicalStateBranch,
     CompiledD64Field,
+    D16View,
+    LogicalRegion,
+    RegionMaskPolicy,
     apply_delta,
     canonical_json_bytes,
     canonical_sha256,
@@ -27,7 +30,8 @@ from .transaction import HeartCommit
 
 REASONING_RECOVERY_PREPARATION_SCHEMA = "axon-reasoning-recovery-preparation-v1"
 REASONING_RECOVERY_COMPLETION_SCHEMA = "axon-reasoning-recovery-completion-v1"
-_REASONING_CIRCULATION_SCHEMA = "axon-reasoning-circulation-v3"
+D16_ATTENTION_VIEW_SCHEMA = "axon-runtime-attention-view-v2"
+_REASONING_CIRCULATION_SCHEMA = "axon-reasoning-circulation-v4"
 
 
 def _atomic_json(path: Path, value: Mapping[str, Any]) -> None:
@@ -74,6 +78,51 @@ def attention_view_from_surface(
             ]
             for region in CANONICAL_REGION_ORDER
         },
+    }
+
+
+def attention_view_from_d16_view(
+    view: D16View,
+    *,
+    heart_view_id: str,
+    region_masks: Mapping[LogicalRegion, RegionMaskPolicy] | None = None,
+) -> dict[str, Any]:
+    """Serialize exact D16 attention evidence without introducing a packed rail."""
+
+    if not isinstance(view, D16View):
+        raise TypeError("attention_view_from_d16_view requires D16View")
+    if not isinstance(heart_view_id, str) or not heart_view_id:
+        raise ValueError("heart_view_id must be non-empty")
+    masks = dict(region_masks or {})
+    return {
+        "schema": D16_ATTENTION_VIEW_SCHEMA,
+        "source_field_id": view.source_field_id,
+        "source_tick_id": view.source_tick_id,
+        "view_id": heart_view_id,
+        "d16_view_id": view.view_id,
+        "mask_id": view.mask_id,
+        "transport_schema": view.transport_schema,
+        "view_hash": view.view_hash,
+        "region_masks": {
+            region.value: policy.to_canonical_dict()
+            for region, policy in sorted(masks.items(), key=lambda item: item[0].value)
+        },
+        "regions": {
+            region.value: [
+                {"start": start, "end": end}
+                for start, end in sorted(
+                    {
+                        (
+                            address.attended_interval_start,
+                            address.attended_interval_end,
+                        )
+                        for address in view.region(region).addresses
+                    }
+                )
+            ]
+            for region in CANONICAL_REGION_ORDER
+        },
+        "region_hashes": dict(view.identity.region_hashes),
     }
 
 
@@ -278,6 +327,7 @@ class ReasoningAutobiographyRecoveryStore:
             "soul_lineages": lineages,
             "consolidator_core_id": body["consolidator_core_id"],
             "consolidator_verdict": body["consolidator_verdict"],
+            "attention_view": body["attention_view"],
             "source_delta": body["source_delta"],
             "materialized_delta": body["materialized_delta"],
             "finalization_receipt": body["finalization_receipt"],
@@ -307,10 +357,12 @@ class ReasoningAutobiographyRecoveryStore:
 
 
 __all__ = [
+    "D16_ATTENTION_VIEW_SCHEMA",
     "REASONING_RECOVERY_COMPLETION_SCHEMA",
     "REASONING_RECOVERY_PREPARATION_SCHEMA",
     "ReasoningAutobiographyRecoveryStore",
     "ReasoningRecoveryPreparation",
     "RecoveredReasoningEpisode",
+    "attention_view_from_d16_view",
     "attention_view_from_surface",
 ]

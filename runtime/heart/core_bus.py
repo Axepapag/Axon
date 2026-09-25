@@ -25,6 +25,7 @@ from substrate import (
 
 CORE_BUS_SCHEMA = "axon-d16-core-bus-v1"
 CORE_BUS_TEXT_FRAME_SCHEMA = "axon-d16-core-bus-text-frame-v1"
+CORE_BUS_BINDING_SCHEMA = "axon-d16-core-bus-binding-v1"
 MIRROR_ACK_SCHEMA = "axon-d16-mirror-ack-v1"
 
 
@@ -90,6 +91,25 @@ class D16TextFrame:
                 raise ValueError("D16 text frame cell no longer matches registered transport cell")
         return decode_unicode_tokens(self.token_ids)
 
+    @classmethod
+    def from_mapping(cls, value: Any) -> "D16TextFrame":
+        if not isinstance(value, dict) or value.get("schema") != CORE_BUS_TEXT_FRAME_SCHEMA:
+            raise ValueError("serialized D16 text frame schema is invalid")
+        required = {
+            "schema", "transport_schema", "text", "token_ids",
+            "cells_sha256", "frame_id",
+        }
+        if set(value) != required:
+            raise ValueError("serialized D16 text frame fields are invalid")
+        frame = cls(str(value["text"]))
+        if tuple(value["token_ids"]) != frame.token_ids:
+            raise ValueError("serialized D16 text frame token ids are invalid")
+        if value["transport_schema"] != UNICODE_TRANSPORT_SCHEMA:
+            raise ValueError("serialized D16 text frame transport schema is invalid")
+        if value["cells_sha256"] != frame.cells_sha256 or value["frame_id"] != frame.frame_id:
+            raise ValueError("serialized D16 text frame identity mismatch")
+        return frame
+
     def to_canonical_dict(self) -> dict[str, Any]:
         return {
             "schema": CORE_BUS_TEXT_FRAME_SCHEMA,
@@ -99,6 +119,44 @@ class D16TextFrame:
             "cells_sha256": self.cells_sha256,
             "frame_id": self.frame_id,
         }
+
+
+@dataclass(frozen=True, slots=True)
+class D16RuntimeBinding:
+    """Heart-issued proof that one resident Core mirror is coherent for a pass."""
+
+    core_id: str
+    core_generation: int
+    identity: D16ViewIdentity
+    last_event_sequence: int
+    last_event_id: str
+    binding_id: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.core_id, str) or not self.core_id:
+            raise ValueError("D16 runtime binding core_id must be non-empty")
+        if isinstance(self.core_generation, bool) or not isinstance(self.core_generation, int) or self.core_generation < 0:
+            raise ValueError("D16 runtime binding core_generation must be a non-negative integer")
+        if not isinstance(self.identity, D16ViewIdentity):
+            raise TypeError("D16 runtime binding identity must be D16ViewIdentity")
+        if isinstance(self.last_event_sequence, bool) or not isinstance(self.last_event_sequence, int) or self.last_event_sequence < 0:
+            raise ValueError("D16 runtime binding event sequence must be a non-negative integer")
+        if not isinstance(self.last_event_id, str) or not self.last_event_id:
+            raise ValueError("D16 runtime binding last_event_id must be non-empty")
+        object.__setattr__(self, "binding_id", canonical_sha256(self.to_canonical_dict(include_id=False)))
+
+    def to_canonical_dict(self, *, include_id: bool = True) -> dict[str, Any]:
+        value = {
+            "schema": CORE_BUS_BINDING_SCHEMA,
+            "core_id": self.core_id,
+            "core_generation": self.core_generation,
+            "identity": self.identity.to_canonical_dict(),
+            "last_event_sequence": self.last_event_sequence,
+            "last_event_id": self.last_event_id,
+        }
+        if include_id:
+            value["binding_id"] = self.binding_id
+        return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,6 +199,36 @@ class FieldDeltaEvent:
     def __post_init__(self) -> None:
         if isinstance(self.sequence, bool) or not isinstance(self.sequence, int) or self.sequence < 0:
             raise ValueError("FIELD_DELTA sequence must be a non-negative integer")
+        object.__setattr__(self, "event_id", canonical_sha256(self.to_canonical_dict(include_id=False)))
+
+    @property
+    def target_identity(self) -> D16ViewIdentity:
+        return self.delta.target
+
+    def to_canonical_dict(self, *, include_id: bool = True) -> dict[str, Any]:
+        value = {
+            "schema": CORE_BUS_SCHEMA,
+            "kind": self.kind.value,
+            "sequence": self.sequence,
+            "delta": self.delta.to_canonical_dict(),
+        }
+        if include_id:
+            value["event_id"] = self.event_id
+        return value
+
+
+@dataclass(frozen=True, slots=True)
+class CanonicalSyncEvent:
+    """Post-commit exact mirror update that never grants reasoning authority."""
+
+    sequence: int
+    delta: D16ViewDelta
+    event_id: str = field(init=False)
+    kind: CoreBusEventKind = field(default=CoreBusEventKind.CANONICAL_SYNC, init=False)
+
+    def __post_init__(self) -> None:
+        if isinstance(self.sequence, bool) or not isinstance(self.sequence, int) or self.sequence < 0:
+            raise ValueError("CANONICAL_SYNC sequence must be a non-negative integer")
         object.__setattr__(self, "event_id", canonical_sha256(self.to_canonical_dict(include_id=False)))
 
     @property
@@ -224,7 +312,7 @@ class D16CoreMirror:
         self._last_event_id = event.event_id
         return self._ack()
 
-    def apply_delta(self, event: FieldDeltaEvent) -> MirrorAck:
+    def apply_delta(self, event: FieldDeltaEvent | CanonicalSyncEvent) -> MirrorAck:
         if self._view is None or self._last_sequence is None:
             raise D16ResyncRequired("Core has no D16 snapshot; full resync required")
         expected = self._last_sequence + 1
@@ -250,10 +338,13 @@ class D16CoreMirror:
 
 
 __all__ = [
+    "CORE_BUS_BINDING_SCHEMA",
     "CORE_BUS_SCHEMA",
+    "CanonicalSyncEvent",
     "CORE_BUS_TEXT_FRAME_SCHEMA",
     "CoreBusEventKind",
     "D16CoreMirror",
+    "D16RuntimeBinding",
     "D16TextFrame",
     "FieldDeltaEvent",
     "FieldSnapshotEvent",

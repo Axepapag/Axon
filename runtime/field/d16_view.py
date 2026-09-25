@@ -100,7 +100,10 @@ class D16RegionView:
     region_hash: str = field(init=False)
 
     def __post_init__(self) -> None:
-        cells = np.asarray(self.cells16, dtype=np.float32)
+        # Own the exact cell buffer.  ``setflags(write=False)`` on a caller-owned
+        # ndarray does not prevent another writable alias from mutating the same
+        # memory after the region hash/identity has been computed.
+        cells = np.array(self.cells16, dtype=np.float32, copy=True, order="C")
         addresses = tuple(self.addresses)
         if cells.ndim != 2 or cells.shape[1] != D16_WIDTH:
             raise ValueError("D16RegionView.cells16 must have shape [N, 16]")

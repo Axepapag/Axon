@@ -11,9 +11,17 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Protocol, runtime_checkable
+from typing import Any, Iterable, Mapping, Protocol, runtime_checkable
 
-from runtime.field import FieldDelta, SharedFieldSnapshot, canonical_sha256
+from runtime.field import (
+    D16ResyncRequired,
+    D16View,
+    D16ViewDelta,
+    FieldDelta,
+    SharedFieldSnapshot,
+    canonical_sha256,
+    materialize_d16_view,
+)
 from runtime.soul import (
     SoulCommitReceipt,
     SoulSnapshot,
@@ -23,8 +31,17 @@ from runtime.soul import (
 
 from .board import ParticipantRecord, ProposalBoard, ProposalPass
 from .coordinator import BeatCoordinator
+from .core_bus import (
+    CanonicalSyncEvent,
+    D16RuntimeBinding,
+    D16TextFrame,
+    FieldDeltaEvent,
+    FieldSnapshotEvent,
+    MirrorAck,
+)
 from .english_reasoning import EnglishProposal, TechnicalFinalVerdict
 from .errors import ReasoningCirculationError
+from .mirror_coherence import MirrorCoherenceError, MirrorCoherenceRegistry, MirrorSyncState
 from .proposal_workspace import (
     D64ProposalWorkspaceRenderer,
     ExactProposalWorkspaceRenderer,
@@ -34,6 +51,7 @@ from .proposal_workspace import (
 from .reasoning_recovery import (
     REASONING_RECOVERY_PREPARATION_SCHEMA,
     ReasoningAutobiographyRecoveryStore,
+    attention_view_from_d16_view,
     attention_view_from_surface,
 )
 from .registry import CoreDescriptor, CoreRegistry
@@ -41,10 +59,10 @@ from .tick import FrozenTickImage, RailBinding
 from .transaction import HeartCommit
 from .turns import TurnFinalizationReceipt, materialize_completed_turn
 
-REASONING_REQUEST_SCHEMA = "axon-reasoning-pass-request-v2"
+REASONING_REQUEST_SCHEMA = "axon-reasoning-pass-request-v3"
 REASONING_PASS_RESULT_SCHEMA = "axon-reasoning-pass-result-v2"
 REASONING_SOUL_LINEAGE_SCHEMA = "axon-reasoning-soul-lineage-v1"
-REASONING_CIRCULATION_SCHEMA = "axon-reasoning-circulation-v3"
+REASONING_CIRCULATION_SCHEMA = "axon-reasoning-circulation-v4"
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,14 +80,16 @@ class RailRuntimeView:
 
 @dataclass(frozen=True, slots=True)
 class ReasoningPassRequest:
-    """The complete, derived information one core may inspect for one phase."""
+    """One phase request bound to either the D16 Core Bus or a legacy rail."""
 
     descriptor: CoreDescriptor
     image: FrozenTickImage
     phase: str
-    rail: RailRuntimeView
     soul: SoulSnapshot
+    rail: RailRuntimeView | None = None
+    d16_binding: D16RuntimeBinding | None = None
     proposal_rails: tuple[RenderedProposalRail, ...] = ()
+    proposal_frames: tuple[D16TextFrame, ...] = ()
     request_id: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -83,8 +103,6 @@ class ReasoningPassRequest:
             "consolidated",
         }:
             raise ValueError(f"unknown reasoning phase {self.phase!r}")
-        if not isinstance(self.rail, RailRuntimeView):
-            raise TypeError("rail must be RailRuntimeView")
         if not isinstance(self.soul, SoulSnapshot):
             raise TypeError("soul must be SoulSnapshot")
         if (
@@ -93,15 +111,47 @@ class ReasoningPassRequest:
             or self.soul.parameter_generation != self.descriptor.parameter_generation
         ):
             raise ReasoningCirculationError("private soul does not belong to the invoked core generation")
-        if self.rail.d_model != self.descriptor.d_model:
-            raise ReasoningCirculationError("core descriptor and runtime rail widths differ")
-        if self.rail.binding != self.image.require_rail(self.descriptor.d_model):
-            raise ReasoningCirculationError("runtime rail is not bound to the frozen image")
+
+        rail = self.rail
+        d16_binding = self.d16_binding
+        if (rail is None) == (d16_binding is None):
+            raise ReasoningCirculationError("reasoning request requires exactly one transport binding")
+
         proposal_rails = tuple(self.proposal_rails)
-        if any(item.d_model != self.descriptor.d_model for item in proposal_rails):
-            raise ReasoningCirculationError("proposal workspace rail width differs from the home rail")
+        proposal_frames = tuple(self.proposal_frames)
+        if rail is not None:
+            if not isinstance(rail, RailRuntimeView):
+                raise TypeError("rail must be RailRuntimeView or None")
+            if rail.d_model != self.descriptor.d_model:
+                raise ReasoningCirculationError("core descriptor and runtime rail widths differ")
+            if rail.binding != self.image.require_rail(self.descriptor.d_model):
+                raise ReasoningCirculationError("runtime rail is not bound to the frozen image")
+            if proposal_frames:
+                raise ReasoningCirculationError("legacy rail request cannot also carry D16 proposal frames")
+            if any(item.d_model != self.descriptor.d_model for item in proposal_rails):
+                raise ReasoningCirculationError("proposal workspace rail width differs from the home rail")
+        else:
+            if not isinstance(d16_binding, D16RuntimeBinding):
+                raise TypeError("d16_binding must be D16RuntimeBinding or None")
+            if d16_binding.core_id != self.descriptor.core_id:
+                raise ReasoningCirculationError("D16 binding belongs to another Core")
+            if (
+                d16_binding.identity.field_id != self.image.identity.base_field_id
+                or d16_binding.identity.tick_id != self.image.identity.base_tick_id
+            ):
+                raise ReasoningCirculationError("D16 binding is stale for the frozen tick")
+            if proposal_rails:
+                raise ReasoningCirculationError("D16 request cannot also carry width-specific proposal rails")
+            if any(not isinstance(item, D16TextFrame) for item in proposal_frames):
+                raise TypeError("proposal_frames must contain D16TextFrame values")
+
         object.__setattr__(self, "proposal_rails", proposal_rails)
+        object.__setattr__(self, "proposal_frames", proposal_frames)
         object.__setattr__(self, "request_id", canonical_sha256(self.to_canonical_dict()))
+
+    @property
+    def transport_kind(self) -> str:
+        return "d16_core_bus" if self.d16_binding is not None else "legacy_rail"
 
     def to_canonical_dict(self) -> dict[str, Any]:
         return {
@@ -111,10 +161,13 @@ class ReasoningPassRequest:
             "phase": self.phase,
             "image_id": self.image.image_id,
             "tick_uid": self.image.identity.tick_uid,
-            "rail_id": self.rail.binding.rail_id,
+            "transport_kind": self.transport_kind,
+            "rail_id": None if self.rail is None else self.rail.binding.rail_id,
+            "d16_binding_id": None if self.d16_binding is None else self.d16_binding.binding_id,
             "soul_id": self.soul.soul_id,
             "soul_generation": self.soul.generation,
             "proposal_rail_ids": [item.rail_id for item in self.proposal_rails],
+            "proposal_frame_ids": [item.frame_id for item in self.proposal_frames],
         }
 
 
@@ -152,6 +205,19 @@ class ReasoningCorePort(Protocol):
 
     def emit(self, request: ReasoningPassRequest) -> ReasoningPassResult:
         """Return one public English contribution and private-Soul successor."""
+
+
+@runtime_checkable
+class D16ReasoningCorePort(ReasoningCorePort, Protocol):
+    """Resident Core port that maintains an exact local D16 field mirror."""
+
+    core_generation: int
+
+    def apply_field_event(
+        self,
+        event: FieldSnapshotEvent | FieldDeltaEvent | CanonicalSyncEvent,
+    ) -> MirrorAck:
+        """Apply one Heart-issued exact mirror event and return its matching ACK."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -200,6 +266,7 @@ class ReasoningCirculationResult:
     soul_lineages: tuple[SoulCoreLineage, ...]
     consolidator_core_id: str
     consolidator_verdict: TechnicalFinalVerdict
+    attention_view: Mapping[str, Any]
     source_delta: FieldDelta
     materialized_delta: FieldDelta
     finalization_receipt: TurnFinalizationReceipt | None
@@ -207,6 +274,7 @@ class ReasoningCirculationResult:
     result_id: str = field(init=False)
 
     def __post_init__(self) -> None:
+        object.__setattr__(self, "attention_view", dict(self.attention_view))
         object.__setattr__(self, "result_id", canonical_sha256(self.to_canonical_dict(include_id=False)))
 
     def to_canonical_dict(self, *, include_id: bool = True) -> dict[str, Any]:
@@ -225,6 +293,7 @@ class ReasoningCirculationResult:
             "soul_lineages": [item.to_canonical_dict() for item in self.soul_lineages],
             "consolidator_core_id": self.consolidator_core_id,
             "consolidator_verdict": self.consolidator_verdict.to_canonical_dict(),
+            "attention_view": dict(self.attention_view),
             "source_delta": self.source_delta.to_canonical_dict(),
             "materialized_delta": self.materialized_delta.to_canonical_dict(),
             "finalization_receipt": (
@@ -282,8 +351,10 @@ class ReasoningCirculation:
         self._registry = registry
         self._ports = port_map
         self._soul_store = soul_store
-        self._renderer = renderer or D64ProposalWorkspaceRenderer()
+        self._renderer = renderer or ExactProposalWorkspaceRenderer()
         self._recovery_store = recovery_store
+        self._coherence = MirrorCoherenceRegistry()
+        self._known_d16_views: dict[str, D16View] = {}
 
     def _external_soul_commit_bindings(self) -> dict[str, str]:
         bindings: dict[str, str] = {}
@@ -302,6 +373,71 @@ class ReasoningCirculation:
                 bindings[transition_id] = f"canonical-field:{field_id}"
         return bindings
 
+    def _is_d16_port(self, core_id: str) -> bool:
+        port = self._ports[core_id]
+        return callable(getattr(port, "apply_field_event", None))
+
+    def _core_generation(self, core_id: str) -> int:
+        value = getattr(self._ports[core_id], "core_generation", 0)
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise ReasoningCirculationError(f"D16 Core {core_id!r} has invalid core_generation")
+        return value
+
+    def _remember_d16_view(self, view: D16View) -> None:
+        self._known_d16_views[view.view_id] = view
+
+    def _synchronize_d16_core(self, descriptor: CoreDescriptor, target: D16View) -> D16RuntimeBinding:
+        core_id = descriptor.core_id
+        port = self._ports[core_id]
+        generation = self._core_generation(core_id)
+        record = self._coherence.register(core_id, generation)
+
+        if self._coherence.barrier_eligible(core_id, target.identity):
+            if record.last_event_sequence is None or record.last_event_id is None:
+                raise ReasoningCirculationError("synchronized D16 Core has no acknowledged event identity")
+            return D16RuntimeBinding(
+                core_id=core_id,
+                core_generation=generation,
+                identity=target.identity,
+                last_event_sequence=record.last_event_sequence,
+                last_event_id=record.last_event_id,
+            )
+
+        sequence = 0 if record.last_event_sequence is None else record.last_event_sequence + 1
+        event: FieldSnapshotEvent | FieldDeltaEvent
+        prior = None
+        if record.acknowledged_identity is not None:
+            prior = self._known_d16_views.get(record.acknowledged_identity.view_id)
+        if prior is not None:
+            try:
+                event = FieldDeltaEvent(sequence=sequence, delta=D16ViewDelta.between(prior, target))
+            except D16ResyncRequired:
+                event = FieldSnapshotEvent(sequence=sequence, view=target)
+        else:
+            event = FieldSnapshotEvent(sequence=sequence, view=target)
+
+        try:
+            self._coherence.expect(core_id, event)
+            ack = port.apply_field_event(event)
+            if not isinstance(ack, MirrorAck):
+                raise TypeError("D16 Core apply_field_event must return MirrorAck")
+            record = self._coherence.accept_ack(ack)
+            self._coherence.require_barrier_eligible(core_id, target.identity)
+        except Exception as exc:
+            self._coherence.require_resync(core_id, f"D16 synchronization failed: {type(exc).__name__}: {exc}")
+            raise
+
+        self._remember_d16_view(target)
+        if record.last_event_sequence is None or record.last_event_id is None:
+            raise ReasoningCirculationError("D16 synchronization produced no acknowledged event identity")
+        return D16RuntimeBinding(
+            core_id=core_id,
+            core_generation=generation,
+            identity=target.identity,
+            last_event_sequence=record.last_event_sequence,
+            last_event_id=record.last_event_id,
+        )
+
     def _participants(self, image: FrozenTickImage) -> tuple[CoreDescriptor, ...]:
         participants = self._registry.active()
         if not participants:
@@ -312,7 +448,8 @@ class ReasoningCirculation:
                 "active cores lack runtime ports: " + ", ".join(missing_ports)
             )
         for descriptor in participants:
-            image.require_rail(descriptor.d_model)
+            if not self._is_d16_port(descriptor.core_id):
+                image.require_rail(descriptor.d_model)
             self._soul_store.ensure_core(
                 core_id=descriptor.core_id,
                 architecture_id=descriptor.architecture_id,
@@ -381,26 +518,49 @@ class ReasoningCirculation:
         participants: tuple[CoreDescriptor, ...],
         pass_kind: ProposalPass,
         visible_workspace: ProposalWorkspace | None,
+        d16_bindings: Mapping[str, D16RuntimeBinding],
+        d16_sync_errors: Mapping[str, str],
     ) -> tuple[tuple[EnglishProposal, ...], tuple[SoulCommitReceipt, ...]]:
         proposals: list[EnglishProposal] = []
         receipts: list[SoulCommitReceipt] = []
         phase = pass_kind.value
         for descriptor in participants:
-            proposal_rails = (
-                ()
-                if visible_workspace is None
-                else (visible_workspace.require_rail(descriptor.d_model),)
-            )
             soul_branch = self._soul_store.branch(descriptor.core_id)
-            request = ReasoningPassRequest(
-                descriptor=descriptor,
-                image=image,
-                phase=phase,
-                rail=self._rail_view(descriptor, image),
-                soul=soul_branch.load_head(),
-                proposal_rails=proposal_rails,
-            )
             try:
+                if self._is_d16_port(descriptor.core_id):
+                    binding = d16_bindings.get(descriptor.core_id)
+                    if binding is None:
+                        raise MirrorCoherenceError(
+                            d16_sync_errors.get(descriptor.core_id, "D16 mirror is not synchronized")
+                        )
+                    proposal_frames = (
+                        ()
+                        if visible_workspace is None
+                        else (visible_workspace.require_d16_frame(),)
+                    )
+                    request = ReasoningPassRequest(
+                        descriptor=descriptor,
+                        image=image,
+                        phase=phase,
+                        soul=soul_branch.load_head(),
+                        d16_binding=binding,
+                        proposal_frames=proposal_frames,
+                    )
+                else:
+                    proposal_rails = (
+                        ()
+                        if visible_workspace is None
+                        else (visible_workspace.require_rail(descriptor.d_model),)
+                    )
+                    request = ReasoningPassRequest(
+                        descriptor=descriptor,
+                        image=image,
+                        phase=phase,
+                        soul=soul_branch.load_head(),
+                        rail=self._rail_view(descriptor, image),
+                        proposal_rails=proposal_rails,
+                    )
+
                 pass_result = self._ports[descriptor.core_id].emit(request)
                 if not isinstance(pass_result, ReasoningPassResult):
                     raise TypeError("core returned a value other than ReasoningPassResult")
@@ -434,50 +594,100 @@ class ReasoningCirculation:
         base = self._coordinator.current_field
         if base.field_id != image.identity.base_field_id or base.tick_id != image.identity.base_tick_id:
             raise ReasoningCirculationError("coordinator field differs from the frozen tick base")
+
         participants = self._participants(image)
+        region_masks = self._coordinator.region_masks()
+        base_d16 = materialize_d16_view(base, region_masks=region_masks)
+        self._remember_d16_view(base_d16)
+
+        d16_bindings: dict[str, D16RuntimeBinding] = {}
+        d16_sync_errors: dict[str, str] = {}
+        d16_core_ids = tuple(
+            descriptor.core_id
+            for descriptor in participants
+            if self._is_d16_port(descriptor.core_id)
+        )
+        for descriptor in participants:
+            if descriptor.core_id not in d16_core_ids:
+                continue
+            try:
+                d16_bindings[descriptor.core_id] = self._synchronize_d16_core(descriptor, base_d16)
+            except Exception as exc:
+                d16_sync_errors[descriptor.core_id] = f"{type(exc).__name__}: {exc}"
+
         initial_souls = {
             descriptor.core_id: self._soul_store.branch(descriptor.core_id).load_head().soul_id
             for descriptor in participants
         }
-        board = ProposalBoard(image, participants)
+        board = ProposalBoard(image, participants, d16_core_ids=d16_core_ids)
 
         first_proposals, first_receipts = self._run_pass(
-            base,
-            image,
-            board,
-            participants,
-            ProposalPass.FIRST,
-            None,
+            base, image, board, participants, ProposalPass.FIRST, None,
+            d16_bindings, d16_sync_errors,
         )
         board.close_first_pass()
         first_records = board.participant_states(ProposalPass.FIRST)
         first_workspace = self._renderer.render(image, ProposalPass.FIRST, first_records)
 
         refined_proposals, refined_receipts = self._run_pass(
-            base,
-            image,
-            board,
-            participants,
-            ProposalPass.REFINED,
-            first_workspace,
+            base, image, board, participants, ProposalPass.REFINED, first_workspace,
+            d16_bindings, d16_sync_errors,
         )
         board.close_refinement()
         board.assert_ready_for_consolidation()
         refined_records = board.participant_states(ProposalPass.REFINED)
         refined_workspace = self._renderer.render(image, ProposalPass.REFINED, refined_records)
 
-        consolidator = self._consolidator(participants, image)
-        request = ReasoningPassRequest(
-            descriptor=consolidator,
-            image=image,
-            phase="consolidated",
-            rail=self._rail_view(consolidator, image),
-            soul=self._soul_store.branch(consolidator.core_id).load_head(),
-            proposal_rails=(
-                first_workspace.require_rail(consolidator.d_model),
-                refined_workspace.require_rail(consolidator.d_model),
-            ),
+        returned_ids = {
+            record.core_id for record in refined_records if record.state.value == "returned"
+        }
+        eligible = tuple(descriptor for descriptor in participants if descriptor.core_id in returned_ids)
+        if not eligible:
+            raise ReasoningCirculationError("no successfully refined participant is eligible to consolidate")
+        consolidator = self._consolidator(eligible, image)
+        soul_branch = self._soul_store.branch(consolidator.core_id)
+        if self._is_d16_port(consolidator.core_id):
+            binding = d16_bindings.get(consolidator.core_id)
+            if binding is None:
+                raise ReasoningCirculationError("selected D16 consolidator is not mirror-coherent")
+            request = ReasoningPassRequest(
+                descriptor=consolidator,
+                image=image,
+                phase="consolidated",
+                soul=soul_branch.load_head(),
+                d16_binding=binding,
+                proposal_frames=(
+                    first_workspace.require_d16_frame(),
+                    refined_workspace.require_d16_frame(),
+                ),
+            )
+        else:
+            request = ReasoningPassRequest(
+                descriptor=consolidator,
+                image=image,
+                phase="consolidated",
+                soul=soul_branch.load_head(),
+                rail=self._rail_view(consolidator, image),
+                proposal_rails=(
+                    first_workspace.require_rail(consolidator.d_model),
+                    refined_workspace.require_rail(consolidator.d_model),
+                ),
+            )
+
+        has_d16_participant = bool(d16_core_ids)
+        attention_view = (
+            attention_view_from_d16_view(
+                base_d16,
+                heart_view_id=image.view_id,
+                region_masks=region_masks,
+            )
+            if has_d16_participant
+            else attention_view_from_surface(
+                self._coordinator.rail_surface(64).exact,
+                view_id=image.view_id,
+            )
         )
+
         try:
             pass_result = self._ports[consolidator.core_id].emit(request)
             if not isinstance(pass_result, ReasoningPassResult):
@@ -489,7 +699,6 @@ class ReasoningCirculation:
             self._assert_soul_transition_binding(pass_result.soul_transition, request)
             source_delta = verdict.materialize(base)
             materialized_delta, finalization = materialize_completed_turn(base, source_delta)
-            soul_branch = self._soul_store.branch(consolidator.core_id)
             soul_branch.prepare_transition(
                 pass_result.soul_transition,
                 requires_external_commit=True,
@@ -501,9 +710,8 @@ class ReasoningCirculation:
                 "consolidator_verdict_id": verdict.verdict_id,
                 "source_delta_id": source_delta.delta_id,
                 "soul_transition_id": pass_result.soul_transition.transition_id,
-                "turn_finalization_receipt_id": (
-                    None if finalization is None else finalization.receipt_id
-                ),
+                "transport": "d16_core_bus" if has_d16_participant else "legacy_rail",
+                "turn_finalization_receipt_id": None if finalization is None else finalization.receipt_id,
             }
             recovery_preparation_id = None
             if self._recovery_store is not None:
@@ -512,10 +720,7 @@ class ReasoningCirculation:
                         "schema": REASONING_RECOVERY_PREPARATION_SCHEMA,
                         "occurred_at": str(occurred_at),
                         "pre_action_field": base.to_dict(),
-                        "attention_view": attention_view_from_surface(
-                            request.rail.exact_surface,
-                            view_id=image.view_id,
-                        ),
+                        "attention_view": attention_view,
                         "image": image.to_canonical_dict(),
                         "first_records": [_record_dict(item) for item in first_records],
                         "refined_records": [_record_dict(item) for item in refined_records],
@@ -523,10 +728,7 @@ class ReasoningCirculation:
                         "refined_workspace": refined_workspace.to_canonical_dict(),
                         "first_proposals": [item.to_canonical_dict() for item in first_proposals],
                         "refined_proposals": [item.to_canonical_dict() for item in refined_proposals],
-                        "prior_soul_receipts": [
-                            item.to_canonical_dict()
-                            for item in (*first_receipts, *refined_receipts)
-                        ],
+                        "prior_soul_receipts": [item.to_canonical_dict() for item in (*first_receipts, *refined_receipts)],
                         "initial_souls": dict(sorted(initial_souls.items())),
                         "consolidator_core_id": consolidator.core_id,
                         "consolidator_verdict": verdict.to_canonical_dict(),
@@ -534,11 +736,7 @@ class ReasoningCirculation:
                         "source_delta": source_delta.to_canonical_dict(),
                         "materialized_delta": materialized_delta.to_canonical_dict(),
                         "materialized_delta_id": materialized_delta.delta_id,
-                        "finalization_receipt": (
-                            None
-                            if finalization is None
-                            else finalization.to_canonical_dict()
-                        ),
+                        "finalization_receipt": None if finalization is None else finalization.to_canonical_dict(),
                         "circulation_metadata": circulation_metadata,
                     }
                 )
@@ -546,10 +744,7 @@ class ReasoningCirculation:
             commit = self._coordinator.commit_consolidator_delta(
                 materialized_delta,
                 tick=image.identity,
-                metadata={
-                    **circulation_metadata,
-                    "recovery_preparation_id": recovery_preparation_id,
-                },
+                metadata={**circulation_metadata, "recovery_preparation_id": recovery_preparation_id},
             )
             consolidator_soul_receipt = soul_branch.finalize_transition(
                 pass_result.soul_transition.transition_id,
@@ -560,6 +755,35 @@ class ReasoningCirculation:
                 f"consolidator {consolidator.core_id!r} failed: {type(exc).__name__}: {exc}"
             ) from exc
 
+        # CANONICAL_SYNC updates exact mirrors only; it never calls emit().
+        if d16_core_ids:
+            successor_d16 = materialize_d16_view(commit.successor, region_masks=region_masks)
+            for descriptor in participants:
+                core_id = descriptor.core_id
+                if core_id not in d16_bindings:
+                    continue
+                record = self._coherence.record(core_id)
+                if record.last_event_sequence is None:
+                    self._coherence.require_resync(core_id, "CANONICAL_SYNC lacks prior event sequence")
+                    continue
+                try:
+                    sync_delta = D16ViewDelta.between(base_d16, successor_d16)
+                    sync_event = CanonicalSyncEvent(
+                        sequence=record.last_event_sequence + 1,
+                        delta=sync_delta,
+                    )
+                    self._coherence.expect(core_id, sync_event)
+                    ack = self._ports[core_id].apply_field_event(sync_event)
+                    if not isinstance(ack, MirrorAck):
+                        raise TypeError("D16 Core CANONICAL_SYNC must return MirrorAck")
+                    self._coherence.accept_ack(ack)
+                except Exception as exc:
+                    self._coherence.require_resync(
+                        core_id,
+                        f"CANONICAL_SYNC failed: {type(exc).__name__}: {exc}",
+                    )
+            self._remember_d16_view(successor_d16)
+
         soul_receipts = (*first_receipts, *refined_receipts, consolidator_soul_receipt)
         lineages = tuple(
             SoulCoreLineage(
@@ -567,9 +791,7 @@ class ReasoningCirculation:
                 initial_soul_id=initial_souls[descriptor.core_id],
                 final_soul_id=self._soul_store.branch(descriptor.core_id).load_head().soul_id,
                 transition_receipt_ids=tuple(
-                    receipt.receipt_id
-                    for receipt in soul_receipts
-                    if receipt.core_id == descriptor.core_id
+                    receipt.receipt_id for receipt in soul_receipts if receipt.core_id == descriptor.core_id
                 ),
             )
             for descriptor in participants
@@ -586,6 +808,7 @@ class ReasoningCirculation:
             soul_lineages=lineages,
             consolidator_core_id=consolidator.core_id,
             consolidator_verdict=verdict,
+            attention_view=attention_view,
             source_delta=source_delta,
             materialized_delta=materialized_delta,
             finalization_receipt=finalization,
@@ -598,6 +821,7 @@ __all__ = [
     "REASONING_PASS_RESULT_SCHEMA",
     "REASONING_REQUEST_SCHEMA",
     "REASONING_SOUL_LINEAGE_SCHEMA",
+    "D16ReasoningCorePort",
     "RailRuntimeView",
     "ReasoningCirculation",
     "ReasoningCirculationResult",

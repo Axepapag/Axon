@@ -69,10 +69,17 @@ class ParticipantRecord:
 class ProposalBoard:
     """NONCANONICAL per-tick English workspace with enforced stage barriers."""
 
-    def __init__(self, image: FrozenTickImage, participants: Iterable[CoreDescriptor]) -> None:
+    def __init__(
+        self,
+        image: FrozenTickImage,
+        participants: Iterable[CoreDescriptor],
+        *,
+        d16_core_ids: Iterable[str] = (),
+    ) -> None:
         if not isinstance(image, FrozenTickImage):
             raise TypeError("ProposalBoard requires a FrozenTickImage")
         self._image = image
+        d16_ids = frozenset(str(item) for item in d16_core_ids)
         roster: dict[str, CoreDescriptor] = {}
         for descriptor in tuple(participants):
             if not isinstance(descriptor, CoreDescriptor):
@@ -81,9 +88,9 @@ class ProposalBoard:
                 raise ProposalBoardError(f"participant {descriptor.core_id!r} is not active")
             if descriptor.core_id in roster:
                 raise ProposalBoardError(f"duplicate participant {descriptor.core_id!r}")
-            if image.rail_for(descriptor.d_model) is None:
+            if descriptor.core_id not in d16_ids and image.rail_for(descriptor.d_model) is None:
                 raise RailMembershipError(
-                    f"participant {descriptor.core_id!r} rides d_model rail "
+                    f"legacy participant {descriptor.core_id!r} rides d_model rail "
                     f"{descriptor.d_model}, which the tick image does not carry"
                 )
             roster[descriptor.core_id] = descriptor

@@ -14,10 +14,11 @@ from typing import Any, Iterable
 from runtime.field import canonical_sha256
 
 from .board import ParticipantRecord, ParticipantState, ProposalPass
+from .core_bus import D16TextFrame
 from .reasoning_output import CategoricalTextFrame
 from .tick import FrozenTickImage
 
-PROPOSAL_WORKSPACE_SCHEMA = "axon-heart-english-proposal-workspace-v2"
+PROPOSAL_WORKSPACE_SCHEMA = "axon-heart-english-proposal-workspace-v3"
 PROPOSAL_RAIL_SCHEMA = "axon-heart-english-proposal-rail-v2"
 
 
@@ -103,6 +104,7 @@ class ProposalWorkspace:
     pass_kind: ProposalPass
     entries: tuple[ProposalWorkspaceEntry, ...]
     workspace_id: str = field(init=False)
+    d16_frame: D16TextFrame | None = field(default=None, compare=False)
     rendered_rails: tuple[RenderedProposalRail, ...] = field(default=(), compare=False)
 
     def __post_init__(self) -> None:
@@ -124,8 +126,15 @@ class ProposalWorkspace:
         object.__setattr__(
             self,
             "workspace_id",
-            canonical_sha256(self.to_canonical_dict(include_id=False, include_rails=False)),
+            canonical_sha256(self.to_canonical_dict(include_id=False, include_d16=False, include_rails=False)),
         )
+        d16_frame = self.d16_frame
+        if d16_frame is not None:
+            if not isinstance(d16_frame, D16TextFrame):
+                raise TypeError("proposal workspace d16_frame must be D16TextFrame")
+            if d16_frame.text != self.readable_text():
+                raise ValueError("proposal workspace D16 frame does not preserve exact readable text")
+        object.__setattr__(self, "d16_frame", d16_frame)
         rails = tuple(self.rendered_rails)
         if rails and any(item.source_workspace_id != self.workspace_id for item in rails):
             raise ValueError("rendered proposal rail is not bound to this workspace")
@@ -140,6 +149,12 @@ class ProposalWorkspace:
             raise KeyError(f"proposal workspace has no rendered d_model {d_model} rail")
         return rail
 
+    def require_d16_frame(self) -> D16TextFrame:
+        frame = self.d16_frame
+        if frame is None:
+            raise KeyError("proposal workspace has no exact D16 frame")
+        return frame
+
     def readable_text(self) -> str:
         heading = f"{self.pass_kind.value.upper()} PROPOSALS"
         return "\n\n".join((heading, *(item.readable_text() for item in self.entries)))
@@ -148,6 +163,7 @@ class ProposalWorkspace:
         self,
         *,
         include_id: bool = True,
+        include_d16: bool = True,
         include_rails: bool = True,
     ) -> dict[str, Any]:
         value: dict[str, Any] = {
@@ -160,13 +176,15 @@ class ProposalWorkspace:
         }
         if include_id:
             value["workspace_id"] = self.workspace_id
+        if include_d16:
+            value["d16_frame"] = None if self.d16_frame is None else self.d16_frame.to_canonical_dict()
         if include_rails:
             value["rendered_rails"] = [item.to_canonical_dict() for item in self.rendered_rails]
         return value
 
 
 class ExactProposalWorkspaceRenderer:
-    """Render one exact English board identically into every registered rail width."""
+    """Render one exact English board to D16 once and to any legacy rails still bound."""
 
     def render(
         self,
@@ -184,6 +202,7 @@ class ExactProposalWorkspaceRenderer:
             entries=entries,
         )
         text = bare.readable_text()
+        d16_frame = D16TextFrame(text)
         rails = tuple(
             RenderedProposalRail(
                 d_model=binding.d_model,
@@ -197,6 +216,7 @@ class ExactProposalWorkspaceRenderer:
             tick_uid=bare.tick_uid,
             pass_kind=bare.pass_kind,
             entries=bare.entries,
+            d16_frame=d16_frame,
             rendered_rails=rails,
         )
 
