@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T04:30:00-05:00
+Updated: 2026-09-28T05:00:00-05:00
 current_through_event_id:
-`evt-20260928T093000000000Z-hermes-corelab-flatline-finding-report-and-visual`
+`evt-20260928T100000000000Z-hermes-beat-cost-profiled-bandwidth-bound-and-gpu-fix`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -17,6 +17,47 @@ Identity stamp: Hermes / deepseek-v4.1-flash:cloud / 2026-09-28 America/Chicago
 
 
 
+
+## Why a beat costs ~3 s — profiled, and the fix — 2026-09-28
+
+**MEASURED (phase breakdown of a real beat, 3 cores, 123 chars/core):**
+
+| phase | ms | % of beat |
+|---|---|---|
+| **the recurrence (GRU steps)** | **2,694–2,746** | **99.7%** |
+| think() / readout | 2 | 0.1% |
+| soul.set_hot | <1 | 0.0% |
+| _read_delta (field string scans) | <1 | 0.0% |
+| verify_mirrors (sha256) | 0.25 | 0.0% |
+
+370 chars/beat × 7.42 ms/char ≈ 2.7 s. **All bookkeeping is free; the cost is the thinking.**
+
+**WHY a step is 7 ms: memory bandwidth, not arithmetic.** GRUCell(1024) = 6,297,600 params =
+**25.2 MB per step in fp32**, and a recurrence is sequential (one char at a time, cannot batch the
+sequence), so every character streams all 25 MB. Measured effective rate **3.46 GB/s** — near a plain
+25 MB tensor clone (1.8 GB/s). Profile line: `{built-in method torch.gru_cell}` 370 calls, 2.694 s
+total, 7 ms each. Readout Linear(1024,352) = 0.144 ms = 2% of a step.
+
+**FOUR FIXES TESTED (one of Hermes's own ideas REJECTED on measurement):**
+1. **Threads: fewer is faster** — 1 thread 7.167 ms/step vs 8 threads 8.093 ms. A sequential chain
+   has nothing to parallelize. Run the heartbeat single-threaded (~12% free).
+2. **REJECTED: batching cores into one `bmm`.** Measured **3× SLOWER** (3 cores: 2.73 → 8.42 s/beat;
+   8 cores: 7.06 → 25.24). Distinct per-core weights mean stacking moves the same bytes through a
+   worse path, and results are not bit-identical (~6e-08). Do not resurrect.
+3. **THE FIX — put the recurrence on the GPU.** Same 3 cores × 123 chars × h1024:
+   **CPU 2.556 s/beat vs GTX 1650 0.108 s/beat = 23.6× faster.** Recurrent state is only
+   **4 KB/core at h1024** — the gigabytes in transformer serving are attention's growing KV cache,
+   which a GRU does not have. So a population is cheap: 8 cores ≈ 0.3 s/beat, ~30 cores ≈ 1.1 s/beat.
+   **This is what makes Jeff's "recursive reasoning forever + ensemble" affordable on his card.**
+4. **Width is a blunt lever:** h1024 → h512 takes CPU 2.556 → 0.717 s/beat (3.6×). Available as a
+   fallback only — width is where capacity lives, and Jeff's direction is to widen.
+
+**CAVEAT:** a *quiet* untrained core reads fewer chars, so the beat gets cheaper on its own — a quiet
+core is both a bug and a discount. 3 s/beat is the cost of cores actually working. Lab scale = 3 cores,
+400-char window; a real ensemble scales linearly in cores and chars, quadratically in width.
+
+Diagnostics: `diag_beat_cost.py`, `diag_beat_speed.py`, `diag_batch_cores.py`, `diag_beat_gpu.py`.
+Report: `D:/Hermes/WHY_A_BEAT_COSTS_THREE_SECONDS.md`.
 
 ## CoreLab finding — it breathes, but the thinking flatlines — 2026-09-28
 
