@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T09:00:00-05:00
+Updated: 2026-09-28T10:00:00-05:00
 current_through_event_id:
-`evt-20260928T140000000000Z-hermes-corelab-mirror-vs-heart-16d-cells-and-stays-separate`
+`evt-20260928T150000000000Z-hermes-corelab-phone-port-feasibility-measured`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -58,6 +58,27 @@ core is both a bug and a discount. 3 s/beat is the cost of cores actually workin
 
 Diagnostics: `diag_beat_cost.py`, `diag_beat_speed.py`, `diag_batch_cores.py`, `diag_beat_gpu.py`.
 Report: `D:/Hermes/WHY_A_BEAT_COSTS_THREE_SECONDS.md`.
+
+## Running CoreLab on a phone — the recurrence needs numpy, not torch — 2026-09-28
+
+**Jeff asked how to run CoreLab on his phone.** The lab cannot run there as-is (`lab/core.py` imports torch; phones cannot pip-install it and Termux cannot either). **But the recurrence — the entire cost of a beat — is a plain matrix multiply, and that needs no framework.**
+
+**Measured, width 1024 (CoreLab's real width):**
+- **numpy float32: 3.19 ms/step** (314 chars/sec) — **faster than torch's 7.42 ms/char on this laptop**
+- numpy float64: 7.15 ms/step
+- **Real Chrome, real width:** naive 14.39 ms/step; preallocated scratch 14.14; 4-way **unrolled 18.47 — worse** (the engine stopped optimising). A 73-char beat = **3.15 s for 3 cores**, against **3.3 s for the current torch lab on the laptop** — the browser is *comparable*, not slower.
+
+**Portability PROVEN, not assumed:** wrote the same GRU in numpy and in JavaScript and compared every value — **max |js − numpy| = 1.157e-8** over 768 values, the float32 noise floor. A browser port is EXACT.
+
+**Transport extracted so a port speaks the real alphabet:** 95 native chars with exact 16D cells + all 256 byte cells (`transport_reference.json`). Byte ids verified: `é` [290,264], CJK [323,279,268], emoji [335,254,249,223].
+
+**Device check:** Motorola attached over USB; **Termux is already installed** (plus Pydroid 3). Could not inspect Termux from adb (not debuggable), so whether numpy is present inside it is UNKNOWN — needs one 30-second check from Jeff.
+
+**Three routes, recommended order:** (1) **single-file browser lab** — zero install, arithmetic proven exact, ~3.1 s/beat on a desktop browser; (2) **Termux** — the genuine Python lab at numpy speed, pending the numpy check; (3) **native Android app** — Kotlin rewrite + build cycle per change, NOT the place to start.
+
+**CORRECTION to my own draft:** I first wrote "a browser tab on a phone will run at something like a quarter to a half of the laptop speed" **without measuring it**. Measured instead: 14.39 ms/step in a desktop browser — ~4.5× slower than numpy, but it still beats the current torch lab per beat because torch is inefficient at this size. Corrected before delivery. **Phone browser speed is still NOT measured and the report says so.**
+
+**Ledger event 432.** Report: `D:/Hermes/RUNNING_CORELAB_ON_YOUR_PHONE.md`.
 
 ## Mirror vs heart, the 16D cell, and the old lab — CoreLab stays SEPARATE — 2026-09-28
 
