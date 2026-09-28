@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T13:00:00-05:00
+Updated: 2026-09-28T14:00:00-05:00
 current_through_event_id:
-`evt-20260928T180000000000Z-hermes-trained-core-has-no-soul-soul-threshold-and-post-hoc-damage`
+`evt-20260928T190000000000Z-hermes-corelab-one-core-soul-fed-d00-corpus-perplexity-3.18`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -58,6 +58,48 @@ core is both a bug and a discount. 3 s/beat is the cost of cores actually workin
 
 Diagnostics: `diag_beat_cost.py`, `diag_beat_speed.py`, `diag_batch_cores.py`, `diag_beat_gpu.py`.
 Report: `D:/Hermes/WHY_A_BEAT_COSTS_THREE_SECONDS.md`.
+
+## ONE CORE, WITH A SOUL, FED D:/00 — perplexity 341 -> 3.18, and the soul IS load-bearing — 2026-09-28
+
+**Jeff: "only do one core. now equip it with a soul and feed it D:\00." Done.**
+
+**EXTRACTION (read-only, mode=ro&immutable=1, no locks, no writes):** D:/00 = 3.3 GB across 7 SQLite
+DBs -> **109,639,219 chars / 110,066,695 transport tokens** from **446,962 pieces** (18,914 + 9,495
+messages, 19,726 episodes, 140,894 facts, 117,685 entities, 103,296 relations, 36,951 procedures).
+Script `extract_corpus.py`; outputs `corpus.txt` (111.5 MB) + `corpus_ids.npy` (440 MB, 202 distinct
+tokens of 351).
+
+**THE RUN (one core, no ensemble):** width 1024 GRU, **6,740,319 params**, GTX 1650, 4,000 steps x
+24 x 128 = **12.29M chars (11.2% of corpus)** in **1,450s = 8,471 chars/s INCLUDING backward**.
+Loss **5.8323 -> 1.1577**; perplexity **341.14 -> 3.18** (final eval 3.2244).
+
+**THE SOUL — the two failures from this morning both fixed and both confirmed:**
+- **Present from step 1** (not bolted on — post-hoc soul training had moved loss 0.0001 -> 0.4115).
+- **At measured-threshold scale** (`SOUL_SCALE=0.5`; the lab's 0.02 was inaudible).
+- **Real, not random**: warm/cold layers filled by ingesting 400,000 corpus chars, then drifting
+  through **161 folds** during training.
+- **LOAD-BEARING, MEASURED:** two souls built from different corpus spans changed **8 of 8** answers;
+  L1 distance **9.4709**. On the trained core the soul genuinely steers the output.
+
+**BASELINES — never report perplexity alone.** Zero-order char-frequency model = **36.01**; bigram
+table = **16.10**; core = **3.2244** => **4.99x better than the bigram, 11.2x better than letter
+frequency**. Corpus has only ~0.2% duplicate 64-char windows, so memorisation is not the explanation.
+
+**QUALITATIVE (decoded correctly — ids are transport ids, NOT ASCII):** seed `'Jeff'` -> `'Jeffrey
+status and reconnaissance and reading the context templa'`. On real 60-char prompts it reproduces
+`the`, `serving` and API vocabulary; garbles beyond ~40 unseen chars.
+
+**HONEST LIMIT:** next-character prediction, **NOT reasoning**.
+
+**EVAL FLAW (mine, not the result):** `eval_corpus.py` rebuilt the soul from its INITIAL ingest
+(digest `9ff25482...`) instead of the training end state (`bda53731...`), so the eval soul had not
+done its 161 drift folds. Conclusion unaffected (5x margin) but **3.2244 may shift**; fix pending.
+
+**LIVE MONITOR:** `monitor.py` (stdlib only, read-only) at **http://127.0.0.1:8901** — parses the run
+log, log-scale chart (linear made every curve flatline: ppl opens at 341, settles near 3).
+
+**NEXT:** fix the eval soul rebuild; then **RECALL** (answer comes from somewhere other than where it
+was just read — the first test prediction alone cannot pass); then EDIT; then wire into the ensemble.
 
 ## IS THE CORE USING ITS SOUL? No — and the question found a real gap — 2026-09-28
 
