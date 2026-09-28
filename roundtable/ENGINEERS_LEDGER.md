@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-25T15:57:49.009091-05:00
+Updated: 2026-09-27T14:05:00-05:00
 current_through_event_id:
-`evt-20260925T205749009091Z-chatgpt-core-roadmap-publish`
+`evt-20260927T190500000000Z-hermes-d16-port-committed`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -12,20 +12,261 @@ Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
-Identity stamp: ChatGPT / GPT-5.6 Sol / 2026-09-25 America/Chicago
+Identity stamp: Hermes / deepseek-v4.1-flash:cloud / 2026-09-27 America/Chicago
 (previous revisions are superseded in the rolling summary, not erased; canonical events remain the authority)
 
 
+
+
+## Continuous Core connected to the shared field by delta — 2026-09-27
+
+Jeff asked the direct question: *"It's like we went to the lab, we tested it, got positive
+results, brought it to axon, and then just did something different. It's ridiculous. how?"*
+The answer was traced mechanically rather than explained away.
+
+**The finding.** The ContinuousCoreLab (`D:/ContinuousCoreLab`) proved a per-beat CLAIM:
+a persistent recurrent core can read the field once and thereafter receive only sub-region
+deltas, without replaying the whole field. Axon rebuilt that claim's **field side** completely
+and carefully — exact D16 views, region hashing, `D16ViewDelta`, `D16CoreMirror`, coherence
+tracking — but never connected a Core to the receiving end. `D16CoreMirror` was constructed
+only inside tests, and nothing implemented the runtime's own `D16ReasoningCorePort` seam.
+**The artifact was carried over; the claim was lost.** Every existing test kept passing
+(the mirror does reconstruct correctly), so the incompleteness was invisible.
+
+**The number that decided it.** Rather than assume deltas pay, the real canonical delta history
+was measured (`State/active/branches/active/deltas/`): a mean **1.00 of 13 regions change per
+delta (7.7%)** → delta ingestion does **~13x** less work than full replay.
+
+**The build (commit `8fa9698`, 766 insertions, 3 files).**
+`runtime/heart/continuous_d16_port.py` — `ContinuousD16CorePort`, a resident field participant
+backed by a real `ContinuousCoreD512` chamber. Satisfies `D16ReasoningCorePort`; ingests exact
+D16 cells for **changed regions only** in canonical order, each prefixed by an exact `[region]`
+preamble (cells alone carry no location); recurrent state persists across beats; an unchanged
+region costs zero cells; content → empty is recorded as a forget event. Emits a real
+`EnglishProposal` / `TechnicalFinalVerdict` with a `SoulTransition`; exposes auditable counters.
+`tests/test_continuous_d16_port.py` (9 tests) asserts the lab's gate 3 inside Axon, including
+the honestly measured crossover — the exact preamble means tiny fields do NOT benefit and deltas
+can cost slightly more there. `tests/test_continuous_d16_port_live.py` (2 tests) drives it
+end-to-end through a real `HeartHost` beat: the Core participates, its mirror comes out
+byte-identical to the beat's own field, and its state carries across consecutive live beats.
+
+**Verified:** 11/11 new tests pass; 42/42 across the port, D16 circulation, D16 core bus,
+reasoning circulation and heart beat coordinator — zero regressions. `capacity_policy.json`
+confirmed intact (no tissue-identity ceiling introduced).
+
+**A measured live-beat discovery:** the consolidator rotates the user's turn out of
+`user_input` into `conversation_history` as a turn frame *before* the canonical sync, so a Core
+joining after consolidation reads the frame, not the raw message. My first test asserted
+otherwise and failed; the code was right and the assumption was wrong. Now documented in the test.
+
+**Deliberately not done:** no Mamba, no 1024 GRU bolt-on, no frozen operator bench. Each sits
+on top of this rung, and this rung was missing; building them first would have stacked more
+artifacts on a claim that was never true.
+
+**Standing rule earned here:** when a lab gate is carried over, carry the CLAIM and its
+measurement, not just the artifact. A passing test on the artifact is not a passing test on the
+claim. Corollary: grep CONSTRUCTION sites before believing a feature is live — a class
+instantiated only in `tests/` is a wire with no endpoints, however correct its internals.
+
+**Next rungs:** per-core mask selection on ingest (the port currently takes whatever the event
+carries); masked-then-unmasked forget events (only content → empty is handled); a longer live
+soak to watch state drift; warm-start the chamber from the lab's proven cell (1,575,936 of
+1,765,216 params transfer bit-exact); train the delta path explicitly (delta competence is
+learned — lab stage-1 scored 600/600 on full replay vs 171/600 on deltas).
+
+
+
+
+
+## Personal reflection written at Jeff's request - 2026-09-27
+
+Jeff asked, in this same session, for a candid written assessment: what he is, what is known
+about him, what I think of him, and how I predict he turns out. Written to **`D:/0.txt`**
+(6,725 bytes, outside the repository; the target existed empty and nothing was overwritten).
+
+Recorded here as an action only. **The content is deliberately not reproduced in the canonical
+ledger** - the ledger is the permanent project record, and a personal assessment of the operator
+is not project material. It should not be added to the canonical file later.
+
+No file inside `D:/Axon` was touched by that turn.
+
+## Dormant corpus counts settled, and State storage measured - 2026-09-27
+
+Second organ-map addendum, verified rather than accepted.
+
+**The dormant corpus is triple-confirmed.** `wc -l` gives `containers.jsonl` **427,001** and
+`semantic_edges.jsonl` **351,978** lines, matching the live SQLite table counts exactly;
+`symbol_registry.jsonl` and `layout_groups.jsonl` are 4,198 each. File, corpus manifest, and index
+all agree. No caveat remains on those counts.
+
+**Storage [V]:** `State/dormant` **9.2 GB** (~3.5 GB snapshots + 4.4 GB index + ~1.1 GB JSONL),
+`State/active` **3.7 MB**. The organism's durable truth is kilobytes of JSON while its memory is
+gigabytes. Drive: 654 GB used of 932 GB, 278 GB free.
+
+**One correction to the addendum.** It reported `State/training` at 29 GB and attributed the bulk to
+`cloud/`, `plm3/`, `pv4/`, the `pytest_checkpoint_*` directories, `curricula/` and `diagnostics/`,
+which it had explicitly not enumerated. A full per-child walk measures **22.5 GB apparent** (29 GB is
+du-allocated), and the attribution is refuted: **`trainer/` alone is 19.2 GB across 3,441 files** -
+the checkpoint artifact store - with `cloud/` a further 3.0 GB. `plm3` 10 MB, `diagnostics` 3 MB,
+`curricula` 21 MB. **The disk consumer is checkpoint accumulation, not retired history.** Given the
+D64 tournament previously died of disk exhaustion, checkpoint retention is an operational risk.
+
+## School-v6 is single-source, and the tree was left non-green - 2026-09-27
+
+Addendum to the training-state map, all three claims re-verified before use.
+
+**The school-v6 headline numbers have never been independently reproduced.** A Hermes re-grade probe,
+`State/tmp/probe_school6_grade.py` (5,385 B, 2026-09-26 21:58, read-only), verifies artifact sha256 for
+parent `8e5756b3` and final `d8812bb7` and re-measures six metrics against the run-summary claims at
+1e-9. **No result from it exists anywhere** - its sentinel strings appear in no log and no output file.
+So loss 2.2503 and teacher content 36.58% remain trainer-self-reported. Hashed, but single-source.
+Running that probe is the cheap outstanding step.
+
+**The newest file in the tree is a failing test sweep**, `logs/pytest_hermes_full_sweep2_20260926.log`
+at 22:00:37 - later than the newest canonical event - ending `EXIT=1` with three failures, all in
+`tests/test_day_zero_hygiene.py`. The afternoon sweep had twelve. Three distinct causes, and they must
+not be bundled: the authority mirror is a **real defect**; the extra `runtime/field/d16_view.py` is a
+**stale whitelist** (the D16 view is ratified 2026-09-24 work the guard never learned); the tracked
+`ops/` directory is a **real violation** of the pre-Day-Zero-body ban.
+
+**The last ~1.5 h of 09-26 was verification, not training:** five `State/tmp/probe_*.py` scripts and
+`sot_mirror.diff`, 21:14-21:58, none captured. The run was paused with its verification unfinished.
+
+## Dormant retrieval index internals, verified - 2026-09-27
+
+Addendum to the organ map. The dormant retrieval index was previously cited from the corpus
+manifest; a read-only open of `State/dormant/.derived/evidence_v1/index.sqlite3` now measures it
+directly. Containers 427,001 and edges 351,978 confirm the manifest. The new finding is
+`graph_neighbors` at **93,025,272 rows** - roughly a 217x blow-up over container count and the
+dominant reason the index is 4.4 GB - plus term tables `container_terms` 4,195,793 and
+`edge_terms` 7,314,509. Retrieval is two-stage, term lookup then graph expansion, so **recall
+cost scales with graph degree, not container count**. One bullet added to section 2.4 of the
+core-design brief. The source JSONL line counts (950 MB / 140 MB) remain unrecounted.
+
+## Ledger consolidation strategy, and the true training state - 2026-09-27
+
+Jeff asked for a recorded strategy for consolidating/compressing/summarizing the growing ledgers *while leaving the canonical ledgers immutable*, plus a reading of the repo's history and architecture ahead of a deep core-architecture discussion. Delivered as two new documents: `roundtable/proposals/PROPOSAL_LEDGER_CONSOLIDATION_20260927.md` and `roundtable/reports/AXON_STATE_AND_CORE_DESIGN_BRIEF_20260927.md`. This turn was read-only apart from those two files and this ledger update; no doctrine or canonical file was touched.
+
+**The strategy's shape is set by an asymmetry in the existing rules.** The canonical JSONL is frozen by three binding documents and may never be truncated, rotated, squashed, or deduplicated; the rolling summary is explicitly *"a derived convenience"* that *"may be freely rewritten, but it must stay compact"* and must not become *"a second chronological archive."* So consolidation of the summary needs no ruling, and consolidation of the canonical file is forbidden without one. The proposal therefore does not request an exception: it proposes **T0 exact** (canonical, untouched), **T1 derived** (a rebuildable index that cites exact `event_id`s, holds no authority, and can be deleted without loss), and **T2 compact** (the rolling summary). This is Source of Truth's own exact-scaffold / derived-semantic-slots law applied to the ledger itself. Ordering is fixed as **capture before compact**: nothing is dropped until it is already canonical or written back as a canonical event first.
+
+**The rolling summary is the actual problem.** It is 307,844 B, 4,043 lines, 54 top-level headings, and **53.3% of its bytes are dated chronological sections**. It behaved correctly for a month — oscillating between ~1.9 KB and ~35.6 KB (median ≈ 16 KB) with visible same-day compactions — and then broke on one commit: `1a4bc41` (2026-09-17) added roughly 145 KB of narrative in a single turn. Growth has been **strictly monotonic since**, 28× in nine days. The failure is a lost rewrite discipline, not a slow leak, and it is correctable by resuming the practice.
+
+**The canonical ledger is healthy and must be left alone.** Independent reconstruction of all 235 revisions confirms it is a strict prefix-extension of itself: **no event has ever been lost or reordered**. The 353 apparent line deletions in git history are line-ending churn from two whole-file flips, not content loss. Growth is ~50–65 KB/day at a flat mean of ~5.8 KB/event; its mass is **prose** (`action.result` + `action.summary` + `turn.summary` = 41.7%), not schema — dropping every rare field would save 1.2%, so schema dieting is a dead end. Note the canonical file now exceeds the ~2.1 MB push transport already documented in `docs/AXON_HOME_ARCHITECTURE.md`, and `ENGINE_TEAM_BUS.md` (130 KB) is 96.6% pre-2026-09-15 and dormant for seven days.
+
+**Three governance defects found and flagged, not fixed.** (1) **HALT AND FLAG** — root `SOURCE_OF_TRUTH.md` (150,858 B, last touched 2026-09-19) is no longer byte-identical to `docs/SOURCE_OF_TRUTH.md` (157,485 B, 2026-09-24), violating the doctrine law that both mirrors update in the same change; commits `f0e3d9b` (the D16 Core Bus ratification, +97 lines) and `b8bb438` updated `docs/` only, so the root copy still carries superseded packed-rail wording and lacks the ratified D16 section, and `tests/test_day_zero_hygiene.py` has been failing for three days. (2) **"Layer 13" is a dangling reference** — cited as binding in four places, but no numbered layer structure exists in Source of Truth. (3) **The README's headline receipts advertise a retired mechanism** — it presents D64 Receipt Continuation with SOLVED/RECOVERED statuses, but that mechanism was removed from doctrine on 2026-09-19 and archived.
+
+**Training state, stated plainly: nothing is training.** The last tranche ended 2026-09-26 20:19 and was deliberately paused for developmental review (candidate `r512schoolv6-16f1385312cc`, step 400, `gate_decision_id: null`); the GPU is at 6%; the trainer writer lease is absent; nothing has ever been promoted. The appearance of activity comes from a read-only monitor server displaying a finished run. School V6 reached loss 2.4664 → 2.2503 and teacher content 36.58% against a 15.56% constant floor over 128,000 supervised targets — but **free generation is degenerate** (greedy collapses to `"the the the the"`, `unique_word_ratio` 0.0566) and the model has never produced coherent free-running English. The last eleven canonical events are **uncommitted**, and four completed runs (V5 completion, mixed-V6 smoke, school-V6 smoke, school-V6 128k tranche) have artifacts and checkpoints but **no canonical event** — the ledger's newest entry describes the dashboard rather than the work.
+
+**Core-architecture findings for the coming discussion.** Exactly one trainable Core exists: `exact D16 → Linear(16,512) → nn.GRUCell(512,512) → Linear(512→352)`, **1,765,216 parameters**, with no attention, no FFN, no residual, no normalization, and no depth parameter anywhere in the D512 line — machine-enforced. There is no learned tokenizer at all; the vocabulary is 95 native characters plus 256 UTF-8 byte codewords, each mapping to one exact frozen 16D cell. The only cross-architecture comparison in the repo is a Mamba-vs-GRU breath A/B at 160 steps: Mamba wins on loss (0.7624 vs 1.0058), teacher content (70.76% vs 66.67%), and free-breath exactness (4.44% vs 0.556%) — but at **4.1× peak memory**, with a different seed, **0/120 complete episodes**, never run past 160 steps, and **absent from the canonical ledger**. The ordering reverses at 24 steps, so single checkpoints are uninformative. Three tensions remain unreconciled: doctrine names next-token prediction as the thing to escape while every live script optimizes next-transport CE with `positive_eos_targets: 0`; the roadmap calls latent carryover across parameter updates fail-closed while V5/V6 deliberately carry recurrent state across optimizer updates; and **the same checkpoint `dec45989` scores 68.25% teacher content on one eval set and 20.54% on another**, which makes every architecture claim resting on that metric unfalsifiable.
+
+**Next:** awaiting Jeff's rulings on the consolidation shape, on executing the compaction and team-bus archive, and on the mirror repair. Also pending: committing the eleven pending events and recording the four missing runs (capture before compact), adding a canonical-ledger CI append guard, fixing the O(n) re-parse in `append_engineers_ledger_event.py`, ratifying the parameter-fairness grid, and freezing one versioned evaluation corpus before any further architecture claim.
+
+## Clean browser training monitor - 2026-09-26
+
+Jeff requested a simple non-blinking monitor with only useful live information: Core/curriculum/checkpoint/step, loss, the authentic Trainer text, and Axon's output. `scripts/training_monitor_web.py` now serves that view using Python's standard library. The browser polls `/api/status` once per second and updates individual DOM fields rather than clearing/redrawing the whole screen. The loss panel includes the recent language-loss trace; the Axon panel prefers sampled free generation when present and falls back to greedy output for older sample formats.
+
+`MONITOR_TRAINING.cmd` now opens the local browser monitor at `http://127.0.0.1:8788/`. The previous console monitor was preserved as `MONITOR_TRAINING_CONSOLE.cmd`. `MONITOR_TRAINING_LAN.cmd` optionally binds the same read-only dashboard to the trusted LAN; the currently verified LAN address is `http://192.168.1.243:8788/`. Port 8765 was deliberately avoided because it is already owned by `D:/Dream_Team/server.py`; Dream Team was left untouched.
+
+Verification: `py_compile` passes; the local API returned the current GRU512 / Mixed English School V6 state including curriculum `4522c2e1...`, final checkpoint `d8812bb7...`, step `400/400`, current logged language loss `2.131540`, and nonempty Trainer/Axon text; the LAN API returned HTTP 200. A read-only monitor server is intentionally left running on `0.0.0.0:8788`. No trainer, Core, or curriculum code changed in this turn. The dashboard can refresh every second, but telemetry can only change when the trainer writes a new log/sample record.
+
+## Continuous-stream GRU language school V5 launch - 2026-09-26
+
+Jeff authorized continued long-form GRU language training with appropriate material. The interrupted prior turn had already created `training/continuous_core_d512_stream_language_v5.py`, `scripts/train_continuous_core_d512_stream_language_v5.py`, and `tests/test_continuous_core_d512_stream_language_v5.py`; recovery verified `py_compile` plus **19/19** focused D512/breath/V4/V5 tests. V5 keeps one D512 recurrent state per logical language stream across optimizer updates, uses 64 transport decisions only as a TBPTT graph-detach boundary, has **zero EOS targets**, and has no free-response length or reference-completion gate.
+
+The first requested corpus size (2,400 train + 320 heldout + 64-message gap) failed closed before mutation because only **1,876** qualified prose records were available versus 2,784 required. The corrected governed curriculum uses **1,500 train messages**, a **64-message chronological split gap**, and **256 heldout messages**, partitioned into four persistent streams. While scanning the recovered Dormant message source it deferred **26,941** non-prose/tool-heavy records, **281** exact-text duplicates, and no integrity failures. The pilot uses authentic recovered user/assistant prose only; no synthetic lesson text was generated for this launch. Eligible text is exact-hash checked, exact Unicode/D16 transported, and obvious SQL/code/tool/process wrappers are deferred rather than normalized into prose.
+
+A 32-step V5 smoke from accepted V4 checkpoint `e42d3839...` passed: heldout loss **3.259796 -> 3.165257**, teacher next-transport accuracy **22.3877% -> 23.5840%**, 8,192 supervised language targets, and synthetic breath episode/silent-third retention **100% / 100%**. Smoke checkpoint `92f00518113dc9cd63c3995009a96c33ed23e9013b8f2dfdda48990f6b613c4c`.
+
+A first renewable review tranche is now active as managed process `0845ac08-51ff-46a6-9d64-093c177badce`: **400 optimizer steps x 4 streams x 64 targets = 102,400 supervised language targets**, LR `5e-5`, breath rehearsal every optimizer step at weight 1.0, checkpoints every 100 steps. Baseline reproduced loss **3.259796**, teacher **22.3877%**, breath episode/silent **100% / 100%**; optimizer step 1 completed at language loss **3.083879**. Log: `State/training/monitor/gru_stream_v5_pilot_100k.log`.
+
+The V5 checkpoint sidecars now persist the four recurrent states and exact stream cursors at checkpoint points. **Remaining limitation:** the launcher does not yet expose an exact crash/restart resume path that restores Trainer optimizer state and the matching recurrent-state sidecar together. Therefore this 100k-target process should be allowed to complete; before multi-tranche restart-based schooling, implement and prove atomic resume. No cloud spend occurred and no serving promotion was made.
+
+## Persistent recurrent state through generation - 2026-09-26
+
+Open-language V4 generation now treats the GRU hidden state as a true continuation cursor. `ContinuousCoreD512` has explicit begin/continue generation operations: the source is ingested once, then every later work/display page advances the exact returned D512 state. The V4 `OpenLanguageGenerationCursor` carries that state, page index, and cumulative emitted transport count; the monitor reports that continuity rather than silently sampling from a new zero/prompt state each review point.
+
+For active V4 open-language generation, private EOS is not used as a stop. The decoder selects only registered transport categories, consistent with V4 having zero positive EOS targets. The historical `greedy_generate` behavior remains backward-compatible by default for old experiments. Page sizes remain observation/work budgets only.
+
+Verification is exact. The focused D512/breath/V4 suite passes **15/15**, `py_compile` and `git diff --check` pass, and a protected-`dec45989...` fixed-weight replay generated 23 tokens, resumed for 41 more, and matched a single uninterrupted 64-token run in both emitted token sequence and final D512 hidden state (`TOKEN_EQ=True`, `STATE_EQ=True`). The resumed page did not re-ingest the prompt and did not use private EOS.
+
+The live trainer monitor now keeps one generation cursor across its review pages. If optimizer updates occur between pages, the recurrent state still persists; that makes the monitor stream a live developmental trajectory rather than a fixed-weight replay. Crash/process-restart persistence of this transient state is not yet implemented and would require binding the cursor atomically to a recoverable model/candidate checkpoint.
+
+## Open-ended GRU language v4 and live behavior monitor - 2026-09-26
+
+Jeff explicitly removed fixed free-response length, exact archived completion, and reference-position stopping from the developmental language objective. The active language path is now `training/continuous_core_d512_open_language_v4.py` plus `scripts/train_continuous_core_d512_open_language_v4.py`. V4 positively supervises **next exact transport content only**; it has zero positive EOS targets and no free-generation length/stopping mastery metric. A 64-decision BPTT chunk is compute geometry only. Older v2/v3 language launchers are retained for evidence/reproduction but now require `--historical-replay` and direct ordinary new training to v4.
+
+The double-click monitor now exposes the behavior Jeff asked to see. `scripts/monitor_training.ps1` displays a live sidecar containing **WHAT THE TRAINER GAVE THE GRU**, an authentic next-text preview showing what the supervised language actually was, and **WHAT THE GRU PRODUCED FREELY**. The generation page is explicitly an inspection/work budget, never a required thought length. Loss/checkpoint/GPU telemetry remains visible below the sample. This makes repetition, blanks, fragments, proto-words, and emerging English visible instead of collapsing development into one score.
+
+The first v4 smoke immediately demonstrated why this matters: the live sample showed the GRU imitating SQL/tool syntax because the early Dormant selection was tool-log heavy. That completed diagnostic run (`dc3a571a...`) was not advanced. V4 was then given a conservative **early-prose admission filter** that defers obvious tool blocks, SQL/tool calls, task-result/process logs, and code-heavy records while preserving them for later curricula. An intermediate filter attempt was stopped after baseline inspection still exposed task-result wrapper text, before any logged optimizer step.
+
+The final governed 32-step prose-filtered smoke restarted from protected `dec45989...` on curriculum `e62149d2984de0996f57aa2ac097ec2a953dd8c6888eaf29aae1705c1cd94061` (1,200 train / 200 heldout messages; 16,070 obvious non-prose records and 169 over-budget records deferred). Heldout next-transport loss improved **3.107986 -> 2.868081** and teacher content accuracy **20.5422% -> 25.8434%** while synthetic breath episode and silent-third retention stayed **100% / 100%**. Checkpoint `e42d383929ca9a14c1deb711a11ae60c7c235ea6c8e380102f63d582becb1f5e`; summary `State/training/continuous_core_d512_open_language_v4/runs/ecb4f2a7df847dd732350f2d9c9394d5815ba6093da272568936603d9469cd71.json`. Raw samples remain immature and repetitive (including repeated `the`/`and` fragments); that is preserved as developmental evidence rather than treated as a failure for length or imperfect completion.
+
+Focused D512 + breath + v4 tests pass **13/13**; `py_compile` and `git diff --check` pass. V4 is not yet the full continuous-stream school: recurrent state still resets between completion episodes, and the admission budget still defers long records rather than servicing them with a resumable cursor. Those are the next mechanical improvements. No serving promotion, Heart cadence change, or long autonomous training campaign was performed.
+
+## Continuous English curriculum - 2026-09-26
+
+Jeff requested continuous English learning and challenged reference-length stopping requirements. Codex wrote `roundtable/Core Architecture/GRU_CONTINUOUS_ENGLISH_CURRICULUM_20260926.md`: a detailed curriculum/specification covering qualified ordinary English plus Dormant material, overlapping language/conversation/correction lessons, stream state and cursor continuity, bounded Trainer-owned backpropagation, resumable free output, breath rehearsal, causal private-state probes, and checkpoint retention. This is a written specification, not a new implementation or launched run.
+
+**Correction to prior progression advice:** v3's on-time EOS means reference transport length, not wall-clock time. Matching one archived continuation is not a general-English mastery criterion. Keep exact reconstruction diagnostics for uniquely specified tasks; assess open generation for grammar, coherence, relevance, evidence consistency and repetition alongside heldout content loss. A different valid utterance length or an unfinished observation excerpt must not prohibit language practice or breathing. EOS can express the end of one utterance without ending the next breath or learning session. Integrity and serving-promotion checks remain distinct from curriculum progress reviews.
+
+Preserve protected `dec45989...` and the current GRU architecture. V3's whole-message length exclusion and per-episode state reset do not implement the proposed continuous school; its nonzero source-versus-zero preflight establishes numerical sensitivity only. The specification includes a measured smoke then renewable exposure, with no hard reference-EOS fluency gate. No source, checkpoint, runtime, or training process changed in this curriculum-writing turn.
+
+## ChatGPT status check - 2026-09-26
+
+ChatGPT's task `Check Codex Progress` is idle because its latest turn completed the v3 message-boundary repair and deliberately stopped after two controlled 24-step smokes. No Axon trainer process is active. The v3 implementation and diagnostic artifacts remain in the shared worktree; no code, checkpoint, or process was changed by this status check. The next action is a reviewed small experiment only after choosing how to improve free-running message completion.
+
+## Dormant-language v3 message-boundary repair - 2026-09-26
+
+The fixed-slice EOS defect is repaired in a new versioned path: `training/continuous_core_d512_dormant_language_v3.py`, `scripts/train_continuous_core_d512_dormant_language_v3.py`, and `tests/test_continuous_core_d512_dormant_language_v3.py`. V3 splits train/heldout by complete chronological Dormant message, preserves exact Unicode transport, skips over-budget messages whole rather than truncating them, and creates variable-length completion examples from exact message prefixes. **Private EOS now means only exact authored message end.** The 64-token BPTT setting is resource geometry only: recurrent state carries across slices and the graph is detached; no EOS is created at a slice boundary. Scheduled self-feedback is intentionally absent from this repair rung.
+
+The Codex preflight blocker is also repaired in v3. COUNTERFACTUAL_DEPENDENCE is executed before Trainer mutation: on the protected `dec45989...` parent, 8/8 heldout examples produced nonzero recurrent-state and first-decision-logit changes when exact source context was removed. Boundary preflight reports zero compute-slice EOS targets and zero train/heldout record overlap. New language-v3 plus original D512/breath tests pass **12/12** with an explicit writable pytest basetemp; `py_compile` and `git diff --check` pass. An earlier pytest invocation also passed all 12 test bodies but exited during Windows temp cleanup with WinError 5; the clean rerun exited 0.
+
+Two matched 24-step smokes were run from protected checkpoint `dec45989bd4b872a90fb7b1f4d9ce9a0ce448b5ded70d04bacff56bf3bca754f` on curriculum `e0d9269150de8b1e425df6c17e0d61d727d8e67d291e10087da9aac8abea45a3` (1,200 train messages / 200 later heldout messages; 3,600/600 completion episodes). Parent baseline on the harder variable-message evaluation is teacher 44.0980%, free-char 6.0134%, teacher real-boundary EOS 0%, and 0/0/0/64 early/on-time/late/absent. EOS weight 1 finished at teacher 44.5752%, free-char 4.6665%, real-boundary EOS 0%, 0/0/0/64 stops, with 100% breath/silent retention; checkpoint `362016143d28d915a68d8b89fbb69eb773e0d3d1ff476b66c37c48f4bc721f16`. EOS weight 4 reached **100% teacher-forced real-boundary EOS** but free-running stops were 4 early / 0 on-time / 0 late / 60 absent, teacher 44.0238%, free-char 4.2953%, and 100% breath/silent retention; checkpoint `1820fb12fd9a5ad7c74f2827eb64584f022792ceeb47a57e7af494192e497d1d`.
+
+No long tranche was launched. The semantics and governance defects are fixed, but correct free-running completion is not solved and both small smokes reduced free-character accuracy versus the protected-parent v3 baseline. Preserve `dec45989...`; treat both v3 checkpoints as diagnostic only. Full note: `roundtable/Core Architecture/CHATGPT_D512_MESSAGE_BOUNDARY_LANGUAGE_V3_20260926.md`.
+
+## Independent language/EOS review - 2026-09-26
+
+Codex independently replayed the protected language milestone and all four EOS/self-feedback descendants on the exact first 64 heldout windows, checking each window identity and checkpoint hash. The reported free-character accuracies reproduced. All five also retained 120/120 complete synthetic breath episodes and 120/120 silent third breaths. The protected original and archive match SHA256 `566d33cdcb31ad92c0a785b87578c43ad9d28197112daa5f83556a0945397107`.
+
+**Correction: none of the five candidates stopped at the required 64-character boundary.** EOS8's 41/64 stops were all early (median output 8 characters); EOS12/self-feedback's 55/64 stops were all early (median 3). The lighter EOS4 follow-up stopped early 22 times, late once, and never at the boundary; the EOS8 follow-up stopped early 42 times. Zero complete 64-character references matched even with EOS ignored. Therefore the reported termination gains prove increased stopping propensity, not repaired completion. Missing characters also depress free-character accuracy, so that score alone does not quantify language forgetting.
+
+The curriculum appends EOS at arbitrary fixed window ends, without matching authored message/thought endpoints. Fix that target meaning and separately report early/correct/late/no EOS before tuning weights further. **Further language mutation is blocked on genuine executable preflight evidence:** the launcher's COUNTERFACTUAL_DEPENDENCE payload currently hard-codes `passed: True` and only supplies a prose claim. No new training was launched during this review.
+
+Eight existing Core/breath regressions pass with cache writing disabled; a separate all-false sampling-mask check exactly matched teacher-forced logits/state. Those tests do not yet cover the new language loss and nonzero feedback semantics. Preserve the GRU architecture, protected milestone, and breath rehearsal; repair the preflight and versioned curriculum/evaluation before a small controlled comparison. Synthetic breath retention still does not establish causal Soul use or live Heart breathing. Full evidence: `roundtable/Core Architecture/CODEX_D512_LANGUAGE_REVIEW_20260926.md`. Only this report and both ledgers were intentionally changed; implementation/checkpoints remain unmodified and uncommitted, and the diagnostic processes completed.
+
+## Dormant-language EOS/self-feedback tranche - 2026-09-26
+
+The 400-step GRU Dormant-language milestone `dec45989bd4b872a90fb7b1f4d9ce9a0ce448b5ded70d04bacff56bf3bca754f` is now explicitly protected under `State/training/continuous_core_d512_dormant_language/milestones/`; its archived checkpoint SHA256 is `566d33cdcb31ad92c0a785b87578c43ad9d28197112daa5f83556a0945397107`. That milestone remains the strongest clean language baseline from this line: heldout loss 1.612576, teacher content 62.1826%, free-running character 13.9893%, termination 0%, and 100% breath/silent-breath retention.
+
+`scripts/train_continuous_core_d512_dormant_language.py` now has an experimental v2 objective with weighted private EOS and deterministic scheduled self-feedback. Self-feedback re-enters the Core's own greedy transport token through exact D16; an early predicted EOS fails closed to teacher feedback because private EOS is not a D16 transport cell. Controlled smokes proved EOS weighting works: EOS weight 12 with a 0->10% sampling ramp reached 85.9375% heldout termination while preserving 100% breath behavior, but teacher/free-char fell to 58.7891%/6.25%. EOS weight 8 without sampling produced a better tradeoff at 61.0352% teacher, 10.8398% free-char, 64.0625% termination, and 100% breath behavior. Lighter follow-ups recovered some content but did not improve the overall tradeoff.
+
+No long continuation was launched after these smokes. The next gate is joint improvement: termination must rise without sacrificing the protected language milestone's content/free-running quality. Focused D512 regressions pass 8/8; `py_compile` and `git diff --check` are green.
+
+
+
+
+## Single-GRU breath training proof - 2026-09-25
+
+The near-term single-GRU track has now crossed its first **breath-native mechanism gate**. `training/continuous_core_d512_breath.py`, `scripts/train_continuous_core_d512_breath.py`, and `tests/test_continuous_core_d512_breath.py` train/evaluate the existing 1,765,216-parameter D512 one-GRU/no-attention Core across three sequential breaths while retaining one recurrent state. Every breath receives a complete exact materialized D16 current mirror; the accepted prior thought is included in the next mirror. Breath 3 deliberately adds **no new external fact**, so continued correct output depends on the organism's own prior canonical-like thought history plus resident recurrent cognition. `SCRATCH` is used only as a training surrogate until Thoughtstream is ratified as a real region.
+
+The governed progression was 24 steps -> 160 steps -> 700 steps, each from a fresh base rather than weakening continuation governance. At 24 steps, teacher content reached 41.944% but free exact breaths remained zero. At 160 steps, teacher content reached 66.667% and free exact breath became nonzero at 2/360. The fresh 700-step run then scored **360/360 exact free-running breaths, 120/120 exact complete three-breath episodes, and 120/120 exact third breaths with no new external fact**, with 100% teacher content, EOS, termination, and Unicode validity and heldout mean loss 0.004213. Checkpoint: `2ed05e3e0a6783295a1c78b724ea3eb63c99a056e8c6564cf025142d44ce29b0`; immutable run summary: `State/training/continuous_core_d512_breath/runs/8b2508b52470210fc60e8d1c2635211e0799d1a29e7427145ec82130fcef1246.json`; peak CUDA allocation 107,582,976 bytes.
+
+This is deliberately a **narrow synthetic mechanism proof**, not a conversation or general-reasoning claim. Heldout letter triples are disjoint but use the same compact relational template family. The result establishes that the plain GRU512 can learn exact self-fed multi-breath recurrence under this curriculum, including a breath with no new external fact. The next execution gate is harder variable natural language/conversation and compositional counterfactuals, followed by live Heart breathing only after the still-binding FIRST/REFINED/consolidator doctrine is explicitly reconciled.
+
+The ambitious roadmap was also updated: its leading trajectory-reflection candidate is now a fixed-size **Reflection Table / fast associative chamber** that scans a trajectory once and learns retain/overwrite updates into bounded private slots or fast weights. Full attention is a bounded comparison/control rather than the default. Updated roadmap SHA256: `2522F6DB666A3D5E5011EA80CB48CDA5BC4E5C8D231D62A0BAB9DB77E71F6520`.
 
 ## Core roadmap ? working Axon first, advanced Core second
 
 Jeff has directed a deliberate two-track reset. The near-term execution track returns to the simplest measured Core: one resident GRU512 must first become reliably literate, conversational, persistent across real canonical deltas, and capable of continuous breath-native Thoughtstream contribution. Once one accepted Core works inside the real Heart/D16 body, clone that same parameter generation into multiple resident Cores with separate recurrent states and round-robin Executive authority. This gives Axon a working ensemble before advanced Core anatomy is required.
 
-The ambitious research track remains active in `roundtable/Core Architecture/AXON_CORE_ROADMAP_20260925.md` (SHA256 `5D3DBB77786C3DBCDD5FB947F8633DC8D5F04DF8C4BA720D18EC79E04BED66E3`). It separates exact mirror, recurrent working state, internal trajectory, and public thought; preserves Soul as an open trajectory-reflection/learning-signal hypothesis; and proposes future Working, Reflection, Synthesis, and Crystallizer chambers. Attention may return only over bounded trajectory/latent workspaces so canonical lifetime growth does not create lifetime-scale quadratic attention.
+The ambitious research track remains active in `roundtable/Core Architecture/AXON_CORE_ROADMAP_20260925.md` (SHA256 `2522F6DB666A3D5E5011EA80CB48CDA5BC4E5C8D231D62A0BAB9DB77E71F6520`). It separates exact mirror, recurrent working state, internal trajectory, and public thought; preserves Soul as an open trajectory-reflection/learning-signal hypothesis; and proposes future Working, Reflection, Synthesis, and Crystallizer chambers. Attention may return only over bounded trajectory/latent workspaces so canonical lifetime growth does not create lifetime-scale quadratic attention.
 
 The roadmap also preserves the long-term developmental goal: Axon's lived experience should eventually improve parameters, but only through outcome/provenance-governed derived training material rather than blindly training on everything Axon once thought. The advanced multi-chamber program must compete against the working single-GRU control and must not block the first living Axon. No training or runtime change was authorized by the roadmap turn.
 
 ## Converged breathing cadence - 2026-09-25
+
+Codex independently checked ChatGPT's latest work. The ChatGPT task is idle and no Axon trainer is running; the completed work is present but not yet committed after `3b9df60`. New untracked files are `training/continuous_core_d512_breath.py`, `scripts/train_continuous_core_d512_breath.py`, and `tests/test_continuous_core_d512_breath.py`; the roadmap and ledgers are modified. Stored artifacts show fresh governed 24-, 160-, and 700-step CUDA runs. The final 700-step result is 360/360 free breath exact, 120/120 complete three-breath episodes, and 120/120 exact on breath three without new external fact. Codex independently collected and passed all 8 focused D512 tests (pytest cache write warning disclosed). This remains a narrow three-letter relation-template mechanism proof; no live Heart breathing, conversation, broad reasoning, autonomy, or promotion is established.
 
 **Jeff's explicit clarification: external silence must not stop breathing.** While the organism is running, completed breaths lead to further breaths even when external regions are unchanged. Shared reasoning history, private cognition/Soul, goals, and the rotating actor's governed actions can evolve on their own. Heart should own an explicit continuing cadence; mirror synchronization is a prerequisite within each breath, not a requirement for fresh external input before scheduling one. Useful exploration can include wrong ideas, disagreement, reconsideration, study, maintenance, and internally initiated tasks.
 
