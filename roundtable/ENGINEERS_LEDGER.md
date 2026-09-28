@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T11:00:00-05:00
+Updated: 2026-09-28T12:00:00-05:00
 current_through_event_id:
-`evt-20260928T160000000000Z-hermes-why-old-lab-trained-fast-gpu-and-training-begun`
+`evt-20260928T170000000000Z-hermes-corelab-first-training-run-copy-100pct-flatline-resolved`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -58,6 +58,30 @@ core is both a bug and a discount. 3 s/beat is the cost of cores actually workin
 
 Diagnostics: `diag_beat_cost.py`, `diag_beat_speed.py`, `diag_batch_cores.py`, `diag_beat_gpu.py`.
 Report: `D:/Hermes/WHY_A_BEAT_COSTS_THREE_SECONDS.md`.
+
+## FIRST CoreLab TRAINING RUN — 100% on held-out copy, the FLATLINE IS RESOLVED — 2026-09-28
+
+**The copy curriculum, ported to CoreLab's real width 1024, trained on the GTX 1650 in under ten minutes. It works.**
+
+| | |
+|---|---|
+| before training | **0/400 (0.0%)** |
+| after (own eval) | **800/800 (100%)** |
+| **independent, fresh seed** | **32,000/32,000 (100.0%)** |
+| time | **576.8 s** for 1200 steps, 11,784 chars/s *including* backward |
+| loss | **3.2513 → 0.0001** |
+
+**THE FLATLINE IS RESOLVED — the headline.** A fresh input now moves the recurrent state by **~30**, where the untrained lab measured **0.000008**. That is roughly a **four-million-fold** change, and it is the difference between a core that is alive and one that is inert. **Output diversity: 30 distinct inputs → 30 distinct outputs** (untrained: ~6 across 45). **The flatline was a training problem, exactly as diagnosed in event 426 — now demonstrated rather than asserted.**
+
+**Verified independently rather than trusting the training harness's own eval** (`verify_copy.py`, fresh seed 999999, 32,000 held-out episodes), and it genuinely copies from the STATE: field `ILS`→`ILS`, `NOQ`→`NOQ`, `TNN`→`TNN`, `MBX`→`MBX`, `UBJ`→`UBJ`.
+
+**Two design points worth keeping:**
+- Turn 0 is a **full field**; later turns are **DELTAS** (history grown + input changed) — matching the real heart's delta delivery.
+- Episodes are **batched (32)** — valid because all episodes **share one weight set** and differ only in state. This is explicitly **NOT** the distinct-weight core batching that measured 3× slower (event 427). Same word, opposite result.
+
+**WHAT IT DOES NOT MEAN — state this whenever it is cited.** Copying a 3-letter word is **not reasoning**. It proves the core can hold information in its state, receive it as deltas, and answer from the state alone. The reference alphabet sits in the field next to the word, which makes the mapping easy for a network that has learned the alphabet. And the old lab passed the same task at **512**, so this is a **known quantity, not a triumph**. A foundation, not intelligence.
+
+**Ledger event 434.** Report: `D:/Hermes/CORE_LAB_FIRST_TRAINING_RUN.md`. Next in the old lab's sequence: **recall**, then **edit**; then wire the trained core back into `lab/heart.py` so the thoughts region stops repeating.
 
 ## Why the OLD lab trained fast and CoreLab crawled — it was the GPU — 2026-09-28
 
