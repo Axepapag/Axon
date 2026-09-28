@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T17:00:00-05:00
+Updated: 2026-09-28T18:00:00-05:00
 current_through_event_id:
-`evt-20260928T220000000000Z-hermes-ffn-operator-no-attention-prototype-two-mandatory-rules`
+`evt-20260928T230000000000Z-hermes-ffn-correction-task-was-circular-and-mostly-linear`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -58,6 +58,48 @@ core is both a bug and a discount. 3 s/beat is the cost of cores actually workin
 
 Diagnostics: `diag_beat_cost.py`, `diag_beat_speed.py`, `diag_batch_cores.py`, `diag_beat_gpu.py`.
 Report: `D:/Hermes/WHY_A_BEAT_COSTS_THREE_SECONDS.md`.
+
+## CORRECTION — the FFN operator's "capability" was CIRCULAR and mostly LINEAR — 2026-09-28
+
+**This amends the event above. Jeff challenged: *"I'm not convinced that that feed forward network was
+trained. What was it trained on? What didn't know how to compute? What are we asking the core to do?"*
+He was right, and it is now measured.**
+
+**(A) WHAT IT WAS TRAINED ON — circular.** Input = clean recurrent state + **0.5 gaussian noise I added
+myself**; target = the same clean state. **The task existed only because I created it.** It contains no
+language, no text, no reasoning. It was never a skill.
+
+**(B) MOST OF IT IS A STRAIGHT LINE.** A single **linear map** fitted to the trained operator's own
+input -> output explains it with **R^2 = 0.9393**. On the same 4096 samples: identity baseline MSE
+**0.2503**, trained operator **0.0515**, best linear map on the task **0.0675**. It does have real
+nonlinear content, but the majority of what it learned is reproducible by one matrix multiply.
+**Calling it a "capability" was overselling.**
+
+**(C) THE REAL ANSWER TO "WHAT ARE WE ASKING THE CORE TO DO?" — a GRU's gates are ALREADY per-vector
+MLPs.** `r = sigmoid(Wr x + Ur h + br)`, `z = sigmoid(Wz x + Uz h + bz)`, `n = tanh(Wn x + r*(Un h) + bn)`.
+**So a pointwise FFN bolted beside a GRU DUPLICATES computation the GRU already contains.** That is the
+plain explanation for the learned gate settling at only **tanh +0.1168**. The gate was not measuring
+"is this useful?" — it was measuring **"is this MORE useful than what the core already has inside
+itself?"** And mostly it is not, because it is the *same kind* of computation.
+
+**(D) WHAT AN OPERATOR MUST OFFER TO EARN ITS PLACE** — the capability must be one the recurrence cannot
+give itself:
+1. **CAPACITY** — a block much wider than the core, so the core delegates a heavy transform it has no
+   room to perform internally.
+2. **SPECIALISM** — one frozen block, trained and validated on ONE skill, reused by many cores with no
+   retraining.
+3. **SHARING** — the same frozen block in every core, giving separate cores common ground (connects
+   directly to the finding that a single core has no reason to be distinct).
+
+**Denoising scores ZERO on all three.** It was never going to help.
+
+**(E) METHOD LESSON: A MEASURABLE TASK IS NOT THE SAME AS A MEANINGFUL TASK.** I picked a task that was
+easy to measure instead of one worth measuring.
+
+**(F) WHAT STILL STANDS from the event above:** the **wiring rules** — match the operator's training
+states to the using core, and gate it so it starts closed. Those are real and are about *safe
+attachment*, not about what a block should do. **No operator block has been shown to improve anything.
+THE OPERATOR IDEA IS UNPROVEN, NOT DEMONSTRATED.**
 
 ## FFN OPERATOR BLOCK WITH ZERO ATTENTION — built, and it FAILED before it worked — 2026-09-28
 
