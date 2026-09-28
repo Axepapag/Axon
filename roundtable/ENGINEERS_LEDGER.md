@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T19:00:00-05:00
+Updated: 2026-09-28T20:00:00-05:00
 current_through_event_id:
-`evt-20260928T240000000000Z-hermes-trmdevops-dexters-brain-trm-carry-state-and-a-memorisation-trap`
+`evt-20260928T250000000000Z-hermes-drepo-trm-training-corpus-characterised-tool-and-reasoning-sets-degenerate`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -58,6 +58,42 @@ core is both a bug and a discount. 3 s/beat is the cost of cores actually workin
 
 Diagnostics: `diag_beat_cost.py`, `diag_beat_speed.py`, `diag_batch_cores.py`, `diag_beat_gpu.py`.
 Report: `D:/Hermes/WHY_A_BEAT_COSTS_THREE_SECONDS.md`.
+
+## D:/DREPO/Dexter-Eternal/trm_training — the corpus, characterised — 2026-09-28
+
+**Jeff: "The TRM has something we need." READ-ONLY. ~2.9 GB, ~200k records. Nothing trained, nothing moved.**
+
+**LOCATION:** the real path is `D:/DREPO/Dexter-Eternal`, NOT the `D:/Dexter-Eternal` the TRMDEVOPS
+configs point at — that is why `build_datasets.py` could not re-run.
+
+**THE REAL ASSET:**
+- `tool_calls_merged_normalized.jsonl` — **1,869 records, 93 distinct tools**, each carrying
+  intent / task / skill_id / skill_confidence / tool_name / arguments / result / call_source /
+  tool_confidence / ts. Top: `recovery.get_summary` 345, `shell.run` 220, `file_ops.read_file` 210,
+  `file_ops.list_directory` 197, `system_ops.get_system_info` 76, `powershell.execute` 73,
+  `voice.speak` 69, `system_ops.resource_sample` 69.
+- `experience.jsonl` (1,299 events), `legacy_memory_pairs.jsonl` (4,982 real user/assistant pairs),
+  `legacy_db_events.jsonl` (153,349), `legacy_memory_messages.jsonl` (11,849).
+- `meta_decisions.jsonl` — **the DECISION LOOP**: intent, task, decision (e.g. `RE-PLAN`),
+  result_summary recording outcomes (a query returning `count 0`). **This is the supervision signal
+  Axon was missing** — deciding, seeing a result, deciding again.
+- `intent_classification/` — **7,164 labelled examples WITH A REAL HELD-OUT SPLIT** (train 6,447 /
+  val 717); greeting/question/command/request/task/conversation/unknown. The only dataset here whose
+  accuracy could mean something.
+
+**THE BAD NEWS — the TRM datasets are degenerate:**
+- `tool/` — 509 examples but only **16 unique inputs / 24 unique input→target pairs**.
+- `reasoning/` — 200 examples, **16 unique pairs**.
+- `memory/` — **literally zero** (npz shape `(0,)`).
+- Decoded, the task is **deduplicating a repeated tool sequence** (input `1,4,4,4,4,4,4,2` →
+  target `1,4,4,2`, i.e. status + six repeats of service_list + get_system_info → status + two
+  service_lists + get_system_info). **A counting exercise, not reasoning.** The pipeline built a real
+  corpus and never turned it into the three tasks it was designed for.
+
+**CAVEATS:** intent labels are **noisy** ("read this file do the work and update the file as you go"
+labelled *greeting*); the tool corpus has results in **100%** of records but arguments in only
+**151/1869 = 8.1%** — strong on outcomes, **thin on argument shaping**. `forge_tool_correction`'s
+99.86% "accuracy" remains a **memorisation artefact**.
 
 ## D:/TRMDEVOPS IS DEXTER'S BRAIN — TRM carry state, and a memorisation trap — 2026-09-28
 
