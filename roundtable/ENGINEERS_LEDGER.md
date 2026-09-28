@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T14:00:00-05:00
+Updated: 2026-09-28T15:00:00-05:00
 current_through_event_id:
-`evt-20260928T190000000000Z-hermes-corelab-one-core-soul-fed-d00-corpus-perplexity-3.18`
+`evt-20260928T200000000000Z-hermes-soul-vector-teleport-bug-corrected-core-soul-fed-d00`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -58,6 +58,58 @@ core is both a bug and a discount. 3 s/beat is the cost of cores actually workin
 
 Diagnostics: `diag_beat_cost.py`, `diag_beat_speed.py`, `diag_batch_cores.py`, `diag_beat_gpu.py`.
 Report: `D:/Hermes/WHY_A_BEAT_COSTS_THREE_SECONDS.md`.
+
+## CORRECTION — the soul vector TELEPORTED; one core fed D:/00, corrected — 2026-09-28
+
+**This SUPERSEDES the "soul IS load-bearing" claim in the event above. That claim is WITHDRAWN.**
+
+**ROOT CAUSE — a hash-seeded vector has no continuity.** `soul_vector()` seeded `np.random` from
+`soul.digest()[:16]`. Deterministic, but when the soul drifts one byte the digest changes and the
+vector **teleports to an unrelated direction** instead of moving slightly. `train_corpus.py` computed
+it ONCE before the loop; the soul then drifted (digest `9ff25482` -> `bda53731`, 161 folds).
+**Measured cosine(training vector, saved-soul vector) = 0.031 — orthogonal.**
+
+**The checkpoint was a MISMATCHED (core, soul) pair.** Same weights, three ways: **2.7495** with the
+vector it trained on, **452.0570** with the soul as saved, **2498.8557** with no soul. So the earlier
+"8 of 8 answers changed" was random directions disagreeing — **noise wearing a result's clothing**.
+
+**FIX (two parts).** (1) The soul projection is now a **learned `nn.Linear`, trained with the core and
+saved with it**, so the pair can never disagree. (2) Soul features are **shift-invariant per-layer
+normalised byte histograms** — the first attempt used a sliding byte window, so appending ONE byte
+shifted every slot and moved the vector to cosine **0.88**, further than a genuinely different soul
+(**0.73**); a shift-sensitive representation cannot express continuity.
+
+**RETRAINED:** 4,000 steps x 24 x 128 in **1,239 s = 9,917 chars/s**, loss **5.8701 -> 1.14894**,
+perplexity **354.29 -> 3.16**.
+
+**ARTIFACT TEST (the one that previously failed):** reload the checkpoint from disk, rebuild the soul
+from what was SAVED -> **ppl 2.6702**. It reproduces its own score. **The artifact is real now.**
+
+**SOUL PRESENCE is load-bearing; soul IDENTITY is NOT (yet).**
+- no soul at all -> **6.9097** (2.6x worse) — the core depends on what it has absorbed.
+- a *different* soul (different ingested span, feature cosine 0.765) -> **2.6794** vs **2.6702**
+  (0.3%). As far as this core is concerned, any soul will do.
+- **AMPLIFICATION TEST:** every setting that makes identity audible **destroys the model** (scale 2 ->
+  ppl 22.9; scale 4 -> millions). A merely-quiet signal would *improve* when amplified; this one
+  injects destruction, so **the core has learned to route AROUND its soul**.
+
+**WHY (the important part):** a single core on a single task is never rewarded for being itself, so
+the cheapest solution is to ignore who it is. There is no penalty for being identical because there is
+no other core to be identical to. **Diversity cannot be wired in or bolted on — it must be TRAINED IN,
+where being different is the thing that fails.** That is the multi-soul experiment, and it is now the
+next step rather than an optional one.
+
+**QUALITATIVE:** seed `'Jeff'` -> `'Jeffrey has a specific template recommendation to received the c'`.
+40-char prompts give `coxter` / `Ecogntracti` / `iesibllity` — right letters, nearly right places,
+**weak grip on exact order, no prompt comprehension**. **Still next-character prediction, NOT reasoning.**
+
+**BASELINES unchanged:** zero-order 36.01 ppl; bigram 16.10; core under 3 (~0.2% duplicate 64-char
+windows, so not memorisation).
+
+**METHOD LESSONS:** (a) a metric must survive the operation the system performs — continuity must
+survive an append; (b) an artifact must reproduce its own training score, or it is not an artifact;
+(c) test presence and identity SEPARATELY — they gave opposite answers; (d) amplification that
+destroys the model is evidence of routing-around, not of a quiet signal.
 
 ## ONE CORE, WITH A SOUL, FED D:/00 — perplexity 341 -> 3.18, and the soul IS load-bearing — 2026-09-28
 
