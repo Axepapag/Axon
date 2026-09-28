@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T02:00:00-05:00
+Updated: 2026-09-28T02:30:00-05:00
 current_through_event_id:
-`evt-20260928T070000000000Z-hermes-keeper-cannot-hold-field-measured-bound`
+`evt-20260928T073000000000Z-hermes-mirror-lives-in-core-vocabulary-correction`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -17,6 +17,75 @@ Identity stamp: Hermes / deepseek-v4.1-flash:cloud / 2026-09-28 America/Chicago
 
 
 
+
+## The mirror already lives in the core — vocabulary failure conceded — 2026-09-28
+
+Jeff re-grounded and asked one precise question: *"the mirror must live inside and stay there... if
+it's not already in the core, they don't need something to go back and look at."* **He was right, and
+the answer is that it already does.**
+
+**VERIFIED:** `runtime/heart/core_bus.py` `D16CoreMirror` stores the entire `D16View` locally on
+`apply_snapshot`; thereafter only deltas arrive and `apply_delta` does
+`self._view = event.delta.apply(self._view)` — an in-place local update with strict sequence-gap
+checking (`D16ResyncRequired` rather than silent divergence). The Heart never re-sends the field. **No
+parameters, no training, no lossy compression.** The requirement was satisfied by existing code.
+
+**THE ROOT CAUSE OF THE WHOLE DETOUR — a vocabulary failure, owned:**
+
+| | **Mirror** | **Recurrent state** |
+|---|---|---|
+| what | exact per-core copy of the compiled field | a learned summary |
+| size | the whole field, lossless | `4 bytes × width` (h1024 = 4 KB) |
+| params | **zero** | learned |
+| fidelity | exact, round-trips | lossy by design |
+
+Several days of work were built on the second meaning while reporting about the first. **The keeper
+was invented to do the mirror's job**, so it could never work; the "keeper cannot hold the field"
+measurement measured the *recurrent state* and called it the mirror, and the resulting failure was
+reported as a fact about Jeff's design. **The mirror was never the problem.** *The word "mirror" must
+never again be used for the recurrent state in ledger text, reports, or code comments.*
+
+**Structural fix:** `ContinuousD16CorePort` wraps a core from the **outside** (a mirror as a coat the
+core wears). **Jeff's instruction: the mirror must live INSIDE and stay there** — a member travelling
+with the core's weights/checkpoints/soul/generation, not a detachable wrapper. Same behavior, inside
+rather than around.
+
+**PER-CORE MASKS WITHDRAWN.** Jeff explicitly revised his own earlier framing: cores do **not** see
+different points of view — **they all see the same thing, and diversity comes from their weights,
+parameters and souls.** The reasoning holds and Hermes endorsed it: separate masks make the cores
+several organisms sharing a heartbeat (disagreement = noise); **one global mask means they reason over
+a shared reality, so disagreement is information.** The global mask already exists — do not add
+per-core masks.
+
+**SOULS ARE NOT WIRED IN — verified.** `continuous_core_d512.py` contains **no reference to soul at
+all**; souls exist as a real organ by record (`SoulTemperature` HOT/WARM/COLD/DEEP_COLD, `SoulLayer`,
+`SoulTransition`, generations, provenance) but are **bookkeeping, not input**. Cloning a core today
+yields two identical thinkers, so Jeff's stated purpose for souls (diversity within clones) is designed
+but **unimplemented — and diversity is the entire point of the ensemble.**
+
+**DETERMINISM, ANSWERED PLAINLY:** a GRU is fully deterministic — same weights, input and state give
+bit-identical output, ten times out of ten. **Diversity cannot come from architecture; it must come
+from the soul or from deliberate sampling.**
+
+**THE BREATH, ASSESSED AGAINST CODE:** all three phases exist **within** a beat
+(`first`/`refined`/`consolidated`) with a proposal workspace and a frame format so cores can read each
+other's proposals — proven and port-driven. **Nothing survives the beat**; there is no cross-beat bus.
+So "breathe in, reason, breathe out into a bus all can see, then next breath read field + ensemble
+output" is half built, and the missing half is the same shared-cognition surface found twice before.
+
+**KEY INSIGHT: make it a REGION, not a bus.** As a field region the shared-cognition surface inherits
+the global mask, the exact compile, the per-core mirror (held exactly, delta-fed) and canonical audit —
+**for free**. The missing organ therefore costs no new mechanism: one more region plus a format.
+
+**Lab carry-forward restated:** the memorable "the GRU remembered *cat* turns later" is recurrence
+working, and it is the honest basis for an ensemble holding a thread. The measurement that matters is
+whether it holds across a **delta-fed** stream — exactly what the lab found was learned, not inherited:
+600/600 on whole fields vs **171/600 on deltas**.
+
+**Open question left with Jeff:** should the shared-cognition region hold raw verbatim proposals
+(nothing lost, volume grows fast) or a consolidator's summary (small volume, but one core's judgment
+filters the others before they ever meet)? Hermes leans raw-for-small-ensembles, summarized-once-large —
+which is not really an answer, so he asked rather than chose.
 
 ## The keeper cannot hold the field — measured bound — 2026-09-28
 
