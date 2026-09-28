@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T08:00:00-05:00
+Updated: 2026-09-28T09:00:00-05:00
 current_through_event_id:
-`evt-20260928T130000000000Z-hermes-corelab-growing-per-beat-term-characterised`
+`evt-20260928T140000000000Z-hermes-corelab-mirror-vs-heart-16d-cells-and-stays-separate`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -58,6 +58,33 @@ core is both a bug and a discount. 3 s/beat is the cost of cores actually workin
 
 Diagnostics: `diag_beat_cost.py`, `diag_beat_speed.py`, `diag_batch_cores.py`, `diag_beat_gpu.py`.
 Report: `D:/Hermes/WHY_A_BEAT_COSTS_THREE_SECONDS.md`.
+
+## Mirror vs heart, the 16D cell, and the old lab — CoreLab stays SEPARATE — 2026-09-28
+
+**JEFF DECISION: CoreLab stays a standalone lab, separate from the Axon repo.** Recorded as his call so the team does not re-open it.
+
+**Two verbs were being conflated, and that is the whole answer to "does the mirror have to be read again every beat".** The heart **REFRESHES** each core's mirror every beat — a *write into* the core, the full delta. The core **READS** its mirror — only the new bytes, ~68 chars/beat. Yes the mirror is refreshed every beat; no the core does not re-read the whole field. Same vocabulary trap as the four-day detour earlier this week; keep the verbs apart in all future writing.
+
+**Mirror vs heart diverge in TIME, not content — measured by constructing the case:**
+- immediately after the push, mirror == heart's field **byte-for-byte** (True) — read either, get the same characters
+- write to the heart's field *after* the push: reading the **HEART** shows the new text, reading the **MIRROR** shows the old one — **they diverge**
+- the core's read path **does** see a between-beat write (`['task','response_draft']`) because the heart pushes before the core reads
+
+So: **the heart is the live, shared, single original; the mirror is the core's private snapshot frozen at the push.** That is by design and load-bearing — it is what lets a core hear the other cores on the **next** beat rather than mid-beat, so every core reasons over one stable world instead of a field changing under its feet. And it is what gives a core an exact memory of its own between beats.
+
+**16D confirmed — but a character is NOT always one cell.** Measured: ascii `A`/`z`/`7`/space/newline = 1 token = **1 cell of 16 fp32 (64 B)**; `é` = **2** cells; a CJK character = **3**; emoji = **4**. The unit is a **transport token**: native alphabet = 1 cell, otherwise **one cell per UTF-8 byte**. Each cell is projected up by `Linear(16 → 1024)`. So your field is ~1 cell/char while it is English, but an accented or non-Latin or emoji region costs 2–4× per character.
+
+**What a core carries (2,085-char field, measured):** mirror **133,440 B**; recurrent state **4,096 B and fixed** (never grows with the field); read marker **194 B**; weights **26,965,376 B**. The field mirror — the thing that sounds enormous — is **~1/200th the size of the weights**. The cost is the thinking, not the storing, which is what the beat-cost profiling found from the other direction.
+
+**D:/ContinuousCoreLab vs D:/CoreLab — four differences, and the last one matters most:**
+1. **Substrate:** ContinuousCoreLab used a **synthetic frozen 16D alphabet**; CoreLab imports the **real unicode transport** from `D:/Axon/substrate` and never forks it, so results transfer exactly.
+2. **Structure:** ContinuousCoreLab had **no heart** (one persistent chamber + deltas, by design); CoreLab has regions, masks, souls, round-robin consolidator, raw attributed thoughts, and the in-core mirror with push/read.
+3. **Scale:** one chamber vs a beating ensemble where diversity can only come from weights + souls.
+4. **THE IMPORTANT ONE — ContinuousCoreLab was TRAINED and CoreLab is not.** Copy **596/600**, recall **600/600**, edit **399/400**; the d2048 runs never converged. **CoreLab has better bones and no training, which is exactly why its thinking flatlines.**
+
+**Recommendation (flagged for Jeff, not taken):** the flatline may already have a recipe in the old folder — re-run the **copy/recall/edit curriculum that worked at 512 wide** at CoreLab's **1024** width, inside CoreLab with the real substrate and the ensemble. Caveat: the old checkpoints are 512-wide and will not drop into a 1024 core directly. This is the first step that aims at making the cores *think* rather than making the plumbing correct.
+
+**Ledger event 431.** CoreLab 28 pass / 0 fail / 4 limits, standalone.
 
 ## What actually grows in a beat — two terms, and a withdrawn figure — 2026-09-28
 
