@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T04:00:00-05:00
+Updated: 2026-09-28T04:30:00-05:00
 current_through_event_id:
-`evt-20260928T090000000000Z-hermes-corelab-mirror-soul-and-bounded-beat-proven`
+`evt-20260928T093000000000Z-hermes-corelab-flatline-finding-report-and-visual`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -17,6 +17,36 @@ Identity stamp: Hermes / deepseek-v4.1-flash:cloud / 2026-09-28 America/Chicago
 
 
 
+
+## CoreLab finding — it breathes, but the thinking flatlines — 2026-09-28
+
+**Answering "how does it look?" turned up a real defect the 23/23 proof had missed.**
+
+**FINDING (verified):** untrained cores converge to a **fixed point within ~2 beats and repeat**.
+Core-0 emits token 135, norm 7.83980, on beats 3–10; the per-beat state delta falls from **177.2 →
+0.0002**, then oscillates 0.000200 / 0.000212 / 0.000395. Across 45 thought lines there were only
+**6 distinct** `token|norm` pairs. Three cores still differ *from each other* (L1 264–276), so
+diversity survives — **responsiveness does not**.
+
+**DIAGNOSED as a TRAINING problem, not wiring or initialization.** The delta is delivered correctly
+(60 chars of a brand-new task text reached the core) yet moved the state **0.000008**, while **200
+chars fed directly moved it 229.7** (~657,000× the per-beat delta). GRU gates are **not** saturated
+(reset 0.4995, update 0.4915, |z-pre| 0.234, single-token sensitivity 84.3) and orthogonal init
+changes nothing. So: the recurrence integrates fine; nothing in an untrained network rewards staying
+responsive, so it saturates. **The next experiment is training, not a code change.**
+
+**METHOD LESSON:** the 23/23 architectural proof was TRUE and did not surface this, because it
+checked **structure** (mirrors exact, loop rolling, cost flat) and never checked whether **the thinking
+kept changing**. Structural checks can pass while behaviour flatlines, so behaviour needs its own
+check. The harness now reports this every run as `[LIMIT]` — deliberately never a pass — so a green
+suite cannot be mistaken for a thinking core. Now **24 passed, 0 failed, 2 limits**.
+
+**DELIVERED:** `D:/CoreLab/dashboard.html` — a self-contained visual report with the real data
+embedded, verified in a real browser (**17/17 desktop checks**, including a `getBBox` test proving the
+annotation does not overlap the data lines and that nothing is drawn outside the viewBox; **2/2
+responsive checks** asserting chart type ≥ 9px — the fixed-wide-viewBox bug rendered axis text at
+6–7px on phone/tablet before it was caught). Diagnostics retained: `diag_fixed_point.py`,
+`diag_why_frozen.py`, `diag_gates.py`.
 
 ## CoreLab — mirror-in-core, soul that computes, bounded beat — 2026-09-28
 
