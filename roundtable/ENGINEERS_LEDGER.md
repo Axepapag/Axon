@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T02:30:00-05:00
+Updated: 2026-09-28T04:00:00-05:00
 current_through_event_id:
-`evt-20260928T073000000000Z-hermes-mirror-lives-in-core-vocabulary-correction`
+`evt-20260928T090000000000Z-hermes-corelab-mirror-soul-and-bounded-beat-proven`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -17,6 +17,39 @@ Identity stamp: Hermes / deepseek-v4.1-flash:cloud / 2026-09-28 America/Chicago
 
 
 
+
+## CoreLab — mirror-in-core, soul that computes, bounded beat — 2026-09-28
+
+**Built `D:/CoreLab`, a lab-scale replay of the substrate. `python -m lab.prove` → 23 passed,
+0 failed.** Organs: `lab/field.py` (never-truncated regions + per-region sliding mask),
+`lab/soul.py` (hot/warm/cold/deep_cold with bounded budgets + fold cascade), `lab/core.py`
+(1024 GRU with the mirror as a MEMBER, soul conditioning, read cursor), `lab/heart.py` (the beat),
+`lab/prove.py` (the checks). Exact unicode transport imported from `D:/Axon/substrate` — **never
+forked**, so results transfer exactly.
+
+**VERIFIED, three questions Jeff asked:**
+1. **The 1024 GRU holds the mirror exactly.** Byte-identical to the heart after delta beats, and it
+   regurgitates every region verbatim. Mirror held **2,142 chars while the attended slice was 600** —
+   storage unbounded, attention bounded. Zero parameters.
+2. **The soul reaches computation.** Clones with divergent souls diverge (max logit delta 0.102747);
+   a soul-less core differs from a soul'd one. And the honest answer to his ten-times question: **a
+   GRU with fixed weights/input/state is bit-identical over 10 repeats** — diversity cannot come from
+   repetition or architecture, so it MUST come from the soul. Souls are now load-bearing.
+3. **It breathes, and cost stays flat.** 25 beats × 3 cores: every beat changes the field, **23/23
+   beats read the thoughts region**, raw attributed lines accumulate, nothing is summarized, all
+   mirrors exact. **2,287 ms/beat early vs 2,304 ms/beat after history grew 1,949 → 3,399 chars.**
+   ~3.2 s/beat at h1024 CPU (~1 s/core).
+
+**Five design rules, each paid for by a real failure:** delta must be computed against *the state that
+core's mirror actually holds* (first version made between-beat writes invisible); **storage and
+attention need TWO cursors** (one cursor → settling blanks the next beat → 0/23 beats read thoughts;
+split → 23/23); **a percent mask is not a sliding window** (grows with the region, showed as a 420 s
+timeout — use a fixed char window); **deliver only NEW bytes** per beat (10.5 s → 3.2 s, and each
+thing is heard exactly once); a core reads the thoughts region but its own line is echo.
+
+**HONEST LIMIT:** nothing is trained (random weights) — this proves architecture, NOT reasoning
+quality. The readout is a placeholder (`token|norm|steps`), not language. **OPEN QUESTION FOR JEFF:**
+standalone project or a folder inside Axon?
 
 ## The mirror already lives in the core — vocabulary failure conceded — 2026-09-28
 
