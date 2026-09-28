@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T16:00:00-05:00
+Updated: 2026-09-28T17:00:00-05:00
 current_through_event_id:
-`evt-20260928T210000000000Z-hermes-substrate-is-an-alphabet-fail-closed-violations-fixed-soul-compared`
+`evt-20260928T220000000000Z-hermes-ffn-operator-no-attention-prototype-two-mandatory-rules`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -58,6 +58,53 @@ core is both a bug and a discount. 3 s/beat is the cost of cores actually workin
 
 Diagnostics: `diag_beat_cost.py`, `diag_beat_speed.py`, `diag_batch_cores.py`, `diag_beat_gpu.py`.
 Report: `D:/Hermes/WHY_A_BEAT_COSTS_THREE_SECONDS.md`.
+
+## FFN OPERATOR BLOCK WITH ZERO ATTENTION — built, and it FAILED before it worked — 2026-09-28
+
+**Jeff: "So we can train a FFN with no attention? how would it work? how will we train it how will
+the gru use it?"** Answered by building it.
+
+**WHY NO ATTENTION IS NEEDED:** attention mixes information **across positions**; an FFN is
+**pointwise** (each position transformed independently). **The GRU already supplies across-time
+mixing by recurrence**, so GRU + FFN is a complete architecture. Nothing is missing.
+
+**HOW THE OPERATOR IS "GIVEN A TASK" — mechanically: THE TASK IS THE PROJECTION.** A frozen module
+cannot read an instruction. The state holder projects its state into the operator's input space
+(`task_proj`). **The same frozen weights driven through a different projection do a different job.**
+Wiring: `state -> task_proj -> FROZEN FFN -> added back -> readout`; the operator is never modified.
+
+**THE RUN (width 256, GPU):** base GRU -> ppl **8.28**. Operator trained **standalone** on a denoising
+capability (state + 0.5 noise -> clean state), per-vector MLPs only, **zero attention, zero
+recurrence**: 263,424 params, MSE **0.2496 -> 0.0526 (4.75x better)**, 600 steps in ~4s. Then
+**frozen**, verified by parameter hash `1e8c702a2b8fb1c4`.
+
+**THE FIRST ATTEMPT FAILED, and that is the finding.** GRU + frozen operator **14.27** vs no-operator
+control **7.93** — attaching a correctly trained, correctly frozen operator made the core **~1.8x
+WORSE**. Reporting only the working version would have handed over a technique that damages the model.
+
+**CAUSE ISOLATED — two independent, mandatory rules:**
+
+| configuration | perplexity |
+|---|---|
+| no operator (control) | **8.32** |
+| operator trained on the USING core's states + **gated** residual | **8.11** ← beats control |
+| operator trained on the using core's states + **UNGATED** residual | **12.61** ← harmful |
+
+1. **Train the operator on the states of the core that will USE it.** The operator had been trained on
+   the *base* core's states and attached to a *different* core, so its input distribution was wrong —
+   it answered a question nobody asked.
+2. **Put it behind a gate that starts CLOSED.** `h = h + op(task_proj(h))` shoves the recurrent
+   trajectory sideways on step 1, and the core spends its training undoing that instead of learning.
+   A gate initialised to 0 means the core starts at the no-operator baseline and can only improve.
+   **The learned gate settled at tanh = +0.1168** — a light leash: neither rejected nor given control.
+
+**HONEST LIMIT: this proves MECHANICS, not VALUE.** The capability (denoising) was deliberately simple
+so the run finished fast, and the win over control is small (8.11 vs 8.32). **Do not read this as
+evidence that operator blocks meaningfully improve reasoning** — that is a separate, larger question.
+
+**PATTERN WORTH NAMING:** this failure has the **same shape** as the soul teleport bug (event 437) — a
+component trained in one distribution, deployed in another, **confidently useless**. Three occurrences
+in one day. Treat it as a class, not as incidents.
 
 ## THE SUBSTRATE IS AN ALPHABET — and CoreLab was violating fail-closed in its own code — 2026-09-28
 
