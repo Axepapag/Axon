@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T07:00:00-05:00
+Updated: 2026-09-28T08:00:00-05:00
 current_through_event_id:
-`evt-20260928T120000000000Z-hermes-corelab-flat-cost-restated-as-work-not-wall-time`
+`evt-20260928T130000000000Z-hermes-corelab-growing-per-beat-term-characterised`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -58,6 +58,24 @@ core is both a bug and a discount. 3 s/beat is the cost of cores actually workin
 
 Diagnostics: `diag_beat_cost.py`, `diag_beat_speed.py`, `diag_batch_cores.py`, `diag_beat_gpu.py`.
 Report: `D:/Hermes/WHY_A_BEAT_COSTS_THREE_SECONDS.md`.
+
+## What actually grows in a beat — two terms, and a withdrawn figure — 2026-09-28
+
+**Reading the completed flat-cost diagnostic supplied the one measurement I had not seen**, and it was larger than my limit note claimed: the read-prefix hash scales **linearly** — 0.009 ms at 1k chars, 0.200 at 10k, 0.578 at 100k, **6.571 ms at 1M**. So I measured what actually grows in a beat and re-characterised the limit rather than leave an understated number standing.
+
+**TWO things grow, not one.** My earlier note blamed only the prefix hash and was incomplete:
+1. the read marker's **prefix hash** (as above)
+2. **`Delta.between` itself** — it builds `patches` by comparing **whole region texts** for every region, *before* any hashing happens. So deciding what changed is O(region size) twice over.
+
+**Measured size at realistic scales** (3 cores, push+read per beat): ~2.1k chars → **0.53–1.95 ms**; 10.1k chars → **1.44 ms / 3.28 ms** across samples; `delta.between` 0.17 → 0.42 ms; `content_hash` 0.05 → 0.18 ms. Against a ~2,700 ms beat that is well under 1%. **Sub-millisecond at the real field size, linear if the field grows to the megabyte scale.** The box is loaded so these are reported as **ranges**, not single figures.
+
+**WITHDRAWN — event 428's figure:** "measured 1.4 ms of a 650 ms beat at 87k chars of history (0.2%)". The 1.4 ms came from an earlier harness that **inflated the delta** (it pushed by hand and then called `beat()`, which pushed again), so it did not measure the beat's own path. Replaced by the measured range above.
+
+**Known O(1) fix, deliberately NOT taken:** a per-region content **version counter** bumped on write would make the comparison O(1). Not done because a core's **private** read marker would then need to read the **field's** stored version — coupling a core's internal bookkeeping to the heart's internals to save a sub-millisecond cost at 1–4k chars. Recorded as a trade, not a gap.
+
+**Also fixed a harness bug:** growing the test field line by line is O(n²) and the 200k/800k sizes never finished (killed). Rewritten to append the whole size in one write. **Harness cost must not exceed the thing under test.**
+
+**`python -m lab.prove` → 28 passed, 0 failed, 4 limits.** Ledger event 430.
 
 ## Cost flatness restated as WORK, not wall time — a published figure corrected — 2026-09-28
 
