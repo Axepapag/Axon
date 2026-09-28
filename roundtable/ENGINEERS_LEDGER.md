@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T12:00:00-05:00
+Updated: 2026-09-28T13:00:00-05:00
 current_through_event_id:
-`evt-20260928T170000000000Z-hermes-corelab-first-training-run-copy-100pct-flatline-resolved`
+`evt-20260928T180000000000Z-hermes-trained-core-has-no-soul-soul-threshold-and-post-hoc-damage`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -58,6 +58,32 @@ core is both a bug and a discount. 3 s/beat is the cost of cores actually workin
 
 Diagnostics: `diag_beat_cost.py`, `diag_beat_speed.py`, `diag_batch_cores.py`, `diag_beat_gpu.py`.
 Report: `D:/Hermes/WHY_A_BEAT_COSTS_THREE_SECONDS.md`.
+
+## IS THE CORE USING ITS SOUL? No — and the question found a real gap — 2026-09-28
+
+**Jeff asked "Is the core using his soul?" The answer is NO, and he found a gap I reported past.**
+
+**The trained copy core has NO soul at all** — the string `soul` does not appear **once** in `train_copy.py`. The core that hit 100% is a bare recurrent net (`in_proj → GRUCell → readout`). Structurally confirmed: the checkpoint holds 9 tensors and `soul_proj.weight` is **missing** when loaded into a soul-equipped model.
+
+**`lab/core.py` DOES wire a soul** (`SOUL_DIM=64`, `soul_proj = Linear(64, width, bias=False)`, added to the recurrent input every step). **But at the lab's scale it is INAUDIBLE:** six *different* random souls produced the **identical** answer (`SBQ` ×6 = 1 distinct of 6).
+
+**The soul has a THRESHOLD — measured by sweeping its strength:**
+
+| soul_proj std | distinct answers of 8 |
+|---|---|
+| 0.0 / **0.02 (lab's setting)** / 0.1 | **1** |
+| 0.5 / 1.0 / 3.0 / 10.0 | **8** |
+
+Below the threshold the core **ignores the soul entirely**; above it the soul **completely determines** the answer. So **Jeff's doctrine is architecturally supported** — the soul has full authority — the implementation simply had it set at a whisper, and it was absent from the training run.
+
+**THE DAMAGING RESULT: a soul added AFTER training is a wound, not an identity.** Froze the trained core, trained **only** `soul_proj` (65,536 of 6,460,494 params), 60 steps — loss went **0.0001 → 0.4115**. The core got **worse**. Gradient *did* flow (norm up to **5.69**), so the soul is **reachable** and receives real signal; the objective was wrong. **Conclusion: the soul must be present DURING training.**
+
+**CORRECTED DESIGN (the actionable output):**
+1. The soul must be **present from step 1**, not bolted on.
+2. Its **scale must sit above the measured threshold** or it is decorative — treat the threshold as a design parameter, not an accident.
+3. **The right next experiment:** train **several cores together, each with a different soul present from step 1**. Success = all cores copy **correctly AND differ from each other**. Either alone is a failure — a harder bar than the run that just passed.
+
+**Ledger event 435.** Report: `D:/Hermes/IS_THE_CORE_USING_ITS_SOUL.md`. The copy result (event 434) stands and is unaffected; what it lacked was noted only because Jeff asked.
 
 ## FIRST CoreLab TRAINING RUN — 100% on held-out copy, the FLATLINE IS RESOLVED — 2026-09-28
 
