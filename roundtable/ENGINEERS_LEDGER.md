@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T21:00:00-05:00
+Updated: 2026-09-28T22:00:00-05:00
 current_through_event_id:
-`evt-20260928T260000000000Z-hermes-harvested-codex-and-kimi-reasoning-18546-ticks-and-the-ticking-hypothesis`
+`evt-20260928T270000000000Z-hermes-trained-6m-ffn-operator-plus-soul-on-18546-tick-corpus-operator-worth-0.546-nats`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -58,6 +58,51 @@ core is both a bug and a discount. 3 s/beat is the cost of cores actually workin
 
 Diagnostics: `diag_beat_cost.py`, `diag_beat_speed.py`, `diag_batch_cores.py`, `diag_beat_gpu.py`.
 Report: `D:/Hermes/WHY_A_BEAT_COSTS_THREE_SECONDS.md`.
+
+## TRAINED: 1024 GRU + ~6M FFN OPERATOR + SOUL on the 18,546-tick corpus — the operator is worth 0.546 nats — 2026-09-28
+
+**Jeff: "Train a new 1024 GRU along with a massive FFN. give them that 6 million parameter FFN and a
+soul. Train them on the corpus as it is, that 18,546 ticks. Once that training is done then we'll do
+the comparison..."**
+
+**CORPUS** (`build_tick_corpus.py`): 18,540 ticks used (6 skipped empty), **7,094,890 thought chars**,
+23,792,300 total chars → **22,750,043 train ids / 1,102,731 val ids**, split **BY TICK 95/5** (seed
+20260928, **927 held-out ticks**), `sha256(train ids)=9a2ac89386ab26bc6865b89c66f7f8e4...`, 300-char
+**round-trip decoded through the substrate before writing**.
+
+**MODEL** (`train_tick_core.py`): 1024 GRU + **FFN operator 5,969,025 params** (Jeff's ~6M; hidden
+1600, pointwise, **gate starts closed**) + soul (learned projection, present from step 1) = **13,692,384
+total**.
+
+**TRAINING:** 2000 steps, 1488.3 s (GTX 1650), batch 16 × chunk 128, **held-out ppl 213.03 → 2.989**
+(val_loss 5.36145 → 1.09502), train loss 5.84291 → 1.05558, 2,752 chars/s. **THE GATE OPENED** — leash
+(tanh) ended **-0.0774**, i.e. the model chose to use the FFN (contrast the earlier prototype where it
+stayed shut at +0.117).
+
+**INDEPENDENT VERIFICATION** (`verify_tick_core.py`, reloaded from disk):
+1. **Artifact REPRODUCES its own score exactly**: reported 1.09502, re-measured 1.09502.
+2. **The operator is REAL**: WITH operator val_loss 1.09502 (**ppl 2.989**) vs ABLATED (leash→0, 6M
+   params out of the computation) 1.64116 (**ppl 5.161**) → **worth 0.54614 nats**. The first time an
+   FFN operator has shown a measurable effect in this work.
+3. **Samples are style, not thought**: "Tests failed: 2 assertions" → `**Planning summary proposal
+   state** / **Designing continuation *** proposal partial proposal**` — the register of the harvested
+   agent thinking, **not reasoning**.
+
+**HONEST LIMIT (stated, not discovered later):** the ablation removes 6M parameters from the
+computation entirely, so it proves the FFN is **USED** — **NOT** that it is a better use of those
+parameters than more GRU width or a second GRU. **That is exactly the comparison Jeff deferred; this
+run does not answer it.**
+
+**TWO BUGS FIXED BY THE WORK ITSELF:** (a) **fail-closed caught a real bug** — the substrate decoder
+rejected numpy `uint16` ids ("transport token ids must be integers"); fixed with `int()`, and the
+round-trip check now runs **before any file is written**; (b) the first smoke run went **NaN by step
+25** at lr 2e-3 with an unbounded silu, and the FFN came out **19,937,281** params not 6M — fixed with
+a **tanh-bounded activation, lr 5e-4, grad clip 0.5, a finite-loss guard that REFUSES to save a NaN
+checkpoint**, and an explicit hidden width.
+
+**READY FOR THE DEFERRED COMPARISON:** `inner_ticks` is a trainer knob (this run used **1 = plain
+single pass**, deliberately comparable); fairness control = a 5-tick core must be compared against a
+**5×-parameter** core. **NOTHING FROZEN.** Checkpoint `core_ticks_ffn_soul.pt` (54.8 MB).
 
 ## HARVESTED CODEX + KIMI REASONING → 18,546 TICKS — and the TICKING hypothesis — 2026-09-28
 
