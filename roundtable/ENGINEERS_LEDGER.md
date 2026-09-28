@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T05:00:00-05:00
+Updated: 2026-09-28T06:00:00-05:00
 current_through_event_id:
-`evt-20260928T100000000000Z-hermes-beat-cost-profiled-bandwidth-bound-and-gpu-fix`
+`evt-20260928T110000000000Z-hermes-corelab-core-reads-own-mirror-marker-not-a-copy`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -58,6 +58,32 @@ core is both a bug and a discount. 3 s/beat is the cost of cores actually workin
 
 Diagnostics: `diag_beat_cost.py`, `diag_beat_speed.py`, `diag_batch_cores.py`, `diag_beat_gpu.py`.
 Report: `D:/Hermes/WHY_A_BEAT_COSTS_THREE_SECONDS.md`.
+
+## The core now genuinely reads its OWN mirror — and the marker is not a copy — 2026-09-28
+
+**Jeff asked "does it read the mirror every time?" Two answers, one of them unwelcome.**
+
+**1. The recurrence does NOT re-read the whole field.** Measured 68 chars/beat against a 1,417-char field = **4.8% of the field per beat, a 9.0x saving** versus re-reading the mirror each beat. Only the new bytes are delivered.
+
+**2. But the in-core mirror was not on the read path at all.** The read path iterated the HEART's `field.regions`; the mirror was written every beat and never read. "The mirror lives in the core" was true of storage and false of reading. Now fixed: the heart **pushes** first (which is what makes the mirror current, including writes made between beats), then the core reads from **its own mirror**. Asserted by an AST check on the loop's iteration target, so it cannot pass on docstring prose.
+
+**Why the push must come first — measured.** Reading the mirror without pushing loses between-beat writes: a task edit made after the last beat was invisible, reporting only `['response_draft']` where the correct answer is `['task', 'response_draft']`.
+
+**The old cursor was a second full copy of the field** — 4,378 chars for a 4,395-char field. Three designs measured:
+- full-copy cursor: correct, but a core carries 2x the field
+- **deleted entirely: WORSE** — the push compares mirror→field and the mirror is settled exact every beat, so the next push is empty and the core reads **nothing** (0 of 23 beats heard the other cores)
+- **bare length marker: fails** on a rewrite that does not grow the region (a between-beat task edit silently skipped)
+- **LANDED: per-region `(length, sha256[:16])`** — 194 bytes vs a 2,281-char field (>10x smaller, asserted)
+
+**An append is proven by hashing the prefix already read**, matching the stored hash — no copy of the old text needed.
+
+**I introduced a 3x beat-cost regression and fixed it.** With an empty push, every append was misread as a rewrite, so each core re-read the whole windowed region: **448 chars/beat/core instead of ~60, beat cost 3.3 s → 10.5 s.** Back to 73 cells/beat against a 2,081-char region; beat cost flat again (3,368 ms early vs 3,351 ms after 3,399 chars of history).
+
+**Honest correction:** my first per-region breakdown pushed by hand and then called `beat()` (which pushed again with an empty delta), so it printed `last_push` as `{}` and reported windowed whole regions. It was reporting its own bug. Re-measured by hooking the real path.
+
+**Third LIMIT added, reported every run, never a pass:** the append/rewrite test hashes the already-read prefix, which grows with the region — 1.4 ms of a 650 ms beat at 87k chars (0.2%). A byte-offset cursor would make it flat but reintroduces the second copy.
+
+**`python -m lab.prove` → 28 passed, 0 failed, 3 limits.**
 
 ## CoreLab finding — it breathes, but the thinking flatlines — 2026-09-28
 
