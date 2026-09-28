@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T20:00:00-05:00
+Updated: 2026-09-28T21:00:00-05:00
 current_through_event_id:
-`evt-20260928T250000000000Z-hermes-drepo-trm-training-corpus-characterised-tool-and-reasoning-sets-degenerate`
+`evt-20260928T260000000000Z-hermes-harvested-codex-and-kimi-reasoning-18546-ticks-and-the-ticking-hypothesis`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -58,6 +58,42 @@ core is both a bug and a discount. 3 s/beat is the cost of cores actually workin
 
 Diagnostics: `diag_beat_cost.py`, `diag_beat_speed.py`, `diag_batch_cores.py`, `diag_beat_gpu.py`.
 Report: `D:/Hermes/WHY_A_BEAT_COSTS_THREE_SECONDS.md`.
+
+## HARVESTED CODEX + KIMI REASONING → 18,546 TICKS — and the TICKING hypothesis — 2026-09-28
+
+**Jeff pointed at `C:/Users/axema/.codex/sessions` + `C:/Users/axema/.kimi-code/sessions` and proposed
+"what if our GRUs recurrent state was doing something similar, continuously ticking against an FFN or
+another GRU". READ-ONLY on both trees.**
+
+**THE HARVEST (`D:/CoreLab/harvest_reasoning.py`, `harvest_inventory.py`):**
+- **KIMI IS THE PRIZE** — 94 `wire.jsonl`; **3,610 readable think blocks / 5,145,726 chars of RAW
+  UNENCRYPTED reasoning** (mean 1,425, median 446, **max 94,918 chars** in a single block);
+  6,772 tool calls.
+- **CODEX ENCRYPTS ITS REASONING** — **10,738 reasoning items, ALL `encrypted_content`**; only 3,306
+  one-line summaries survive (302,448 chars). Codex yields readably: 2,399 messages (2,554,563 chars)
+  + 9,881 tool calls. **The capability is LOST, not skipped.**
+- **Harvestable total 8,002,737 chars.** Output: `harvest/kimi_ticks.jsonl` (6,772 records, 6,935,167
+  thought chars, 18.7 MB) + `codex_ticks.jsonl` (11,774 records, 19.5 MB) = **18,546 ticks, 38 MB**.
+- Tick shape = `{observation, thought, action{tool,arguments}, result}` + session/agent/turn/step —
+  **the exact shape a core consumes.** Random sample of 2,000: **100% carry a tool action, 80% an
+  observation, 47% are Axon/Heart-specific.**
+- **Fail-closed:** every skip is counted (`codex-reasoning-encrypted-nosummary` 7,432); zero unreadable
+  Kimi lines.
+
+**THE ARCHITECTURE INSIGHT — this resolves the dead end.** Our finding that "a pointwise FFN beside a
+GRU duplicates the GRU's gates" **assumed ONE TICK.** The TRM runs the same network **many times over
+its latent state** (`z_H` fixed per outer cycle, `z_L` updated every inner cycle) before answering.
+With more than one tick the FFN is **no longer duplicating the GRU** — it is the substrate the repeated
+computation runs against. **My operator prototype had nothing to do because there was only ever one
+tick to do it in.**
+
+**TRANSLATION FOR AXON:** after ingesting its delta, a core runs **several INNER TICKS before emitting**
+— input is its own state plus a read against its mirror, each tick through the FFN, then emit. Axon
+would then recur over **both characters (GRU) and reasoning steps (inner ticks).**
+
+**EXPERIMENT DESIGNED, NOT RUN:** one-pass core vs a ticking core. **FAIRNESS SUBTLETY:** a core that
+ticks five times does five times the compute, so it must be compared against a **5×-parameter/width**
+core — otherwise the test only shows that more compute helps. Not run: Jeff said not to build.
 
 ## D:/DREPO/Dexter-Eternal/trm_training — the corpus, characterised — 2026-09-28
 
