@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-27T17:30:00-05:00
+Updated: 2026-09-28T00:30:00-05:00
 current_through_event_id:
-`evt-20260927T223000000000Z-hermes-port-not-yet-wired-correction`
+`evt-20260928T053000000000Z-hermes-field-keeper-sizing-measured`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -12,8 +12,78 @@ Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
-Identity stamp: Hermes / deepseek-v4.1-flash:cloud / 2026-09-27 America/Chicago
+Identity stamp: Hermes / deepseek-v4.1-flash:cloud / 2026-09-28 America/Chicago
 (previous revisions are superseded in the rolling summary, not erased; canonical events remain the authority)
+
+
+
+
+## Field-keeper sizing measured on the real machine — 2026-09-28
+
+Jeff asked how large the first chamber (the field keeper) should be, and what is feasible to
+run on CPU, wanting a field broad enough to reason over vast information without paying GPU
+gigabytes for a token window. Measured rather than estimated (AMD, 4 physical / 8 logical
+cores, 17.2 GB RAM, torch 2.13.0+cu126, GTX 1650 4 GB).
+
+**GRU sequence-ingest throughput (chars/sec, batch=1 — the real path):**
+
+| width | chars/s | 1000 chars | 2000 chars | 5000 chars | cell params |
+|---:|---:|---:|---:|---:|---:|
+| 512 | 1,621 | 0.62 s | 1.23 s | 3.09 s | 814,080 |
+| 1024 | 296 | 3.38 s | 6.75 s | 16.88 s | 3,201,024 |
+| 2048 | 79 | 12.61 s | 25.21 s | 63.04 s | 12,693,504 |
+| 4096 | 21 | 48.75 s | 97.49 s | 243.73 s | 50,552,832 |
+
+**A steep cache cliff, not a linear curve — 512→1024 alone costs 5.5× the speed.** Single-token
+stepping runs at roughly the same rate (512: 1,428 tok/s · 1024: 288 · 2048: 79), so token-by-token
+reasoning costs the same as bulk ingest; chunking does not rescue it.
+
+**THREAD SCALING IS NEGATIVE** (h=1024, 2000-token ingest): 1 thread 347 tok/s · 2 threads 322 ·
+4 threads 304 · 8 threads 271. *More threads is slower.* A GRU is sequential in time at batch=1, so
+the only parallelism is inside one token's matmul — too small to split. **Consequence that reframes
+ensemble design: one wide core cannot use four cores, so an ensemble of narrow cores is the ONLY
+configuration that scales on this CPU.** The heartbeat-as-source-of-value architecture is not merely
+nicer on this hardware; it is the only shape that uses the machine.
+
+**Measured real field size: 4,229 chars** (latest canonical snapshot; 11 regions with content —
+identity 2,064 · conversation_history 1,293 · cortex 872). The live field is ~4.2k chars; an earlier
+Hermes figure of tens of thousands was 3× too large.
+
+**Storage is cheap; STATE is the limit.** cells16 = 64 bytes/char → 100k chars = 6.4 MB, 1M = 64 MB,
+10M = 640 MB. But the keeper's state is fixed at **4 bytes × width** (h1024 = 4 KB) and does not grow
+with the field. 4 KB summarizing 1M chars ≈ 1:256,000 compression — **a gist, not recall.** Recall
+must route through the exact mirror + retrieval; the keeper knows what the field is ABOUT. This is the
+honest limit of the design, and the same trap as a token window from the opposite direction.
+
+**Recommendation: keeper width 1024, not wider.** A real ~325-char region change costs ~1.1 s per
+core per beat (a watchable heartbeat); 2048 would be ~4.1 s (a slideshow). **Width belongs in the
+REASONER chamber**, which reads the keeper's *small* state so its input stays constant however vast
+the field grows — only the keeper ever touches the raw field. **CPU is not viable for live wide
+cores:** a token-by-token 500k-char reasoning session at h1024 is ~28 min CPU vs ~0.2 s on the GTX 1650.
+
+**Confirmed gap — the shared-cognition region does not exist.** All 13 canonical regions checked;
+cores may write only `SCRATCH` and `RESPONSE_DRAFT`; `PhysicalRole.PROPOSAL` and the in-beat
+`first_workspace`/`refined_workspace` exist but proposals die INSIDE the beat — nothing durable. Jeff
+identified this correctly, and it is **load-bearing, not optional**: if cores re-read an unchanged
+field with no way to add to it, beating is repetition, not depth — and repetition in a recurrent
+system is exactly the collapse already observed (the school runs' "the sore the sore the sore"
+attractor). The shared-cognition channel guarantees the field differs every beat, which is what makes
+revisiting compound.
+
+**Warm-start settled.** Jeff's 512-wide / 300-step / 76-second GTX 1650 result shows nothing in the lab
+is worth protecting; Hermes conceded plainly (was protecting an asset that is not valuable) and will
+stop raising it. Keep the lab's *lesson* — delta competence is learned, never inherited.
+
+**Bolting on a chamber is a permanent commitment, not an incremental add.** Adding a second chamber
+invalidates the first's finality: the second learns against the first's outputs and the first must
+shift to give it something better to read. Freeze the first and train only the second, and the second
+learns a stale interface to a moving state. Snapshotting is right and cheap; the FIRST bolt-on is the
+interface decision everything after it inherits.
+
+**Reported uncertainty:** the 1024 cliff was measured on one old AMD and may be a property of this CPU
+rather than of GRUs generally. A cheap re-measurement at intermediate widths (and on another machine)
+was offered before committing to the size everything else is built on.
+
 
 
 
