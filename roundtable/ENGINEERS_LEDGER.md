@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T18:00:00-05:00
+Updated: 2026-09-28T19:00:00-05:00
 current_through_event_id:
-`evt-20260928T230000000000Z-hermes-ffn-correction-task-was-circular-and-mostly-linear`
+`evt-20260928T240000000000Z-hermes-trmdevops-dexters-brain-trm-carry-state-and-a-memorisation-trap`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -58,6 +58,45 @@ core is both a bug and a discount. 3 s/beat is the cost of cores actually workin
 
 Diagnostics: `diag_beat_cost.py`, `diag_beat_speed.py`, `diag_batch_cores.py`, `diag_beat_gpu.py`.
 Report: `D:/Hermes/WHY_A_BEAT_COSTS_THREE_SECONDS.md`.
+
+## D:/TRMDEVOPS IS DEXTER'S BRAIN — TRM carry state, and a memorisation trap — 2026-09-28
+
+**Jeff stopped the four-domain operator build and pointed here. INSPECTION ONLY — nothing run,
+nothing written.**
+
+**WHAT IT IS:** D:/TRMDEVOPS = **Dexter's brain**, three stateful **Tiny Recursive Models** (Tool small
+/ Memory medium / Reasoning large) on the published paper *"Less is More: Recursive Reasoning with Tiny
+Networks"* (Samsung SAIL Montreal, arXiv 2510.04871; 7M params, **45% ARC-AGI-1, 8% ARC-AGI-2**).
+
+**ARCHITECTURE FINDING — THE AXIS DIFFERS FROM AXON'S.** The TRM **is a transformer** (causal attention
++ SwiGLU FFN per layer) — *not* an attention-free FFN. Its distinguishing feature is a **dual CARRY
+STATE**: `z_H` (high level, updated once per outer cycle) and `z_L` (low level, updated every inner
+cycle), both EMA-smoothed by `carry_decay`, output read from `z_L`, detachable between H cycles.
+**The recurrence is over REASONING STEPS, not over characters** — a different axis from Axon's
+per-character recurrence and from my proposed operator blocks. Also notable: their **MLP variant beats
+the attention variant on Sudoku (87% vs 75% exact)** — attention is not the load-bearing ingredient.
+
+**ON DISK:** 3 model configs (tool ~2.1M; memory 640x6; reasoning 896x8). **Only ONE dataset built**
+(memory, 1,684 examples) — `reasoning/` and `tool/` dataset dirs are **EMPTY**. Two checkpoint families:
+`forge_tool_correction` (2,276,352 params, epoch 249/500, reported accuracy **0.99858**) and
+`dexter_instinct` (1,115,904 params, 10 epochs).
+
+**MEMORISATION TRAP CONFIRMED — do not quote 99.86% as an accuracy.** `train_simple.py` builds ONE
+dataloader (batch 16, `shuffle=True`) and `evaluate()` runs on **that same dataloader**; `data/tool-correction/`
+contains **only a `train` dir** — there is no held-out split anywhere. So the model was evaluated on the
+data it trained on. **Same class of error as the denoiser "capability".** `dexter_instinct` is a
+2,840-sequence copy task — an honest memory demonstration, not reasoning.
+
+**REPRODUCIBILITY:** `configs/data_sources.yaml` points at `D:/Dexter-Eternal`, which **does not exist**
+on this machine, so `build_datasets.py` cannot be re-run as configured. `RAW/` holds ~1.29 GB of small
+per-artifact JSONs.
+
+**DECISION:** did **NOT** build the four-domain operator experiment — it would duplicate a more developed
+prior direction, in weaker form, on a task I had not honestly defined.
+
+**OPEN (put to Jeff):** (1) is the **TRM carry-state direction** what Axon should take rather than
+operator blocks; (2) **verify the 99.86% properly** with a real held-out split; (3) build the missing
+reasoning/tool datasets; (4) something else.
 
 ## CORRECTION — the FFN operator's "capability" was CIRCULAR and mostly LINEAR — 2026-09-28
 
