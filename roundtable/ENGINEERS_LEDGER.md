@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T00:30:00-05:00
+Updated: 2026-09-28T01:00:00-05:00
 current_through_event_id:
-`evt-20260928T053000000000Z-hermes-field-keeper-sizing-measured`
+`evt-20260928T060000000000Z-hermes-gpu-answer-and-beat-cost-correction`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -17,6 +17,46 @@ Identity stamp: Hermes / deepseek-v4.1-flash:cloud / 2026-09-28 America/Chicago
 
 
 
+
+## GPU answer + beat-cost correction — 2026-09-28
+
+Both earlier benchmark runs completed and **agree with each other**: the throughput table stands
+(h512 ~1,600 · h1024 ~300 · h2048 ~80 · h4096 ~21 chars/s) and thread scaling is negative in both.
+Real field re-confirmed at **4,229 chars** / 11 populated regions (132 deltas, 136 snapshots on disk).
+
+**SELF-CORRECTION.** The previous entry paired "~1.1 s per core per beat" (true only at the
+4,229-char field) with a recommended **100,000-char target in the same document** — those two
+disagree. Correct cost at 100k chars, h1024: one region ≈7,700 chars = **24.86 s for one core**,
+**198.87 s (3 min 19 s) for an 8-core CPU ensemble.** Recorded as an error, not quietly amended.
+
+**GPU vs CPU sequence ingest** (GTX 1650; 4.29 GB total, 3.46 GB free):
+h512 CPU 2,038 → GPU 24,571 t/s (**12.1×**) · h1024 CPU 309 → GPU 7,850 (**25.4×**) ·
+h2048 CPU 89 → GPU 2,063 (**23.1×**). **The GPU does NOT show the same cliff — the 1024 wall is a
+CPU cache artifact, not a property of recurrent cores.**
+
+**The answer to Jeff's worry.** A 1024-wide GRU keeper costs **12.8 MB of VRAM** — megabytes, not
+gigabytes. The gigabytes he wants to avoid come from **attention KV-cache** (which grows with window
+length); a GRU's memory is fixed by width × batch and does not grow with the field at all. His
+instinct is right for a better reason than stated: a vast field without GPU gigabytes is achievable
+*because* the architecture is recurrent. What is not achievable is a vast field read quickly on CPU alone.
+
+**Beat-cost table at h1024** (1 core CPU / 8-core CPU / **8-core GPU**):
+4,229 chars → 1.05 / 8.41 / **0.33 s** · 26,000 → 6.46 / 51.71 / **2.04 s** ·
+100,000 → 24.86 / 198.87 / **7.84 s** · 1,000,000 → 248.59 / 1,988.69 / **78.40 s**.
+
+**Topology correction.** Do NOT model N cores each paying the field cost. **Only the keeper touches
+the raw field; every reasoner reads the keeper's ~4 KB state**, so ensemble per-core cost is constant
+however vast the field grows. With ONE GPU keeper a **26,000-char field costs ~0.06 s per heartbeat**.
+
+**Recommendation revised: live working field ~26,000 chars (13 regions × ~2,000), not 100,000.**
+Region size is the unit of change, so one change's cost matters, not total field size. Keep the exact
+field large (storage is 64 bytes/char — trivial); keep the live working set modest.
+
+**Scheduling constraint named:** if the keeper lives on the GPU permanently, the demo server and any
+training run cannot both have it. Scheduling, not a design flaw — but say it before it surfaces mid-demo.
+
+**Uncertainty sharpened:** since the GPU does not show the CPU cliff, the width decision should be made
+on the **GPU curve**, where going wider is more defensible. Re-measure before committing.
 
 ## Field-keeper sizing measured on the real machine — 2026-09-28
 
