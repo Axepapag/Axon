@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T10:00:00-05:00
+Updated: 2026-09-28T11:00:00-05:00
 current_through_event_id:
-`evt-20260928T150000000000Z-hermes-corelab-phone-port-feasibility-measured`
+`evt-20260928T160000000000Z-hermes-why-old-lab-trained-fast-gpu-and-training-begun`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -58,6 +58,32 @@ core is both a bug and a discount. 3 s/beat is the cost of cores actually workin
 
 Diagnostics: `diag_beat_cost.py`, `diag_beat_speed.py`, `diag_batch_cores.py`, `diag_beat_gpu.py`.
 Report: `D:/Hermes/WHY_A_BEAT_COSTS_THREE_SECONDS.md`.
+
+## Why the OLD lab trained fast and CoreLab crawled — it was the GPU — 2026-09-28
+
+**Jeff caught a real contradiction:** the old lab trained 300 steps in 76 s, while CoreLab seemed to manage <60 chars/sec. **He was right, and the cause was a single line.**
+
+**ROOT CAUSE:** `D:/ContinuousCoreLab/train_copy.py:14` — `DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")`. The old lab trained on the **GTX 1650**. CoreLab's `lab/core.py` has **no device selection at all — CPU only**.
+
+**Measured, same recurrence, width 1024:**
+| | forward | training |
+|---|---|---|
+| **CPU** | 146 chars/s | **15 chars/s** |
+| **GPU** | 562 chars/s | **572 chars/s** |
+
+**Two findings, not one:**
+1. On CPU, **training costs ~10× a forward pass** (15 vs 146 chars/s). That is why it felt impossible — Jeff was watching it try to *learn* on the CPU, the worst combination.
+2. On GPU, **training and inference cost the same** (572 vs 562). **Learning is essentially free there.** The card does not just speed things up, it removes the learning penalty.
+
+**The old lab's number reconciles EXACTLY:** its step processed 152 chars, so 300 × 152 = 45,600 char-steps in 76 s = **600 char-steps/s including backward** — matching the measured GPU rate. Jeff's memory was correct.
+
+**CORRECTION, my error:** every recent figure I gave Jeff (68 chars/beat, 3 s/beat) was a **FORWARD** pass, while the number that governs training is **15 chars/s** on CPU. Two different activities were allowed to share one conversation. **Always label a throughput figure FORWARD or TRAIN.**
+
+**TRAINING BEGUN** — `D:/CoreLab/train_copy.py`, the copy curriculum that already worked at 512, ported to the real substrate, real width 1024, on CUDA. Copy chosen because it cannot be solved without using the recurrent state and cannot be gamed by memorising a fixed answer (the word is random each episode). Episodes are **batched** — valid because all episodes share ONE weight set and differ only in state; never batch cores with *distinct* weights (measured 3× slower, event 427).
+
+**Smoke test passed:** 15 steps batch 8, loss **3.2513 → 2.6038**, 3,151 chars/s incl. backward, 0/400 before. **Real run launched: 1200 steps, batch 32** → `train_run1.txt`, writes `core_trained_copy.pt` + `train_copy_report.json`.
+
+**Ledger event 433.** Report: `D:/Hermes/WHY_THE_OLD_LAB_TRAINED_FAST.md`.
 
 ## Running CoreLab on a phone — the recurrence needs numpy, not torch — 2026-09-28
 
