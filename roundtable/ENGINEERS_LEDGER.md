@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T15:00:00-05:00
+Updated: 2026-09-28T16:00:00-05:00
 current_through_event_id:
-`evt-20260928T200000000000Z-hermes-soul-vector-teleport-bug-corrected-core-soul-fed-d00`
+`evt-20260928T210000000000Z-hermes-substrate-is-an-alphabet-fail-closed-violations-fixed-soul-compared`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -58,6 +58,57 @@ core is both a bug and a discount. 3 s/beat is the cost of cores actually workin
 
 Diagnostics: `diag_beat_cost.py`, `diag_beat_speed.py`, `diag_batch_cores.py`, `diag_beat_gpu.py`.
 Report: `D:/Hermes/WHY_A_BEAT_COSTS_THREE_SECONDS.md`.
+
+## THE SUBSTRATE IS AN ALPHABET — and CoreLab was violating fail-closed in its own code — 2026-09-28
+
+**Jeff corrected a conflation and set a rule:** *"the substrate is not a vocabulary it is an
+alphabet. the vocabulary is built from the alphabet... anything not in the substrate needs to be
+failed closed."*
+
+**WORDING CORRECTED.** The substrate is the **ALPHABET**: 95 native symbols + the rule that everything
+else is 256 UTF-8 byte tokens. **351 is the alphabet's transport token count** (the core's output
+classes). No learned vocabulary exists in the lab, and "vocabulary size 351" was wrong language.
+
+**FAIL-CLOSED AUDIT — the rule was being VIOLATED, in code written today.**
+1. `decode_corpus.py` had a **hand-rolled decoder** using `.decode("utf-8", errors="replace")`. A
+   malformed stream became replacement characters **instead of raising**, and was reported as the
+   model's output. The substrate rejects the same stream.
+2. `extract_corpus.py` read every file/DB row with `errors="replace"` and logged unreadable tables as
+   `(skip: ...)` then continued — **a corrupt table would have silently dropped training data.**
+
+**FIX — one shared path, `D:/CoreLab/lab/corpus.py`:** decoding goes through the substrate's own strict
+`decode_unicode_tokens()`; `read_text_exact()` uses `errors="strict"` and raises `CorpusError`;
+`open_readonly()` is parameterised (not string-interpolated); `assert_alphabet_matches()` fails closed
+on any id outside `[0,VOCAB)`; `NATIVE`/`VOCAB` are **imported** from `substrate.unicode_transport`,
+never spelled out here.
+
+**SUBSTRATE STRICTNESS VERIFIED BY TEST** — all rejected: out-of-range id (`UnicodeTransportError`);
+multibyte lead then native token; truncated multibyte; bad continuation byte (`MalformedUnicodeTransportError`);
+a registered native character spelled as raw bytes (`NonCanonicalUnicodeTransportError`).
+
+**HOW THE SOUL IS ACTUALLY USED — lab vs Axon.**
+- **Lab:** soul bytes -> features -> learned projection -> added to every recurrent step. In the
+  computation, but an **identity-insensitive stabiliser**: presence is load-bearing (**2.67** vs
+  **6.91** with no soul) while identity is not (**2.6702** vs **2.6794** for a different soul).
+- **Axon's soul is far stronger, and it is the better design.** Opaque private bytes with **NO size
+  ceiling**. Four temperatures. Promotion between them is an **audited, evidence-bearing event**
+  (`runtime/soul/contracts.py` `SoulPromotion`): exactly one temperature colder; cold requires a
+  vetted `outcome_quality` + `evidence_ids` + `repeated_observations >= 2`; deep_cold additionally
+  requires `validation_ids`; `promotion_id` is a canonical hash. `SoulTransition` is a core-authored
+  proposal **bound to an exact inhale** (core_id, architecture_id, parameter_generation, tick_uid,
+  request_id, phase).
+- **THE FINDING:** `runtime/axon_runtime/continuous_core_d512.py` contains **ZERO soul references**.
+  **Axon built the strong soul wire and no reasoner reads it yet**; the lab wired a weak version of
+  that same wire.
+
+**FEED-FORWARD BLOCK: YES.** Verified attaching: recurrent state `[4,1024]` -> FFN -> `[4,1024]`,
+**4,197,376 params** at width×2. Axon has **no general FFN/operator abstraction** (grep found none);
+the precedent is `runtime/heart/translation_core.py` `HeartTranslationCore` ("shallow, FFN-heavy",
+`ffn_dim` + a transformer block). **Recommendation put to Jeff, not decided: keep the operator
+DETACHED and FROZEN, driven by the state holder** — reusable across cores, cheap (no recurrence, and
+recurrence is 99.7% of a beat), and the state holder decides when to call it.
+
+**UNCOMMITTED:** the fail-closed fixes are on disk, not committed — awaiting Jeff's word.
 
 ## CORRECTION — the soul vector TELEPORTED; one core fed D:/00, corrected — 2026-09-28
 
