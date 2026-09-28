@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T01:30:00-05:00
+Updated: 2026-09-28T02:00:00-05:00
 current_through_event_id:
-`evt-20260928T063000000000Z-hermes-keeper-as-mirror-and-ensemble-training`
+`evt-20260928T070000000000Z-hermes-keeper-cannot-hold-field-measured-bound`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -17,6 +17,52 @@ Identity stamp: Hermes / deepseek-v4.1-flash:cloud / 2026-09-28 America/Chicago
 
 
 
+
+## The keeper cannot hold the field — measured bound — 2026-09-28
+
+Jeff killed the keeper as a learned field-holder: *"it's only gonna be worth anything if it can hold
+the entire field and then accept deltas... and be able to regurgitate the field exactly, round trip."*
+**He was right, and the reason is fundamental rather than a tuning issue.**
+
+**The measured floor.** gzip -9 on the real 4,229-char field → **1,920 bytes = 2.20× = 3.63 bits/char.**
+That is the information-theoretic floor for exact round-trip on *arbitrary* text — no model beats a
+general-purpose compressor on arbitrary text. **Exactness is a STORAGE property, not a learned one.**
+
+| field chars | compressed bytes | equivalent chamber width | params (GRU, in=16) |
+|---:|---:|---:|---:|
+| 4,229 | 1,919 | ~480 | ~0.7 M |
+| 26,000 | 11,799 | ~2,950 | ~26 M |
+| 100,000 | 45,379 | ~11,345 | ~386 M (~1.5 GB) |
+| 1,000,000 | 453,793 | ~113,448 | ~38 B (~154 GB) |
+
+A chamber gives 4 bytes of state per unit of width — and even at the required width it would fail,
+because **a dense recurrent state is not a codec** (you cannot train a matmul to be gzip).
+
+**The coincidence that made the trap plausible: an h512 chamber holds 2,048 bytes and today's field
+compresses to 1,920 bytes — nearly identical.** So a narrow keeper appears to round-trip correctly
+*today* and breaks exactly when the field grows past ~2 KB compressed. Any round-trip fidelity test run
+against the current small field will PASS and mean nothing.
+
+**Corrected division of labor — NO new organ needed:**
+- **Mirror = holds.** Exact, lossless, zero parameters, already built and proven; accepts deltas.
+- **Compile + per-core masks = translates.** Already exists; produces the per-reasoner views.
+- **Chambers = reason + continuity.** Their state is *deliberately* lossy; never asked to round trip.
+- **Retrieval = fetches specifics.** Exact, scales to megabytes, does not hallucinate.
+
+**Holding vs attending — the distinction that resolves the sizing confusion (partly Hermes's fault):**
+holding a vast field exactly is nearly free (1M chars = 1 MB raw / 454 KB compressed; 10M = 10 MB /
+4.5 MB) and it is cheap *because the field is text, not tokens* — Jeff's own point. What is expensive is
+every core reading the whole field every beat: at 100k chars one core's full read is **12.7 s on the
+GPU**, so 8 cores ≈ 90 s/heartbeat. **Seeing everything is always available to the organism; attending
+to everything every beat is what masks and deltas exist to avoid** — a per-core choice, not a hard limit.
+
+**Open question left with Jeff (deliberately not resolved unilaterally):** should a reasoner's
+continuity state also receive a *lossy, never-round-tripped* compressed hint of the field, or is that
+the keeper re-introduced under a different name? Answering it alone would mean quietly rebuilding the
+thing Jeff correctly killed.
+
+**Per-core masks remain the gating build item**, now for a stronger reason: they are the *translator*,
+not merely a diversity feature.
 
 ## The keeper as the mirror, and ensemble training — 2026-09-28
 
