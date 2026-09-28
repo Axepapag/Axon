@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T01:00:00-05:00
+Updated: 2026-09-28T01:30:00-05:00
 current_through_event_id:
-`evt-20260928T060000000000Z-hermes-gpu-answer-and-beat-cost-correction`
+`evt-20260928T063000000000Z-hermes-keeper-as-mirror-and-ensemble-training`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -17,6 +17,65 @@ Identity stamp: Hermes / deepseek-v4.1-flash:cloud / 2026-09-28 America/Chicago
 
 
 
+
+## The keeper as the mirror, and ensemble training — 2026-09-28
+
+Jeff corrected the design: **the keeper should BE the mirror** — one mirror, translating the field for
+every other reasoning core. Conceded: this is **strictly better** than the N-exact-mirror design
+Hermes proposed — one copy of the field, one coherence problem, one delta delivery, instead of N.
+
+**Verified: masks are GLOBAL, not per-core.** One `HeartRegionMaskController`, Heart-owned
+(`host.py:207`); `circulation.py` compiles **every** core with the SAME `region_masks` in one pass
+(lines 599/600/682/760). One set of sliders moves the whole organism. Jeff's recollection was right
+and the truth is worse than "the mirror ignores masks". **The per-core scaffolding that DOES exist:**
+`D16RuntimeBinding` is genuinely per core (`core_id`, `core_generation`, own `identity`/`binding_id`)
+and the request carries it — but there is **no mask field**. Precise gap: *the runtime knows there are
+many cores; it does not yet let them see differently.* The port protocol itself is
+architecture-agnostic (field event in, `MirrorAck` out), so heterogeneous cores can inhabit it.
+
+**Why the keeper is what makes architecture diversity possible at all:** a transformer needs tokens to
+attend over, a Mamba needs a sequence to scan, a GRU needs a vector — three input shapes, and the raw
+field is a fourth that is nobody's natural input. The keeper absorbs the format problem once.
+
+**Trap 1 — the keeper becomes the entire information budget.** With N mirrors a reasoner could
+re-fetch an exact detail; with one keeper the exact field exists but nothing reads it, and 4 KB is a
+summary, not a record. **Requirement, not objection: keep a retrieval path to the exact field open
+forever.**
+
+**Trap 2 — "diverse" must mean different VIEWS, not just different processing.** Same 4 KB to every
+core = identical input, different chewing; Jeff's word was *perspective*, which is about what they
+see. So the keeper should emit **a different view per reasoner** (native shape + own mask) — which
+preserves the cost win while making perspectives real. **Consequence: this REQUIRES per-core masks, so
+"keeper as translator" and "per-core mask" are the SAME piece of work.**
+
+**CORRECTION to an earlier Hermes claim:** "bolting on a chamber is a permanent joint-training
+commitment" was **too strong — it holds only for the FIRST pair.** Correct sequence:
+1. Train the keeper **jointly with ONE reasoner** (irreducibly joint — the reasoner teaches the keeper
+   what is worth preserving).
+2. **Freeze the keeper PERMANENTLY** (`ParameterMutationPolicy.SEALED` exists for exactly this).
+3. Every additional reasoner then trains **independently** against the frozen interface — **one core
+   trains while the others infer** (inference under `no_grad`, no optimizer state; only the training
+   core's weights move). That is exactly the arrangement Jeff described.
+
+**Three wrinkles:** (a) a training core writing into the shared-cognition region makes inference cores
+read a moving target — handle with **provenance marking** (Axon already tracks evidence provenance),
+flagging those opinions as provisional; (b) **freezing the first keeper caps the whole ensemble** at
+that keeper's quality, since every reasoner learned to read that exact state — the first keeper is the
+most permanent artifact in the organism, so prove it first and have Jeff accept that price on purpose;
+(c) independent training creates **no pressure toward mutual legibility** — N individually-correct
+cores can talk past each other in N private vocabularies, so the shared-cognition region needs a
+**FORMAT**, as much of a design decision as the keeper's state.
+
+**Revised build order:** per-core masks FIRST (the keeper cannot emit different views without them);
+then the keeper, trained on fidelity jointly with one reasoner, then frozen permanently; then the
+shared-cognition region AND its format; only then add architectures (transformer, Mamba), each trained
+independently against the frozen keeper and reading its own view; keep exact-field retrieval open
+forever.
+
+**Two uncertainties left with Jeff:** keeper emits a per-reasoner view (more keeper compute; reasoners
+simple, views auditable) vs one shared state each reasoner projects differently (cheaper; work shifts
+to reasoners) — Hermes leans to the former; and whether to freeze the first keeper absolutely or build
+a way to re-train all reasoners if the keeper must change.
 
 ## GPU answer + beat-cost correction — 2026-09-28
 
