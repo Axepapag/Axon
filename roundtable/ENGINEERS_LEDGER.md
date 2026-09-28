@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-27T14:05:00-05:00
+Updated: 2026-09-27T17:30:00-05:00
 current_through_event_id:
-`evt-20260927T190500000000Z-hermes-d16-port-committed`
+`evt-20260927T223000000000Z-hermes-port-not-yet-wired-correction`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -14,6 +14,80 @@ Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
 Identity stamp: Hermes / deepseek-v4.1-flash:cloud / 2026-09-27 America/Chicago
 (previous revisions are superseded in the rolling summary, not erased; canonical events remain the authority)
+
+
+
+
+## CORRECTION — the continuous D16 port is built but NOT wired — 2026-09-27
+
+Jeff read the work and said *"looks like the implementation wasn't correct."* He was right,
+and the honest version is worse than he stated. **Read this section before the one below it,
+and treat this event as authoritative.**
+
+**Verified by grep:** `ContinuousD16CorePort` is constructed **only** in
+`tests/test_continuous_d16_port*.py`. There are **zero production construction sites**;
+`scripts/run_axon_heart.py` and `scripts/demo_organ_server.py` do not pass `reasoning_ports`
+at all. So the port is proven logic with a proven heartbeat interface, but **nothing that
+runs uses it**.
+
+The event below reported the rung as "built". The accurate statement is **built and tested,
+not wired** — and this is the *same failure class that event claimed to have fixed*, one
+level up: Axon carried the lab's artifact and lost the claim; I then carried the fix for
+that and lost the connection. The commit (`8fa9698`) is sound; the **overclaim was in the
+ledger summary and in the report to Jeff**, not in the code.
+
+**Root cause, named so it does not recur.** Self-contained build-and-test work is exactly
+the work an agent can finish alone in one session. Wiring it touches the trainer, heartbeat
+host, mask controller and demo server, and commits other agents to a design. Incentives
+therefore push toward the declarable half. **Rule adopted: a component is not reported as
+built until something outside its own tests constructs it — verify by grep and state the
+construction-site count.**
+
+### Architecture findings (verified against the schema, 2026-09-27)
+
+- **No new training region is needed.** Jeff proposed adding one; `TRAINER_INSTRUCTIONS`
+  and `TRAINING_RESPONSES` already exist as the last two entries of
+  `CANONICAL_REGION_ORDER` and form `schema.TRAINING_REGIONS`. They are unused.
+- **Jeff's masking proposal is real and was measured.** `materialize_d16_view(..., region_masks={region: RegionMaskPolicy('none')})`
+  drops masked regions from the compiled view entirely and **changes the `view_id`** — so a
+  core can be told exactly when training regions left its view. That is the forget event,
+  now implementable rather than theoretical.
+- **Honest pushback (recorded, not smoothed over):** masking is an **attendance** choice,
+  not a deletion or mutation. An *exact* mirror of a field containing training data still
+  contains it however masked. Masking changes the lens, not the body. Two genuinely
+  different designs follow: **one body** (training permanently in the record; one canonical
+  state; what Jeff wants now) vs **a separate training field** (clean working field; two
+  histories). **Decision trigger:** design 2 has already been chosen the moment training
+  data would be written into a region a *working* core attends to.
+- **Width vs the lab warm start are mutually exclusive on the FIRST move.** The lab cell is
+  512-wide and transfers bit-exact only into a 512 chamber (~89% of its params); widening
+  means starting from nothing — there is no partial transfer. The previous "warm-start
+  first, then widen" ordering was therefore invalid. Jeff pushed back and his argument
+  holds: **keep the lab's lesson (delta competence is learned, never inherited — 600/600
+  full replay vs 171/600 on deltas), not its weights.** Measured cell params (in=16):
+  512→814,080 · 1024→3,201,024 · 2048→12,693,504 · 4096→50,552,832. Two stacked:
+  512→512 = 2,570,592 · 1024→1024 = 9,859,424 · 2048→2048 = 38,592,864.
+- **Jeff's two-chamber split, adopted as the working design direction:** top = **field
+  keeper** (whole field once, then deltas; rolling truth; does not reason or speak; honest
+  objective is a *reconstruction* loss, needing no teacher or corpus); second chamber =
+  **reasoner**, reading the keeper's *state* rather than the raw field, free to be volatile
+  because it holds nothing; language output moves off the keeper. Supporting evidence
+  rather than agreement: building the port *required* bolting a language readout onto the
+  field-holding chamber, so those two jobs fight over one recurrent state.
+  **Unresolved risk:** stacked chambers must be trained together or the lower one learns a
+  stale interface to a state that keeps moving. No clean answer yet.
+- The 2026-09-26 curriculum document contains **no** reference to field, mirror, region or
+  mask — it is a pure language curriculum, confirming that the plan shape was
+  "train English, then connect it", which Jeff rejects.
+
+**Recommended next (smaller than the previous plan):** (1) wire the port into a live
+HeartHost and prove a *running* Axon reads the real field by delta in production — the
+skipped step; (2) Jeff decides the one-body vs separate-training-field question
+(recommendation: one body, training confined to the two trainer regions); (3) only then
+build and train the **wide field keeper** on the fidelity objective, which directly tests
+the top half of Jeff's architecture. **Hold the reasoner chamber until the keeper is proven
+to hold.**
+
 
 
 
