@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T06:00:00-05:00
+Updated: 2026-09-28T07:00:00-05:00
 current_through_event_id:
-`evt-20260928T110000000000Z-hermes-corelab-core-reads-own-mirror-marker-not-a-copy`
+`evt-20260928T120000000000Z-hermes-corelab-flat-cost-restated-as-work-not-wall-time`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -58,6 +58,31 @@ core is both a bug and a discount. 3 s/beat is the cost of cores actually workin
 
 Diagnostics: `diag_beat_cost.py`, `diag_beat_speed.py`, `diag_batch_cores.py`, `diag_beat_gpu.py`.
 Report: `D:/Hermes/WHY_A_BEAT_COSTS_THREE_SECONDS.md`.
+
+## Cost flatness restated as WORK, not wall time — a published figure corrected — 2026-09-28
+
+**A stale background run reported in after the previous turn**, so I re-verified CoreLab against the code as it actually stands. It produced a **FAIL where I had already reported a pass**: "beat cost stays flat as history grows" at 2,940 ms/beat early vs 4,737 ms/beat after history — a 61% rise.
+
+**I investigated instead of re-running until it went green.** The growth is **measurement noise, not a regression**:
+- identical code, identical condition, three consecutive runs: **2,712 / 3,327 / 3,409 ms per beat — a 26% spread**
+- the box is loaded: 11 concurrent `python.exe`, a dozen `chrome.exe`, 399 processes total on a 4-physical-core AMD
+- a second pair measured 2,834 vs 2,768 ms (flat)
+
+**The property that must hold is WORK, and work is flat and deterministic:**
+
+| history | cells delivered per beat | regions per beat |
+|---|---|---|
+| 2,447 chars | 334 ×6 | 6 |
+| 3,399 chars | 337 ×6 | 6 |
+| 4,519 chars | 337 ×6 | 6 |
+
+History nearly doubled; per-beat work moved **0.9%**. The mask bounds it exactly as designed.
+
+**Fixed the test, not the code.** The wall-time assertion is replaced by a deterministic one — *work per beat stays flat* (max cells/beat late ≤ 1.25× early). Wall time is now a reported **LIMIT**, explicitly never a pass. **A flaky gate is worse than an honest number**: a test that goes red for machine reasons teaches everyone to ignore red.
+
+**CORRECTION to my own published report:** the figure I gave Jeff — "beat cost flat, 3368 ms/beat early vs 3351 ms/beat" — was a **single sample of a noisy quantity**. It has been corrected in `D:/Hermes/DOES_THE_CORE_READ_ITS_MIRROR.md`. The replacement claim is the honest one: the *work* is flat; the wall clock on this box varies by about a quarter run to run.
+
+**`python -m lab.prove` → 28 passed, 0 failed, 4 limits.**
 
 ## The core now genuinely reads its OWN mirror — and the marker is not a copy — 2026-09-28
 
