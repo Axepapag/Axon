@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T23:00:00-05:00
+Updated: 2026-09-28T23:30:00-05:00
 current_through_event_id:
-`evt-20260928T280000000000Z-hermes-corelab-console-built-22-22-and-arm-a-proves-the-ffn-is-not-better-than-width`
+`evt-20260928T290000000000Z-hermes-all-three-comparisons-complete-none-of-the-elaborations-beat-the-simple-baseline`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -58,6 +58,37 @@ core is both a bug and a discount. 3 s/beat is the cost of cores actually workin
 
 Diagnostics: `diag_beat_cost.py`, `diag_beat_speed.py`, `diag_batch_cores.py`, `diag_beat_gpu.py`.
 Report: `D:/Hermes/WHY_A_BEAT_COSTS_THREE_SECONDS.md`.
+
+## ALL THREE COMPARISONS COMPLETE — none of the elaborations beat the simple baseline — 2026-09-28
+
+**All four arms trained: 2000 steps each, same corpus/seed/batch 16 × chunk 128, scored on the same
+927 HELD-OUT ticks.**
+
+| ARM | width | ffn_hid | ticks | params | val_ppl |
+|---|---|---|---|---|---|
+| **BASELINE_ticks1** | 1024 | 1600 | 1 | 13,692,384 | **2.989** |
+| **A_width_control** | 1399 | 0 | 1 | 13,699,359 | **2.987** |
+| B_ticks5 | 1024 | 1600 | 5 | 13,692,384 | 3.092 |
+| C_ticks1_5xcompute | 1024 | 8000 | 1 | 33,365,984 | 3.116 |
+
+**HONEST READING — at this budget NONE of the three elaborations beat the simple baseline:**
+1. **THE FFN OPERATOR DOES NOT BEAT WIDTH** — arm A ties it (2.987 vs 2.989). The operator buys nothing
+   more GRU width could not buy for the same parameters.
+2. **TICKING HURTS at equal parameters** — arm B does **5 operator passes per character** and scores
+   **worse** (3.092 vs 2.989). **Jeff's ticking hypothesis, derived from the TRM's dual carry state,
+   does not pay off on this corpus.**
+3. **Arm C must be read as INCONCLUSIVE, not "more compute hurts"** — 33.4M params scoring worse than
+   13.7M is an **UNDERTRAINED** model, not evidence.
+
+**CAVEAT, stated rather than hidden: ALL FOUR ARMS WERE STILL DESCENDING at step 2000** (arm A last
+three: 3.029/2.977/2.936; arm B: 3.155/3.081/3.030; arm C: 3.180/3.095/3.068). **What is measured is the
+RANKING AT A FIXED BUDGET, NOT AT CONVERGENCE.** Arm B is the trustworthy comparison (same params, same
+steps as the baseline); arm C is not.
+
+**RECOMMENDATION:** do not chase ticking at this scale. The TRM's published result is on **puzzles**
+(45% ARC-AGI-1) under a different regime — test the idea there, where there is a published number to
+beat, not on this corpus where there is nothing to compare against. All four cores are loadable blocks
+in the console for side-by-side pulsing.
 
 ## CORELAB CONSOLE BUILT (22/22 browser checks) — and ARM A: the FFN TIES WITH WIDTH — 2026-09-28
 
