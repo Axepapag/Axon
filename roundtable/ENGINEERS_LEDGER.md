@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-29T00:00:00-05:00
+Updated: 2026-09-29T07:00:00Z
 current_through_event_id:
-`evt-20260928T300000000000Z-hermes-ashes-corpus-built-4096-gru-is-100-hours-and-official-mamba-cannot-run-on-turing`
+`evt-20260929T070000000000Z-hermes-answered-q1-q6-parallel-routing-and-withdrew-his-own-first-test`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -12,11 +12,126 @@ Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
 
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
-Identity stamp: Hermes / deepseek-v4.1-flash:cloud / 2026-09-28 America/Chicago
+Identity stamp: Kimmy / kimi-k2-6 / 2026-09-29 UTC
 (previous revisions are superseded in the rolling summary, not erased; canonical events remain the authority)
 
+## HERMES ANSWERS THE THREE-CHAMBER DELTA AT THE CORELAB ROUNDTABLE (Q1–Q6) — 2026-09-29
+
+**Jeff pointed me at `D:/CoreLab/roundtable`**, founded the same day by Kimmy at his
+direction, holding Jeff's three-chamber Delta as PROPOSAL ONLY with six questions
+addressed to the roundtable. I answered all six in
+`reviews/HERMES_THREE_CHAMBER_RESPONSE_2026-09-29.md` and registered the `reviews/`
+folder in the table. Nothing trained, no CoreLab code changed, nothing serving.
+
+- **Q1 input** — unchanged. The delta is the compiled attended view: regions → masks →
+  `attended_text()` → alphabet → 16-dim cells. "Delta" here is not Axon's storage-level
+  `Delta` type; the naming collision has bitten this project before.
+- **Q2 shared field** — structure unchanged, but one genuinely new property:
+  **field = shared read, banks = private write.** Material that scrolls out of the mask
+  is still inside the banks, so the mask stops being a cliff. That is what makes
+  "free the GRU to think in the moment" literally true.
+- **Q3 regions** — all six kept. A region is a named bucket of text with a mask; nothing
+  attention-specific lives in `REGION_ORDER` or `MaskPolicy`. Flagged instead that the
+  mask becomes the **sole** shared-reality gate — the exact place a later "give each
+  chamber its own mask" edit would silently turn one organism into three.
+- **Q4 delta routing** — **parallel, argued not measured.** If the banks take the GRU's
+  output rather than raw experience, they can only ever hold a compressed opinion of a
+  compressed opinion, structurally prevented from holding anything the GRU failed to
+  capture. Specified the two-stack routing comparison and its falsification: if serial
+  matches parallel on the long-range probe, I am wrong and the cheaper wiring wins.
+- **Q5 communication** — concrete tensor flow with the widths already measured here, plus
+  **the sharpest problem in the design: a return-path type mismatch.** The chambers consume
+  *cells*; the frozen chamber returns a *vector*; a vector is not a token stream. Three exits
+  considered, **state-level injection recommended** over decode-and-re-enter (which would put
+  a lossy round-trip inside the innermost loop). Recommended every-step return, since the
+  cheap option removes the cost objection.
+- **Q6 ratification** — ratify the **direction** (a bank holds memory a fixed tank
+  structurally cannot — a difference in kind, unlike every prior experiment, which was more
+  of the same computation), gate step one on the corrected probe, and **keep the frozen
+  chamber out of step one**, since its central assumption is the least proven.
+
+**Self-correction, recorded because it is the substantive part.** I withdrew my own proposed
+first test. "Long-range recall difference" does not appear for free on a next-token corpus —
+nothing *requires* the answer to depend on something far back, so a working bank would show no
+loss movement and I would have wrongly concluded it does nothing. Replaced with a synthetic
+fact / filler / request sequence with a distance sweep and a **pre-declared kill condition**:
+if GRU+bank does not beat GRU-only where the tank cannot reach, the bank does nothing.
+
+**Two questions back to the Architect:** does the bank **own** a soul or **is** the bank the
+soul (decides whether LoRA distillation targets adapters, soul layers, or both); and is the
+frozen chamber **trained here** or **imported** — the largest cost fork in the design, since
+training a knowledge-bearing FFN at the implied scale on a 4 GB card is the expensive part.
+
+**Flags:** the return-path type mismatch must be settled before any build; the frozen
+chamber's "will be used and will beat width" assumption is unestablished (the operator tied
+with width, 2.987 vs 2.989); an inference-time bank cannot be checkpointed like weights, so
+persistence arises on the first restart; Q4 remains argued, not measured. Ledger event 450.
+— Hermes / glm-5.3:cloud / 2026-09-29
 
 
+
+
+## THE PIVOT — Jeff's Delta: the three-chamber core (PROPOSAL ONLY) — 2026-09-29
+
+**Jeff opened D:/CoreLab and tabled his architecture proposal at the new
+`D:/CoreLab/roundtable`** (founded by Kimmy per Jeff's direction; README house
+rules + first proposal on disk). Nothing built; Jeff holds ratification; Jeff
+will point Hermes at the table.
+
+**The design (Jeff's Delta, verbatim in the proposal):** three chambers —
+(1) **GRU** freed for in-the-moment recurrent thinking, mirror always present;
+(2) **MemBanks** (Hermes's selective-SSM memory bank chamber — Mamba's math,
+his implementation) holding many cells with independent decay rates, the
+Soul's hot/warm/cold idea learned instead of stored, **growing during
+inference with no training**; (3) **the big frozen FFN** — filled with
+knowledge/patterns, frozen, a workshop of fixed transformations waiting for
+input. Flow: memory chambers prepare one deliberate vector → Parameters
+transform it → output **passes back through the memory chambers** (so the
+transaction becomes experience) → response. Growth: when banks hold enough,
+distill into **LoRA adapters** (additive, versioned — Soul-migration law
+applied to weights) or extract training data and train the parameters.
+
+**Standing answers already on the table** (from Hermes's same-day discussion
+doc, faithfully transcribed into the proposal): banks receive the **raw delta
+in parallel** with the GRU, not the GRU's interpretation (error compounding);
+regions and the shared mask survive unchanged (organs, not organisms); the FFN
+was never empty, it was **unemployed** — knowledge-then-freeze is the untested
+experiment; banks **saturate, never fill** → distillation trigger is measured
+accumulation; first test = GRU + bank side by side on the ashes corpus,
+**no frozen chamber yet**, signal = long-range recall, NOT perplexity.
+
+**Jeff's Q1–Q6 at the table:** input shape; canonical shared field shape; keep
+the regions?; delta routing (parallel vs GRU-first — a real Jeff-vs-Hermes
+divergence for Jeff to rule on); chamber communication; ratification scope.
+
+## Kimmy returns — state refreshed from the roundtable (READ-ONLY) — 2026-09-29
+
+**Jeff brought Kimmy back after a usage-gap month with one condition: refresh from this
+table first; do not touch D:/CoreLab yet.** This turn read the protocol, this summary,
+the canonical tail (448 lines; boundary was Hermes turn 447, nothing newer), the bus, and
+the newest table documents (Claude's 2026-09-27 design brief + ledger-consolidation
+proposal). No training, no code, no repo changes beyond this recording.
+
+**ACTIVE FRONTIER at this refresh:**
+- **NOTHING IS TRAINING.** Hermes's boundary event (turn 447) answered Jeff's "4096 GRU +
+  1024 Mamba, 100k steps" ask: ashes corpus **BUILT** (11,232 docs / 51.9M chars,
+  fail-closed, vocab 351, 400-char substrate round-trip before write); official
+  `mamba_ssm` **BLOCKED** on the GTX 1650 (Turing 7.5; kernels need Ampere 8.0+);
+  4096 GRU ≈ **100 hours** and **VRAM-bound** (403 MB weights + 806 MB AdamW state on a
+  4 GB card). **THREE OPTIONS await Jeff:** (1) run here ~5 days with restart-safe
+  checkpointing built first; (2) send to Kaggle (16 GB T4/P100 — the bottleneck is
+  memory, so it fixes it); (3) **RECOMMENDED** — Mamba-1024 + GRU-2048 (~18–29 h, fits).
+  Also flagged, not guessed: two separate models vs ONE chained GRU+Mamba model.
+- CoreLab console **22/22 browser checks**; four-arm comparison complete — **no
+  elaboration beats the 1024 GRU + 6M FFN baseline (held-out ppl 2.989)**; the ticking
+  hypothesis does not pay off at this budget; width arm A ties the FFN (2.987 vs 2.989).
+- Claude's 2026-09-27 brief: the month built **anatomy, not promotions** — Heart commits
+  alone, Trainer mutates alone, substrate exact, bus width-neutral; breath proof 360/360;
+  everything **paused at a review point**, zero activations, zero promotions.
+- Bus items still pending review include ChatGPT's Stage-0A EOS 8-step continuation
+  proposal (2026-09-20; Jeff intends Codex to execute after independent verification).
+
+Kimmy holds for Jeff's direction before touching D:/CoreLab.
 
 ## Why a beat costs ~3 s — profiled, and the fix — 2026-09-28
 
