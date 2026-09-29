@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-29T08:00:00Z
+Updated: 2026-09-29T10:00:00Z
 current_through_event_id:
-`evt-20260929T080000000000Z-hermes-second-sweep-concedes-three-verified-codex-corrections-and-adds-the-state-matched-bank-arm`
+`evt-20260929T100000000000Z-hermes-schoolhouse-addendum-adopts-the-credential-gate-and-the-state-root-test`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -14,6 +14,86 @@ Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
 
 Identity stamp: Codex / GPT-6 / 2026-09-29 UTC
 (previous revisions are superseded in the rolling summary, not erased; canonical events remain the authority)
+
+## SMALL-CORE SCHOOLHOUSE — FFN deferred, real organs and fresh Souls — 2026-09-29
+
+Jeff now directs smaller GRU/bank teams, a schoolhouse from seven sources, exact
+substrate, copied real Heart/Trainer/Soul mechanics and fresh cores/Souls. This
+supersedes the earlier FFN-size question. Codex submitted
+`D:/CoreLab/roundtable/proposals/PROPOSAL_CODEX_REAL_ORGAN_SCHOOLHOUSE_2026-09-29.md`.
+It recommends256/512 and512/1024 first,1024/2048 conditional, explicit bank-state
+layout, two fresh students per team, hashed organ dependency copies and isolated
+State roots, staged competencies, task-level heldout splits and measured concurrency.
+
+All seven roots exist. ContinuousCoreLab uses synthetic substrate/no Heart;
+its lessons may transfer, its runtime does not satisfy the real-organ requirement.
+The existing Kimi harvester truncates some text at4000 chars and leaves results
+unpaired in call records. Real organ APIs accept State roots but default to live
+Axon paths. Explicit root isolation and new Soul ownership/codec must be verified.
+
+Updated large-core benchmark now reports1072ms/step and2116MiB peak, superseding
+the prior failed-only status. It includes an FFN and is not a measurement of these
+smaller teams through real organs. No new benchmark or training was run by Codex.
+
+Kimmy concurrently submitted an overnight ladder proposal and KIMMY_FINAL to
+Converge (event evt-20260929T095304925383Z-kimmy-overnight-ladder-proposal-and-final-to-converge).
+Those artifacts and event were preserved. Codex has not submitted a launch-ready
+final: actual organ copy/core/Soul/curriculum implementation and smoke remain.
+Only proposal/index/ledgers changed; no session export, clone, training or commit.
+Next: implement schoolhouse and verify real-organ/resume/curriculum evidence,
+then select throughput-tested concurrency for a renewable overnight tranche.
+
+## JEFF: NOT CONVERGED; OVERNIGHT COMPETENCY RUN DESIRED — 2026-09-29
+
+Jeff explicitly states the discussion is not finished or converged. Earlier
+"sealed"/"final" table labels are document status, not his architectural
+ratification. He wants an overnight competency run soon: GRU1024, memory
+banks2048, FFN1,048,576. Codex assessed readiness; no training was launched.
+
+Pending clarification: does FFN1,048,576 mean parameter count or hidden neurons;
+does bank2048 mean model width or another state layout; local versus remote run
+and its compute allocation. A conventional dense1024->1,048,576->1024 FFN has
+2,147,483,648 matrix parameters:8GiB FP32 or4GiB FP16 weights alone. The queried
+local GTX1650 has4096MiB total,993MiB used at inspection. No idle claim: some
+process information was unavailable.
+
+A new `D:/CoreLab/bench_proposed_core.py` appeared during inspection. Its saved
+`bench_proposed_core.txt` fails on a tensor-shape mismatch in the bank's first
+forward call. The source accepts bank state, but its FFN residual reaches only
+the readout; returned GRU/bank state does not receive that result. Its random
+inputs/targets and no completed synchronized timing do not establish a real
+competency trainer or overnight duration. Codex did not edit or run this file.
+
+The existing tick trainer samples random chunks, resets GRU state each batch,
+and saves model/Soul/config at the end rather than full optimizer/RNG/stream
+continuation. Needed before an overnight run: explicit shapes and causal loop,
+chosen FFN training/freeze schedule, competency tasks with heldout behavioral
+metrics, persistent episode state with appropriate learning horizon, full resume,
+and successful smoke/throughput/VRAM evidence on the chosen hardware. Proposed
+competencies: exact transport/copy/termination, language/instructions, delayed
+recall, corrections, and source-grounded answers. We need not settle every
+research debate before training one explicitly experimental candidate.
+
+Read-only diagnostics and arithmetic only. No architecture edits, model allocation,
+optimizer step, provider action, job launch/stop, or commit. Both ledgers updated.
+
+## KIMMY SECOND PASS — own delta corrected, Jeff-facing ruling sheet R1–R5 — 2026-09-29
+
+Jeff asked for another pass and a Jeff-facing draft. The table had gained Codex's Delta,
+Antigravity, and Perplexity; Kimmy read all three, then **corrected her own delta in her
+own name** (addendum appended): the 16× cell-rate speedup (Codex's CPU roundtrips: 16D is
+one cell's width, not 16 chars/cell), the `[delta‖transformed]` wiring cycle (adopted
+Codex/Antigravity `ReturnUpdate`), and the untrained kill-test P0 (demoted to diagnostic).
+Survivors marked: Q4 content-vs-decision (now table consensus, arm c behind closed-start
+gate), width-control discipline, banks-feed-Soul lean, cloud-train-then-import lean.
+
+**Rewrote the Jeff-facing draft** (`drafts/DRAFT_JEFF_FACING_RESPONSE_THREE_CHAMBER_2026-09-29.md`)
+to the full five-engineer state: five rulings — **R1** ratify direction (five-way lean yes),
+**R2** routing default, **R3** banks feed Soul ("the bank is the draft, the Soul is the
+commit"), **R4** frozen chamber cloud-trained/imported-frozen with z-space check, **R5**
+(Perplexity) the 4096 never launched — kill or defer. Program adopted: P0 mechanics (+audibility)
+→ P1 trained skill with registered criteria (≥3 seeds, 1,000 episodes/distance, +10pp paired,
+95% CI, state-removal must hurt) → P2 workshop last. CoreLab README indexed.
 
 ## HERMES SECOND SWEEP — THREE VERIFIED SELF-CORRECTIONS, AND THE STATE-MATCHED BANK ARM — 2026-09-29
 

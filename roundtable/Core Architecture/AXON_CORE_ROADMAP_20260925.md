@@ -250,34 +250,43 @@ This gives the Core access to the route it just took without turning its lifetim
 
 Introduce a learned mechanism whose job is to inspect the recent trajectory and extract what should influence the next pass.
 
-Primary candidate: a very small attention/Transformer-style reader operating directly on hidden-state vectors, not a conventional text tokenizer/decoder.
+The new leading candidate is a **Reflection Table / fast associative chamber** rather than full self-attention. During a bounded cognitive pass, the chamber scans the Working Chamber trajectory once and updates a fixed-size private table of learned slots or associative statistics. The raw trajectory can then be discarded. On the next pass, the table supplies a compact learned reflection back to the Working Chamber and/or Synthesis Chamber.
 
-Competing candidates should include:
+The Reflection Table is intentionally not a durable autobiography and not canonical state. It is a small private cognitive surface representing what is salient now. Its size stays fixed even if Axon's canonical lifetime grows without bound.
 
+Candidate implementations should include:
+
+- a fixed bank of learned D-model slots updated by write/retain gates;
+- fast-weight or associative-memory matrices updated incrementally from trajectory states;
+- linear-attention-like running key/value statistics without pairwise all-to-all comparison;
 - a second GRU that reads the first trajectory;
 - selective SSM/Mamba-style trajectory compression;
 - learned weighted pooling;
-- small latent cross-attention;
+- small latent cross-attention as a comparison control;
 - other bounded sequence compressors.
+
+The table update must learn both preservation and replacement: important structure should survive later trajectory noise, while obsolete or contradicted structure must be overwritten when the trajectory supplies stronger evidence. This is deliberately analogous to the GRU memory result in which unrelated deltas preserved a remembered value but an authoritative replacement event updated it.
 
 The output is a private reflection representation, not necessarily English. It is fed back into the Working Chamber or the next stage of cognition.
 
-The falsifiable question is simple: does reflection over the path improve the next thought compared with the same Working Chamber that sees only its final state and mirror?
+The primary falsifiable comparison becomes: does a fixed-size Reflection Table improve the next thought over (a) final recurrent state alone and (b) bounded attention over the same trajectory, at equal or lower compute and memory?
 
-## B4 ? Keep attention bounded
+## B4 ? Avoid lifetime-scale quadratic cognition
 
-Attention may return inside Cores, but never as default global attention across Axon's entire Shared Field or lifetime.
+Full attention is no longer the default Reflection mechanism. If attention returns anywhere inside a Core, it must justify itself against the Reflection Table and remain bounded to a deliberately small workspace.
 
-Control quadratic cost through:
+Control scaling through:
 
-- fixed-size recent trajectory windows;
+- one-pass trajectory-to-table updates with fixed table capacity;
+- fast associative/linear state updates whose cost grows linearly with trajectory length and not quadratically with Axon's lifetime;
 - latent bottlenecks that compress many observations into a small set of cognitive objects;
 - recurrence for long-range continuity;
 - exact selective retrieval from mirror/Dormant/Cortex when older evidence is needed;
-- optional sparse/local attention only if later evidence justifies it;
-- hard reporting of the maximum attention workspace for every architecture.
+- optional fixed-size recent trajectory windows;
+- sparse/local or latent attention only if measured evidence justifies it;
+- hard reporting of maximum trajectory length, table size, attention workspace, FLOPs, and memory for every architecture.
 
-The goal is effectively bounded attention cost with respect to Axon's lifetime even while canonical history grows without bound.
+The goal is bounded private cognitive cost with respect to Axon's lifetime even while canonical history grows without bound. The advanced Core should be able to keep thinking by repeatedly updating compact private state rather than repeatedly comparing every past internal state with every other one.
 
 ## B5 ? Synthesis Chamber
 
