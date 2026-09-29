@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T23:30:00-05:00
+Updated: 2026-09-29T00:00:00-05:00
 current_through_event_id:
-`evt-20260928T290000000000Z-hermes-all-three-comparisons-complete-none-of-the-elaborations-beat-the-simple-baseline`
+`evt-20260928T300000000000Z-hermes-ashes-corpus-built-4096-gru-is-100-hours-and-official-mamba-cannot-run-on-turing`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -58,6 +58,42 @@ core is both a bug and a discount. 3 s/beat is the cost of cores actually workin
 
 Diagnostics: `diag_beat_cost.py`, `diag_beat_speed.py`, `diag_batch_cores.py`, `diag_beat_gpu.py`.
 Report: `D:/Hermes/WHY_A_BEAT_COSTS_THREE_SECONDS.md`.
+
+## ASHES CORPUS BUILT — and the 4096 GRU is ~100 HOURS while official Mamba cannot run here — 2026-09-29
+
+**Jeff: "I want a 4096 gru and 1024 mamba to train 100k steps D:/ashes/Datasets
+D:/ashes/curriculum/batch_001 D:/AxonCurriculum/kimi_corpus or download datasets you think will work."**
+
+**CORPUS IS DONE** (`build_ashes_corpus.py`, fail-closed): **11,232 docs / 51,923,710 chars** →
+**49,918,946 train ids + 2,056,706 val ids** (HELD OUT by whole document, 95/5, seed 20260928),
+vocab **351** (substrate alphabet), 400-char round-trip decoded through the substrate **before writing**,
+zero bad-UTF-8 skips. Breakdown: **ashes_curriculum 4,146 docs** — the Axon episode curriculum
+(`input_event`, `state_before`, `soul_before`, per-core proposals, deltas = **the decision loop Axon
+lacked**); **ashes_datasets 7,015** (kimi wisdom bundles, grammar_clean, dialogue, soul summaries);
+**kimi_corpus 66** (layer-1 vocabulary/grammar). JSONL flattened **preserving keys and nesting** because
+the structure is what the curriculum teaches. **Did NOT download anything** — Jeff's own sources are
+richer and already in the right shape.
+
+**BLOCKER — OFFICIAL MAMBA CANNOT RUN ON THIS MACHINE.** `mamba_ssm` is not installed and **cannot be**:
+its CUDA kernels require **compute capability ≥ 8.0 (Ampere)**; the GTX 1650 is **7.5 (Turing)**.
+Not a build problem — the instructions do not exist on the card. **Honest substitute built and benched:**
+a selective SSM in plain PyTorch (state `h ← a*h + b*x` with a,b,c computed **from the input** — the
+selectivity that makes it Mamba rather than a fixed SSM), **d1024 = 10.6M params, 596 ms/step ⇒ ~16.5 h**
+for 100k steps. Functionally faithful, **not** Mamba's speed (their fused scan vs a Python loop).
+
+**COST — the 4096 GRU is ~100 HOURS (~4 days).** 3,391 ms/step at batch 8/chunk 128. **Bigger batch does
+NOT help** (8/16 both ~3,596 ms; batch 64 = 31,749 ms) — the cost is the per-character kernel-launch loop.
+torch's **fused cuDNN GRU helps 2–4× at 1024/2048 but NOT at 4096**: 4096 = 100.8M params → fp32 weights
+403 MB + AdamW momentum+variance 806 MB ⇒ **training state alone >1 GB before activations**; the benchmark
+pinned the card at **3,831 of 4,096 MiB** and thrashed. **The 4096 bottleneck is 4 GB VRAM, not maths.**
+
+**THREE OPTIONS PUT TO JEFF (his call, not mine):** (1) run as asked here (~5 days, card unusable,
+needs restart-surviving checkpointing built first); (2) **send to Kaggle** (axongliksbot, 30 h GPU/week,
+16 GB T4/P100 — the 4096 problem IS memory, so a bigger card fixes it); (3) **RECOMMENDED — Mamba at
+1024 + GRU at 2048** (25.2M params, fits comfortably, ~18–29 h) so the question is answerable this week.
+**AMBIGUITY FLAGGED, NOT GUESSED:** "a 4096 gru and 1024 mamba" = two separate models, or **ONE model
+with the Mamba chained alongside the GRU**? The latter is the more interesting experiment (a Mamba holds
+state linearly in sequence while a GRU's state is fixed size). **Nothing training.**
 
 ## ALL THREE COMPARISONS COMPLETE — none of the elaborations beat the simple baseline — 2026-09-28
 
