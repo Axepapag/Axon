@@ -1,8 +1,8 @@
 # Axon Engineer's Ledger ? Rolling Summary
 
-Updated: 2026-09-28T22:00:00-05:00
+Updated: 2026-09-28T23:00:00-05:00
 current_through_event_id:
-`evt-20260928T270000000000Z-hermes-trained-6m-ffn-operator-plus-soul-on-18546-tick-corpus-operator-worth-0.546-nats`
+`evt-20260928T280000000000Z-hermes-corelab-console-built-22-22-and-arm-a-proves-the-ffn-is-not-better-than-width`
 
 Append order note: canonical authority is append order, not timestamp order. Earlier
 correction events may carry timestamps older than events physically above them. The
@@ -58,6 +58,40 @@ core is both a bug and a discount. 3 s/beat is the cost of cores actually workin
 
 Diagnostics: `diag_beat_cost.py`, `diag_beat_speed.py`, `diag_batch_cores.py`, `diag_beat_gpu.py`.
 Report: `D:/Hermes/WHY_A_BEAT_COSTS_THREE_SECONDS.md`.
+
+## CORELAB CONSOLE BUILT (22/22 browser checks) — and ARM A: the FFN TIES WITH WIDTH — 2026-09-28
+
+**Jeff asked for `corelab.bat` + a graphical console (list trained GRUs/FFNs, editable masked field,
+input buffer, construct combinations, clone the GRU as another layer in ONE core or as its OWN core,
+then train N steps) AND "do all the testing, test everything you said."**
+
+**BUILT:** `corelab.bat` (double-click launcher) · `console_server.py` (stdlib HTTP + JSON API:
+`/api/artifacts`, `/api/field` GET+POST, `/api/pulse`, `/api/train`, `/api/train/status`,
+`/api/train/stop`) · `console.html` (3-column UI) · **`compose.py` — the composition model: a CORE is
+an ordered CHAIN of BLOCKS; block = `gru`|`ffn` from a checkpoint or fresh; `stack` = one core with two
+gru blocks; `separate` = two cores.**
+
+**VERIFIED IN REAL CHROME:** `verify_console.js` (zero-dependency CDP harness, Node 26 global
+WebSocket) — **22/22 PASS**: server up, artifact table from the real API, 6 field regions with masks, `stack`
+→ one core `gru+gru`, `separate` → 1→2 cores, field edit round-trips server-side, **`tail_chars=5`
+REALLY truncates attention to 5 of 17 chars**, pulse renders parameter counts, gru-alone vs gru+ffn give
+different states, **zero JS console errors**, no overflow at 390px.
+
+**THREE REAL BUGS FOUND AND FIXED:** pulse() depended on the browser global `event`; a missing favicon
+404'd into the console log; **stacking two GRUs initially passed the wrong tensor shape — a stacked GRU
+needs its OWN recurrent state (two coupled recurrences, not one recurrence written twice).**
+
+**ARM A OF THE DEFERRED COMPARISON IS DONE — AND IT IS A TIE.** A no-FFN GRU widened to **1399** matches
+the FFN model's parameter budget within **0.05%** (13,699,359 vs 13,692,384) and gets held-out
+**ppl 2.987**; the 1024 GRU + 6M FFN baseline gets **2.989**. A difference of **0.002 = NOISE**.
+
+**HONEST READING — this CORRECTS the previous event:** the operator **IS real** (ablating it costs
+**0.546 nats**, that measurement stands), but it is **NOT a better use of the same parameters than MORE
+WIDTH**. A wider GRU does the same job for the same price. The operator earns its keep as a *component*,
+not as a *better shape for the compute*. **This is exactly the comparison Jeff insisted on** — without
+it the honest-but-misleading statement would have been "the operator works".
+
+**Arms B (inner_ticks=5, ~3× slower) and C (compute-matched control) were still running.**
 
 ## TRAINED: 1024 GRU + ~6M FFN OPERATOR + SOUL on the 18,546-tick corpus — the operator is worth 0.546 nats — 2026-09-28
 
