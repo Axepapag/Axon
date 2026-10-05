@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger - Rolling Summary
 
-Updated: 2026-10-05T12:29:32.8666728Z
-current_through_event_id: `evt-20261005T122907811663Z-copilot-new-axon-repo-genesis`
+Updated: 2026-10-05T14:08:01.173319+00:00
+current_through_event_id: `evt-20261005T140801173319Z-copilot-handoff-and-architecture-assessment`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl` (this repo, starts at the genesis event above).
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`. The old repo's ledger (470 events, last
@@ -9,6 +9,8 @@ Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`. The old repo's ledger (470 
 in the genesis event.
 
 Identity stamp: GitHub Copilot / Claude Sonnet 5.5 / 2026-10-05 UTC
+
+**Start here next session: `docs/HANDOFF_2026-10-05.md`** (state, honest assessment, open decisions, milestones, database safety).
 
 ## Mission and state (2026-10-05)
 
