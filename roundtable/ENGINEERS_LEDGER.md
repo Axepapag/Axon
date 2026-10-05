@@ -1,7 +1,7 @@
 # Axon Engineer's Ledger - Rolling Summary
 
-Updated: 2026-10-05T14:22:08.149418+00:00
-current_through_event_id: `evt-20261005T142208149418Z-copilot-architecture-choice-advice`
+Updated: 2026-10-05T14:26:04.017256+00:00
+current_through_event_id: `evt-20261005T142604017256Z-copilot-correction-gru-training-speed`
 
 Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl` (this repo, starts at the genesis event above).
 Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`. The old repo's ledger (470 events, last
