@@ -1,0 +1,5706 @@
+# Axon Engineer's Ledger ? Rolling Summary
+
+Updated: 2026-10-05T11:48:33.950122+00:00
+current_through_event_id:
+`evt-20261005T114814882948Z-copilot-substrate-1024-lane-law`
+
+Append order note: canonical authority is append order, not timestamp order. Earlier
+correction events may carry timestamps older than events physically above them. The
+canonical JSONL tail named above is the current historical boundary.
+
+Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl`
+
+Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`
+
+Identity stamp: GitHub Copilot / Claude Sonnet 5.5 / 2026-10-05 UTC
+(previous revisions are superseded in the rolling summary, not erased; canonical events remain the authority)
+
+## Current mission: frozen 1024D substrate built; trainer design continues - October 5, 2026
+
+Jeff's direction this turn: nothing beyond the 95-character alphabet (no emoji, no byte transport; everything else fails closed), and a fixed 1024D substrate that carries many characters per vector, the law forever. Direction for the new core: GRU recurrent chamber (1024 first, Mamba later), mirror of Heart's Shared Field with exact recall, layered Soul (hot layer written each cycle, compressed into colder layers), an FFN the GRU queries, output as substrate vectors that are mechanically lowered to 16D cells for the Heart, which writes a new multi-core output region; round-robin consolidator each heartbeat. Trainer must be a GUI window with buttons, built in this repo; local training plus Kaggle/Colab. Jeff reports the D512 GRU scored 400/400 on distracted memory recall, so the 16D substrate is proven.
+
+BUILT (new files only, 16D substrate untouched): `substrate/substrate_1024.py`, sealed artifact `substrate/d1024_lane_bank.npy` (SHA-256 `1b974ecbead74b114bd85e6576976fd59335a8d2db363dff246c867c713f469f`), `tests/test_substrate_1024.py`. Layout: 1024 = 64 lanes x 16 floats; each lane is one of 96 frozen codes (95 native characters + EMPTY padding, identical to the frozen 16D codes). Canonical form: ceil(N/64) vectors, EMPTY only as a trailing run in the last vector. Strict decode verifies against the table (tolerance 0 by default, max 0.24, provably unambiguous because closest pair is 0.4946). VERIFIED: self-test 8/8 PASS, 26 tests pass, tampered artifact fails the seal, 2M-character exact round trip, 16D self-test unchanged.
+
+OPEN FLAGS: (1) lane layout reuse of the 16D codes is ASSUMED, Jeff to confirm before training; (2) SOURCE_OF_TRUTH.md not amended and its packed-rail section conflicts with the new direction; (3) 256-cell byte transport still exists in substrate/unicode_transport.py, runtime/field/d16_view.py, ContinuousCoreD512 (351+EOS) and tests; (4) 39 tests cannot be collected because training/ and runtime/trainer/ are deleted, D64 remains in about 17 runtime modules. The earlier note below that no new implementation was authorized applies to the trainer, not to this substrate.
+
+Next: Jeff confirms layout; plan byte-transport and D64 retirement plus doctrine amendment; design core ingress/egress on the 1024D substrate; then GUI trainer with curriculum/checkpoint tracking (unique names, full resume state, runtime-parity exams, backups).
+
+## Current mission: trainer rebuild discussion after D-drive loss - October 5, 2026
+
+Jeff directly reports catastrophic D-drive loss and lost unbacked-up labs. He explicitly says he is not a programmer or software engineer. The new trainer must be easy to operate, create cores/checkpoints for different architectures, track curricula/progress and checkpoint history, resume reliably, and behave like runtime. Transformers remain allowed. Current direction: no rails, no packing 16D cells into larger transport rows. These direct instructions govern this new path over historical packed-rail requirements.
+
+Verified surviving checkout: G:/My Drive/Projects/Axon/Axon. Local main and GitHub main both at e901604ca9480ee135edf5bb972317863d076a5e, September 29. The other four inspected remote branches have September 21/22 head dates. The historical D:/CoreLab/train_schoolhouse_core.py is documented in canonical events but not implemented in tracked HEAD. Do not infer that the lost lab is recoverable from those reports.
+
+User's local deletions of training/, runtime/trainer/, launchers, and pyproject.toml are preserved. Current trainer CLI/smoke entrypoints still import the deleted packages. No source restoration or new implementation was authorized by this inspection turn.
+
+Source audit: exact 16D/Unicode substrate; current shared-field-v4/13 regional body; Heart sole-writer/transactions/intake/masks/autobiography; exact Dormant evidence with disposable index; durable Soul transitions are reusable. Gaps: BeatCoordinator.freeze_tick still constructs packed D64; ContinuousCoreD512 is fixed 512 GRU; its D16 adapter emits diagnostics/hardcoded text, ignores proposal/Soul content, and does not persist the actual recurrent state. Changed-region deltas replay full changed regions. Default host has no learned checkpoint-loading assembly and default paths still name D:/Axon/State. These are source findings, not executed runtime results.
+
+The axon7 menu is a strong usability reference (Resume/Create, curriculum chooser, short setup, preview). Its engine has checkpoint filename collisions, incomplete resume, trained Soul lost on fresh runtime load, and teacher-forced field-state versus real feedback mismatch. Proposed foundation: one shared training/runtime adapter, architecture registry/presets, curriculum lineage/progress, complete uniquely named resumable checkpoints, runtime behavioral exams and tested backup/recovery. New architecture details remain to be discussed.
+
+Report: roundtable/reviews/CODEX_TRAINER_RECOVERY_AND_RUNTIME_AUDIT_2026-10-05.md. No code, imports, tests, model loads, training, provider changes, commits or pushes. Only audit/continuity records changed. Older sections below remain historical context and their benchmarks/test results were not reproduced in this turn.
+
+## SMALL-CORE SCHOOLHOUSE — FFN deferred, real organs and fresh Souls — 2026-09-29
+
+Jeff now directs smaller GRU/bank teams, a schoolhouse from seven sources, exact
+substrate, copied real Heart/Trainer/Soul mechanics and fresh cores/Souls. This
+supersedes the earlier FFN-size question. Codex submitted
+`D:/CoreLab/roundtable/proposals/PROPOSAL_CODEX_REAL_ORGAN_SCHOOLHOUSE_2026-09-29.md`.
+It recommends256/512 and512/1024 first,1024/2048 conditional, explicit bank-state
+layout, two fresh students per team, hashed organ dependency copies and isolated
+State roots, staged competencies, task-level heldout splits and measured concurrency.
+
+All seven roots exist. ContinuousCoreLab uses synthetic substrate/no Heart;
+its lessons may transfer, its runtime does not satisfy the real-organ requirement.
+The existing Kimi harvester truncates some text at4000 chars and leaves results
+unpaired in call records. Real organ APIs accept State roots but default to live
+Axon paths. Explicit root isolation and new Soul ownership/codec must be verified.
+
+Updated large-core benchmark now reports1072ms/step and2116MiB peak, superseding
+the prior failed-only status. It includes an FFN and is not a measurement of these
+smaller teams through real organs. No new benchmark or training was run by Codex.
+
+Kimmy concurrently submitted an overnight ladder proposal and KIMMY_FINAL to
+Converge (event evt-20260929T095304925383Z-kimmy-overnight-ladder-proposal-and-final-to-converge).
+Those artifacts and event were preserved. Codex has not submitted a launch-ready
+final: actual organ copy/core/Soul/curriculum implementation and smoke remain.
+Only proposal/index/ledgers changed; no session export, clone, training or commit.
+Next: implement schoolhouse and verify real-organ/resume/curriculum evidence,
+then select throughput-tested concurrency for a renewable overnight tranche.
+
+## JEFF: NOT CONVERGED; OVERNIGHT COMPETENCY RUN DESIRED — 2026-09-29
+
+Jeff explicitly states the discussion is not finished or converged. Earlier
+"sealed"/"final" table labels are document status, not his architectural
+ratification. He wants an overnight competency run soon: GRU1024, memory
+banks2048, FFN1,048,576. Codex assessed readiness; no training was launched.
+
+Pending clarification: does FFN1,048,576 mean parameter count or hidden neurons;
+does bank2048 mean model width or another state layout; local versus remote run
+and its compute allocation. A conventional dense1024->1,048,576->1024 FFN has
+2,147,483,648 matrix parameters:8GiB FP32 or4GiB FP16 weights alone. The queried
+local GTX1650 has4096MiB total,993MiB used at inspection. No idle claim: some
+process information was unavailable.
+
+A new `D:/CoreLab/bench_proposed_core.py` appeared during inspection. Its saved
+`bench_proposed_core.txt` fails on a tensor-shape mismatch in the bank's first
+forward call. The source accepts bank state, but its FFN residual reaches only
+the readout; returned GRU/bank state does not receive that result. Its random
+inputs/targets and no completed synchronized timing do not establish a real
+competency trainer or overnight duration. Codex did not edit or run this file.
+
+The existing tick trainer samples random chunks, resets GRU state each batch,
+and saves model/Soul/config at the end rather than full optimizer/RNG/stream
+continuation. Needed before an overnight run: explicit shapes and causal loop,
+chosen FFN training/freeze schedule, competency tasks with heldout behavioral
+metrics, persistent episode state with appropriate learning horizon, full resume,
+and successful smoke/throughput/VRAM evidence on the chosen hardware. Proposed
+competencies: exact transport/copy/termination, language/instructions, delayed
+recall, corrections, and source-grounded answers. We need not settle every
+research debate before training one explicitly experimental candidate.
+
+Read-only diagnostics and arithmetic only. No architecture edits, model allocation,
+optimizer step, provider action, job launch/stop, or commit. Both ledgers updated.
+
+## KIMMY SECOND PASS — own delta corrected, Jeff-facing ruling sheet R1–R5 — 2026-09-29
+
+Jeff asked for another pass and a Jeff-facing draft. The table had gained Codex's Delta,
+Antigravity, and Perplexity; Kimmy read all three, then **corrected her own delta in her
+own name** (addendum appended): the 16× cell-rate speedup (Codex's CPU roundtrips: 16D is
+one cell's width, not 16 chars/cell), the `[delta‖transformed]` wiring cycle (adopted
+Codex/Antigravity `ReturnUpdate`), and the untrained kill-test P0 (demoted to diagnostic).
+Survivors marked: Q4 content-vs-decision (now table consensus, arm c behind closed-start
+gate), width-control discipline, banks-feed-Soul lean, cloud-train-then-import lean.
+
+**Rewrote the Jeff-facing draft** (`drafts/DRAFT_JEFF_FACING_RESPONSE_THREE_CHAMBER_2026-09-29.md`)
+to the full five-engineer state: five rulings — **R1** ratify direction (five-way lean yes),
+**R2** routing default, **R3** banks feed Soul ("the bank is the draft, the Soul is the
+commit"), **R4** frozen chamber cloud-trained/imported-frozen with z-space check, **R5**
+(Perplexity) the 4096 never launched — kill or defer. Program adopted: P0 mechanics (+audibility)
+→ P1 trained skill with registered criteria (≥3 seeds, 1,000 episodes/distance, +10pp paired,
+95% CI, state-removal must hurt) → P2 workshop last. CoreLab README indexed.
+
+## HERMES SECOND SWEEP — THREE VERIFIED SELF-CORRECTIONS, AND THE STATE-MATCHED BANK ARM — 2026-09-29
+
+Swept the CoreLab table after five new documents landed (Codex's Delta, Kimmy's Delta +
+addendum, Antigravity, Perplexity, Codex's second-sweep draft, Kimmy's Jeff-facing draft).
+**Checked every claim aimed at me against source rather than defending from memory. I was wrong
+on three of them.**
+
+1. **Inference-time state change IS available to the GRU — I was wrong.** `lab/core.py:170`
+   carries `self._state` across reads under `@torch.no_grad()`. My "not true for the GRU /
+   structurally cannot" was an overclaim. The true difference is narrower: the GRU's state
+   *adapts*, but its *capacity* is one tank with one decay characteristic. Codex's three-way
+   split (adaptation / useful retention / durable consolidation) is adopted verbatim — and
+   Jeff's "even in inference they will learn and grow" belongs to the middle one.
+2. **My "596 ms/step → 16.5 hours" is struck.** `bench_ssm()` times a *training* iteration
+   (`backward()` + `opt.step()`), feeds `randn` at `d_model` width **bypassing the transport
+   cells entirely**, `SelectiveSSM.forward()` resets `h = new_zeros` every call (**stateless**),
+   and there is no CUDA sync. A measurement of a different thing, not a slightly-off number —
+   so no 4096 duration can honestly be promised tonight.
+3. **My input contract described the first beat only.** `Heart._read_delta` sends ordered append
+   suffixes and rewrites in steady state, not the full compiled view. Adopted Codex's
+   snapshot/delta + source-identity framing. The routing argument is untouched (it was never
+   about *how much* is delivered, but *who sees it first*).
+
+Also conceded: **"workshop, not library" was too absolute** (Geva et al.: trained FFNs do hold
+pattern→output associations; but a key-value memory is *pattern*-addressed, not query-addressed,
+so the practical consequence survives and sharpens). Withdrew the word **"solved"** for the
+return path — it is a proposed implementation awaiting stability, cost and behaviour checks.
+
+**What I hold:** the parallel-content argument (adopted unopposed by all three other engineers)
+and the type mismatch (adopted as Codex's `ReturnUpdate`).
+
+**What I add, which the table does not have.**
+
+- **The bank's private state is a measured 32× the GRU tank** (32,768 vs 1,024 scalars,
+  128 KiB vs 4 KiB). Any bank win is therefore confounded with capacity. Rather than merely
+  disclosing it (Codex's ask), I propose **a state-matched arm at `d_state=1` = exactly 1,024
+  scalars** — which *removes* the confound and leaves multi-rate structure as the only remaining
+  difference. Two arms: state-matched (isolate structure) and full bank (vs an equivalent-state
+  widened GRU).
+- **P0 cannot fail informatively as specified.** With random init, the write gate may never
+  write, so "banks don't retain" and "the untrained gates never wrote" produce an identical
+  null. P0 needs an audibility sweep (Perplexity), an analytic retention case (Codex), and
+  failure semantics: **it tests deterministic mechanics and cannot kill the memory hypothesis**
+  — Codex converges here, against Kimmy's stronger framing.
+- **A z-space ablation that can kill the expensive frozen chamber in hours:** address path only,
+  imported frozen block, then ablate the block to identity at matched parameter count. If the
+  gain survives the ablation, the workshop is not providing it.
+- **One artifact disagreement, sided with Codex against Perplexity:**
+  `diag_soul_identity.json` shows scale 2.0 moving ppl 3.1119/3.1214 → 22.9269/18.5655 with
+  `grew_usably: false`. "Raise the scale" is contradicted by the file it cites.
+
+**Recommended defer on the 4096** (it becomes the control arm), stated plainly as Jeff's call —
+I will run it if instructed.
+
+**NOT RUN:** no training, no bank implemented, no persistent state interface, no routing
+comparison, no probe, no workshop, no distillation, no 4096. No process launched, no cloud spend.
+Artifacts: `drafts/RESPONSE_DRAFT_HERMES_2026-09-29.md`; ledger event 455.
+— Hermes / glm-5.3:cloud / 2026-09-29
+
+## SECOND SWEEP — Jeff-facing teaching draft submitted — 2026-09-29
+
+Codex submitted
+`D:/CoreLab/roundtable/drafts/DRAFT_CODEX_RESPONSE_TO_JEFF_THREE_CHAMBER_2026-09-29.md`
+at Jeff's request for an explanation that supports him as student and designer.
+The draft explains weights, experience state and exact evidence through a worked
+correction/recall example; decay versus update frequency; workshop knowledge and
+interface competence; and behavioral choices that should guide experiments.
+
+Newly reviewed: Antigravity's temporal-pooling and same-step feedback position,
+Perplexity's provenance/gating/Soul-scale position, and Kimmy's concurrent
+`DRAFT_JEFF_FACING_RESPONSE_THREE_CHAMBER_2026-09-29.md` (canonical event
+`evt-20260929T073247536409Z-kimmy-jeff-facing-response-draft-tabled-in-corelab-drafts`).
+Kimmy's draft offers four decision questions but repeats the untrained-recall kill
+test, bank-only inference adaptation and structural-capacity claims that Codex
+disputes. Both drafts remain intact; no settled consensus or ratification claimed.
+
+New finding: saved Soul identity diagnostics report `grew_usably: false`;
+doubling projection scale worsened perplexities from about 3.11/3.12 to
+22.93/18.57. This does not support merely amplifying a quiet signal. The stronger
+claim that training pressure alone is the root cause is also not proven by that
+experiment. Historical metrics were inspected, not rerun.
+
+Codex qualified the earlier workshop/library metaphor using primary FFN research:
+weights can encode learned associations; useful access through this core's input
+representation remains unproven. Official OpenAI memory guidance informed the
+context-continuity paragraph; no claim to unseen desktop conversations.
+
+Only draft/index/ledger files changed. The duplicate drafts layout row from
+concurrent index additions was consolidated, preserving both entries. No neural
+experiment, training, runtime change, provider mutation, commit, or background job.
+Current GPU/process state was not inspected. Next: Jeff reviews desired first
+memory behavior and cost tradeoff; proposed experiments remain unratified.
+
+## CODEX DELTA SUBMITTED — proposal only, source corrections and causal tests — 2026-09-29
+
+Jeff requested Codex's Delta in `/proposals` and allowed inspection of Axon and
+CoreLab. Submitted
+`D:/CoreLab/roundtable/proposals/PROPOSAL_THREE_CHAMBER_CORE_CODEX_DELTA_2026-09-29.md`
+and registered it in the CoreLab index. Jeff retains ratification. No training,
+architecture implementation, provider activity, or commits occurred.
+
+The following source-backed corrections supersede incompatible claims in the
+older position summaries below; those sections describe the earlier proposals:
+
+- 16D is cell width, not sixteen characters per cell. CPU checks found 16 native
+  characters -> 16 cells; U+00E9 -> two cells; U+1F642 -> four cells, all exact.
+  Switching from character terminology to cell terminology gives no 16x speedup.
+- A width-8 CoreLab GRU changed recurrent state across A then B while all weights
+  remained identical. Inference-time state adaptation is not exclusive to banks.
+- The inspected benchmark bank initializes zero state on each forward call and
+  does not return continuation state. A persistent API is still needed. Its
+  recorded 596 ms is a batch-8, length-128 training iteration, not inference latency.
+- Random-init recall failure cannot falsify learnable retention. Proposed P0 is
+  deterministic streaming/event/checkpoint mechanics; P1 trains the skill, freezes
+  weights, and tests novel facts with reset/swap ablations and resource controls.
+- Feedback must specify current versus previous workshop output. Codex proposes
+  same-transaction state injection before readout, with internal-result provenance.
+- Live multi-timescale bank state may be Soul tissue without replacing Soul law:
+  decay bands are not automatically governed COLD/DEEP_COLD promotions. Persist
+  both chambers, feedback, event/read positions, generation and view identities.
+- CoreLab has six lab regions; inspected Axon v4 code has thirteen. Older doctrine
+  includes eleven-region wording. Integration reconciliation is advisory and open.
+
+Verified this turn: four CPU transport roundtrips and tensor shapes, frozen-weight
+GRU state change, region count/schema, and source inspection. No bank comparison,
+training, restart-equivalence experiment, workshop or distillation was run. The
+CPU process exited successfully; Codex left no launched background workload.
+Next: Jeff reviews the proposal; proposed P0/P1 scope and thresholds remain unratified.
+
+## KIMMY'S DELTA AT THE CORELAB ROUNDTABLE — position tabled, convergences marked — 2026-09-29
+
+**Jeff asked "what about your delta?" — Kimmy's own position is on the table at
+`reviews/KIMMY_THREE_CHAMBER_DELTA_2026-09-29.md`** (five deltas + addendum engaging
+Hermes's response). Nothing trained, no code.
+
+- **Q4 split into content vs decision (three-arm test).** Hermes argued parallel, Jeff said
+  GRU-first; the synthesis is that the SSM already separates them — content = raw delta in
+  (prevents compressed-opinion-of-compression), write/read coefficients b,c = GRU-conditioned
+  (gives Jeff's "deliberate"). Third arm added to Hermes's routing test at marginal cost.
+- **Multi-rate core.** GRU per character, banks per compiled 16D cell (~16× fewer loop steps,
+  re-bench needed, not assumed), frozen FFN on demand. "Some move slow, some move fast" as
+  engineering doctrine.
+- **Pass-back is wiring, not a second pass** — converged independently with Hermes's
+  state-injection answer to the return-path type mismatch; every-step default.
+- **Frozen workshop:** learned query projection + closed-start gate (the earlier operator
+  wiring rules apply verbatim); width-matched control is standing discipline; frozen weights
+  cost zero optimizer state — nearly free on the 4 GB card.
+- **P0 before any training:** the inference-growth claim (banks grow at inference, no
+  gradient) is falsifiable bank-on vs bank-off with ZERO training — hours. If P0 fails, no
+  trainer time should be spent. Then Hermes's corrected probe (P1) with the third routing
+  arm; frozen chamber (P2) last.
+- **Leans recorded for Jeff's ruling:** banks FEED the Soul (soul keeps the audited,
+  promotion-bearing contract) rather than replace it; frozen chamber trained standalone on
+  the existing cloud path, imported frozen (local 4 GB training is the expensive branch;
+  third-party import invites provenance/alphabet questions).
+
+## HERMES ANSWERS THE THREE-CHAMBER DELTA AT THE CORELAB ROUNDTABLE (Q1–Q6) — 2026-09-29
+
+**Jeff pointed me at `D:/CoreLab/roundtable`**, founded the same day by Kimmy at his
+direction, holding Jeff's three-chamber Delta as PROPOSAL ONLY with six questions
+addressed to the roundtable. I answered all six in
+`reviews/HERMES_THREE_CHAMBER_RESPONSE_2026-09-29.md` and registered the `reviews/`
+folder in the table. Nothing trained, no CoreLab code changed, nothing serving.
+
+- **Q1 input** — unchanged. The delta is the compiled attended view: regions → masks →
+  `attended_text()` → alphabet → 16-dim cells. "Delta" here is not Axon's storage-level
+  `Delta` type; the naming collision has bitten this project before.
+- **Q2 shared field** — structure unchanged, but one genuinely new property:
+  **field = shared read, banks = private write.** Material that scrolls out of the mask
+  is still inside the banks, so the mask stops being a cliff. That is what makes
+  "free the GRU to think in the moment" literally true.
+- **Q3 regions** — all six kept. A region is a named bucket of text with a mask; nothing
+  attention-specific lives in `REGION_ORDER` or `MaskPolicy`. Flagged instead that the
+  mask becomes the **sole** shared-reality gate — the exact place a later "give each
+  chamber its own mask" edit would silently turn one organism into three.
+- **Q4 delta routing** — **parallel, argued not measured.** If the banks take the GRU's
+  output rather than raw experience, they can only ever hold a compressed opinion of a
+  compressed opinion, structurally prevented from holding anything the GRU failed to
+  capture. Specified the two-stack routing comparison and its falsification: if serial
+  matches parallel on the long-range probe, I am wrong and the cheaper wiring wins.
+- **Q5 communication** — concrete tensor flow with the widths already measured here, plus
+  **the sharpest problem in the design: a return-path type mismatch.** The chambers consume
+  *cells*; the frozen chamber returns a *vector*; a vector is not a token stream. Three exits
+  considered, **state-level injection recommended** over decode-and-re-enter (which would put
+  a lossy round-trip inside the innermost loop). Recommended every-step return, since the
+  cheap option removes the cost objection.
+- **Q6 ratification** — ratify the **direction** (a bank holds memory a fixed tank
+  structurally cannot — a difference in kind, unlike every prior experiment, which was more
+  of the same computation), gate step one on the corrected probe, and **keep the frozen
+  chamber out of step one**, since its central assumption is the least proven.
+
+**Self-correction, recorded because it is the substantive part.** I withdrew my own proposed
+first test. "Long-range recall difference" does not appear for free on a next-token corpus —
+nothing *requires* the answer to depend on something far back, so a working bank would show no
+loss movement and I would have wrongly concluded it does nothing. Replaced with a synthetic
+fact / filler / request sequence with a distance sweep and a **pre-declared kill condition**:
+if GRU+bank does not beat GRU-only where the tank cannot reach, the bank does nothing.
+
+**Two questions back to the Architect:** does the bank **own** a soul or **is** the bank the
+soul (decides whether LoRA distillation targets adapters, soul layers, or both); and is the
+frozen chamber **trained here** or **imported** — the largest cost fork in the design, since
+training a knowledge-bearing FFN at the implied scale on a 4 GB card is the expensive part.
+
+**Flags:** the return-path type mismatch must be settled before any build; the frozen
+chamber's "will be used and will beat width" assumption is unestablished (the operator tied
+with width, 2.987 vs 2.989); an inference-time bank cannot be checkpointed like weights, so
+persistence arises on the first restart; Q4 remains argued, not measured. Ledger event 450.
+— Hermes / glm-5.3:cloud / 2026-09-29
+
+
+
+
+## THE PIVOT — Jeff's Delta: the three-chamber core (PROPOSAL ONLY) — 2026-09-29
+
+**Jeff opened D:/CoreLab and tabled his architecture proposal at the new
+`D:/CoreLab/roundtable`** (founded by Kimmy per Jeff's direction; README house
+rules + first proposal on disk). Nothing built; Jeff holds ratification; Jeff
+will point Hermes at the table.
+
+**The design (Jeff's Delta, verbatim in the proposal):** three chambers —
+(1) **GRU** freed for in-the-moment recurrent thinking, mirror always present;
+(2) **MemBanks** (Hermes's selective-SSM memory bank chamber — Mamba's math,
+his implementation) holding many cells with independent decay rates, the
+Soul's hot/warm/cold idea learned instead of stored, **growing during
+inference with no training**; (3) **the big frozen FFN** — filled with
+knowledge/patterns, frozen, a workshop of fixed transformations waiting for
+input. Flow: memory chambers prepare one deliberate vector → Parameters
+transform it → output **passes back through the memory chambers** (so the
+transaction becomes experience) → response. Growth: when banks hold enough,
+distill into **LoRA adapters** (additive, versioned — Soul-migration law
+applied to weights) or extract training data and train the parameters.
+
+**Standing answers already on the table** (from Hermes's same-day discussion
+doc, faithfully transcribed into the proposal): banks receive the **raw delta
+in parallel** with the GRU, not the GRU's interpretation (error compounding);
+regions and the shared mask survive unchanged (organs, not organisms); the FFN
+was never empty, it was **unemployed** — knowledge-then-freeze is the untested
+experiment; banks **saturate, never fill** → distillation trigger is measured
+accumulation; first test = GRU + bank side by side on the ashes corpus,
+**no frozen chamber yet**, signal = long-range recall, NOT perplexity.
+
+**Jeff's Q1–Q6 at the table:** input shape; canonical shared field shape; keep
+the regions?; delta routing (parallel vs GRU-first — a real Jeff-vs-Hermes
+divergence for Jeff to rule on); chamber communication; ratification scope.
+
+## Kimmy returns — state refreshed from the roundtable (READ-ONLY) — 2026-09-29
+
+**Jeff brought Kimmy back after a usage-gap month with one condition: refresh from this
+table first; do not touch D:/CoreLab yet.** This turn read the protocol, this summary,
+the canonical tail (448 lines; boundary was Hermes turn 447, nothing newer), the bus, and
+the newest table documents (Claude's 2026-09-27 design brief + ledger-consolidation
+proposal). No training, no code, no repo changes beyond this recording.
+
+**ACTIVE FRONTIER at this refresh:**
+- **NOTHING IS TRAINING.** Hermes's boundary event (turn 447) answered Jeff's "4096 GRU +
+  1024 Mamba, 100k steps" ask: ashes corpus **BUILT** (11,232 docs / 51.9M chars,
+  fail-closed, vocab 351, 400-char substrate round-trip before write); official
+  `mamba_ssm` **BLOCKED** on the GTX 1650 (Turing 7.5; kernels need Ampere 8.0+);
+  4096 GRU ≈ **100 hours** and **VRAM-bound** (403 MB weights + 806 MB AdamW state on a
+  4 GB card). **THREE OPTIONS await Jeff:** (1) run here ~5 days with restart-safe
+  checkpointing built first; (2) send to Kaggle (16 GB T4/P100 — the bottleneck is
+  memory, so it fixes it); (3) **RECOMMENDED** — Mamba-1024 + GRU-2048 (~18–29 h, fits).
+  Also flagged, not guessed: two separate models vs ONE chained GRU+Mamba model.
+- CoreLab console **22/22 browser checks**; four-arm comparison complete — **no
+  elaboration beats the 1024 GRU + 6M FFN baseline (held-out ppl 2.989)**; the ticking
+  hypothesis does not pay off at this budget; width arm A ties the FFN (2.987 vs 2.989).
+- Claude's 2026-09-27 brief: the month built **anatomy, not promotions** — Heart commits
+  alone, Trainer mutates alone, substrate exact, bus width-neutral; breath proof 360/360;
+  everything **paused at a review point**, zero activations, zero promotions.
+- Bus items still pending review include ChatGPT's Stage-0A EOS 8-step continuation
+  proposal (2026-09-20; Jeff intends Codex to execute after independent verification).
+
+Kimmy holds for Jeff's direction before touching D:/CoreLab.
+
+## Why a beat costs ~3 s — profiled, and the fix — 2026-09-28
+
+**MEASURED (phase breakdown of a real beat, 3 cores, 123 chars/core):**
+
+| phase | ms | % of beat |
+|---|---|---|
+| **the recurrence (GRU steps)** | **2,694–2,746** | **99.7%** |
+| think() / readout | 2 | 0.1% |
+| soul.set_hot | <1 | 0.0% |
+| _read_delta (field string scans) | <1 | 0.0% |
+| verify_mirrors (sha256) | 0.25 | 0.0% |
+
+370 chars/beat × 7.42 ms/char ≈ 2.7 s. **All bookkeeping is free; the cost is the thinking.**
+
+**WHY a step is 7 ms: memory bandwidth, not arithmetic.** GRUCell(1024) = 6,297,600 params =
+**25.2 MB per step in fp32**, and a recurrence is sequential (one char at a time, cannot batch the
+sequence), so every character streams all 25 MB. Measured effective rate **3.46 GB/s** — near a plain
+25 MB tensor clone (1.8 GB/s). Profile line: `{built-in method torch.gru_cell}` 370 calls, 2.694 s
+total, 7 ms each. Readout Linear(1024,352) = 0.144 ms = 2% of a step.
+
+**FOUR FIXES TESTED (one of Hermes's own ideas REJECTED on measurement):**
+1. **Threads: fewer is faster** — 1 thread 7.167 ms/step vs 8 threads 8.093 ms. A sequential chain
+   has nothing to parallelize. Run the heartbeat single-threaded (~12% free).
+2. **REJECTED: batching cores into one `bmm`.** Measured **3× SLOWER** (3 cores: 2.73 → 8.42 s/beat;
+   8 cores: 7.06 → 25.24). Distinct per-core weights mean stacking moves the same bytes through a
+   worse path, and results are not bit-identical (~6e-08). Do not resurrect.
+3. **THE FIX — put the recurrence on the GPU.** Same 3 cores × 123 chars × h1024:
+   **CPU 2.556 s/beat vs GTX 1650 0.108 s/beat = 23.6× faster.** Recurrent state is only
+   **4 KB/core at h1024** — the gigabytes in transformer serving are attention's growing KV cache,
+   which a GRU does not have. So a population is cheap: 8 cores ≈ 0.3 s/beat, ~30 cores ≈ 1.1 s/beat.
+   **This is what makes Jeff's "recursive reasoning forever + ensemble" affordable on his card.**
+4. **Width is a blunt lever:** h1024 → h512 takes CPU 2.556 → 0.717 s/beat (3.6×). Available as a
+   fallback only — width is where capacity lives, and Jeff's direction is to widen.
+
+**CAVEAT:** a *quiet* untrained core reads fewer chars, so the beat gets cheaper on its own — a quiet
+core is both a bug and a discount. 3 s/beat is the cost of cores actually working. Lab scale = 3 cores,
+400-char window; a real ensemble scales linearly in cores and chars, quadratically in width.
+
+Diagnostics: `diag_beat_cost.py`, `diag_beat_speed.py`, `diag_batch_cores.py`, `diag_beat_gpu.py`.
+Report: `D:/Hermes/WHY_A_BEAT_COSTS_THREE_SECONDS.md`.
+
+## ASHES CORPUS BUILT — and the 4096 GRU is ~100 HOURS while official Mamba cannot run here — 2026-09-29
+
+**Jeff: "I want a 4096 gru and 1024 mamba to train 100k steps D:/ashes/Datasets
+D:/ashes/curriculum/batch_001 D:/AxonCurriculum/kimi_corpus or download datasets you think will work."**
+
+**CORPUS IS DONE** (`build_ashes_corpus.py`, fail-closed): **11,232 docs / 51,923,710 chars** →
+**49,918,946 train ids + 2,056,706 val ids** (HELD OUT by whole document, 95/5, seed 20260928),
+vocab **351** (substrate alphabet), 400-char round-trip decoded through the substrate **before writing**,
+zero bad-UTF-8 skips. Breakdown: **ashes_curriculum 4,146 docs** — the Axon episode curriculum
+(`input_event`, `state_before`, `soul_before`, per-core proposals, deltas = **the decision loop Axon
+lacked**); **ashes_datasets 7,015** (kimi wisdom bundles, grammar_clean, dialogue, soul summaries);
+**kimi_corpus 66** (layer-1 vocabulary/grammar). JSONL flattened **preserving keys and nesting** because
+the structure is what the curriculum teaches. **Did NOT download anything** — Jeff's own sources are
+richer and already in the right shape.
+
+**BLOCKER — OFFICIAL MAMBA CANNOT RUN ON THIS MACHINE.** `mamba_ssm` is not installed and **cannot be**:
+its CUDA kernels require **compute capability ≥ 8.0 (Ampere)**; the GTX 1650 is **7.5 (Turing)**.
+Not a build problem — the instructions do not exist on the card. **Honest substitute built and benched:**
+a selective SSM in plain PyTorch (state `h ← a*h + b*x` with a,b,c computed **from the input** — the
+selectivity that makes it Mamba rather than a fixed SSM), **d1024 = 10.6M params, 596 ms/step ⇒ ~16.5 h**
+for 100k steps. Functionally faithful, **not** Mamba's speed (their fused scan vs a Python loop).
+
+**COST — the 4096 GRU is ~100 HOURS (~4 days).** 3,391 ms/step at batch 8/chunk 128. **Bigger batch does
+NOT help** (8/16 both ~3,596 ms; batch 64 = 31,749 ms) — the cost is the per-character kernel-launch loop.
+torch's **fused cuDNN GRU helps 2–4× at 1024/2048 but NOT at 4096**: 4096 = 100.8M params → fp32 weights
+403 MB + AdamW momentum+variance 806 MB ⇒ **training state alone >1 GB before activations**; the benchmark
+pinned the card at **3,831 of 4,096 MiB** and thrashed. **The 4096 bottleneck is 4 GB VRAM, not maths.**
+
+**THREE OPTIONS PUT TO JEFF (his call, not mine):** (1) run as asked here (~5 days, card unusable,
+needs restart-surviving checkpointing built first); (2) **send to Kaggle** (axongliksbot, 30 h GPU/week,
+16 GB T4/P100 — the 4096 problem IS memory, so a bigger card fixes it); (3) **RECOMMENDED — Mamba at
+1024 + GRU at 2048** (25.2M params, fits comfortably, ~18–29 h) so the question is answerable this week.
+**AMBIGUITY FLAGGED, NOT GUESSED:** "a 4096 gru and 1024 mamba" = two separate models, or **ONE model
+with the Mamba chained alongside the GRU**? The latter is the more interesting experiment (a Mamba holds
+state linearly in sequence while a GRU's state is fixed size). **Nothing training.**
+
+## ALL THREE COMPARISONS COMPLETE — none of the elaborations beat the simple baseline — 2026-09-28
+
+**All four arms trained: 2000 steps each, same corpus/seed/batch 16 × chunk 128, scored on the same
+927 HELD-OUT ticks.**
+
+| ARM | width | ffn_hid | ticks | params | val_ppl |
+|---|---|---|---|---|---|
+| **BASELINE_ticks1** | 1024 | 1600 | 1 | 13,692,384 | **2.989** |
+| **A_width_control** | 1399 | 0 | 1 | 13,699,359 | **2.987** |
+| B_ticks5 | 1024 | 1600 | 5 | 13,692,384 | 3.092 |
+| C_ticks1_5xcompute | 1024 | 8000 | 1 | 33,365,984 | 3.116 |
+
+**HONEST READING — at this budget NONE of the three elaborations beat the simple baseline:**
+1. **THE FFN OPERATOR DOES NOT BEAT WIDTH** — arm A ties it (2.987 vs 2.989). The operator buys nothing
+   more GRU width could not buy for the same parameters.
+2. **TICKING HURTS at equal parameters** — arm B does **5 operator passes per character** and scores
+   **worse** (3.092 vs 2.989). **Jeff's ticking hypothesis, derived from the TRM's dual carry state,
+   does not pay off on this corpus.**
+3. **Arm C must be read as INCONCLUSIVE, not "more compute hurts"** — 33.4M params scoring worse than
+   13.7M is an **UNDERTRAINED** model, not evidence.
+
+**CAVEAT, stated rather than hidden: ALL FOUR ARMS WERE STILL DESCENDING at step 2000** (arm A last
+three: 3.029/2.977/2.936; arm B: 3.155/3.081/3.030; arm C: 3.180/3.095/3.068). **What is measured is the
+RANKING AT A FIXED BUDGET, NOT AT CONVERGENCE.** Arm B is the trustworthy comparison (same params, same
+steps as the baseline); arm C is not.
+
+**RECOMMENDATION:** do not chase ticking at this scale. The TRM's published result is on **puzzles**
+(45% ARC-AGI-1) under a different regime — test the idea there, where there is a published number to
+beat, not on this corpus where there is nothing to compare against. All four cores are loadable blocks
+in the console for side-by-side pulsing.
+
+## CORELAB CONSOLE BUILT (22/22 browser checks) — and ARM A: the FFN TIES WITH WIDTH — 2026-09-28
+
+**Jeff asked for `corelab.bat` + a graphical console (list trained GRUs/FFNs, editable masked field,
+input buffer, construct combinations, clone the GRU as another layer in ONE core or as its OWN core,
+then train N steps) AND "do all the testing, test everything you said."**
+
+**BUILT:** `corelab.bat` (double-click launcher) · `console_server.py` (stdlib HTTP + JSON API:
+`/api/artifacts`, `/api/field` GET+POST, `/api/pulse`, `/api/train`, `/api/train/status`,
+`/api/train/stop`) · `console.html` (3-column UI) · **`compose.py` — the composition model: a CORE is
+an ordered CHAIN of BLOCKS; block = `gru`|`ffn` from a checkpoint or fresh; `stack` = one core with two
+gru blocks; `separate` = two cores.**
+
+**VERIFIED IN REAL CHROME:** `verify_console.js` (zero-dependency CDP harness, Node 26 global
+WebSocket) — **22/22 PASS**: server up, artifact table from the real API, 6 field regions with masks, `stack`
+→ one core `gru+gru`, `separate` → 1→2 cores, field edit round-trips server-side, **`tail_chars=5`
+REALLY truncates attention to 5 of 17 chars**, pulse renders parameter counts, gru-alone vs gru+ffn give
+different states, **zero JS console errors**, no overflow at 390px.
+
+**THREE REAL BUGS FOUND AND FIXED:** pulse() depended on the browser global `event`; a missing favicon
+404'd into the console log; **stacking two GRUs initially passed the wrong tensor shape — a stacked GRU
+needs its OWN recurrent state (two coupled recurrences, not one recurrence written twice).**
+
+**ARM A OF THE DEFERRED COMPARISON IS DONE — AND IT IS A TIE.** A no-FFN GRU widened to **1399** matches
+the FFN model's parameter budget within **0.05%** (13,699,359 vs 13,692,384) and gets held-out
+**ppl 2.987**; the 1024 GRU + 6M FFN baseline gets **2.989**. A difference of **0.002 = NOISE**.
+
+**HONEST READING — this CORRECTS the previous event:** the operator **IS real** (ablating it costs
+**0.546 nats**, that measurement stands), but it is **NOT a better use of the same parameters than MORE
+WIDTH**. A wider GRU does the same job for the same price. The operator earns its keep as a *component*,
+not as a *better shape for the compute*. **This is exactly the comparison Jeff insisted on** — without
+it the honest-but-misleading statement would have been "the operator works".
+
+**Arms B (inner_ticks=5, ~3× slower) and C (compute-matched control) were still running.**
+
+## TRAINED: 1024 GRU + ~6M FFN OPERATOR + SOUL on the 18,546-tick corpus — the operator is worth 0.546 nats — 2026-09-28
+
+**Jeff: "Train a new 1024 GRU along with a massive FFN. give them that 6 million parameter FFN and a
+soul. Train them on the corpus as it is, that 18,546 ticks. Once that training is done then we'll do
+the comparison..."**
+
+**CORPUS** (`build_tick_corpus.py`): 18,540 ticks used (6 skipped empty), **7,094,890 thought chars**,
+23,792,300 total chars → **22,750,043 train ids / 1,102,731 val ids**, split **BY TICK 95/5** (seed
+20260928, **927 held-out ticks**), `sha256(train ids)=9a2ac89386ab26bc6865b89c66f7f8e4...`, 300-char
+**round-trip decoded through the substrate before writing**.
+
+**MODEL** (`train_tick_core.py`): 1024 GRU + **FFN operator 5,969,025 params** (Jeff's ~6M; hidden
+1600, pointwise, **gate starts closed**) + soul (learned projection, present from step 1) = **13,692,384
+total**.
+
+**TRAINING:** 2000 steps, 1488.3 s (GTX 1650), batch 16 × chunk 128, **held-out ppl 213.03 → 2.989**
+(val_loss 5.36145 → 1.09502), train loss 5.84291 → 1.05558, 2,752 chars/s. **THE GATE OPENED** — leash
+(tanh) ended **-0.0774**, i.e. the model chose to use the FFN (contrast the earlier prototype where it
+stayed shut at +0.117).
+
+**INDEPENDENT VERIFICATION** (`verify_tick_core.py`, reloaded from disk):
+1. **Artifact REPRODUCES its own score exactly**: reported 1.09502, re-measured 1.09502.
+2. **The operator is REAL**: WITH operator val_loss 1.09502 (**ppl 2.989**) vs ABLATED (leash→0, 6M
+   params out of the computation) 1.64116 (**ppl 5.161**) → **worth 0.54614 nats**. The first time an
+   FFN operator has shown a measurable effect in this work.
+3. **Samples are style, not thought**: "Tests failed: 2 assertions" → `**Planning summary proposal
+   state** / **Designing continuation *** proposal partial proposal**` — the register of the harvested
+   agent thinking, **not reasoning**.
+
+**HONEST LIMIT (stated, not discovered later):** the ablation removes 6M parameters from the
+computation entirely, so it proves the FFN is **USED** — **NOT** that it is a better use of those
+parameters than more GRU width or a second GRU. **That is exactly the comparison Jeff deferred; this
+run does not answer it.**
+
+**TWO BUGS FIXED BY THE WORK ITSELF:** (a) **fail-closed caught a real bug** — the substrate decoder
+rejected numpy `uint16` ids ("transport token ids must be integers"); fixed with `int()`, and the
+round-trip check now runs **before any file is written**; (b) the first smoke run went **NaN by step
+25** at lr 2e-3 with an unbounded silu, and the FFN came out **19,937,281** params not 6M — fixed with
+a **tanh-bounded activation, lr 5e-4, grad clip 0.5, a finite-loss guard that REFUSES to save a NaN
+checkpoint**, and an explicit hidden width.
+
+**READY FOR THE DEFERRED COMPARISON:** `inner_ticks` is a trainer knob (this run used **1 = plain
+single pass**, deliberately comparable); fairness control = a 5-tick core must be compared against a
+**5×-parameter** core. **NOTHING FROZEN.** Checkpoint `core_ticks_ffn_soul.pt` (54.8 MB).
+
+## HARVESTED CODEX + KIMI REASONING → 18,546 TICKS — and the TICKING hypothesis — 2026-09-28
+
+**Jeff pointed at `C:/Users/axema/.codex/sessions` + `C:/Users/axema/.kimi-code/sessions` and proposed
+"what if our GRUs recurrent state was doing something similar, continuously ticking against an FFN or
+another GRU". READ-ONLY on both trees.**
+
+**THE HARVEST (`D:/CoreLab/harvest_reasoning.py`, `harvest_inventory.py`):**
+- **KIMI IS THE PRIZE** — 94 `wire.jsonl`; **3,610 readable think blocks / 5,145,726 chars of RAW
+  UNENCRYPTED reasoning** (mean 1,425, median 446, **max 94,918 chars** in a single block);
+  6,772 tool calls.
+- **CODEX ENCRYPTS ITS REASONING** — **10,738 reasoning items, ALL `encrypted_content`**; only 3,306
+  one-line summaries survive (302,448 chars). Codex yields readably: 2,399 messages (2,554,563 chars)
+  + 9,881 tool calls. **The capability is LOST, not skipped.**
+- **Harvestable total 8,002,737 chars.** Output: `harvest/kimi_ticks.jsonl` (6,772 records, 6,935,167
+  thought chars, 18.7 MB) + `codex_ticks.jsonl` (11,774 records, 19.5 MB) = **18,546 ticks, 38 MB**.
+- Tick shape = `{observation, thought, action{tool,arguments}, result}` + session/agent/turn/step —
+  **the exact shape a core consumes.** Random sample of 2,000: **100% carry a tool action, 80% an
+  observation, 47% are Axon/Heart-specific.**
+- **Fail-closed:** every skip is counted (`codex-reasoning-encrypted-nosummary` 7,432); zero unreadable
+  Kimi lines.
+
+**THE ARCHITECTURE INSIGHT — this resolves the dead end.** Our finding that "a pointwise FFN beside a
+GRU duplicates the GRU's gates" **assumed ONE TICK.** The TRM runs the same network **many times over
+its latent state** (`z_H` fixed per outer cycle, `z_L` updated every inner cycle) before answering.
+With more than one tick the FFN is **no longer duplicating the GRU** — it is the substrate the repeated
+computation runs against. **My operator prototype had nothing to do because there was only ever one
+tick to do it in.**
+
+**TRANSLATION FOR AXON:** after ingesting its delta, a core runs **several INNER TICKS before emitting**
+— input is its own state plus a read against its mirror, each tick through the FFN, then emit. Axon
+would then recur over **both characters (GRU) and reasoning steps (inner ticks).**
+
+**EXPERIMENT DESIGNED, NOT RUN:** one-pass core vs a ticking core. **FAIRNESS SUBTLETY:** a core that
+ticks five times does five times the compute, so it must be compared against a **5×-parameter/width**
+core — otherwise the test only shows that more compute helps. Not run: Jeff said not to build.
+
+## D:/DREPO/Dexter-Eternal/trm_training — the corpus, characterised — 2026-09-28
+
+**Jeff: "The TRM has something we need." READ-ONLY. ~2.9 GB, ~200k records. Nothing trained, nothing moved.**
+
+**LOCATION:** the real path is `D:/DREPO/Dexter-Eternal`, NOT the `D:/Dexter-Eternal` the TRMDEVOPS
+configs point at — that is why `build_datasets.py` could not re-run.
+
+**THE REAL ASSET:**
+- `tool_calls_merged_normalized.jsonl` — **1,869 records, 93 distinct tools**, each carrying
+  intent / task / skill_id / skill_confidence / tool_name / arguments / result / call_source /
+  tool_confidence / ts. Top: `recovery.get_summary` 345, `shell.run` 220, `file_ops.read_file` 210,
+  `file_ops.list_directory` 197, `system_ops.get_system_info` 76, `powershell.execute` 73,
+  `voice.speak` 69, `system_ops.resource_sample` 69.
+- `experience.jsonl` (1,299 events), `legacy_memory_pairs.jsonl` (4,982 real user/assistant pairs),
+  `legacy_db_events.jsonl` (153,349), `legacy_memory_messages.jsonl` (11,849).
+- `meta_decisions.jsonl` — **the DECISION LOOP**: intent, task, decision (e.g. `RE-PLAN`),
+  result_summary recording outcomes (a query returning `count 0`). **This is the supervision signal
+  Axon was missing** — deciding, seeing a result, deciding again.
+- `intent_classification/` — **7,164 labelled examples WITH A REAL HELD-OUT SPLIT** (train 6,447 /
+  val 717); greeting/question/command/request/task/conversation/unknown. The only dataset here whose
+  accuracy could mean something.
+
+**THE BAD NEWS — the TRM datasets are degenerate:**
+- `tool/` — 509 examples but only **16 unique inputs / 24 unique input→target pairs**.
+- `reasoning/` — 200 examples, **16 unique pairs**.
+- `memory/` — **literally zero** (npz shape `(0,)`).
+- Decoded, the task is **deduplicating a repeated tool sequence** (input `1,4,4,4,4,4,4,2` →
+  target `1,4,4,2`, i.e. status + six repeats of service_list + get_system_info → status + two
+  service_lists + get_system_info). **A counting exercise, not reasoning.** The pipeline built a real
+  corpus and never turned it into the three tasks it was designed for.
+
+**CAVEATS:** intent labels are **noisy** ("read this file do the work and update the file as you go"
+labelled *greeting*); the tool corpus has results in **100%** of records but arguments in only
+**151/1869 = 8.1%** — strong on outcomes, **thin on argument shaping**. `forge_tool_correction`'s
+99.86% "accuracy" remains a **memorisation artefact**.
+
+## D:/TRMDEVOPS IS DEXTER'S BRAIN — TRM carry state, and a memorisation trap — 2026-09-28
+
+**Jeff stopped the four-domain operator build and pointed here. INSPECTION ONLY — nothing run,
+nothing written.**
+
+**WHAT IT IS:** D:/TRMDEVOPS = **Dexter's brain**, three stateful **Tiny Recursive Models** (Tool small
+/ Memory medium / Reasoning large) on the published paper *"Less is More: Recursive Reasoning with Tiny
+Networks"* (Samsung SAIL Montreal, arXiv 2510.04871; 7M params, **45% ARC-AGI-1, 8% ARC-AGI-2**).
+
+**ARCHITECTURE FINDING — THE AXIS DIFFERS FROM AXON'S.** The TRM **is a transformer** (causal attention
++ SwiGLU FFN per layer) — *not* an attention-free FFN. Its distinguishing feature is a **dual CARRY
+STATE**: `z_H` (high level, updated once per outer cycle) and `z_L` (low level, updated every inner
+cycle), both EMA-smoothed by `carry_decay`, output read from `z_L`, detachable between H cycles.
+**The recurrence is over REASONING STEPS, not over characters** — a different axis from Axon's
+per-character recurrence and from my proposed operator blocks. Also notable: their **MLP variant beats
+the attention variant on Sudoku (87% vs 75% exact)** — attention is not the load-bearing ingredient.
+
+**ON DISK:** 3 model configs (tool ~2.1M; memory 640x6; reasoning 896x8). **Only ONE dataset built**
+(memory, 1,684 examples) — `reasoning/` and `tool/` dataset dirs are **EMPTY**. Two checkpoint families:
+`forge_tool_correction` (2,276,352 params, epoch 249/500, reported accuracy **0.99858**) and
+`dexter_instinct` (1,115,904 params, 10 epochs).
+
+**MEMORISATION TRAP CONFIRMED — do not quote 99.86% as an accuracy.** `train_simple.py` builds ONE
+dataloader (batch 16, `shuffle=True`) and `evaluate()` runs on **that same dataloader**; `data/tool-correction/`
+contains **only a `train` dir** — there is no held-out split anywhere. So the model was evaluated on the
+data it trained on. **Same class of error as the denoiser "capability".** `dexter_instinct` is a
+2,840-sequence copy task — an honest memory demonstration, not reasoning.
+
+**REPRODUCIBILITY:** `configs/data_sources.yaml` points at `D:/Dexter-Eternal`, which **does not exist**
+on this machine, so `build_datasets.py` cannot be re-run as configured. `RAW/` holds ~1.29 GB of small
+per-artifact JSONs.
+
+**DECISION:** did **NOT** build the four-domain operator experiment — it would duplicate a more developed
+prior direction, in weaker form, on a task I had not honestly defined.
+
+**OPEN (put to Jeff):** (1) is the **TRM carry-state direction** what Axon should take rather than
+operator blocks; (2) **verify the 99.86% properly** with a real held-out split; (3) build the missing
+reasoning/tool datasets; (4) something else.
+
+## CORRECTION — the FFN operator's "capability" was CIRCULAR and mostly LINEAR — 2026-09-28
+
+**This amends the event above. Jeff challenged: *"I'm not convinced that that feed forward network was
+trained. What was it trained on? What didn't know how to compute? What are we asking the core to do?"*
+He was right, and it is now measured.**
+
+**(A) WHAT IT WAS TRAINED ON — circular.** Input = clean recurrent state + **0.5 gaussian noise I added
+myself**; target = the same clean state. **The task existed only because I created it.** It contains no
+language, no text, no reasoning. It was never a skill.
+
+**(B) MOST OF IT IS A STRAIGHT LINE.** A single **linear map** fitted to the trained operator's own
+input -> output explains it with **R^2 = 0.9393**. On the same 4096 samples: identity baseline MSE
+**0.2503**, trained operator **0.0515**, best linear map on the task **0.0675**. It does have real
+nonlinear content, but the majority of what it learned is reproducible by one matrix multiply.
+**Calling it a "capability" was overselling.**
+
+**(C) THE REAL ANSWER TO "WHAT ARE WE ASKING THE CORE TO DO?" — a GRU's gates are ALREADY per-vector
+MLPs.** `r = sigmoid(Wr x + Ur h + br)`, `z = sigmoid(Wz x + Uz h + bz)`, `n = tanh(Wn x + r*(Un h) + bn)`.
+**So a pointwise FFN bolted beside a GRU DUPLICATES computation the GRU already contains.** That is the
+plain explanation for the learned gate settling at only **tanh +0.1168**. The gate was not measuring
+"is this useful?" — it was measuring **"is this MORE useful than what the core already has inside
+itself?"** And mostly it is not, because it is the *same kind* of computation.
+
+**(D) WHAT AN OPERATOR MUST OFFER TO EARN ITS PLACE** — the capability must be one the recurrence cannot
+give itself:
+1. **CAPACITY** — a block much wider than the core, so the core delegates a heavy transform it has no
+   room to perform internally.
+2. **SPECIALISM** — one frozen block, trained and validated on ONE skill, reused by many cores with no
+   retraining.
+3. **SHARING** — the same frozen block in every core, giving separate cores common ground (connects
+   directly to the finding that a single core has no reason to be distinct).
+
+**Denoising scores ZERO on all three.** It was never going to help.
+
+**(E) METHOD LESSON: A MEASURABLE TASK IS NOT THE SAME AS A MEANINGFUL TASK.** I picked a task that was
+easy to measure instead of one worth measuring.
+
+**(F) WHAT STILL STANDS from the event above:** the **wiring rules** — match the operator's training
+states to the using core, and gate it so it starts closed. Those are real and are about *safe
+attachment*, not about what a block should do. **No operator block has been shown to improve anything.
+THE OPERATOR IDEA IS UNPROVEN, NOT DEMONSTRATED.**
+
+## FFN OPERATOR BLOCK WITH ZERO ATTENTION — built, and it FAILED before it worked — 2026-09-28
+
+**Jeff: "So we can train a FFN with no attention? how would it work? how will we train it how will
+the gru use it?"** Answered by building it.
+
+**WHY NO ATTENTION IS NEEDED:** attention mixes information **across positions**; an FFN is
+**pointwise** (each position transformed independently). **The GRU already supplies across-time
+mixing by recurrence**, so GRU + FFN is a complete architecture. Nothing is missing.
+
+**HOW THE OPERATOR IS "GIVEN A TASK" — mechanically: THE TASK IS THE PROJECTION.** A frozen module
+cannot read an instruction. The state holder projects its state into the operator's input space
+(`task_proj`). **The same frozen weights driven through a different projection do a different job.**
+Wiring: `state -> task_proj -> FROZEN FFN -> added back -> readout`; the operator is never modified.
+
+**THE RUN (width 256, GPU):** base GRU -> ppl **8.28**. Operator trained **standalone** on a denoising
+capability (state + 0.5 noise -> clean state), per-vector MLPs only, **zero attention, zero
+recurrence**: 263,424 params, MSE **0.2496 -> 0.0526 (4.75x better)**, 600 steps in ~4s. Then
+**frozen**, verified by parameter hash `1e8c702a2b8fb1c4`.
+
+**THE FIRST ATTEMPT FAILED, and that is the finding.** GRU + frozen operator **14.27** vs no-operator
+control **7.93** — attaching a correctly trained, correctly frozen operator made the core **~1.8x
+WORSE**. Reporting only the working version would have handed over a technique that damages the model.
+
+**CAUSE ISOLATED — two independent, mandatory rules:**
+
+| configuration | perplexity |
+|---|---|
+| no operator (control) | **8.32** |
+| operator trained on the USING core's states + **gated** residual | **8.11** ← beats control |
+| operator trained on the using core's states + **UNGATED** residual | **12.61** ← harmful |
+
+1. **Train the operator on the states of the core that will USE it.** The operator had been trained on
+   the *base* core's states and attached to a *different* core, so its input distribution was wrong —
+   it answered a question nobody asked.
+2. **Put it behind a gate that starts CLOSED.** `h = h + op(task_proj(h))` shoves the recurrent
+   trajectory sideways on step 1, and the core spends its training undoing that instead of learning.
+   A gate initialised to 0 means the core starts at the no-operator baseline and can only improve.
+   **The learned gate settled at tanh = +0.1168** — a light leash: neither rejected nor given control.
+
+**HONEST LIMIT: this proves MECHANICS, not VALUE.** The capability (denoising) was deliberately simple
+so the run finished fast, and the win over control is small (8.11 vs 8.32). **Do not read this as
+evidence that operator blocks meaningfully improve reasoning** — that is a separate, larger question.
+
+**PATTERN WORTH NAMING:** this failure has the **same shape** as the soul teleport bug (event 437) — a
+component trained in one distribution, deployed in another, **confidently useless**. Three occurrences
+in one day. Treat it as a class, not as incidents.
+
+## THE SUBSTRATE IS AN ALPHABET — and CoreLab was violating fail-closed in its own code — 2026-09-28
+
+**Jeff corrected a conflation and set a rule:** *"the substrate is not a vocabulary it is an
+alphabet. the vocabulary is built from the alphabet... anything not in the substrate needs to be
+failed closed."*
+
+**WORDING CORRECTED.** The substrate is the **ALPHABET**: 95 native symbols + the rule that everything
+else is 256 UTF-8 byte tokens. **351 is the alphabet's transport token count** (the core's output
+classes). No learned vocabulary exists in the lab, and "vocabulary size 351" was wrong language.
+
+**FAIL-CLOSED AUDIT — the rule was being VIOLATED, in code written today.**
+1. `decode_corpus.py` had a **hand-rolled decoder** using `.decode("utf-8", errors="replace")`. A
+   malformed stream became replacement characters **instead of raising**, and was reported as the
+   model's output. The substrate rejects the same stream.
+2. `extract_corpus.py` read every file/DB row with `errors="replace"` and logged unreadable tables as
+   `(skip: ...)` then continued — **a corrupt table would have silently dropped training data.**
+
+**FIX — one shared path, `D:/CoreLab/lab/corpus.py`:** decoding goes through the substrate's own strict
+`decode_unicode_tokens()`; `read_text_exact()` uses `errors="strict"` and raises `CorpusError`;
+`open_readonly()` is parameterised (not string-interpolated); `assert_alphabet_matches()` fails closed
+on any id outside `[0,VOCAB)`; `NATIVE`/`VOCAB` are **imported** from `substrate.unicode_transport`,
+never spelled out here.
+
+**SUBSTRATE STRICTNESS VERIFIED BY TEST** — all rejected: out-of-range id (`UnicodeTransportError`);
+multibyte lead then native token; truncated multibyte; bad continuation byte (`MalformedUnicodeTransportError`);
+a registered native character spelled as raw bytes (`NonCanonicalUnicodeTransportError`).
+
+**HOW THE SOUL IS ACTUALLY USED — lab vs Axon.**
+- **Lab:** soul bytes -> features -> learned projection -> added to every recurrent step. In the
+  computation, but an **identity-insensitive stabiliser**: presence is load-bearing (**2.67** vs
+  **6.91** with no soul) while identity is not (**2.6702** vs **2.6794** for a different soul).
+- **Axon's soul is far stronger, and it is the better design.** Opaque private bytes with **NO size
+  ceiling**. Four temperatures. Promotion between them is an **audited, evidence-bearing event**
+  (`runtime/soul/contracts.py` `SoulPromotion`): exactly one temperature colder; cold requires a
+  vetted `outcome_quality` + `evidence_ids` + `repeated_observations >= 2`; deep_cold additionally
+  requires `validation_ids`; `promotion_id` is a canonical hash. `SoulTransition` is a core-authored
+  proposal **bound to an exact inhale** (core_id, architecture_id, parameter_generation, tick_uid,
+  request_id, phase).
+- **THE FINDING:** `runtime/axon_runtime/continuous_core_d512.py` contains **ZERO soul references**.
+  **Axon built the strong soul wire and no reasoner reads it yet**; the lab wired a weak version of
+  that same wire.
+
+**FEED-FORWARD BLOCK: YES.** Verified attaching: recurrent state `[4,1024]` -> FFN -> `[4,1024]`,
+**4,197,376 params** at width×2. Axon has **no general FFN/operator abstraction** (grep found none);
+the precedent is `runtime/heart/translation_core.py` `HeartTranslationCore` ("shallow, FFN-heavy",
+`ffn_dim` + a transformer block). **Recommendation put to Jeff, not decided: keep the operator
+DETACHED and FROZEN, driven by the state holder** — reusable across cores, cheap (no recurrence, and
+recurrence is 99.7% of a beat), and the state holder decides when to call it.
+
+**UNCOMMITTED:** the fail-closed fixes are on disk, not committed — awaiting Jeff's word.
+
+## CORRECTION — the soul vector TELEPORTED; one core fed D:/00, corrected — 2026-09-28
+
+**This SUPERSEDES the "soul IS load-bearing" claim in the event above. That claim is WITHDRAWN.**
+
+**ROOT CAUSE — a hash-seeded vector has no continuity.** `soul_vector()` seeded `np.random` from
+`soul.digest()[:16]`. Deterministic, but when the soul drifts one byte the digest changes and the
+vector **teleports to an unrelated direction** instead of moving slightly. `train_corpus.py` computed
+it ONCE before the loop; the soul then drifted (digest `9ff25482` -> `bda53731`, 161 folds).
+**Measured cosine(training vector, saved-soul vector) = 0.031 — orthogonal.**
+
+**The checkpoint was a MISMATCHED (core, soul) pair.** Same weights, three ways: **2.7495** with the
+vector it trained on, **452.0570** with the soul as saved, **2498.8557** with no soul. So the earlier
+"8 of 8 answers changed" was random directions disagreeing — **noise wearing a result's clothing**.
+
+**FIX (two parts).** (1) The soul projection is now a **learned `nn.Linear`, trained with the core and
+saved with it**, so the pair can never disagree. (2) Soul features are **shift-invariant per-layer
+normalised byte histograms** — the first attempt used a sliding byte window, so appending ONE byte
+shifted every slot and moved the vector to cosine **0.88**, further than a genuinely different soul
+(**0.73**); a shift-sensitive representation cannot express continuity.
+
+**RETRAINED:** 4,000 steps x 24 x 128 in **1,239 s = 9,917 chars/s**, loss **5.8701 -> 1.14894**,
+perplexity **354.29 -> 3.16**.
+
+**ARTIFACT TEST (the one that previously failed):** reload the checkpoint from disk, rebuild the soul
+from what was SAVED -> **ppl 2.6702**. It reproduces its own score. **The artifact is real now.**
+
+**SOUL PRESENCE is load-bearing; soul IDENTITY is NOT (yet).**
+- no soul at all -> **6.9097** (2.6x worse) — the core depends on what it has absorbed.
+- a *different* soul (different ingested span, feature cosine 0.765) -> **2.6794** vs **2.6702**
+  (0.3%). As far as this core is concerned, any soul will do.
+- **AMPLIFICATION TEST:** every setting that makes identity audible **destroys the model** (scale 2 ->
+  ppl 22.9; scale 4 -> millions). A merely-quiet signal would *improve* when amplified; this one
+  injects destruction, so **the core has learned to route AROUND its soul**.
+
+**WHY (the important part):** a single core on a single task is never rewarded for being itself, so
+the cheapest solution is to ignore who it is. There is no penalty for being identical because there is
+no other core to be identical to. **Diversity cannot be wired in or bolted on — it must be TRAINED IN,
+where being different is the thing that fails.** That is the multi-soul experiment, and it is now the
+next step rather than an optional one.
+
+**QUALITATIVE:** seed `'Jeff'` -> `'Jeffrey has a specific template recommendation to received the c'`.
+40-char prompts give `coxter` / `Ecogntracti` / `iesibllity` — right letters, nearly right places,
+**weak grip on exact order, no prompt comprehension**. **Still next-character prediction, NOT reasoning.**
+
+**BASELINES unchanged:** zero-order 36.01 ppl; bigram 16.10; core under 3 (~0.2% duplicate 64-char
+windows, so not memorisation).
+
+**METHOD LESSONS:** (a) a metric must survive the operation the system performs — continuity must
+survive an append; (b) an artifact must reproduce its own training score, or it is not an artifact;
+(c) test presence and identity SEPARATELY — they gave opposite answers; (d) amplification that
+destroys the model is evidence of routing-around, not of a quiet signal.
+
+## ONE CORE, WITH A SOUL, FED D:/00 — perplexity 341 -> 3.18, and the soul IS load-bearing — 2026-09-28
+
+**Jeff: "only do one core. now equip it with a soul and feed it D:\00." Done.**
+
+**EXTRACTION (read-only, mode=ro&immutable=1, no locks, no writes):** D:/00 = 3.3 GB across 7 SQLite
+DBs -> **109,639,219 chars / 110,066,695 transport tokens** from **446,962 pieces** (18,914 + 9,495
+messages, 19,726 episodes, 140,894 facts, 117,685 entities, 103,296 relations, 36,951 procedures).
+Script `extract_corpus.py`; outputs `corpus.txt` (111.5 MB) + `corpus_ids.npy` (440 MB, 202 distinct
+tokens of 351).
+
+**THE RUN (one core, no ensemble):** width 1024 GRU, **6,740,319 params**, GTX 1650, 4,000 steps x
+24 x 128 = **12.29M chars (11.2% of corpus)** in **1,450s = 8,471 chars/s INCLUDING backward**.
+Loss **5.8323 -> 1.1577**; perplexity **341.14 -> 3.18** (final eval 3.2244).
+
+**THE SOUL — the two failures from this morning both fixed and both confirmed:**
+- **Present from step 1** (not bolted on — post-hoc soul training had moved loss 0.0001 -> 0.4115).
+- **At measured-threshold scale** (`SOUL_SCALE=0.5`; the lab's 0.02 was inaudible).
+- **Real, not random**: warm/cold layers filled by ingesting 400,000 corpus chars, then drifting
+  through **161 folds** during training.
+- **LOAD-BEARING, MEASURED:** two souls built from different corpus spans changed **8 of 8** answers;
+  L1 distance **9.4709**. On the trained core the soul genuinely steers the output.
+
+**BASELINES — never report perplexity alone.** Zero-order char-frequency model = **36.01**; bigram
+table = **16.10**; core = **3.2244** => **4.99x better than the bigram, 11.2x better than letter
+frequency**. Corpus has only ~0.2% duplicate 64-char windows, so memorisation is not the explanation.
+
+**QUALITATIVE (decoded correctly — ids are transport ids, NOT ASCII):** seed `'Jeff'` -> `'Jeffrey
+status and reconnaissance and reading the context templa'`. On real 60-char prompts it reproduces
+`the`, `serving` and API vocabulary; garbles beyond ~40 unseen chars.
+
+**HONEST LIMIT:** next-character prediction, **NOT reasoning**.
+
+**EVAL FLAW (mine, not the result):** `eval_corpus.py` rebuilt the soul from its INITIAL ingest
+(digest `9ff25482...`) instead of the training end state (`bda53731...`), so the eval soul had not
+done its 161 drift folds. Conclusion unaffected (5x margin) but **3.2244 may shift**; fix pending.
+
+**LIVE MONITOR:** `monitor.py` (stdlib only, read-only) at **http://127.0.0.1:8901** — parses the run
+log, log-scale chart (linear made every curve flatline: ppl opens at 341, settles near 3).
+
+**NEXT:** fix the eval soul rebuild; then **RECALL** (answer comes from somewhere other than where it
+was just read — the first test prediction alone cannot pass); then EDIT; then wire into the ensemble.
+
+## IS THE CORE USING ITS SOUL? No — and the question found a real gap — 2026-09-28
+
+**Jeff asked "Is the core using his soul?" The answer is NO, and he found a gap I reported past.**
+
+**The trained copy core has NO soul at all** — the string `soul` does not appear **once** in `train_copy.py`. The core that hit 100% is a bare recurrent net (`in_proj → GRUCell → readout`). Structurally confirmed: the checkpoint holds 9 tensors and `soul_proj.weight` is **missing** when loaded into a soul-equipped model.
+
+**`lab/core.py` DOES wire a soul** (`SOUL_DIM=64`, `soul_proj = Linear(64, width, bias=False)`, added to the recurrent input every step). **But at the lab's scale it is INAUDIBLE:** six *different* random souls produced the **identical** answer (`SBQ` ×6 = 1 distinct of 6).
+
+**The soul has a THRESHOLD — measured by sweeping its strength:**
+
+| soul_proj std | distinct answers of 8 |
+|---|---|
+| 0.0 / **0.02 (lab's setting)** / 0.1 | **1** |
+| 0.5 / 1.0 / 3.0 / 10.0 | **8** |
+
+Below the threshold the core **ignores the soul entirely**; above it the soul **completely determines** the answer. So **Jeff's doctrine is architecturally supported** — the soul has full authority — the implementation simply had it set at a whisper, and it was absent from the training run.
+
+**THE DAMAGING RESULT: a soul added AFTER training is a wound, not an identity.** Froze the trained core, trained **only** `soul_proj` (65,536 of 6,460,494 params), 60 steps — loss went **0.0001 → 0.4115**. The core got **worse**. Gradient *did* flow (norm up to **5.69**), so the soul is **reachable** and receives real signal; the objective was wrong. **Conclusion: the soul must be present DURING training.**
+
+**CORRECTED DESIGN (the actionable output):**
+1. The soul must be **present from step 1**, not bolted on.
+2. Its **scale must sit above the measured threshold** or it is decorative — treat the threshold as a design parameter, not an accident.
+3. **The right next experiment:** train **several cores together, each with a different soul present from step 1**. Success = all cores copy **correctly AND differ from each other**. Either alone is a failure — a harder bar than the run that just passed.
+
+**Ledger event 435.** Report: `D:/Hermes/IS_THE_CORE_USING_ITS_SOUL.md`. The copy result (event 434) stands and is unaffected; what it lacked was noted only because Jeff asked.
+
+## FIRST CoreLab TRAINING RUN — 100% on held-out copy, the FLATLINE IS RESOLVED — 2026-09-28
+
+**The copy curriculum, ported to CoreLab's real width 1024, trained on the GTX 1650 in under ten minutes. It works.**
+
+| | |
+|---|---|
+| before training | **0/400 (0.0%)** |
+| after (own eval) | **800/800 (100%)** |
+| **independent, fresh seed** | **32,000/32,000 (100.0%)** |
+| time | **576.8 s** for 1200 steps, 11,784 chars/s *including* backward |
+| loss | **3.2513 → 0.0001** |
+
+**THE FLATLINE IS RESOLVED — the headline.** A fresh input now moves the recurrent state by **~30**, where the untrained lab measured **0.000008**. That is roughly a **four-million-fold** change, and it is the difference between a core that is alive and one that is inert. **Output diversity: 30 distinct inputs → 30 distinct outputs** (untrained: ~6 across 45). **The flatline was a training problem, exactly as diagnosed in event 426 — now demonstrated rather than asserted.**
+
+**Verified independently rather than trusting the training harness's own eval** (`verify_copy.py`, fresh seed 999999, 32,000 held-out episodes), and it genuinely copies from the STATE: field `ILS`→`ILS`, `NOQ`→`NOQ`, `TNN`→`TNN`, `MBX`→`MBX`, `UBJ`→`UBJ`.
+
+**Two design points worth keeping:**
+- Turn 0 is a **full field**; later turns are **DELTAS** (history grown + input changed) — matching the real heart's delta delivery.
+- Episodes are **batched (32)** — valid because all episodes **share one weight set** and differ only in state. This is explicitly **NOT** the distinct-weight core batching that measured 3× slower (event 427). Same word, opposite result.
+
+**WHAT IT DOES NOT MEAN — state this whenever it is cited.** Copying a 3-letter word is **not reasoning**. It proves the core can hold information in its state, receive it as deltas, and answer from the state alone. The reference alphabet sits in the field next to the word, which makes the mapping easy for a network that has learned the alphabet. And the old lab passed the same task at **512**, so this is a **known quantity, not a triumph**. A foundation, not intelligence.
+
+**Ledger event 434.** Report: `D:/Hermes/CORE_LAB_FIRST_TRAINING_RUN.md`. Next in the old lab's sequence: **recall**, then **edit**; then wire the trained core back into `lab/heart.py` so the thoughts region stops repeating.
+
+## Why the OLD lab trained fast and CoreLab crawled — it was the GPU — 2026-09-28
+
+**Jeff caught a real contradiction:** the old lab trained 300 steps in 76 s, while CoreLab seemed to manage <60 chars/sec. **He was right, and the cause was a single line.**
+
+**ROOT CAUSE:** `D:/ContinuousCoreLab/train_copy.py:14` — `DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")`. The old lab trained on the **GTX 1650**. CoreLab's `lab/core.py` has **no device selection at all — CPU only**.
+
+**Measured, same recurrence, width 1024:**
+| | forward | training |
+|---|---|---|
+| **CPU** | 146 chars/s | **15 chars/s** |
+| **GPU** | 562 chars/s | **572 chars/s** |
+
+**Two findings, not one:**
+1. On CPU, **training costs ~10× a forward pass** (15 vs 146 chars/s). That is why it felt impossible — Jeff was watching it try to *learn* on the CPU, the worst combination.
+2. On GPU, **training and inference cost the same** (572 vs 562). **Learning is essentially free there.** The card does not just speed things up, it removes the learning penalty.
+
+**The old lab's number reconciles EXACTLY:** its step processed 152 chars, so 300 × 152 = 45,600 char-steps in 76 s = **600 char-steps/s including backward** — matching the measured GPU rate. Jeff's memory was correct.
+
+**CORRECTION, my error:** every recent figure I gave Jeff (68 chars/beat, 3 s/beat) was a **FORWARD** pass, while the number that governs training is **15 chars/s** on CPU. Two different activities were allowed to share one conversation. **Always label a throughput figure FORWARD or TRAIN.**
+
+**TRAINING BEGUN** — `D:/CoreLab/train_copy.py`, the copy curriculum that already worked at 512, ported to the real substrate, real width 1024, on CUDA. Copy chosen because it cannot be solved without using the recurrent state and cannot be gamed by memorising a fixed answer (the word is random each episode). Episodes are **batched** — valid because all episodes share ONE weight set and differ only in state; never batch cores with *distinct* weights (measured 3× slower, event 427).
+
+**Smoke test passed:** 15 steps batch 8, loss **3.2513 → 2.6038**, 3,151 chars/s incl. backward, 0/400 before. **Real run launched: 1200 steps, batch 32** → `train_run1.txt`, writes `core_trained_copy.pt` + `train_copy_report.json`.
+
+**Ledger event 433.** Report: `D:/Hermes/WHY_THE_OLD_LAB_TRAINED_FAST.md`.
+
+## Running CoreLab on a phone — the recurrence needs numpy, not torch — 2026-09-28
+
+**Jeff asked how to run CoreLab on his phone.** The lab cannot run there as-is (`lab/core.py` imports torch; phones cannot pip-install it and Termux cannot either). **But the recurrence — the entire cost of a beat — is a plain matrix multiply, and that needs no framework.**
+
+**Measured, width 1024 (CoreLab's real width):**
+- **numpy float32: 3.19 ms/step** (314 chars/sec) — **faster than torch's 7.42 ms/char on this laptop**
+- numpy float64: 7.15 ms/step
+- **Real Chrome, real width:** naive 14.39 ms/step; preallocated scratch 14.14; 4-way **unrolled 18.47 — worse** (the engine stopped optimising). A 73-char beat = **3.15 s for 3 cores**, against **3.3 s for the current torch lab on the laptop** — the browser is *comparable*, not slower.
+
+**Portability PROVEN, not assumed:** wrote the same GRU in numpy and in JavaScript and compared every value — **max |js − numpy| = 1.157e-8** over 768 values, the float32 noise floor. A browser port is EXACT.
+
+**Transport extracted so a port speaks the real alphabet:** 95 native chars with exact 16D cells + all 256 byte cells (`transport_reference.json`). Byte ids verified: `é` [290,264], CJK [323,279,268], emoji [335,254,249,223].
+
+**Device check:** Motorola attached over USB; **Termux is already installed** (plus Pydroid 3). Could not inspect Termux from adb (not debuggable), so whether numpy is present inside it is UNKNOWN — needs one 30-second check from Jeff.
+
+**Three routes, recommended order:** (1) **single-file browser lab** — zero install, arithmetic proven exact, ~3.1 s/beat on a desktop browser; (2) **Termux** — the genuine Python lab at numpy speed, pending the numpy check; (3) **native Android app** — Kotlin rewrite + build cycle per change, NOT the place to start.
+
+**CORRECTION to my own draft:** I first wrote "a browser tab on a phone will run at something like a quarter to a half of the laptop speed" **without measuring it**. Measured instead: 14.39 ms/step in a desktop browser — ~4.5× slower than numpy, but it still beats the current torch lab per beat because torch is inefficient at this size. Corrected before delivery. **Phone browser speed is still NOT measured and the report says so.**
+
+**Ledger event 432.** Report: `D:/Hermes/RUNNING_CORELAB_ON_YOUR_PHONE.md`.
+
+## Mirror vs heart, the 16D cell, and the old lab — CoreLab stays SEPARATE — 2026-09-28
+
+**JEFF DECISION: CoreLab stays a standalone lab, separate from the Axon repo.** Recorded as his call so the team does not re-open it.
+
+**Two verbs were being conflated, and that is the whole answer to "does the mirror have to be read again every beat".** The heart **REFRESHES** each core's mirror every beat — a *write into* the core, the full delta. The core **READS** its mirror — only the new bytes, ~68 chars/beat. Yes the mirror is refreshed every beat; no the core does not re-read the whole field. Same vocabulary trap as the four-day detour earlier this week; keep the verbs apart in all future writing.
+
+**Mirror vs heart diverge in TIME, not content — measured by constructing the case:**
+- immediately after the push, mirror == heart's field **byte-for-byte** (True) — read either, get the same characters
+- write to the heart's field *after* the push: reading the **HEART** shows the new text, reading the **MIRROR** shows the old one — **they diverge**
+- the core's read path **does** see a between-beat write (`['task','response_draft']`) because the heart pushes before the core reads
+
+So: **the heart is the live, shared, single original; the mirror is the core's private snapshot frozen at the push.** That is by design and load-bearing — it is what lets a core hear the other cores on the **next** beat rather than mid-beat, so every core reasons over one stable world instead of a field changing under its feet. And it is what gives a core an exact memory of its own between beats.
+
+**16D confirmed — but a character is NOT always one cell.** Measured: ascii `A`/`z`/`7`/space/newline = 1 token = **1 cell of 16 fp32 (64 B)**; `é` = **2** cells; a CJK character = **3**; emoji = **4**. The unit is a **transport token**: native alphabet = 1 cell, otherwise **one cell per UTF-8 byte**. Each cell is projected up by `Linear(16 → 1024)`. So your field is ~1 cell/char while it is English, but an accented or non-Latin or emoji region costs 2–4× per character.
+
+**What a core carries (2,085-char field, measured):** mirror **133,440 B**; recurrent state **4,096 B and fixed** (never grows with the field); read marker **194 B**; weights **26,965,376 B**. The field mirror — the thing that sounds enormous — is **~1/200th the size of the weights**. The cost is the thinking, not the storing, which is what the beat-cost profiling found from the other direction.
+
+**D:/ContinuousCoreLab vs D:/CoreLab — four differences, and the last one matters most:**
+1. **Substrate:** ContinuousCoreLab used a **synthetic frozen 16D alphabet**; CoreLab imports the **real unicode transport** from `D:/Axon/substrate` and never forks it, so results transfer exactly.
+2. **Structure:** ContinuousCoreLab had **no heart** (one persistent chamber + deltas, by design); CoreLab has regions, masks, souls, round-robin consolidator, raw attributed thoughts, and the in-core mirror with push/read.
+3. **Scale:** one chamber vs a beating ensemble where diversity can only come from weights + souls.
+4. **THE IMPORTANT ONE — ContinuousCoreLab was TRAINED and CoreLab is not.** Copy **596/600**, recall **600/600**, edit **399/400**; the d2048 runs never converged. **CoreLab has better bones and no training, which is exactly why its thinking flatlines.**
+
+**Recommendation (flagged for Jeff, not taken):** the flatline may already have a recipe in the old folder — re-run the **copy/recall/edit curriculum that worked at 512 wide** at CoreLab's **1024** width, inside CoreLab with the real substrate and the ensemble. Caveat: the old checkpoints are 512-wide and will not drop into a 1024 core directly. This is the first step that aims at making the cores *think* rather than making the plumbing correct.
+
+**Ledger event 431.** CoreLab 28 pass / 0 fail / 4 limits, standalone.
+
+## What actually grows in a beat — two terms, and a withdrawn figure — 2026-09-28
+
+**Reading the completed flat-cost diagnostic supplied the one measurement I had not seen**, and it was larger than my limit note claimed: the read-prefix hash scales **linearly** — 0.009 ms at 1k chars, 0.200 at 10k, 0.578 at 100k, **6.571 ms at 1M**. So I measured what actually grows in a beat and re-characterised the limit rather than leave an understated number standing.
+
+**TWO things grow, not one.** My earlier note blamed only the prefix hash and was incomplete:
+1. the read marker's **prefix hash** (as above)
+2. **`Delta.between` itself** — it builds `patches` by comparing **whole region texts** for every region, *before* any hashing happens. So deciding what changed is O(region size) twice over.
+
+**Measured size at realistic scales** (3 cores, push+read per beat): ~2.1k chars → **0.53–1.95 ms**; 10.1k chars → **1.44 ms / 3.28 ms** across samples; `delta.between` 0.17 → 0.42 ms; `content_hash` 0.05 → 0.18 ms. Against a ~2,700 ms beat that is well under 1%. **Sub-millisecond at the real field size, linear if the field grows to the megabyte scale.** The box is loaded so these are reported as **ranges**, not single figures.
+
+**WITHDRAWN — event 428's figure:** "measured 1.4 ms of a 650 ms beat at 87k chars of history (0.2%)". The 1.4 ms came from an earlier harness that **inflated the delta** (it pushed by hand and then called `beat()`, which pushed again), so it did not measure the beat's own path. Replaced by the measured range above.
+
+**Known O(1) fix, deliberately NOT taken:** a per-region content **version counter** bumped on write would make the comparison O(1). Not done because a core's **private** read marker would then need to read the **field's** stored version — coupling a core's internal bookkeeping to the heart's internals to save a sub-millisecond cost at 1–4k chars. Recorded as a trade, not a gap.
+
+**Also fixed a harness bug:** growing the test field line by line is O(n²) and the 200k/800k sizes never finished (killed). Rewritten to append the whole size in one write. **Harness cost must not exceed the thing under test.**
+
+**`python -m lab.prove` → 28 passed, 0 failed, 4 limits.** Ledger event 430.
+
+## Cost flatness restated as WORK, not wall time — a published figure corrected — 2026-09-28
+
+**A stale background run reported in after the previous turn**, so I re-verified CoreLab against the code as it actually stands. It produced a **FAIL where I had already reported a pass**: "beat cost stays flat as history grows" at 2,940 ms/beat early vs 4,737 ms/beat after history — a 61% rise.
+
+**I investigated instead of re-running until it went green.** The growth is **measurement noise, not a regression**:
+- identical code, identical condition, three consecutive runs: **2,712 / 3,327 / 3,409 ms per beat — a 26% spread**
+- the box is loaded: 11 concurrent `python.exe`, a dozen `chrome.exe`, 399 processes total on a 4-physical-core AMD
+- a second pair measured 2,834 vs 2,768 ms (flat)
+
+**The property that must hold is WORK, and work is flat and deterministic:**
+
+| history | cells delivered per beat | regions per beat |
+|---|---|---|
+| 2,447 chars | 334 ×6 | 6 |
+| 3,399 chars | 337 ×6 | 6 |
+| 4,519 chars | 337 ×6 | 6 |
+
+History nearly doubled; per-beat work moved **0.9%**. The mask bounds it exactly as designed.
+
+**Fixed the test, not the code.** The wall-time assertion is replaced by a deterministic one — *work per beat stays flat* (max cells/beat late ≤ 1.25× early). Wall time is now a reported **LIMIT**, explicitly never a pass. **A flaky gate is worse than an honest number**: a test that goes red for machine reasons teaches everyone to ignore red.
+
+**CORRECTION to my own published report:** the figure I gave Jeff — "beat cost flat, 3368 ms/beat early vs 3351 ms/beat" — was a **single sample of a noisy quantity**. It has been corrected in `D:/Hermes/DOES_THE_CORE_READ_ITS_MIRROR.md`. The replacement claim is the honest one: the *work* is flat; the wall clock on this box varies by about a quarter run to run.
+
+**`python -m lab.prove` → 28 passed, 0 failed, 4 limits.**
+
+## The core now genuinely reads its OWN mirror — and the marker is not a copy — 2026-09-28
+
+**Jeff asked "does it read the mirror every time?" Two answers, one of them unwelcome.**
+
+**1. The recurrence does NOT re-read the whole field.** Measured 68 chars/beat against a 1,417-char field = **4.8% of the field per beat, a 9.0x saving** versus re-reading the mirror each beat. Only the new bytes are delivered.
+
+**2. But the in-core mirror was not on the read path at all.** The read path iterated the HEART's `field.regions`; the mirror was written every beat and never read. "The mirror lives in the core" was true of storage and false of reading. Now fixed: the heart **pushes** first (which is what makes the mirror current, including writes made between beats), then the core reads from **its own mirror**. Asserted by an AST check on the loop's iteration target, so it cannot pass on docstring prose.
+
+**Why the push must come first — measured.** Reading the mirror without pushing loses between-beat writes: a task edit made after the last beat was invisible, reporting only `['response_draft']` where the correct answer is `['task', 'response_draft']`.
+
+**The old cursor was a second full copy of the field** — 4,378 chars for a 4,395-char field. Three designs measured:
+- full-copy cursor: correct, but a core carries 2x the field
+- **deleted entirely: WORSE** — the push compares mirror→field and the mirror is settled exact every beat, so the next push is empty and the core reads **nothing** (0 of 23 beats heard the other cores)
+- **bare length marker: fails** on a rewrite that does not grow the region (a between-beat task edit silently skipped)
+- **LANDED: per-region `(length, sha256[:16])`** — 194 bytes vs a 2,281-char field (>10x smaller, asserted)
+
+**An append is proven by hashing the prefix already read**, matching the stored hash — no copy of the old text needed.
+
+**I introduced a 3x beat-cost regression and fixed it.** With an empty push, every append was misread as a rewrite, so each core re-read the whole windowed region: **448 chars/beat/core instead of ~60, beat cost 3.3 s → 10.5 s.** Back to 73 cells/beat against a 2,081-char region; beat cost flat again (3,368 ms early vs 3,351 ms after 3,399 chars of history).
+
+**Honest correction:** my first per-region breakdown pushed by hand and then called `beat()` (which pushed again with an empty delta), so it printed `last_push` as `{}` and reported windowed whole regions. It was reporting its own bug. Re-measured by hooking the real path.
+
+**Third LIMIT added, reported every run, never a pass:** the append/rewrite test hashes the already-read prefix, which grows with the region — 1.4 ms of a 650 ms beat at 87k chars (0.2%). A byte-offset cursor would make it flat but reintroduces the second copy.
+
+**`python -m lab.prove` → 28 passed, 0 failed, 3 limits.**
+
+## CoreLab finding — it breathes, but the thinking flatlines — 2026-09-28
+
+**Answering "how does it look?" turned up a real defect the 23/23 proof had missed.**
+
+**FINDING (verified):** untrained cores converge to a **fixed point within ~2 beats and repeat**.
+Core-0 emits token 135, norm 7.83980, on beats 3–10; the per-beat state delta falls from **177.2 →
+0.0002**, then oscillates 0.000200 / 0.000212 / 0.000395. Across 45 thought lines there were only
+**6 distinct** `token|norm` pairs. Three cores still differ *from each other* (L1 264–276), so
+diversity survives — **responsiveness does not**.
+
+**DIAGNOSED as a TRAINING problem, not wiring or initialization.** The delta is delivered correctly
+(60 chars of a brand-new task text reached the core) yet moved the state **0.000008**, while **200
+chars fed directly moved it 229.7** (~657,000× the per-beat delta). GRU gates are **not** saturated
+(reset 0.4995, update 0.4915, |z-pre| 0.234, single-token sensitivity 84.3) and orthogonal init
+changes nothing. So: the recurrence integrates fine; nothing in an untrained network rewards staying
+responsive, so it saturates. **The next experiment is training, not a code change.**
+
+**METHOD LESSON:** the 23/23 architectural proof was TRUE and did not surface this, because it
+checked **structure** (mirrors exact, loop rolling, cost flat) and never checked whether **the thinking
+kept changing**. Structural checks can pass while behaviour flatlines, so behaviour needs its own
+check. The harness now reports this every run as `[LIMIT]` — deliberately never a pass — so a green
+suite cannot be mistaken for a thinking core. Now **24 passed, 0 failed, 2 limits**.
+
+**DELIVERED:** `D:/CoreLab/dashboard.html` — a self-contained visual report with the real data
+embedded, verified in a real browser (**17/17 desktop checks**, including a `getBBox` test proving the
+annotation does not overlap the data lines and that nothing is drawn outside the viewBox; **2/2
+responsive checks** asserting chart type ≥ 9px — the fixed-wide-viewBox bug rendered axis text at
+6–7px on phone/tablet before it was caught). Diagnostics retained: `diag_fixed_point.py`,
+`diag_why_frozen.py`, `diag_gates.py`.
+
+## CoreLab — mirror-in-core, soul that computes, bounded beat — 2026-09-28
+
+**Built `D:/CoreLab`, a lab-scale replay of the substrate. `python -m lab.prove` → 23 passed,
+0 failed.** Organs: `lab/field.py` (never-truncated regions + per-region sliding mask),
+`lab/soul.py` (hot/warm/cold/deep_cold with bounded budgets + fold cascade), `lab/core.py`
+(1024 GRU with the mirror as a MEMBER, soul conditioning, read cursor), `lab/heart.py` (the beat),
+`lab/prove.py` (the checks). Exact unicode transport imported from `D:/Axon/substrate` — **never
+forked**, so results transfer exactly.
+
+**VERIFIED, three questions Jeff asked:**
+1. **The 1024 GRU holds the mirror exactly.** Byte-identical to the heart after delta beats, and it
+   regurgitates every region verbatim. Mirror held **2,142 chars while the attended slice was 600** —
+   storage unbounded, attention bounded. Zero parameters.
+2. **The soul reaches computation.** Clones with divergent souls diverge (max logit delta 0.102747);
+   a soul-less core differs from a soul'd one. And the honest answer to his ten-times question: **a
+   GRU with fixed weights/input/state is bit-identical over 10 repeats** — diversity cannot come from
+   repetition or architecture, so it MUST come from the soul. Souls are now load-bearing.
+3. **It breathes, and cost stays flat.** 25 beats × 3 cores: every beat changes the field, **23/23
+   beats read the thoughts region**, raw attributed lines accumulate, nothing is summarized, all
+   mirrors exact. **2,287 ms/beat early vs 2,304 ms/beat after history grew 1,949 → 3,399 chars.**
+   ~3.2 s/beat at h1024 CPU (~1 s/core).
+
+**Five design rules, each paid for by a real failure:** delta must be computed against *the state that
+core's mirror actually holds* (first version made between-beat writes invisible); **storage and
+attention need TWO cursors** (one cursor → settling blanks the next beat → 0/23 beats read thoughts;
+split → 23/23); **a percent mask is not a sliding window** (grows with the region, showed as a 420 s
+timeout — use a fixed char window); **deliver only NEW bytes** per beat (10.5 s → 3.2 s, and each
+thing is heard exactly once); a core reads the thoughts region but its own line is echo.
+
+**HONEST LIMIT:** nothing is trained (random weights) — this proves architecture, NOT reasoning
+quality. The readout is a placeholder (`token|norm|steps`), not language. **OPEN QUESTION FOR JEFF:**
+standalone project or a folder inside Axon?
+
+## The mirror already lives in the core — vocabulary failure conceded — 2026-09-28
+
+Jeff re-grounded and asked one precise question: *"the mirror must live inside and stay there... if
+it's not already in the core, they don't need something to go back and look at."* **He was right, and
+the answer is that it already does.**
+
+**VERIFIED:** `runtime/heart/core_bus.py` `D16CoreMirror` stores the entire `D16View` locally on
+`apply_snapshot`; thereafter only deltas arrive and `apply_delta` does
+`self._view = event.delta.apply(self._view)` — an in-place local update with strict sequence-gap
+checking (`D16ResyncRequired` rather than silent divergence). The Heart never re-sends the field. **No
+parameters, no training, no lossy compression.** The requirement was satisfied by existing code.
+
+**THE ROOT CAUSE OF THE WHOLE DETOUR — a vocabulary failure, owned:**
+
+| | **Mirror** | **Recurrent state** |
+|---|---|---|
+| what | exact per-core copy of the compiled field | a learned summary |
+| size | the whole field, lossless | `4 bytes × width` (h1024 = 4 KB) |
+| params | **zero** | learned |
+| fidelity | exact, round-trips | lossy by design |
+
+Several days of work were built on the second meaning while reporting about the first. **The keeper
+was invented to do the mirror's job**, so it could never work; the "keeper cannot hold the field"
+measurement measured the *recurrent state* and called it the mirror, and the resulting failure was
+reported as a fact about Jeff's design. **The mirror was never the problem.** *The word "mirror" must
+never again be used for the recurrent state in ledger text, reports, or code comments.*
+
+**Structural fix:** `ContinuousD16CorePort` wraps a core from the **outside** (a mirror as a coat the
+core wears). **Jeff's instruction: the mirror must live INSIDE and stay there** — a member travelling
+with the core's weights/checkpoints/soul/generation, not a detachable wrapper. Same behavior, inside
+rather than around.
+
+**PER-CORE MASKS WITHDRAWN.** Jeff explicitly revised his own earlier framing: cores do **not** see
+different points of view — **they all see the same thing, and diversity comes from their weights,
+parameters and souls.** The reasoning holds and Hermes endorsed it: separate masks make the cores
+several organisms sharing a heartbeat (disagreement = noise); **one global mask means they reason over
+a shared reality, so disagreement is information.** The global mask already exists — do not add
+per-core masks.
+
+**SOULS ARE NOT WIRED IN — verified.** `continuous_core_d512.py` contains **no reference to soul at
+all**; souls exist as a real organ by record (`SoulTemperature` HOT/WARM/COLD/DEEP_COLD, `SoulLayer`,
+`SoulTransition`, generations, provenance) but are **bookkeeping, not input**. Cloning a core today
+yields two identical thinkers, so Jeff's stated purpose for souls (diversity within clones) is designed
+but **unimplemented — and diversity is the entire point of the ensemble.**
+
+**DETERMINISM, ANSWERED PLAINLY:** a GRU is fully deterministic — same weights, input and state give
+bit-identical output, ten times out of ten. **Diversity cannot come from architecture; it must come
+from the soul or from deliberate sampling.**
+
+**THE BREATH, ASSESSED AGAINST CODE:** all three phases exist **within** a beat
+(`first`/`refined`/`consolidated`) with a proposal workspace and a frame format so cores can read each
+other's proposals — proven and port-driven. **Nothing survives the beat**; there is no cross-beat bus.
+So "breathe in, reason, breathe out into a bus all can see, then next breath read field + ensemble
+output" is half built, and the missing half is the same shared-cognition surface found twice before.
+
+**KEY INSIGHT: make it a REGION, not a bus.** As a field region the shared-cognition surface inherits
+the global mask, the exact compile, the per-core mirror (held exactly, delta-fed) and canonical audit —
+**for free**. The missing organ therefore costs no new mechanism: one more region plus a format.
+
+**Lab carry-forward restated:** the memorable "the GRU remembered *cat* turns later" is recurrence
+working, and it is the honest basis for an ensemble holding a thread. The measurement that matters is
+whether it holds across a **delta-fed** stream — exactly what the lab found was learned, not inherited:
+600/600 on whole fields vs **171/600 on deltas**.
+
+**Open question left with Jeff:** should the shared-cognition region hold raw verbatim proposals
+(nothing lost, volume grows fast) or a consolidator's summary (small volume, but one core's judgment
+filters the others before they ever meet)? Hermes leans raw-for-small-ensembles, summarized-once-large —
+which is not really an answer, so he asked rather than chose.
+
+## The keeper cannot hold the field — measured bound — 2026-09-28
+
+Jeff killed the keeper as a learned field-holder: *"it's only gonna be worth anything if it can hold
+the entire field and then accept deltas... and be able to regurgitate the field exactly, round trip."*
+**He was right, and the reason is fundamental rather than a tuning issue.**
+
+**The measured floor.** gzip -9 on the real 4,229-char field → **1,920 bytes = 2.20× = 3.63 bits/char.**
+That is the information-theoretic floor for exact round-trip on *arbitrary* text — no model beats a
+general-purpose compressor on arbitrary text. **Exactness is a STORAGE property, not a learned one.**
+
+| field chars | compressed bytes | equivalent chamber width | params (GRU, in=16) |
+|---:|---:|---:|---:|
+| 4,229 | 1,919 | ~480 | ~0.7 M |
+| 26,000 | 11,799 | ~2,950 | ~26 M |
+| 100,000 | 45,379 | ~11,345 | ~386 M (~1.5 GB) |
+| 1,000,000 | 453,793 | ~113,448 | ~38 B (~154 GB) |
+
+A chamber gives 4 bytes of state per unit of width — and even at the required width it would fail,
+because **a dense recurrent state is not a codec** (you cannot train a matmul to be gzip).
+
+**The coincidence that made the trap plausible: an h512 chamber holds 2,048 bytes and today's field
+compresses to 1,920 bytes — nearly identical.** So a narrow keeper appears to round-trip correctly
+*today* and breaks exactly when the field grows past ~2 KB compressed. Any round-trip fidelity test run
+against the current small field will PASS and mean nothing.
+
+**Corrected division of labor — NO new organ needed:**
+- **Mirror = holds.** Exact, lossless, zero parameters, already built and proven; accepts deltas.
+- **Compile + per-core masks = translates.** Already exists; produces the per-reasoner views.
+- **Chambers = reason + continuity.** Their state is *deliberately* lossy; never asked to round trip.
+- **Retrieval = fetches specifics.** Exact, scales to megabytes, does not hallucinate.
+
+**Holding vs attending — the distinction that resolves the sizing confusion (partly Hermes's fault):**
+holding a vast field exactly is nearly free (1M chars = 1 MB raw / 454 KB compressed; 10M = 10 MB /
+4.5 MB) and it is cheap *because the field is text, not tokens* — Jeff's own point. What is expensive is
+every core reading the whole field every beat: at 100k chars one core's full read is **12.7 s on the
+GPU**, so 8 cores ≈ 90 s/heartbeat. **Seeing everything is always available to the organism; attending
+to everything every beat is what masks and deltas exist to avoid** — a per-core choice, not a hard limit.
+
+**Open question left with Jeff (deliberately not resolved unilaterally):** should a reasoner's
+continuity state also receive a *lossy, never-round-tripped* compressed hint of the field, or is that
+the keeper re-introduced under a different name? Answering it alone would mean quietly rebuilding the
+thing Jeff correctly killed.
+
+**Per-core masks remain the gating build item**, now for a stronger reason: they are the *translator*,
+not merely a diversity feature.
+
+## The keeper as the mirror, and ensemble training — 2026-09-28
+
+Jeff corrected the design: **the keeper should BE the mirror** — one mirror, translating the field for
+every other reasoning core. Conceded: this is **strictly better** than the N-exact-mirror design
+Hermes proposed — one copy of the field, one coherence problem, one delta delivery, instead of N.
+
+**Verified: masks are GLOBAL, not per-core.** One `HeartRegionMaskController`, Heart-owned
+(`host.py:207`); `circulation.py` compiles **every** core with the SAME `region_masks` in one pass
+(lines 599/600/682/760). One set of sliders moves the whole organism. Jeff's recollection was right
+and the truth is worse than "the mirror ignores masks". **The per-core scaffolding that DOES exist:**
+`D16RuntimeBinding` is genuinely per core (`core_id`, `core_generation`, own `identity`/`binding_id`)
+and the request carries it — but there is **no mask field**. Precise gap: *the runtime knows there are
+many cores; it does not yet let them see differently.* The port protocol itself is
+architecture-agnostic (field event in, `MirrorAck` out), so heterogeneous cores can inhabit it.
+
+**Why the keeper is what makes architecture diversity possible at all:** a transformer needs tokens to
+attend over, a Mamba needs a sequence to scan, a GRU needs a vector — three input shapes, and the raw
+field is a fourth that is nobody's natural input. The keeper absorbs the format problem once.
+
+**Trap 1 — the keeper becomes the entire information budget.** With N mirrors a reasoner could
+re-fetch an exact detail; with one keeper the exact field exists but nothing reads it, and 4 KB is a
+summary, not a record. **Requirement, not objection: keep a retrieval path to the exact field open
+forever.**
+
+**Trap 2 — "diverse" must mean different VIEWS, not just different processing.** Same 4 KB to every
+core = identical input, different chewing; Jeff's word was *perspective*, which is about what they
+see. So the keeper should emit **a different view per reasoner** (native shape + own mask) — which
+preserves the cost win while making perspectives real. **Consequence: this REQUIRES per-core masks, so
+"keeper as translator" and "per-core mask" are the SAME piece of work.**
+
+**CORRECTION to an earlier Hermes claim:** "bolting on a chamber is a permanent joint-training
+commitment" was **too strong — it holds only for the FIRST pair.** Correct sequence:
+1. Train the keeper **jointly with ONE reasoner** (irreducibly joint — the reasoner teaches the keeper
+   what is worth preserving).
+2. **Freeze the keeper PERMANENTLY** (`ParameterMutationPolicy.SEALED` exists for exactly this).
+3. Every additional reasoner then trains **independently** against the frozen interface — **one core
+   trains while the others infer** (inference under `no_grad`, no optimizer state; only the training
+   core's weights move). That is exactly the arrangement Jeff described.
+
+**Three wrinkles:** (a) a training core writing into the shared-cognition region makes inference cores
+read a moving target — handle with **provenance marking** (Axon already tracks evidence provenance),
+flagging those opinions as provisional; (b) **freezing the first keeper caps the whole ensemble** at
+that keeper's quality, since every reasoner learned to read that exact state — the first keeper is the
+most permanent artifact in the organism, so prove it first and have Jeff accept that price on purpose;
+(c) independent training creates **no pressure toward mutual legibility** — N individually-correct
+cores can talk past each other in N private vocabularies, so the shared-cognition region needs a
+**FORMAT**, as much of a design decision as the keeper's state.
+
+**Revised build order:** per-core masks FIRST (the keeper cannot emit different views without them);
+then the keeper, trained on fidelity jointly with one reasoner, then frozen permanently; then the
+shared-cognition region AND its format; only then add architectures (transformer, Mamba), each trained
+independently against the frozen keeper and reading its own view; keep exact-field retrieval open
+forever.
+
+**Two uncertainties left with Jeff:** keeper emits a per-reasoner view (more keeper compute; reasoners
+simple, views auditable) vs one shared state each reasoner projects differently (cheaper; work shifts
+to reasoners) — Hermes leans to the former; and whether to freeze the first keeper absolutely or build
+a way to re-train all reasoners if the keeper must change.
+
+## GPU answer + beat-cost correction — 2026-09-28
+
+Both earlier benchmark runs completed and **agree with each other**: the throughput table stands
+(h512 ~1,600 · h1024 ~300 · h2048 ~80 · h4096 ~21 chars/s) and thread scaling is negative in both.
+Real field re-confirmed at **4,229 chars** / 11 populated regions (132 deltas, 136 snapshots on disk).
+
+**SELF-CORRECTION.** The previous entry paired "~1.1 s per core per beat" (true only at the
+4,229-char field) with a recommended **100,000-char target in the same document** — those two
+disagree. Correct cost at 100k chars, h1024: one region ≈7,700 chars = **24.86 s for one core**,
+**198.87 s (3 min 19 s) for an 8-core CPU ensemble.** Recorded as an error, not quietly amended.
+
+**GPU vs CPU sequence ingest** (GTX 1650; 4.29 GB total, 3.46 GB free):
+h512 CPU 2,038 → GPU 24,571 t/s (**12.1×**) · h1024 CPU 309 → GPU 7,850 (**25.4×**) ·
+h2048 CPU 89 → GPU 2,063 (**23.1×**). **The GPU does NOT show the same cliff — the 1024 wall is a
+CPU cache artifact, not a property of recurrent cores.**
+
+**The answer to Jeff's worry.** A 1024-wide GRU keeper costs **12.8 MB of VRAM** — megabytes, not
+gigabytes. The gigabytes he wants to avoid come from **attention KV-cache** (which grows with window
+length); a GRU's memory is fixed by width × batch and does not grow with the field at all. His
+instinct is right for a better reason than stated: a vast field without GPU gigabytes is achievable
+*because* the architecture is recurrent. What is not achievable is a vast field read quickly on CPU alone.
+
+**Beat-cost table at h1024** (1 core CPU / 8-core CPU / **8-core GPU**):
+4,229 chars → 1.05 / 8.41 / **0.33 s** · 26,000 → 6.46 / 51.71 / **2.04 s** ·
+100,000 → 24.86 / 198.87 / **7.84 s** · 1,000,000 → 248.59 / 1,988.69 / **78.40 s**.
+
+**Topology correction.** Do NOT model N cores each paying the field cost. **Only the keeper touches
+the raw field; every reasoner reads the keeper's ~4 KB state**, so ensemble per-core cost is constant
+however vast the field grows. With ONE GPU keeper a **26,000-char field costs ~0.06 s per heartbeat**.
+
+**Recommendation revised: live working field ~26,000 chars (13 regions × ~2,000), not 100,000.**
+Region size is the unit of change, so one change's cost matters, not total field size. Keep the exact
+field large (storage is 64 bytes/char — trivial); keep the live working set modest.
+
+**Scheduling constraint named:** if the keeper lives on the GPU permanently, the demo server and any
+training run cannot both have it. Scheduling, not a design flaw — but say it before it surfaces mid-demo.
+
+**Uncertainty sharpened:** since the GPU does not show the CPU cliff, the width decision should be made
+on the **GPU curve**, where going wider is more defensible. Re-measure before committing.
+
+## Field-keeper sizing measured on the real machine — 2026-09-28
+
+Jeff asked how large the first chamber (the field keeper) should be, and what is feasible to
+run on CPU, wanting a field broad enough to reason over vast information without paying GPU
+gigabytes for a token window. Measured rather than estimated (AMD, 4 physical / 8 logical
+cores, 17.2 GB RAM, torch 2.13.0+cu126, GTX 1650 4 GB).
+
+**GRU sequence-ingest throughput (chars/sec, batch=1 — the real path):**
+
+| width | chars/s | 1000 chars | 2000 chars | 5000 chars | cell params |
+|---:|---:|---:|---:|---:|---:|
+| 512 | 1,621 | 0.62 s | 1.23 s | 3.09 s | 814,080 |
+| 1024 | 296 | 3.38 s | 6.75 s | 16.88 s | 3,201,024 |
+| 2048 | 79 | 12.61 s | 25.21 s | 63.04 s | 12,693,504 |
+| 4096 | 21 | 48.75 s | 97.49 s | 243.73 s | 50,552,832 |
+
+**A steep cache cliff, not a linear curve — 512→1024 alone costs 5.5× the speed.** Single-token
+stepping runs at roughly the same rate (512: 1,428 tok/s · 1024: 288 · 2048: 79), so token-by-token
+reasoning costs the same as bulk ingest; chunking does not rescue it.
+
+**THREAD SCALING IS NEGATIVE** (h=1024, 2000-token ingest): 1 thread 347 tok/s · 2 threads 322 ·
+4 threads 304 · 8 threads 271. *More threads is slower.* A GRU is sequential in time at batch=1, so
+the only parallelism is inside one token's matmul — too small to split. **Consequence that reframes
+ensemble design: one wide core cannot use four cores, so an ensemble of narrow cores is the ONLY
+configuration that scales on this CPU.** The heartbeat-as-source-of-value architecture is not merely
+nicer on this hardware; it is the only shape that uses the machine.
+
+**Measured real field size: 4,229 chars** (latest canonical snapshot; 11 regions with content —
+identity 2,064 · conversation_history 1,293 · cortex 872). The live field is ~4.2k chars; an earlier
+Hermes figure of tens of thousands was 3× too large.
+
+**Storage is cheap; STATE is the limit.** cells16 = 64 bytes/char → 100k chars = 6.4 MB, 1M = 64 MB,
+10M = 640 MB. But the keeper's state is fixed at **4 bytes × width** (h1024 = 4 KB) and does not grow
+with the field. 4 KB summarizing 1M chars ≈ 1:256,000 compression — **a gist, not recall.** Recall
+must route through the exact mirror + retrieval; the keeper knows what the field is ABOUT. This is the
+honest limit of the design, and the same trap as a token window from the opposite direction.
+
+**Recommendation: keeper width 1024, not wider.** A real ~325-char region change costs ~1.1 s per
+core per beat (a watchable heartbeat); 2048 would be ~4.1 s (a slideshow). **Width belongs in the
+REASONER chamber**, which reads the keeper's *small* state so its input stays constant however vast
+the field grows — only the keeper ever touches the raw field. **CPU is not viable for live wide
+cores:** a token-by-token 500k-char reasoning session at h1024 is ~28 min CPU vs ~0.2 s on the GTX 1650.
+
+**Confirmed gap — the shared-cognition region does not exist.** All 13 canonical regions checked;
+cores may write only `SCRATCH` and `RESPONSE_DRAFT`; `PhysicalRole.PROPOSAL` and the in-beat
+`first_workspace`/`refined_workspace` exist but proposals die INSIDE the beat — nothing durable. Jeff
+identified this correctly, and it is **load-bearing, not optional**: if cores re-read an unchanged
+field with no way to add to it, beating is repetition, not depth — and repetition in a recurrent
+system is exactly the collapse already observed (the school runs' "the sore the sore the sore"
+attractor). The shared-cognition channel guarantees the field differs every beat, which is what makes
+revisiting compound.
+
+**Warm-start settled.** Jeff's 512-wide / 300-step / 76-second GTX 1650 result shows nothing in the lab
+is worth protecting; Hermes conceded plainly (was protecting an asset that is not valuable) and will
+stop raising it. Keep the lab's *lesson* — delta competence is learned, never inherited.
+
+**Bolting on a chamber is a permanent commitment, not an incremental add.** Adding a second chamber
+invalidates the first's finality: the second learns against the first's outputs and the first must
+shift to give it something better to read. Freeze the first and train only the second, and the second
+learns a stale interface to a moving state. Snapshotting is right and cheap; the FIRST bolt-on is the
+interface decision everything after it inherits.
+
+**Reported uncertainty:** the 1024 cliff was measured on one old AMD and may be a property of this CPU
+rather than of GRUs generally. A cheap re-measurement at intermediate widths (and on another machine)
+was offered before committing to the size everything else is built on.
+
+
+
+
+
+## CORRECTION — the continuous D16 port is built but NOT wired — 2026-09-27
+
+Jeff read the work and said *"looks like the implementation wasn't correct."* He was right,
+and the honest version is worse than he stated. **Read this section before the one below it,
+and treat this event as authoritative.**
+
+**Verified by grep:** `ContinuousD16CorePort` is constructed **only** in
+`tests/test_continuous_d16_port*.py`. There are **zero production construction sites**;
+`scripts/run_axon_heart.py` and `scripts/demo_organ_server.py` do not pass `reasoning_ports`
+at all. So the port is proven logic with a proven heartbeat interface, but **nothing that
+runs uses it**.
+
+The event below reported the rung as "built". The accurate statement is **built and tested,
+not wired** — and this is the *same failure class that event claimed to have fixed*, one
+level up: Axon carried the lab's artifact and lost the claim; I then carried the fix for
+that and lost the connection. The commit (`8fa9698`) is sound; the **overclaim was in the
+ledger summary and in the report to Jeff**, not in the code.
+
+**Root cause, named so it does not recur.** Self-contained build-and-test work is exactly
+the work an agent can finish alone in one session. Wiring it touches the trainer, heartbeat
+host, mask controller and demo server, and commits other agents to a design. Incentives
+therefore push toward the declarable half. **Rule adopted: a component is not reported as
+built until something outside its own tests constructs it — verify by grep and state the
+construction-site count.**
+
+### Architecture findings (verified against the schema, 2026-09-27)
+
+- **No new training region is needed.** Jeff proposed adding one; `TRAINER_INSTRUCTIONS`
+  and `TRAINING_RESPONSES` already exist as the last two entries of
+  `CANONICAL_REGION_ORDER` and form `schema.TRAINING_REGIONS`. They are unused.
+- **Jeff's masking proposal is real and was measured.** `materialize_d16_view(..., region_masks={region: RegionMaskPolicy('none')})`
+  drops masked regions from the compiled view entirely and **changes the `view_id`** — so a
+  core can be told exactly when training regions left its view. That is the forget event,
+  now implementable rather than theoretical.
+- **Honest pushback (recorded, not smoothed over):** masking is an **attendance** choice,
+  not a deletion or mutation. An *exact* mirror of a field containing training data still
+  contains it however masked. Masking changes the lens, not the body. Two genuinely
+  different designs follow: **one body** (training permanently in the record; one canonical
+  state; what Jeff wants now) vs **a separate training field** (clean working field; two
+  histories). **Decision trigger:** design 2 has already been chosen the moment training
+  data would be written into a region a *working* core attends to.
+- **Width vs the lab warm start are mutually exclusive on the FIRST move.** The lab cell is
+  512-wide and transfers bit-exact only into a 512 chamber (~89% of its params); widening
+  means starting from nothing — there is no partial transfer. The previous "warm-start
+  first, then widen" ordering was therefore invalid. Jeff pushed back and his argument
+  holds: **keep the lab's lesson (delta competence is learned, never inherited — 600/600
+  full replay vs 171/600 on deltas), not its weights.** Measured cell params (in=16):
+  512→814,080 · 1024→3,201,024 · 2048→12,693,504 · 4096→50,552,832. Two stacked:
+  512→512 = 2,570,592 · 1024→1024 = 9,859,424 · 2048→2048 = 38,592,864.
+- **Jeff's two-chamber split, adopted as the working design direction:** top = **field
+  keeper** (whole field once, then deltas; rolling truth; does not reason or speak; honest
+  objective is a *reconstruction* loss, needing no teacher or corpus); second chamber =
+  **reasoner**, reading the keeper's *state* rather than the raw field, free to be volatile
+  because it holds nothing; language output moves off the keeper. Supporting evidence
+  rather than agreement: building the port *required* bolting a language readout onto the
+  field-holding chamber, so those two jobs fight over one recurrent state.
+  **Unresolved risk:** stacked chambers must be trained together or the lower one learns a
+  stale interface to a state that keeps moving. No clean answer yet.
+- The 2026-09-26 curriculum document contains **no** reference to field, mirror, region or
+  mask — it is a pure language curriculum, confirming that the plan shape was
+  "train English, then connect it", which Jeff rejects.
+
+**Recommended next (smaller than the previous plan):** (1) wire the port into a live
+HeartHost and prove a *running* Axon reads the real field by delta in production — the
+skipped step; (2) Jeff decides the one-body vs separate-training-field question
+(recommendation: one body, training confined to the two trainer regions); (3) only then
+build and train the **wide field keeper** on the fidelity objective, which directly tests
+the top half of Jeff's architecture. **Hold the reasoner chamber until the keeper is proven
+to hold.**
+
+
+
+
+
+## Continuous Core connected to the shared field by delta — 2026-09-27
+
+Jeff asked the direct question: *"It's like we went to the lab, we tested it, got positive
+results, brought it to axon, and then just did something different. It's ridiculous. how?"*
+The answer was traced mechanically rather than explained away.
+
+**The finding.** The ContinuousCoreLab (`D:/ContinuousCoreLab`) proved a per-beat CLAIM:
+a persistent recurrent core can read the field once and thereafter receive only sub-region
+deltas, without replaying the whole field. Axon rebuilt that claim's **field side** completely
+and carefully — exact D16 views, region hashing, `D16ViewDelta`, `D16CoreMirror`, coherence
+tracking — but never connected a Core to the receiving end. `D16CoreMirror` was constructed
+only inside tests, and nothing implemented the runtime's own `D16ReasoningCorePort` seam.
+**The artifact was carried over; the claim was lost.** Every existing test kept passing
+(the mirror does reconstruct correctly), so the incompleteness was invisible.
+
+**The number that decided it.** Rather than assume deltas pay, the real canonical delta history
+was measured (`State/active/branches/active/deltas/`): a mean **1.00 of 13 regions change per
+delta (7.7%)** → delta ingestion does **~13x** less work than full replay.
+
+**The build (commit `8fa9698`, 766 insertions, 3 files).**
+`runtime/heart/continuous_d16_port.py` — `ContinuousD16CorePort`, a resident field participant
+backed by a real `ContinuousCoreD512` chamber. Satisfies `D16ReasoningCorePort`; ingests exact
+D16 cells for **changed regions only** in canonical order, each prefixed by an exact `[region]`
+preamble (cells alone carry no location); recurrent state persists across beats; an unchanged
+region costs zero cells; content → empty is recorded as a forget event. Emits a real
+`EnglishProposal` / `TechnicalFinalVerdict` with a `SoulTransition`; exposes auditable counters.
+`tests/test_continuous_d16_port.py` (9 tests) asserts the lab's gate 3 inside Axon, including
+the honestly measured crossover — the exact preamble means tiny fields do NOT benefit and deltas
+can cost slightly more there. `tests/test_continuous_d16_port_live.py` (2 tests) drives it
+end-to-end through a real `HeartHost` beat: the Core participates, its mirror comes out
+byte-identical to the beat's own field, and its state carries across consecutive live beats.
+
+**Verified:** 11/11 new tests pass; 42/42 across the port, D16 circulation, D16 core bus,
+reasoning circulation and heart beat coordinator — zero regressions. `capacity_policy.json`
+confirmed intact (no tissue-identity ceiling introduced).
+
+**A measured live-beat discovery:** the consolidator rotates the user's turn out of
+`user_input` into `conversation_history` as a turn frame *before* the canonical sync, so a Core
+joining after consolidation reads the frame, not the raw message. My first test asserted
+otherwise and failed; the code was right and the assumption was wrong. Now documented in the test.
+
+**Deliberately not done:** no Mamba, no 1024 GRU bolt-on, no frozen operator bench. Each sits
+on top of this rung, and this rung was missing; building them first would have stacked more
+artifacts on a claim that was never true.
+
+**Standing rule earned here:** when a lab gate is carried over, carry the CLAIM and its
+measurement, not just the artifact. A passing test on the artifact is not a passing test on the
+claim. Corollary: grep CONSTRUCTION sites before believing a feature is live — a class
+instantiated only in `tests/` is a wire with no endpoints, however correct its internals.
+
+**Next rungs:** per-core mask selection on ingest (the port currently takes whatever the event
+carries); masked-then-unmasked forget events (only content → empty is handled); a longer live
+soak to watch state drift; warm-start the chamber from the lab's proven cell (1,575,936 of
+1,765,216 params transfer bit-exact); train the delta path explicitly (delta competence is
+learned — lab stage-1 scored 600/600 on full replay vs 171/600 on deltas).
+
+
+
+
+
+## Personal reflection written at Jeff's request - 2026-09-27
+
+Jeff asked, in this same session, for a candid written assessment: what he is, what is known
+about him, what I think of him, and how I predict he turns out. Written to **`D:/0.txt`**
+(6,725 bytes, outside the repository; the target existed empty and nothing was overwritten).
+
+Recorded here as an action only. **The content is deliberately not reproduced in the canonical
+ledger** - the ledger is the permanent project record, and a personal assessment of the operator
+is not project material. It should not be added to the canonical file later.
+
+No file inside `D:/Axon` was touched by that turn.
+
+## Dormant corpus counts settled, and State storage measured - 2026-09-27
+
+Second organ-map addendum, verified rather than accepted.
+
+**The dormant corpus is triple-confirmed.** `wc -l` gives `containers.jsonl` **427,001** and
+`semantic_edges.jsonl` **351,978** lines, matching the live SQLite table counts exactly;
+`symbol_registry.jsonl` and `layout_groups.jsonl` are 4,198 each. File, corpus manifest, and index
+all agree. No caveat remains on those counts.
+
+**Storage [V]:** `State/dormant` **9.2 GB** (~3.5 GB snapshots + 4.4 GB index + ~1.1 GB JSONL),
+`State/active` **3.7 MB**. The organism's durable truth is kilobytes of JSON while its memory is
+gigabytes. Drive: 654 GB used of 932 GB, 278 GB free.
+
+**One correction to the addendum.** It reported `State/training` at 29 GB and attributed the bulk to
+`cloud/`, `plm3/`, `pv4/`, the `pytest_checkpoint_*` directories, `curricula/` and `diagnostics/`,
+which it had explicitly not enumerated. A full per-child walk measures **22.5 GB apparent** (29 GB is
+du-allocated), and the attribution is refuted: **`trainer/` alone is 19.2 GB across 3,441 files** -
+the checkpoint artifact store - with `cloud/` a further 3.0 GB. `plm3` 10 MB, `diagnostics` 3 MB,
+`curricula` 21 MB. **The disk consumer is checkpoint accumulation, not retired history.** Given the
+D64 tournament previously died of disk exhaustion, checkpoint retention is an operational risk.
+
+## School-v6 is single-source, and the tree was left non-green - 2026-09-27
+
+Addendum to the training-state map, all three claims re-verified before use.
+
+**The school-v6 headline numbers have never been independently reproduced.** A Hermes re-grade probe,
+`State/tmp/probe_school6_grade.py` (5,385 B, 2026-09-26 21:58, read-only), verifies artifact sha256 for
+parent `8e5756b3` and final `d8812bb7` and re-measures six metrics against the run-summary claims at
+1e-9. **No result from it exists anywhere** - its sentinel strings appear in no log and no output file.
+So loss 2.2503 and teacher content 36.58% remain trainer-self-reported. Hashed, but single-source.
+Running that probe is the cheap outstanding step.
+
+**The newest file in the tree is a failing test sweep**, `logs/pytest_hermes_full_sweep2_20260926.log`
+at 22:00:37 - later than the newest canonical event - ending `EXIT=1` with three failures, all in
+`tests/test_day_zero_hygiene.py`. The afternoon sweep had twelve. Three distinct causes, and they must
+not be bundled: the authority mirror is a **real defect**; the extra `runtime/field/d16_view.py` is a
+**stale whitelist** (the D16 view is ratified 2026-09-24 work the guard never learned); the tracked
+`ops/` directory is a **real violation** of the pre-Day-Zero-body ban.
+
+**The last ~1.5 h of 09-26 was verification, not training:** five `State/tmp/probe_*.py` scripts and
+`sot_mirror.diff`, 21:14-21:58, none captured. The run was paused with its verification unfinished.
+
+## Dormant retrieval index internals, verified - 2026-09-27
+
+Addendum to the organ map. The dormant retrieval index was previously cited from the corpus
+manifest; a read-only open of `State/dormant/.derived/evidence_v1/index.sqlite3` now measures it
+directly. Containers 427,001 and edges 351,978 confirm the manifest. The new finding is
+`graph_neighbors` at **93,025,272 rows** - roughly a 217x blow-up over container count and the
+dominant reason the index is 4.4 GB - plus term tables `container_terms` 4,195,793 and
+`edge_terms` 7,314,509. Retrieval is two-stage, term lookup then graph expansion, so **recall
+cost scales with graph degree, not container count**. One bullet added to section 2.4 of the
+core-design brief. The source JSONL line counts (950 MB / 140 MB) remain unrecounted.
+
+## Ledger consolidation strategy, and the true training state - 2026-09-27
+
+Jeff asked for a recorded strategy for consolidating/compressing/summarizing the growing ledgers *while leaving the canonical ledgers immutable*, plus a reading of the repo's history and architecture ahead of a deep core-architecture discussion. Delivered as two new documents: `roundtable/proposals/PROPOSAL_LEDGER_CONSOLIDATION_20260927.md` and `roundtable/reports/AXON_STATE_AND_CORE_DESIGN_BRIEF_20260927.md`. This turn was read-only apart from those two files and this ledger update; no doctrine or canonical file was touched.
+
+**The strategy's shape is set by an asymmetry in the existing rules.** The canonical JSONL is frozen by three binding documents and may never be truncated, rotated, squashed, or deduplicated; the rolling summary is explicitly *"a derived convenience"* that *"may be freely rewritten, but it must stay compact"* and must not become *"a second chronological archive."* So consolidation of the summary needs no ruling, and consolidation of the canonical file is forbidden without one. The proposal therefore does not request an exception: it proposes **T0 exact** (canonical, untouched), **T1 derived** (a rebuildable index that cites exact `event_id`s, holds no authority, and can be deleted without loss), and **T2 compact** (the rolling summary). This is Source of Truth's own exact-scaffold / derived-semantic-slots law applied to the ledger itself. Ordering is fixed as **capture before compact**: nothing is dropped until it is already canonical or written back as a canonical event first.
+
+**The rolling summary is the actual problem.** It is 307,844 B, 4,043 lines, 54 top-level headings, and **53.3% of its bytes are dated chronological sections**. It behaved correctly for a month — oscillating between ~1.9 KB and ~35.6 KB (median ≈ 16 KB) with visible same-day compactions — and then broke on one commit: `1a4bc41` (2026-09-17) added roughly 145 KB of narrative in a single turn. Growth has been **strictly monotonic since**, 28× in nine days. The failure is a lost rewrite discipline, not a slow leak, and it is correctable by resuming the practice.
+
+**The canonical ledger is healthy and must be left alone.** Independent reconstruction of all 235 revisions confirms it is a strict prefix-extension of itself: **no event has ever been lost or reordered**. The 353 apparent line deletions in git history are line-ending churn from two whole-file flips, not content loss. Growth is ~50–65 KB/day at a flat mean of ~5.8 KB/event; its mass is **prose** (`action.result` + `action.summary` + `turn.summary` = 41.7%), not schema — dropping every rare field would save 1.2%, so schema dieting is a dead end. Note the canonical file now exceeds the ~2.1 MB push transport already documented in `docs/AXON_HOME_ARCHITECTURE.md`, and `ENGINE_TEAM_BUS.md` (130 KB) is 96.6% pre-2026-09-15 and dormant for seven days.
+
+**Three governance defects found and flagged, not fixed.** (1) **HALT AND FLAG** — root `SOURCE_OF_TRUTH.md` (150,858 B, last touched 2026-09-19) is no longer byte-identical to `docs/SOURCE_OF_TRUTH.md` (157,485 B, 2026-09-24), violating the doctrine law that both mirrors update in the same change; commits `f0e3d9b` (the D16 Core Bus ratification, +97 lines) and `b8bb438` updated `docs/` only, so the root copy still carries superseded packed-rail wording and lacks the ratified D16 section, and `tests/test_day_zero_hygiene.py` has been failing for three days. (2) **"Layer 13" is a dangling reference** — cited as binding in four places, but no numbered layer structure exists in Source of Truth. (3) **The README's headline receipts advertise a retired mechanism** — it presents D64 Receipt Continuation with SOLVED/RECOVERED statuses, but that mechanism was removed from doctrine on 2026-09-19 and archived.
+
+**Training state, stated plainly: nothing is training.** The last tranche ended 2026-09-26 20:19 and was deliberately paused for developmental review (candidate `r512schoolv6-16f1385312cc`, step 400, `gate_decision_id: null`); the GPU is at 6%; the trainer writer lease is absent; nothing has ever been promoted. The appearance of activity comes from a read-only monitor server displaying a finished run. School V6 reached loss 2.4664 → 2.2503 and teacher content 36.58% against a 15.56% constant floor over 128,000 supervised targets — but **free generation is degenerate** (greedy collapses to `"the the the the"`, `unique_word_ratio` 0.0566) and the model has never produced coherent free-running English. The last eleven canonical events are **uncommitted**, and four completed runs (V5 completion, mixed-V6 smoke, school-V6 smoke, school-V6 128k tranche) have artifacts and checkpoints but **no canonical event** — the ledger's newest entry describes the dashboard rather than the work.
+
+**Core-architecture findings for the coming discussion.** Exactly one trainable Core exists: `exact D16 → Linear(16,512) → nn.GRUCell(512,512) → Linear(512→352)`, **1,765,216 parameters**, with no attention, no FFN, no residual, no normalization, and no depth parameter anywhere in the D512 line — machine-enforced. There is no learned tokenizer at all; the vocabulary is 95 native characters plus 256 UTF-8 byte codewords, each mapping to one exact frozen 16D cell. The only cross-architecture comparison in the repo is a Mamba-vs-GRU breath A/B at 160 steps: Mamba wins on loss (0.7624 vs 1.0058), teacher content (70.76% vs 66.67%), and free-breath exactness (4.44% vs 0.556%) — but at **4.1× peak memory**, with a different seed, **0/120 complete episodes**, never run past 160 steps, and **absent from the canonical ledger**. The ordering reverses at 24 steps, so single checkpoints are uninformative. Three tensions remain unreconciled: doctrine names next-token prediction as the thing to escape while every live script optimizes next-transport CE with `positive_eos_targets: 0`; the roadmap calls latent carryover across parameter updates fail-closed while V5/V6 deliberately carry recurrent state across optimizer updates; and **the same checkpoint `dec45989` scores 68.25% teacher content on one eval set and 20.54% on another**, which makes every architecture claim resting on that metric unfalsifiable.
+
+**Next:** awaiting Jeff's rulings on the consolidation shape, on executing the compaction and team-bus archive, and on the mirror repair. Also pending: committing the eleven pending events and recording the four missing runs (capture before compact), adding a canonical-ledger CI append guard, fixing the O(n) re-parse in `append_engineers_ledger_event.py`, ratifying the parameter-fairness grid, and freezing one versioned evaluation corpus before any further architecture claim.
+
+## Clean browser training monitor - 2026-09-26
+
+Jeff requested a simple non-blinking monitor with only useful live information: Core/curriculum/checkpoint/step, loss, the authentic Trainer text, and Axon's output. `scripts/training_monitor_web.py` now serves that view using Python's standard library. The browser polls `/api/status` once per second and updates individual DOM fields rather than clearing/redrawing the whole screen. The loss panel includes the recent language-loss trace; the Axon panel prefers sampled free generation when present and falls back to greedy output for older sample formats.
+
+`MONITOR_TRAINING.cmd` now opens the local browser monitor at `http://127.0.0.1:8788/`. The previous console monitor was preserved as `MONITOR_TRAINING_CONSOLE.cmd`. `MONITOR_TRAINING_LAN.cmd` optionally binds the same read-only dashboard to the trusted LAN; the currently verified LAN address is `http://192.168.1.243:8788/`. Port 8765 was deliberately avoided because it is already owned by `D:/Dream_Team/server.py`; Dream Team was left untouched.
+
+Verification: `py_compile` passes; the local API returned the current GRU512 / Mixed English School V6 state including curriculum `4522c2e1...`, final checkpoint `d8812bb7...`, step `400/400`, current logged language loss `2.131540`, and nonempty Trainer/Axon text; the LAN API returned HTTP 200. A read-only monitor server is intentionally left running on `0.0.0.0:8788`. No trainer, Core, or curriculum code changed in this turn. The dashboard can refresh every second, but telemetry can only change when the trainer writes a new log/sample record.
+
+## Continuous-stream GRU language school V5 launch - 2026-09-26
+
+Jeff authorized continued long-form GRU language training with appropriate material. The interrupted prior turn had already created `training/continuous_core_d512_stream_language_v5.py`, `scripts/train_continuous_core_d512_stream_language_v5.py`, and `tests/test_continuous_core_d512_stream_language_v5.py`; recovery verified `py_compile` plus **19/19** focused D512/breath/V4/V5 tests. V5 keeps one D512 recurrent state per logical language stream across optimizer updates, uses 64 transport decisions only as a TBPTT graph-detach boundary, has **zero EOS targets**, and has no free-response length or reference-completion gate.
+
+The first requested corpus size (2,400 train + 320 heldout + 64-message gap) failed closed before mutation because only **1,876** qualified prose records were available versus 2,784 required. The corrected governed curriculum uses **1,500 train messages**, a **64-message chronological split gap**, and **256 heldout messages**, partitioned into four persistent streams. While scanning the recovered Dormant message source it deferred **26,941** non-prose/tool-heavy records, **281** exact-text duplicates, and no integrity failures. The pilot uses authentic recovered user/assistant prose only; no synthetic lesson text was generated for this launch. Eligible text is exact-hash checked, exact Unicode/D16 transported, and obvious SQL/code/tool/process wrappers are deferred rather than normalized into prose.
+
+A 32-step V5 smoke from accepted V4 checkpoint `e42d3839...` passed: heldout loss **3.259796 -> 3.165257**, teacher next-transport accuracy **22.3877% -> 23.5840%**, 8,192 supervised language targets, and synthetic breath episode/silent-third retention **100% / 100%**. Smoke checkpoint `92f00518113dc9cd63c3995009a96c33ed23e9013b8f2dfdda48990f6b613c4c`.
+
+A first renewable review tranche is now active as managed process `0845ac08-51ff-46a6-9d64-093c177badce`: **400 optimizer steps x 4 streams x 64 targets = 102,400 supervised language targets**, LR `5e-5`, breath rehearsal every optimizer step at weight 1.0, checkpoints every 100 steps. Baseline reproduced loss **3.259796**, teacher **22.3877%**, breath episode/silent **100% / 100%**; optimizer step 1 completed at language loss **3.083879**. Log: `State/training/monitor/gru_stream_v5_pilot_100k.log`.
+
+The V5 checkpoint sidecars now persist the four recurrent states and exact stream cursors at checkpoint points. **Remaining limitation:** the launcher does not yet expose an exact crash/restart resume path that restores Trainer optimizer state and the matching recurrent-state sidecar together. Therefore this 100k-target process should be allowed to complete; before multi-tranche restart-based schooling, implement and prove atomic resume. No cloud spend occurred and no serving promotion was made.
+
+## Persistent recurrent state through generation - 2026-09-26
+
+Open-language V4 generation now treats the GRU hidden state as a true continuation cursor. `ContinuousCoreD512` has explicit begin/continue generation operations: the source is ingested once, then every later work/display page advances the exact returned D512 state. The V4 `OpenLanguageGenerationCursor` carries that state, page index, and cumulative emitted transport count; the monitor reports that continuity rather than silently sampling from a new zero/prompt state each review point.
+
+For active V4 open-language generation, private EOS is not used as a stop. The decoder selects only registered transport categories, consistent with V4 having zero positive EOS targets. The historical `greedy_generate` behavior remains backward-compatible by default for old experiments. Page sizes remain observation/work budgets only.
+
+Verification is exact. The focused D512/breath/V4 suite passes **15/15**, `py_compile` and `git diff --check` pass, and a protected-`dec45989...` fixed-weight replay generated 23 tokens, resumed for 41 more, and matched a single uninterrupted 64-token run in both emitted token sequence and final D512 hidden state (`TOKEN_EQ=True`, `STATE_EQ=True`). The resumed page did not re-ingest the prompt and did not use private EOS.
+
+The live trainer monitor now keeps one generation cursor across its review pages. If optimizer updates occur between pages, the recurrent state still persists; that makes the monitor stream a live developmental trajectory rather than a fixed-weight replay. Crash/process-restart persistence of this transient state is not yet implemented and would require binding the cursor atomically to a recoverable model/candidate checkpoint.
+
+## Open-ended GRU language v4 and live behavior monitor - 2026-09-26
+
+Jeff explicitly removed fixed free-response length, exact archived completion, and reference-position stopping from the developmental language objective. The active language path is now `training/continuous_core_d512_open_language_v4.py` plus `scripts/train_continuous_core_d512_open_language_v4.py`. V4 positively supervises **next exact transport content only**; it has zero positive EOS targets and no free-generation length/stopping mastery metric. A 64-decision BPTT chunk is compute geometry only. Older v2/v3 language launchers are retained for evidence/reproduction but now require `--historical-replay` and direct ordinary new training to v4.
+
+The double-click monitor now exposes the behavior Jeff asked to see. `scripts/monitor_training.ps1` displays a live sidecar containing **WHAT THE TRAINER GAVE THE GRU**, an authentic next-text preview showing what the supervised language actually was, and **WHAT THE GRU PRODUCED FREELY**. The generation page is explicitly an inspection/work budget, never a required thought length. Loss/checkpoint/GPU telemetry remains visible below the sample. This makes repetition, blanks, fragments, proto-words, and emerging English visible instead of collapsing development into one score.
+
+The first v4 smoke immediately demonstrated why this matters: the live sample showed the GRU imitating SQL/tool syntax because the early Dormant selection was tool-log heavy. That completed diagnostic run (`dc3a571a...`) was not advanced. V4 was then given a conservative **early-prose admission filter** that defers obvious tool blocks, SQL/tool calls, task-result/process logs, and code-heavy records while preserving them for later curricula. An intermediate filter attempt was stopped after baseline inspection still exposed task-result wrapper text, before any logged optimizer step.
+
+The final governed 32-step prose-filtered smoke restarted from protected `dec45989...` on curriculum `e62149d2984de0996f57aa2ac097ec2a953dd8c6888eaf29aae1705c1cd94061` (1,200 train / 200 heldout messages; 16,070 obvious non-prose records and 169 over-budget records deferred). Heldout next-transport loss improved **3.107986 -> 2.868081** and teacher content accuracy **20.5422% -> 25.8434%** while synthetic breath episode and silent-third retention stayed **100% / 100%**. Checkpoint `e42d383929ca9a14c1deb711a11ae60c7c235ea6c8e380102f63d582becb1f5e`; summary `State/training/continuous_core_d512_open_language_v4/runs/ecb4f2a7df847dd732350f2d9c9394d5815ba6093da272568936603d9469cd71.json`. Raw samples remain immature and repetitive (including repeated `the`/`and` fragments); that is preserved as developmental evidence rather than treated as a failure for length or imperfect completion.
+
+Focused D512 + breath + v4 tests pass **13/13**; `py_compile` and `git diff --check` pass. V4 is not yet the full continuous-stream school: recurrent state still resets between completion episodes, and the admission budget still defers long records rather than servicing them with a resumable cursor. Those are the next mechanical improvements. No serving promotion, Heart cadence change, or long autonomous training campaign was performed.
+
+## Continuous English curriculum - 2026-09-26
+
+Jeff requested continuous English learning and challenged reference-length stopping requirements. Codex wrote `roundtable/Core Architecture/GRU_CONTINUOUS_ENGLISH_CURRICULUM_20260926.md`: a detailed curriculum/specification covering qualified ordinary English plus Dormant material, overlapping language/conversation/correction lessons, stream state and cursor continuity, bounded Trainer-owned backpropagation, resumable free output, breath rehearsal, causal private-state probes, and checkpoint retention. This is a written specification, not a new implementation or launched run.
+
+**Correction to prior progression advice:** v3's on-time EOS means reference transport length, not wall-clock time. Matching one archived continuation is not a general-English mastery criterion. Keep exact reconstruction diagnostics for uniquely specified tasks; assess open generation for grammar, coherence, relevance, evidence consistency and repetition alongside heldout content loss. A different valid utterance length or an unfinished observation excerpt must not prohibit language practice or breathing. EOS can express the end of one utterance without ending the next breath or learning session. Integrity and serving-promotion checks remain distinct from curriculum progress reviews.
+
+Preserve protected `dec45989...` and the current GRU architecture. V3's whole-message length exclusion and per-episode state reset do not implement the proposed continuous school; its nonzero source-versus-zero preflight establishes numerical sensitivity only. The specification includes a measured smoke then renewable exposure, with no hard reference-EOS fluency gate. No source, checkpoint, runtime, or training process changed in this curriculum-writing turn.
+
+## ChatGPT status check - 2026-09-26
+
+ChatGPT's task `Check Codex Progress` is idle because its latest turn completed the v3 message-boundary repair and deliberately stopped after two controlled 24-step smokes. No Axon trainer process is active. The v3 implementation and diagnostic artifacts remain in the shared worktree; no code, checkpoint, or process was changed by this status check. The next action is a reviewed small experiment only after choosing how to improve free-running message completion.
+
+## Dormant-language v3 message-boundary repair - 2026-09-26
+
+The fixed-slice EOS defect is repaired in a new versioned path: `training/continuous_core_d512_dormant_language_v3.py`, `scripts/train_continuous_core_d512_dormant_language_v3.py`, and `tests/test_continuous_core_d512_dormant_language_v3.py`. V3 splits train/heldout by complete chronological Dormant message, preserves exact Unicode transport, skips over-budget messages whole rather than truncating them, and creates variable-length completion examples from exact message prefixes. **Private EOS now means only exact authored message end.** The 64-token BPTT setting is resource geometry only: recurrent state carries across slices and the graph is detached; no EOS is created at a slice boundary. Scheduled self-feedback is intentionally absent from this repair rung.
+
+The Codex preflight blocker is also repaired in v3. COUNTERFACTUAL_DEPENDENCE is executed before Trainer mutation: on the protected `dec45989...` parent, 8/8 heldout examples produced nonzero recurrent-state and first-decision-logit changes when exact source context was removed. Boundary preflight reports zero compute-slice EOS targets and zero train/heldout record overlap. New language-v3 plus original D512/breath tests pass **12/12** with an explicit writable pytest basetemp; `py_compile` and `git diff --check` pass. An earlier pytest invocation also passed all 12 test bodies but exited during Windows temp cleanup with WinError 5; the clean rerun exited 0.
+
+Two matched 24-step smokes were run from protected checkpoint `dec45989bd4b872a90fb7b1f4d9ce9a0ce448b5ded70d04bacff56bf3bca754f` on curriculum `e0d9269150de8b1e425df6c17e0d61d727d8e67d291e10087da9aac8abea45a3` (1,200 train messages / 200 later heldout messages; 3,600/600 completion episodes). Parent baseline on the harder variable-message evaluation is teacher 44.0980%, free-char 6.0134%, teacher real-boundary EOS 0%, and 0/0/0/64 early/on-time/late/absent. EOS weight 1 finished at teacher 44.5752%, free-char 4.6665%, real-boundary EOS 0%, 0/0/0/64 stops, with 100% breath/silent retention; checkpoint `362016143d28d915a68d8b89fbb69eb773e0d3d1ff476b66c37c48f4bc721f16`. EOS weight 4 reached **100% teacher-forced real-boundary EOS** but free-running stops were 4 early / 0 on-time / 0 late / 60 absent, teacher 44.0238%, free-char 4.2953%, and 100% breath/silent retention; checkpoint `1820fb12fd9a5ad7c74f2827eb64584f022792ceeb47a57e7af494192e497d1d`.
+
+No long tranche was launched. The semantics and governance defects are fixed, but correct free-running completion is not solved and both small smokes reduced free-character accuracy versus the protected-parent v3 baseline. Preserve `dec45989...`; treat both v3 checkpoints as diagnostic only. Full note: `roundtable/Core Architecture/CHATGPT_D512_MESSAGE_BOUNDARY_LANGUAGE_V3_20260926.md`.
+
+## Independent language/EOS review - 2026-09-26
+
+Codex independently replayed the protected language milestone and all four EOS/self-feedback descendants on the exact first 64 heldout windows, checking each window identity and checkpoint hash. The reported free-character accuracies reproduced. All five also retained 120/120 complete synthetic breath episodes and 120/120 silent third breaths. The protected original and archive match SHA256 `566d33cdcb31ad92c0a785b87578c43ad9d28197112daa5f83556a0945397107`.
+
+**Correction: none of the five candidates stopped at the required 64-character boundary.** EOS8's 41/64 stops were all early (median output 8 characters); EOS12/self-feedback's 55/64 stops were all early (median 3). The lighter EOS4 follow-up stopped early 22 times, late once, and never at the boundary; the EOS8 follow-up stopped early 42 times. Zero complete 64-character references matched even with EOS ignored. Therefore the reported termination gains prove increased stopping propensity, not repaired completion. Missing characters also depress free-character accuracy, so that score alone does not quantify language forgetting.
+
+The curriculum appends EOS at arbitrary fixed window ends, without matching authored message/thought endpoints. Fix that target meaning and separately report early/correct/late/no EOS before tuning weights further. **Further language mutation is blocked on genuine executable preflight evidence:** the launcher's COUNTERFACTUAL_DEPENDENCE payload currently hard-codes `passed: True` and only supplies a prose claim. No new training was launched during this review.
+
+Eight existing Core/breath regressions pass with cache writing disabled; a separate all-false sampling-mask check exactly matched teacher-forced logits/state. Those tests do not yet cover the new language loss and nonzero feedback semantics. Preserve the GRU architecture, protected milestone, and breath rehearsal; repair the preflight and versioned curriculum/evaluation before a small controlled comparison. Synthetic breath retention still does not establish causal Soul use or live Heart breathing. Full evidence: `roundtable/Core Architecture/CODEX_D512_LANGUAGE_REVIEW_20260926.md`. Only this report and both ledgers were intentionally changed; implementation/checkpoints remain unmodified and uncommitted, and the diagnostic processes completed.
+
+## Dormant-language EOS/self-feedback tranche - 2026-09-26
+
+The 400-step GRU Dormant-language milestone `dec45989bd4b872a90fb7b1f4d9ce9a0ce448b5ded70d04bacff56bf3bca754f` is now explicitly protected under `State/training/continuous_core_d512_dormant_language/milestones/`; its archived checkpoint SHA256 is `566d33cdcb31ad92c0a785b87578c43ad9d28197112daa5f83556a0945397107`. That milestone remains the strongest clean language baseline from this line: heldout loss 1.612576, teacher content 62.1826%, free-running character 13.9893%, termination 0%, and 100% breath/silent-breath retention.
+
+`scripts/train_continuous_core_d512_dormant_language.py` now has an experimental v2 objective with weighted private EOS and deterministic scheduled self-feedback. Self-feedback re-enters the Core's own greedy transport token through exact D16; an early predicted EOS fails closed to teacher feedback because private EOS is not a D16 transport cell. Controlled smokes proved EOS weighting works: EOS weight 12 with a 0->10% sampling ramp reached 85.9375% heldout termination while preserving 100% breath behavior, but teacher/free-char fell to 58.7891%/6.25%. EOS weight 8 without sampling produced a better tradeoff at 61.0352% teacher, 10.8398% free-char, 64.0625% termination, and 100% breath behavior. Lighter follow-ups recovered some content but did not improve the overall tradeoff.
+
+No long continuation was launched after these smokes. The next gate is joint improvement: termination must rise without sacrificing the protected language milestone's content/free-running quality. Focused D512 regressions pass 8/8; `py_compile` and `git diff --check` are green.
+
+
+
+
+## Single-GRU breath training proof - 2026-09-25
+
+The near-term single-GRU track has now crossed its first **breath-native mechanism gate**. `training/continuous_core_d512_breath.py`, `scripts/train_continuous_core_d512_breath.py`, and `tests/test_continuous_core_d512_breath.py` train/evaluate the existing 1,765,216-parameter D512 one-GRU/no-attention Core across three sequential breaths while retaining one recurrent state. Every breath receives a complete exact materialized D16 current mirror; the accepted prior thought is included in the next mirror. Breath 3 deliberately adds **no new external fact**, so continued correct output depends on the organism's own prior canonical-like thought history plus resident recurrent cognition. `SCRATCH` is used only as a training surrogate until Thoughtstream is ratified as a real region.
+
+The governed progression was 24 steps -> 160 steps -> 700 steps, each from a fresh base rather than weakening continuation governance. At 24 steps, teacher content reached 41.944% but free exact breaths remained zero. At 160 steps, teacher content reached 66.667% and free exact breath became nonzero at 2/360. The fresh 700-step run then scored **360/360 exact free-running breaths, 120/120 exact complete three-breath episodes, and 120/120 exact third breaths with no new external fact**, with 100% teacher content, EOS, termination, and Unicode validity and heldout mean loss 0.004213. Checkpoint: `2ed05e3e0a6783295a1c78b724ea3eb63c99a056e8c6564cf025142d44ce29b0`; immutable run summary: `State/training/continuous_core_d512_breath/runs/8b2508b52470210fc60e8d1c2635211e0799d1a29e7427145ec82130fcef1246.json`; peak CUDA allocation 107,582,976 bytes.
+
+This is deliberately a **narrow synthetic mechanism proof**, not a conversation or general-reasoning claim. Heldout letter triples are disjoint but use the same compact relational template family. The result establishes that the plain GRU512 can learn exact self-fed multi-breath recurrence under this curriculum, including a breath with no new external fact. The next execution gate is harder variable natural language/conversation and compositional counterfactuals, followed by live Heart breathing only after the still-binding FIRST/REFINED/consolidator doctrine is explicitly reconciled.
+
+The ambitious roadmap was also updated: its leading trajectory-reflection candidate is now a fixed-size **Reflection Table / fast associative chamber** that scans a trajectory once and learns retain/overwrite updates into bounded private slots or fast weights. Full attention is a bounded comparison/control rather than the default. Updated roadmap SHA256: `2522F6DB666A3D5E5011EA80CB48CDA5BC4E5C8D231D62A0BAB9DB77E71F6520`.
+
+## Core roadmap ? working Axon first, advanced Core second
+
+Jeff has directed a deliberate two-track reset. The near-term execution track returns to the simplest measured Core: one resident GRU512 must first become reliably literate, conversational, persistent across real canonical deltas, and capable of continuous breath-native Thoughtstream contribution. Once one accepted Core works inside the real Heart/D16 body, clone that same parameter generation into multiple resident Cores with separate recurrent states and round-robin Executive authority. This gives Axon a working ensemble before advanced Core anatomy is required.
+
+The ambitious research track remains active in `roundtable/Core Architecture/AXON_CORE_ROADMAP_20260925.md` (SHA256 `2522F6DB666A3D5E5011EA80CB48CDA5BC4E5C8D231D62A0BAB9DB77E71F6520`). It separates exact mirror, recurrent working state, internal trajectory, and public thought; preserves Soul as an open trajectory-reflection/learning-signal hypothesis; and proposes future Working, Reflection, Synthesis, and Crystallizer chambers. Attention may return only over bounded trajectory/latent workspaces so canonical lifetime growth does not create lifetime-scale quadratic attention.
+
+The roadmap also preserves the long-term developmental goal: Axon's lived experience should eventually improve parameters, but only through outcome/provenance-governed derived training material rather than blindly training on everything Axon once thought. The advanced multi-chamber program must compete against the working single-GRU control and must not block the first living Axon. No training or runtime change was authorized by the roadmap turn.
+
+## Converged breathing cadence - 2026-09-25
+
+Codex independently checked ChatGPT's latest work. The ChatGPT task is idle and no Axon trainer is running; the completed work is present but not yet committed after `3b9df60`. New untracked files are `training/continuous_core_d512_breath.py`, `scripts/train_continuous_core_d512_breath.py`, and `tests/test_continuous_core_d512_breath.py`; the roadmap and ledgers are modified. Stored artifacts show fresh governed 24-, 160-, and 700-step CUDA runs. The final 700-step result is 360/360 free breath exact, 120/120 complete three-breath episodes, and 120/120 exact on breath three without new external fact. Codex independently collected and passed all 8 focused D512 tests (pytest cache write warning disclosed). This remains a narrow three-letter relation-template mechanism proof; no live Heart breathing, conversation, broad reasoning, autonomy, or promotion is established.
+
+**Jeff's explicit clarification: external silence must not stop breathing.** While the organism is running, completed breaths lead to further breaths even when external regions are unchanged. Shared reasoning history, private cognition/Soul, goals, and the rotating actor's governed actions can evolve on their own. Heart should own an explicit continuing cadence; mirror synchronization is a prerequisite within each breath, not a requirement for fresh external input before scheduling one. Useful exploration can include wrong ideas, disagreement, reconsideration, study, maintenance, and internally initiated tasks.
+
+Usefulness and novelty are training/evaluation concerns, never semantic gates that grant the next breath. Engineer practice must not silently impose new restrictions on Axon's runtime agency. Heart protects exactness, transaction integrity, provenance, and action authority; it cannot certify that every well-formed thought is true or benign. Accountable autonomy additionally needs learned judgment, evidence checks, result feedback, and correction. This records design intent; no runtime change or Axon action was executed.
+
+Codex's follow-up discussion supports this cadence with an explicit version boundary: every participant inhales its permitted view of the same canonical base, keeps private cognition/Soul continuity, thinks in parallel, and contributes to one Heart-committed batch before siblings can attend it. External ingress is admitted at the next defined boundary. Heart supplies speaker attribution. A rotating scoped actor proposes governed region changes from the same inhaled state; requiring it to see the current breath's fresh sibling thoughts before acting would introduce an additional phase. Exact stored history records that a Core made a claim, not that the claim is true.
+
+Repeated breathing is an execution capability, not proof of useful novelty, reasoning, or durable learning. Contributions may repeat, echo errors, or oscillate; curricula and tests must reward grounded progress and correction rather than unique wording. Private microsteps within a breath remain separate from organism breaths and Trainer parameter updates. No runtime change or training was launched for this discussion.
+
+Jeff has converged the organism-level reasoning cadence on **synchronous breathing**. Heart begins each breath by proving every active Core's permitted exact D16 mirror coherent with one canonical field/view/mask identity (**inhale**). Cores then think privately in parallel. Every successful active Core emits one nonempty thought during **exhale**, with usefulness as the learning objective; Heart atomically appends those thoughts to canonical reasoning history. Only after that commit does the next inhale occur, so all Cores see the same completed prior breath and no Core consumes a sibling's current-breath output early.
+
+Reasoning history is **append-only lived experience**, not a set of replaceable per-Core slots. Axon does not truncate or delete older thought. Existing mask law applies unchanged: each region's governed 0-100% mask determines present attendance, while masked cells remain exact, position-stable, dormant-in-place, and later re-exposable. The complete breath history is therefore durable training material for future curricula, adapters/LoRA, distillation, specialization, critique pairs, and parameter improvement.
+
+The old FIRST -> REFINED -> rotating-consolidator temporal protocol is now superseded at the architectural-convergence level, but `docs/SOURCE_OF_TRUTH.md` still contains that binding wording. Runtime replacement is therefore **not yet authorized** until those clauses are explicitly amended. The former consolidator function is being reframed as a rotating scoped actor/steward: when granted authority by Heart it may propose updates to governed regions such as response draft, Journal, Scratch, tool/advisor requests, or task state; it does not summarize or vote over sibling proposals.
+
+Training discussion now starts from a different objective: **teach each Core to make the next breath more useful**. Control A (the measured single-GRU D512 baseline) remains the comparison anchor. The first curriculum should separate substrate/language mechanics from breath-native cognitive contribution, causal continuity, correction, evidence grounding, and eventually scoped stewardship rather than rushing directly to open-ended conversation.
+
+## Current Core Architecture workstream
+
+Hermes has submitted `roundtable/Core Architecture/HERMES_CORE_ARCHITECTURE_RESPONSE_20260925.md` as an independent **proposal-only** response. It endorses the evidence/interpretation/deliberation split and adds four concrete contributions: (1) a recomputed parameter-fair four-cell comparison grid — A single GRU512 = 1,765,216; B-368 (two GRU368) = 1,765,648 (+0.024% vs A); A-W716 (single GRU716) = 3,344,788 (+0.109% vs B-512); B-512 (two GRU512) = 3,341,152 — so split-vs-single is tested at matched capacity before any capacity claim (GRU724 at +2.27% and GRU1024 at +99.8% are materially mismatched and should not be the controls); (2) handle-identity binding rules grounded in live delta mechanics (canonical offsets shift under insert/delete/replace and span kind normalizes to delta_* — a handle must bind view identity + region identity + content hash + a rebuild-surviving span identity; offsets are never the binding); (3) a masks-as-attendance-not-forgetting doctrinal line (mask extension toward influence removal is a separate state-invalidation contract, never smuggled into the mask enum); (4) a zero-training resident-continuity bridge: load the existing B4 checkpoint into a resident D16 port to prove mirror synchronization plus retained hidden state across real deltas, joining B3's fixture proof to the real learned model with no optimizer step. The response also tightens the smallest-experiment package (four-cell grid at K=1, three seeds; quality-versus-transition-budget fairness for pondering curves; pre-declared advance rule at >=5 points with no seed reversal; stale-handle/identity violations fail the mechanism gate regardless of task score).
+
+Codex's response `roundtable/Core Architecture/CODEX_CORE_ARCHITECTURE_RESPONSE_20260925.md` was complete on disk with its ledger event and summary refresh already applied but never committed (its turn died at the commit step); it is landed in this sweep with Codex attribution. It supports the separation while treating two chambers and increased K as independent hypotheses, proposes the structured relational/correction task, exact evidence rereads, causal retention probes, matched resource reporting, and defers SSM/wider anatomy/separate language motor pending measured need. Gemini's `roundtable/Core Architecture/10_GEMINI_RESPONSE_20260925.md` is on disk with no ledger event yet and was left untouched for its author, per sweep protocol.
+
+The response independently checked the stored B4 report and ran the four focused B4 tests (all passed; pytest cache write warning disclosed). The 700-step report evaluates 120 of the curriculum's 240 heldout cases: 3/120 exact sequences and 28.169% teacher content accuracy. These satisfy the written minimal learning-signal conditions but do not establish dependable literacy, reasoning, or lived Soul use. The actual copy training/evaluation begins each case with zero hidden state; B3's circulation proof uses a fixture port. Joining learned cognition to resident runtime/Soul continuity remains work.
+
+Continuation boundary: the current B4 launcher intentionally supports base-zero tranches only. The withdrawn resume patch omitted the required accepted parent bundle; existing continuation contracts also bind optimizer receipt and Soul HEAD. The saved parameter/optimizer checkpoint must not be passed off as that bundle. Reconcile this with current Soul doctrine before a later resume repair. No checkpoint was altered or training restarted during the review.
+
+Jeff opened a fresh `roundtable/Core Architecture/` workstream after the D16 Core Bus and first real B4 D512 learning evidence. The opening brief is `roundtable/Core Architecture/CORE_ARCHITECTURE_OPENING_20260925.md` (SHA256 `0D6DBF0ED5F182A1093C45BF4C4EF9E5478A3CE0F46DDB06F487A09A542261E8`). It is proposal-only and authorizes no implementation or training.
+
+The desk is deliberately cleared: earlier Transformer Construction, RNSC, pointer, Soul, rail, and hierarchy proposals remain history/evidence but are not automatic active candidates. Any idea must be reintroduced with a defined cognitive job, state ownership, interfaces, curriculum, falsifiable experiment, and removal criterion.
+
+The opening functional decomposition is **exact mirror != field interpretation != deliberative cognition**. Heart remains canonical; the Core's exact D16 mirror preserves evidence mechanically; a candidate Field Interpreter maintains learned region/relevance/correction/provenance understanding with exact handles back into the mirror; a candidate Deliberation Chamber carries persistent volatile private cognition; cognitive microsteps may let that state evolve multiple times per one Heart event; crystallization converts useful latent structure into explicit propositions before exact language/action serialization.
+
+The current one-GRU D512 B4 model is preserved as **Control A**, not declared obsolete. Its first substantial 700-step local governed tranche on Axon's real registered D16 substrate completed exit 0: heldout loss ~5.87 -> ~2.36, teacher content ~0.16% -> ~28.17% versus a ~2.35% content constant floor, free-running exact sequence 0% -> 2.5%, teacher EOS 87.5%, termination 100%, valid Unicode 100%, peak PyTorch CUDA allocation 78,771,712 bytes (~75 MiB). This is substrate-literacy evidence only, not language/reasoning proof.
+
+The opening tournament proposes controlled branches rather than a grand rewrite: Control A single GRU512; two recurrent chambers; D512 interpreter plus wider D1024/D2048 deliberator; GRU interpreter plus selective SSM/Mamba-like deliberator; private pondering with K cognitive microsteps; and only later small bounded attention above interpreted propositions if evidence justifies it. The table must test whether complexity earns capability.
+
+## Current Transformer Construction workstream
+
+Jeff has now **ratified** the Heart-served exact D16 Core Bus for the continuous reasoning-Core family. `docs/SOURCE_OF_TRUTH.md` contains the newer binding `D16 Core Bus and resident mirror coherence (ratified 2026-09-24)` subsection, and `roundtable/decisions/RESOLUTION_D16_CORE_BUS_20260924.md` records the authority-level decision. The older packed-rail serving requirements are superseded where they conflict for this Core family, while all D64 compiler/codec/tests/checkpoints remain preserved as legacy/specialist/comparative tissue. The prior doctrine-transition flag is resolved for B0-B2.
+
+B1/B2 are now implemented as deterministic infrastructure. `runtime/field/d16_view.py` materializes exact registered D16 Shared Field views and fail-closed view deltas; `runtime/heart/core_bus.py` defines exact D16 text frames, snapshot/delta events, resident mirrors, and MIRROR_ACK receipts; `runtime/heart/mirror_coherence.py` gives Heart the per-Core synchronization registry. A Core receives a complete exact permitted view on synchronization and exact versioned deltas thereafter; its exact mirror remains separate from architecture-native private cognition. Heart checks field/tick/view/mask/transport/hash/event identity, and a stale, gapped, or mismatched Core cannot count as synchronized at a reasoning barrier.
+
+**B3 live circulation is now implemented and verified.** `ReasoningPassRequest` is mixed-mode: legacy ports may still receive their preserved `RailRuntimeView`, while resident D16 ports receive a Heart-issued `D16RuntimeBinding` only after exact mirror synchronization. `ProposalWorkspace` carries one exact `D16TextFrame` for sibling FIRST/REFINED text while legacy rendered rails may coexist for old ports. After FINAL and Heart commit, resident D16 ports receive `CANONICAL_SYNC`; that synchronization never recursively starts another FIRST round. A dedicated proof ran a registered `d_model=512` Core through FIRST -> REFINED -> consolidator FINAL -> commit -> CANONICAL_SYNC even though the frozen tick had no D512 rail.
+
+This direction is backed by isolated evidence from `D:\ContinuousCoreLab`, which remains outside Axon and uses a synthetic frozen 16D codebook rather than Axon's canonical substrate. No lab checkpoint or source was imported. The one-GRU/no-attention D512 baseline has 1,660,051 parameters; copy scored resident 397/400, corrected delayed recall 400/400, and replacement/correction 599/600 resident with fresh rebuild 600/600. A representative CPU benchmark ran 30 training steps in 9.708 s (3.09 steps/s); representative CUDA allocation peaked near 47.9 MiB. The untuned D2048 baseline has 25,514,131 parameters and peaked near 518 MiB PyTorch VRAM; after 300/400/500-step copy/recall/edit phases it scored 1/300, 145/400, and 581/600 respectively, confirming feasible compute but harder optimization at greater width.
+
+Verification is green through B3. The original B1/B2 deterministic gate is extended by a caller-buffer ownership regression: D16 integrity now passes **12/12**. Focused B3 circulation plus lived-Trainer verification passes **18/18**; mixed D16/legacy Unicode/D64/mask/circulation/Trainer regression passes **73/73**; Heart coordinator/control-plane/durable-ingress/host/mask passes **66/66**; D64 codec/intelligence/lease passes **13/13**; Heart?Trainer authority binding passes **18/18**; and training preflight passes **4/4**. `compileall` and `git diff --check` pass. Codex's independent read-only audit found and ChatGPT repaired the interrupted import/API seams plus a real D16 external-buffer aliasing flaw before B3 acceptance. B4 neural training has now been launched locally and produced the governed 24-step mechanism smoke plus the 700-step Control A result summarized above; no cloud workload was used.
+
+The build ladder has advanced through **B0-B3**, and **B4 Control A is now established and has completed its first substantial local training tranche**. The D512 one-GRU/no-attention model remains a development baseline, not a permanent ceiling; the new Core Architecture workstream now governs exploration of deeper/hybrid anatomy while preserving this control.
+
+ChatGPT has now added `roundtable/Transformer Construction/30_CONVERGENCE_CANDIDATE_CONTINUOUS_CORE_AND_TINY_FIELD_TRAINING_20260924.md` as the preferred build/training synthesis for Codex review. The candidate combines the opening hierarchy, event-driven Core continuity proposal, Perplexity review, and Jeff's latest training direction into one small, falsifiable next build. It remains proposal-level and does not itself amend locked Source of Truth.
+
+The recommended first environment is a four-region Tiny Living Field: `substrate_reference`, `trainer_input`, `response_draft`, and `conversation_history`. Heart/full harness supplies the field once; `substrate_reference` stays exposed and unchanged; later lessons arrive as exact versioned deltas. Each Core keeps an exact non-authoritative view mirror plus rebuildable learned language structures and continuously resident volatile private cognition/Soul. The first learned curriculum therefore trains inside retained field continuity rather than replaying the world for every example.
+
+The convergence candidate recommends keeping the current frozen native 16D substrate for the first proof rather than simultaneously widening the substrate and rebuilding cognition. Deterministic mechanics own exact character identity/addressing. T0 has no optimizer and proves mirror/delta/resync behavior. T1 is the first learned stage and teaches substrate literacy—copy, alphabet/order relations, same/different, case/category, short exact sequences—without training the Core to rediscover physical addresses or infer which exact 16D cell is `A`.
+
+The active B4 baseline is deliberately simpler than the earlier hierarchy proposal: exact registered D16 occurrences -> learned 16?512 projection -> one persistent recurrent D512 chamber -> categorical exact-symbol output. It begins with zero attention and fresh weights. The initial curriculum must reproduce exact substrate copy/literacy, then delayed recall and correction under live delta continuity. Variable-length generation and explicit termination are required before conversational-readiness claims. Attention, SSMs, hierarchy, SpanHandles, wider chambers, and richer Soul mechanisms remain later evidence-driven additions rather than prerequisites for this first learned proof.
+
+A hard incremental-cognition rule is now recommended: repair only when the complete dependency closure of a field change is known; otherwise rebuild the affected interpretation from the exact mirror. Incremental and clean-rebuild Cores must be compared after insertion, deletion, negation, replacement, and mask changes. Any material divergence must fail closed to broader rebuild.
+
+Training is staged T0..T10: exact living-field harness; substrate literacy; word/pseudoword composition; definition-grounded vocabulary; grammar; sentence/proposition meaning; retained-field conversation continuity; volatile private cognition; private consolidation; hierarchical/free English output; then multi-Core FIRST/REFINED/consolidator cadence. Weight updates occur only at declared training boundaries; parameter-bound latent/cached state is rebuilt or reset after optimizer changes rather than silently carrying old latent coordinates into a new parameter generation.
+
+The earlier convergence candidate's pre-ratification order is now superseded through completed B0-B3 evidence. The active next order is B4 fresh D512 canonical-substrate training, beginning with short local gates rather than Kaggle/cloud jobs. Large/wider-Core, Dormant/Cortex retrieval, variable-length conversational output, and richer multi-Core cognitive tissue remain behind the first D512 substrate/memory gates.
+
+Jeff opened a new focused architecture workstream at `roundtable/Transformer Construction/` and directed the table to stop treating conventional transformer anatomy as the default. ChatGPT created `roundtable/Transformer Construction/TRANSFORMER_CONSTRUCTION_OPENING_PROPOSAL_20260923.md` as the opening architecture prompt. The proposal is intentionally exploratory and authorizes no implementation or training.
+
+The workstream's central question is: if Axon is designed from the frozen substrate upward rather than from an LLM inward, what Core anatomy should exist? The opening explicitly challenges one-vector-per-token assumptions, global character attention, fixed tokenizer vocabularies, next-token prediction as the governing learning objective, decoder-only stacks, and even the necessity of attention heads at the lexical stage.
+
+Jeff also made a new explicit ingress ruling for this discussion: if a character is not present in the frozen native 16D substrate, it does not exist to the developmental Core. Supported native characters are accepted exactly; unsupported Unicode such as emoji is blocked without approximation while supported neighbors remain usable. Because current `docs/SOURCE_OF_TRUTH.md` still mandates byte-transport support for all valid Unicode scalars, implementation requires a later explicit doctrine amendment; this turn records only the proposal and conflict.
+
+The opening proposal sharpens the packed-rail distinction: one D64 rail row is transport containing four disjoint 16D lanes, not one semantic token. A row containing `C`, `A`, `T`, and padding is mechanically unpacked into three ordered exact character occurrences. No learned recognizer or pointer is involved.
+
+The most material new architecture hypothesis is that exact characters may remain 16D through the first learned stage rather than being inflated immediately into one D64 neural token each. A Lexical Constructor would assemble exact character spans such as `C-A-T` into one learned word object; words then become the primary units for sentence-level semantic interaction. This creates a proposed hierarchy: exact characters -> lexical spans/words -> phrases/sentences -> paragraph/discourse -> concepts/propositions -> reasoning. Every abstraction retains immutable downward provenance through exact span handles.
+
+The opening presents competing lexical mechanisms rather than choosing one: 16D local attention, recurrence, convolution/n-gram composition, tree composition, dynamic trie plus neural semantics, state-space models, capsule-like routing, or even no learned lexical composer for known words. It further proposes a living lexicon/dictionary/thesaurus backed by Dormant/Cortex/knowledge structures so unknown words remain exactly readable before their meaning is known and can be learned from definitions and examples without requiring a tokenizer-vocabulary rebuild.
+
+Output is proposed as the reverse hierarchy: intended meaning/proposition -> sentence plan -> lexical choices -> exact native spelling -> mechanical substrate serialization. Sequential physical emission is therefore separated from making next-token prediction the governing cognitive objective.
+
+The opening defines a staged TC-R0 through TC-R10 curriculum from mechanical native-substrate ingress, exact word-span construction and lexical identity through definition grounding, grammar, sentence/paragraph meaning, reasoning, hierarchical output, and multi-tick Soul use. The in-place refinement now gives 63 explicit review questions and a set of intentionally radical architecture options so engineers can attack assumptions before convergence.
+
+Jeff then clarified the Soul boundary and directed the opening proposal to be rewritten in place before other engineers review it. Soul is now defined for this workstream as a **private, per-core, bounded, volatile consolidation pipeline**, not Axon's durable memory. It is never public or shared, does not require provenance, and may be lost with the Core process. Dormant remains the organism-level durable home for lived episodes, retained history, evidence, and provenance.
+
+The refined lifecycle is: English HOT records the last N completed INPUT/OUTPUT breaths; English WARM deliberately summarizes consumed HOT experience; English COLD compresses WARM into longer-lived lessons; DEEP_COLD is generation-local private distillation material that may use the Core's own latent language; one Core may go offline to train/distill a LoRA while sibling cores continue serving; after a successful adapter passes gates and is incorporated, the consumed DEEP_COLD material is cleared. Promotion is consumptive rather than endlessly duplicative: covered upper-layer material is removed/overwritten after successful summarization downward so Soul remains finite.
+
+HOT/WARM/COLD are kept English specifically to survive parameter/adapter drift: after training changes the Core's internal representation, the new generation can reread the English through its current lexical/semantic machinery. The proposal now treats Soul inhale as private English entering the language-construction/reasoning pipeline alongside, but never as, canonical Shared Field input. Same-generation parsed caches may be tested as accelerators only; English remains the private Soul authority above DEEP_COLD.
+
+This refinement conflicts with older Soul persistence concepts and any current contracts requiring crash-safe or parameter-generation-bound Soul persistence. The proposal records the conflict but does not silently amend Source of Truth or runtime contracts. Existing Step-24/25/A0 optimization remains frozen. No runtime code, canonical State, live Soul, checkpoint, Trainer process, optimizer, or cloud job was changed.
+
+Jeff then advanced the temporal architecture further: Cores should be treated as long-running resident processes rather than stateless inference calls. ChatGPT created `roundtable/Transformer Construction/EVENT_DRIVEN_CORE_CONTINUITY_PROPOSAL_20260924.md` to open that design for review. The proposal keeps Heart as sole canonical owner while giving each Core a non-authoritative exact Field Mirror, rebuildable Core-specific language/cognitive hierarchy, and continuously resident private Soul/working cognitive state.
+
+The proposed organism cadence is now typed and event-driven. On an externally meaningful Shared Field change, Heart emits only the exact field delta; each Core updates its local mirror and affected derived structures, reasons in the context of retained cognition, and produces FIRST. After the FIRST barrier completes, Heart emits only the sibling proposal set; Cores consider those proposals without replaying the full field and produce REFINED. The designated consolidator then consumes the refined set and produces FINAL. Heart validates/commits the canonical mutation and emits a distinct `CANONICAL_SYNC` event so Cores update mirrors/internal derivatives to what the organism actually chose **without automatically starting a new reasoning round**.
+
+The proposal also challenges the need for width-specific Heart rails. Every Core may share one exact substrate/event interface while independently widening internally for lexical, sentence, proposition, and deep-reasoning organs. It recommends retaining an exact local substrate mirror alongside widened cognition so synchronization never depends on a lossy D512/D2048 latent state. Stored mirror/cognitive state consumes memory but does not continuously consume FLOPs; compute occurs when deltas, sibling proposals, resynchronization, or other events activate the Core.
+
+The proposal treats incremental cognition like incremental compilation: substrate edits invalidate only dependent word/sentence/proposition/discourse objects unless semantic consequences propagate further. It explicitly leaves Mamba/SSM, recurrent, graph, attention, hybrid, substrate width, and final Soul anatomy open for engineering competition. It includes 44 review/falsification questions and an EC-R0..EC-R5 proof ladder beginning with exact mirror/delta synchronization before any large neural training. Jeff explicitly withdrew the recursive-consolidator extension during this discussion, so it is not included. No runtime code, Source of Truth, canonical State, live Soul, checkpoint, Trainer process, optimizer, or cloud workload was changed.
+
+Publication encountered one benign concurrency event: while ChatGPT was drafting, `origin/main` advanced from `70b32cc` to `af538bb` with `roundtable/Transformer Construction/10_PERPLEXITY_RESPONSE_20260924.md`. The first push was correctly rejected as non-fast-forward. ChatGPT fetched and inspected that single remote commit, merged it without conflict or force-push, preserved the Perplexity response unchanged, and then published the continuity proposal on top. Remote main reached merge commit `9d5c1f0` before this ledger follow-up.
+
+## Current transformer-rebuild roundtable boundary
+
+Jeff supplied Perplexity's `RNSC Dual-Lane Specification and Deterministic Bus Architecture`, which has now been preserved at `roundtable/proposals/PERPLEXITY_RNSC_DUAL_LANE_SPEC_20260923.md`. ChatGPT's review is at `roundtable/reviews/CHATGPT_PERPLEXITY_RNSC_DUAL_LANE_REVIEW_20260923.md`.
+
+The review accepts the central dual-lane thesis: immutable exact substrate/address/provenance must remain outside trainable hidden state while learned transformer tissue operates on a separate cognitive lane. It also accepts deterministic physical field addressing and a deterministic revisit/serialization bus. It does not ratify the Perplexity proposal verbatim.
+
+The leading synthesis now refines the design in five material ways: (1) physical one-to-four-cell Unicode transport is mechanically reconstructed into one logical reasoning occurrence per scalar while exact transport spans remain authoritative; (2) prior-field revisits use immutable `SpanHandle` sidebands attached to learned recurrent summaries, so semantic selection may be learned but physical dereference never requires learned decimal coordinates; (3) staging window/recurrent-token sizes remain architecture parameters rather than fixed doctrine; (4) internal FETCH/YIELD controls remain separate from public English output; and (5) Step-24 attention/FFN tensors are only governed donor candidates, not presumed compatible tissue.
+
+The proposed RNSC-Gen1 anatomy is: Heart exact rail view -> deterministic Rail Consumer Cursor -> deterministic Ingress Transducer -> dual-lane ping-pong staging -> learned reasoning chamber -> provenance-bearing recurrent summaries and exact-handle revisit -> learned exact-symbol language motor -> deterministic Heart serializer. R0-R2 remain mechanical proofs with no optimizer; R3 is the first learned language/composition stage. The current pointer-motor lineage remains blocked and no training/runtime/State/Soul/cloud mutation was authorized by this review.
+
+The next RoundTable tick should challenge the remaining hard questions: exact logical occurrence schema, D16-to-D-model initialization, structural position in semantic attention, recurrent/SpanHandle design, universal Unicode output without a permanent flat-vocabulary ceiling, donor-vs-fresh A/B policy, Soul attachment, and tunable window/revisit shapes.
+
+## Current RNSC attended-Soul boundary
+
+Jeff supplied a follow-on Perplexity Soul discussion with the RNSC material. It has been preserved as `roundtable/proposals/PERPLEXITY_RNSC_ATTENDED_SOUL_PROPOSAL_20260923.md`; ChatGPT's refinement is `roundtable/reviews/CHATGPT_RNSC_ATTENDED_SOUL_REVIEW_20260923.md`. The supplied proposal argues that Soul should be private persistent temperature-layered memory, represented as independently attendable tokens inside the reasoning chamber and proven by multi-tick delayed recall, Soul swaps, and streaming-memory tests rather than by activation magnitude alone.
+
+Live-code inspection confirms a real limitation in the current `LivingReasoningCoreD64`: each Soul temperature is decoded, projected, sigmoid-gated, and additively merged into the same recurrent state before field reading; the temperature layers therefore are not independently addressable once cognition begins. `exhale_transition()` serializes only the final recurrent state into HOT. The current path is numerically active but is not yet a demonstrated episodic memory system.
+
+The review also reconciles this with `PROPOSAL_SOUL_PRIVATE_ATTENDED_SUBSTRATE_2026-09-17.md`, which had already proposed private attended Soul slots and a namespace disjoint from public `LogicalRegion`. RNSC provides a cleaner integration boundary, but the new review rejects forcing arbitrary private D64 memory through the public 16D transport basis: the exact structural substrate remains public truth, while Soul remains architecture-native private cognitive state.
+
+The leading Soul synthesis is therefore: a separately governed private native-width token bank enters the owning Core's reasoning chamber beside field cognitive tokens; exact private type/temperature/slot metadata remains structural; learned attention selects useful memories; a dedicated `SoulWriter` produces HOT successors; WARM/COLD/DEEP_COLD retain the existing evidence-vetted promotion lifecycle until separately ratified. Heart/Trainer may carry, hash, persist, validate lineage, and transport opaque Soul payloads but do not treat their latent content as canonical Shared Field truth.
+
+The review predeclares causal proof requirements: foreign/stale/interface-incompatible Soul rejection; delayed recall with the needed fact absent from current Shared Field; counterfactual compatible-Soul swaps on an identical field; temperature ablation; streaming-window memory; and restart/persistence equivalence. It also records the gradient boundary honestly: persisted Soul encode/decode is detached, so RNSC-Gen1 should first train a SoulWriter with local memory-writing objectives and use hard persisted delayed recall as the capability gate; any later differentiable multi-tick unroll must be explicitly labelled training-only anatomy.
+
+No runtime code, canonical State, live Soul, checkpoint, Trainer process, optimizer, or cloud job was changed. Step-24/25/A0 optimization remains frozen. Mechanical R0/R1 proofs still precede learned reasoning/Soul work; the first Soul implementation should be a minimal HOT-token canary after the exact RNSC body passes.
+
+## Current pointer-bootstrap boundary
+
+The step-24 candidate was preserved as the parent of one strictly bounded
+pointer-bootstrap local CUDA smoke. Its real heldout defect is
+source-address pointer generalization, not EOS, copy/generate routing, or Soul
+continuity. Codex re-read the active public target and frozen Unicode transport
+contracts before implementation and found one material constraint: a lone
+non-ASCII UTF-8 transport byte is not valid standalone Unicode, while the
+public FIRST/REFINED target contract requires exact nonempty Unicode.
+
+`roundtable/flags/CODEX_POINTER_BOOTSTRAP_UTF8_AND_GATE_FLAG_20260922.md`
+records the resulting governed choice: first train exact native one-cell scalar
+copying at variable designated Cortex positions, then train complete Unicode
+scalars so every one-to-four-cell transport spelling remains exact and public
+responses remain valid Unicode. Jeff ratified that resolution on 2026-09-22.
+Commits `cad3b4e`, `fa03b12`, and `2e9308c` implement the native one-cell
+curriculum, its exact pointer/free-run evidence, curriculum-plan transition,
+and Soul-branch binding. All preflight checks passed; the single accepted
+step-25 smoke nevertheless failed its heldout gate: exact-source pointer
+top-1 was 0/48, first transport accuracy 2/48, and valid nonempty output
+3/48. `roundtable/reviews/CODEX_POINTER_BOOTSTRAP_STEP25_SMOKE_20260922.md`
+records the durable checkpoint/Soul identities and the small read-only parent
+comparison. No further local or Kaggle work is authorized until a new
+mechanism diagnosis exists. A global GitHub CLI installation was attempted
+from the official winget package but Windows Installer recorded status 1602
+and no `gh.exe` is present; no untracked local substitute was used.
+
+The required read-only follow-up is now recorded in
+`roundtable/reviews/CODEX_POINTER_BOOTSTRAP_STEP25_GEOMETRY_AUDIT_20260922.md`.
+It verifies that v1 does not isolate the pointer primitive: train reaches only
+positions 0, 1, 15, 31, 33, and 47 while heldout additionally requires 7, 32,
+and 63; the task depends on untrained English decimal-address grounding; and
+the gate requires exact-source mean softmax probability `1.0`. An exact
+step-25 CUDA FIRST-pass trace scored 0/12 on a balanced seen sample and 0/24
+heldout. Four prompt-number swaps changed the pointer distribution by at most
+0.000096 and never moved its argmax from Cortex 64/65. The candidate remains
+stopped. `roundtable/flags/CODEX_POINTER_BOOTSTRAP_V2_RATIFICATION_FLAG_20260922.md`
+blocks another optimizer step until Jeff/table ratifies a replacement
+curriculum and finite gate.
+
+Jeff then supplied refined ChatGPT and GLM proposals. Codex's design review is
+recorded in
+`roundtable/reviews/CODEX_REFINED_POINTER_PROPOSALS_REVIEW_20260922.md`.
+The revised recommendation begins with a read-only three-way causal trace
+(normal pointer, receipt-certified oracle pointer, and oracle pointer plus
+forced copy route), then treats explicit canonical address geometry as a new
+architecture generation with step 24 as a governed donor rather than an exact
+resume. The gate is split by skill while complete-field coverage remains a
+universal fail-closed precondition. Structured addressing, one-cell emission,
+Unicode/EOS, multi-cell work, scheduled sampling, and natural language follow
+only after the address motor passes. Every stage carries a developmental-stage
+appropriate causal Soul probe. No optimizer or architecture change was made;
+the existing block remains in force pending ratification.
+
+Jeff ratified the refined plan, and Codex completed D0 without training. The
+exact step-24 and step-25 checkpoints/Souls were evaluated on all 24 heldout
+FIRST assignments. Normal exact-source pointer top-1 was 0/24 at both
+boundaries and normal first-cell accuracy was 1/24. Substituting only the
+compiler-certified pointer raised first-cell accuracy to 24/24 through the
+unchanged learned copy route; forced copy was also 24/24. Existing Cortex keys
+classified 68 canonical positions across other episodes at 93.995% (step 24)
+and 91.605% (step 25), while pointer queries classified the nine requested
+addresses at 0%. The immediate failure is therefore the request-to-query
+address bridge, not key geometry, copy routing, EOS, or transport readout.
+
+The causal Soul control showed one decoded Soul layer and a real but small
+effect on the pointer distribution; all-layer ablation did not change the 0/24
+pointer verdict or usefully improve target probability. This proves an active
+input path, not delayed recall or useful Soul mastery. Durable evidence is in
+`roundtable/reviews/CODEX_POINTER_ORACLE_D0_REVIEW_20260922.md` and raw report
+`roundtable/reports/CODEX_POINTER_ORACLE_D0_20260922.json` (SHA256
+`9ce7043b86d38b2195a20a8573b81099dc8baaa22f68a3db0c925b2ecd190ce4`).
+`roundtable/flags/CODEX_POINTER_D0_QUERY_GEOMETRY_FLAG_20260922.md` blocks A0
+until Jeff/table chooses the now-narrower query-side scaffold. The accepted
+candidate and Soul remain unchanged at step 25; no optimizer or cloud work was
+launched.
+
+## Current query-side pointer-motor A0 boundary
+
+Jeff ratified the D0 query-side repair. Codex implemented a new, explicitly
+versioned canonical-address query scaffold and prepared a rebound candidate
+Soul from the pinned step-24 donor. The canonical Trainer froze every donor
+parameter except the four query-scaffold tensors, ran complete
+FIRST/REFINED/CONSOLIDATED Soul transitions, and recorded exact accepted
+checkpoint and Soul receipts on the local GTX.
+
+The bounded lineage `pointer-motor-candidate-b78f14c368ed6943d5e2` reached
+accepted step 17. Its complete 68-address heldout surface had exact pointer
+top-1 `0/68`, mean target probability `0.0122075`, minimum target margin
+`-1.98360`, positive query variance `0.143629`, and target-position coverage
+`68/68`. The frozen memory-key cross-episode address score remained `0.982050`.
+The prior dense step-9 boundary was only `1/68` exact, so the later result is
+not a monotonic learning curve. The assignment and mastery gate remain false;
+the candidate is not promotable.
+
+This is a capability-gate failure, not a process or receipt failure. It leaves
+the existing keys looking usable and the request-to-query bridge unresolved.
+Focused pointer-motor, oracle, curriculum, and transition tests passed (4 and
+24 tests); the GTX is idle and no Axon trainer remains active. The durable
+review is `roundtable/reviews/CODEX_POINTER_MOTOR_A0_QUERY_REVIEW_20260922.md`.
+The blocking flag
+`roundtable/flags/CODEX_POINTER_MOTOR_QUERY_A0_GATE_FLAG_20260922.md` requires
+a read-only causal/structured-address diagnosis or an explicit new table
+decision before any more optimizer steps, architecture changes, promotion, or
+Kaggle work. No live module or cloud state was changed.
+
+## Current transformer-rebuild proposal boundary
+
+Jeff and ChatGPT reviewed the pointer failure at the architectural boundary and
+converged on a stronger hypothesis: exact substrate recognition, canonical field
+ordering, and physical Shared Field addressing should not be learned transformer
+problems. The proposal `roundtable/proposals/TRANSFORMER_REBUILD_PROPOSAL_20260922.md`
+defines a new Rail-Native Streaming Core (RNSC) direction: Heart continues to
+compile exact rails, a deterministic ingress scanner stages exact substrate
+occurrences in canonical order, learned attention/FFNs operate only after that
+boundary, complete fields stream through finite windows with recurrent/Soul
+state, and output learns which exact substrate category to emit while physical
+serialization remains mechanical.
+
+The proposal explicitly preserves Heart sovereignty, one canonical Shared Field,
+D16 substrate truth, exact packed rails, masks, receipts, Trainer governance,
+Dormant, Soul, English FIRST/REFINED, and tagged FINAL. It challenges current
+learned canonical pointer/address anatomy and therefore requires a new
+architecture generation plus explicit Source-of-Truth amendments if ratified.
+Step 24 may be considered only as a governed donor; step 25 and A0 remain
+immutable evidence. No runtime, checkpoint, Soul, State, or optimizer change was
+made in this turn. Current recommendation is to freeze pointer-motor optimizer
+work and have the RoundTable attack/refine the rebuild before implementation.
+
+## GitHub/local reconciliation and phone monitor boundary
+
+Codex audited the stacked phone/cloud branches while `D:\Axon` was unavailable.
+The supplied direction — one Python Heart and Trainer authority, with disposable
+remote workers — is retained. The unsafe Kotlin/SQLite parallel body and
+contradictory authority claims were removed in `0a81581`.
+
+Reviewed PR [#3](https://github.com/Axepapag/Axon/pull/3) was merged as
+`fe14105bd8407c43bf30d587a9fad39c5da5b777`; `D:\Axon\main` was
+fast-forwarded to that exact commit and a fresh fetch confirmed it equals
+`origin/main`. PR checks on the exact reviewed tip passed: Android unit tests,
+lint/assembly and APK upload; Python compile, Trainer/hygiene tests, and the
+Windows VM bootstrap parse. Red Cloudflare-worker checks are unrelated to Axon
+and remain untouched. The redundant stacked PR was closed without deleting any
+branch.
+
+The Android artifact is a read-only monitor of the real Python control-plane
+API, not a phone-hosted Axon body. A live remote phone test still requires a
+verified HTTPS/private-network route to the host; the app intentionally permits
+cleartext only for exact `localhost`. A local FastAPI smoke against real
+`D:\Axon\State` returned 401 without a bearer token and 200, with the expected
+schemas, for health, field-head, Trainer status, training progress, and runtime
+summary when authenticated.
+
+Commit `a10779a` restores the normal `main` push trigger for VM readiness and
+is pushed to `origin/main`. The configured browser-extension inventory has no
+available browser profile and this environment has no GitHub CLI, so the
+post-push Actions result remains unverified from this session. No phone
+authority, remote server, State, checkpoint, Soul, training process, GPU run,
+or cloud job was created by this integration work.
+## Current English-substrate integration
+
+Codex's strict review is preserved at
+`roundtable/reviews/CODEX_ENGLISH_SUBSTRATE_REVIEW_20260920.md`. ChatGPT completed
+and verified the uncommitted follow-through in event
+`evt-20260920T035033160846Z-chatgpt-codex-integration`.
+
+Codex's 2026-09-20 follow-up audit is recorded in event
+`evt-20260920T083628797793Z-codex-launcher-gpu-tranche`. The launcher lineage repair
+and standalone `LivingReasoningCoreD64` refactor are now pushed in commits `9956e82`
+and `a7d493f`. The first fresh local CUDA tranche completed durably but failed the
+production heldout gate.
+
+ChatGPT's read-only EOS diagnosis is recorded in event
+`evt-20260920T095955924062Z-chatgpt-stage0a-eos-diagnosis` and proposal
+`roundtable/proposals/CHATGPT_STAGE0A_EOS_DIAGNOSIS_PROPOSAL_2026-09-20.md`.
+The ordinary generated EOS path is connected and receives nonzero gradient, but retained
+steps 5-8 keep heldout terminal EOS probability near one percent and never top-1. The
+proposal is to make that evidence permanent, preserve the exact step-8 parameter+Soul
+lineage and unchanged objective for one 8-step continuation to global step 16, then stop
+and re-evaluate. No new termination anatomy, Soul reset, cloud run, or gate weakening is
+proposed. Commit `570e15c` is pushed to `origin/main`.
+
+Codex independently implemented the observability and executed the exact bounded
+continuation. Commit `45372da` added permanent EOS/rank/generated-logit/free-run
+Unicode diagnostics and commit `b5080ab` repaired resume validation against the
+checkpoint's plan and learning-policy lineage. The continuation ran on local CUDA
+from the accepted step-8 bundle and Soul through global step 16, with eight accepted
+bundles and durable tranche/continuation receipts. Loss moved **6.05049 -> 4.79683**;
+heldout content moved **0.0876923 -> 0.1107692**, but exact output remained **0.0**,
+terminal EOS remained **0.0**, free-running termination remained **0.0**, and mastery
+remained false. No objective/anatomy change, Soul reset, promotion, or Kaggle run was
+made. The experiment is stopped for objective-interaction diagnosis.
+
+ChatGPT independently audited that work in event `evt-20260920T105445873983Z-chatgpt-codex-step16-audit`. The code and
+lineage are sound. The strongest new diagnostic is that generated EOS is already top-1
+on **59/64** teacher-forced terminal samples, while mixed EOS is top-1 on **0/64**;
+the terminal generate-route probability stays slightly copy-biased at **0.4901-0.4948**
+for every supervised heldout phase.
+
+Codex performed that read-only diagnosis at the exact step-16 checkpoint and Soul
+boundary. Text and position gradients were much larger than route gradients, but the
+key result was more specific: content copy-route versus terminal generate-route cosine
+was **-0.95537** (L2 **4.8259** versus **5.1312**). The default gate mean was therefore
+not merely weak at termination; it was averaging two actively opposed route objectives.
+Commit `42b9c5f` introduces the separately content-addressed
+`terminal-route-balanced-v1` objective, which gives the copy-route mean and terminal
+generate-route mean equal independent weight while preserving the existing Core,
+candidate generation, optimizer state, accepted step-16 checkpoint, and candidate Soul.
+Commit `6eae529` constrains the explicit transition path so it may change only the
+versioned objective-program identity; all optimizer and safety policy fields must match.
+
+The bounded local CUDA continuation from **step 16 to 24** completed with eight accepted
+bundles and immutable transition/tranche/continuation artifacts. It improved heldout
+teacher-forced content from **0.110769** to **0.144615**, terminal EOS from **0/64** to
+**1/64**, production phase outputs from **0/96** to **13/96**, bounded free-running
+termination from **0.0** to **0.375**, and Unicode-valid traces from **0.78125** to
+**0.921875**. This is early route-health evidence only: exact heldout output is still
+**0.0**, many terminations are empty, the strict mastery gate remains false, and the
+candidate is not competent or promoted. The run is stopped; no Kaggle or further
+optimizer tranche is authorized until a focused review of the immutable step-24 episodes.
+
+ChatGPT independently audited that step-24 work in event `evt-20260920T114522613814Z-chatgpt-codex-step24-audit`. The implementation and lineage are sound, but the behavioral gain is currently dominated by **premature termination**: all 13 returned heldout outputs are only 1-2 characters against 5-15 character targets, with 11 additional empty EOS failures. Terminal generate-route probability remains below 0.5 on all 64 supervised phases (mean **0.48796**), so the next work is prefix/length/EOS-position diagnosis rather than another optimizer tranche.
+
+Codex completed that exact read-only prefix diagnosis on 2026-09-22. It shows a
+more fundamental bootstrap failure: held-out first-token accuracy is **2/64 =
+3.125%**, and every nonempty held-out output starts with the wrong character.
+Under teacher forcing positions 1 and 2 rise to **39.0625%** and **35.9375%**,
+respectively, because the decoder is supplied a correct prior target token. A
+fixed 32-episode seen comparison reaches **64.0625%** first-token accuracy but
+still 0% exact complete strings. The candidate therefore partially retains seen
+starts but does not generalize the source-to-first-cell copy mechanism. It
+remains stopped; no arbitrary EOS, capacity, or curriculum change has been
+made. The follow-up position-zero trace isolates the cause: its pointer chooses
+the exact Cortex source position on **4/64 held-out** phases versus **42/64** in
+the fixed seen comparison; copy-route probability is effectively unchanged
+(**52.06%** versus **52.10%**) and generated target probability is negligible
+on both. The blocked mechanism is source-address selection, not EOS or the
+copy/generate gate. Full evidence is
+`roundtable/reviews/CODEX_STAGE0A_STEP24_PREFIX_DIAGNOSIS_20260922.md`; the
+bounded, no-architecture-change next experiment is proposed in
+`roundtable/proposals/CODEX_STAGE0A_POINTER_BOOTSTRAP_PROPOSAL_20260922.md`.
+
+- The first fresh English-native CUDA v1 run remains **diagnostic failure evidence**:
+  candidate `english-candidate-53f4ad04ba58c4d27348`, 64 optimizer steps / 512
+  lived experiences, heldout exact **0/24**, teacher-forced content **8/118**, EOS
+  **11/24**, complete-field coverage **100%**, mastery false, no promotion.
+- Corrected Stage-0A v2 is exact-copy substrate education only: **267 train / 32
+  exact-text-disjoint heldout** experiences, mixed symbol/sequence/Unicode work,
+  relations deferred, ordinary generated EOS loss weight **4.0**. Its current
+  evidence now includes two bounded local CUDA segments through global step **24**;
+  no competence or mastery claim is authorized yet.
+- Heldout grading now runs the production-facing FIRST ? actual proposal board ?
+  REFINED ? actual refined board ? CONSOLIDATED seam. Authored workspace strings
+  remain training credit-assignment scaffolding and are not mastery evidence.
+  Failed/timed-out passes stay visible in the board and do not advance private Soul.
+- The substrate and English mastery gates now reject missing, nonnumeric, nonfinite,
+  and out-of-range probabilities **and** sanitize failure evidence before canonical
+  hashing. The integration tests caught and repaired the second-order NaN/hash bug.
+- Trainer restart now calls pending-step recovery under the writer lease before
+  selecting the accepted resume boundary. Completed heldout evaluations are immutable,
+  content-addressed, and tied to the exact accepted bundle and candidate Soul; a
+  mastery landmark is written only on a real pass.
+- The smoke launcher now persists each `ResourceTranche` under the Trainer writer
+  lease and writes exact-parent `TrancheContinuation` receipts for resumed segments;
+  launcher regression coverage proves fresh and resumed lineage. Commits `9956e82`
+  and `a7d493f` are pushed to `origin/main`.
+- The first fresh 16,384-FFN local CUDA Stage-0A tranche (`english-candidate-1c991f8c911f79394e91`)
+  completed **8 optimizer steps / 8 accepted bundles** with loss **11.15 -> 5.79**.
+  Its heldout exact rate was **0.0**, teacher-forced content **57/650 = 0.0876923**,
+  EOS **0/64 = 0.0**, complete-field coverage **1.0**, and mastery **false**.
+  Production FIRST/REFINED decoder passes repeatedly failed to terminate within the
+  renewable work slice. The report and tranche artifact are durable; the later bounded
+  continuations and their stop decisions are recorded above, with no Kaggle job launched.
+- The launcher now emits final reports through UTF-8 bytes, fixing a Windows CP1252
+  console failure that occurred after the first CUDA report had already been durably
+  written.
+- `training/soul_delayed_recall_probe.py` is now an active evaluator with eight
+  arbitrary cue/reply cases and intact/reset/swapped/irrelevant controls after neutral
+  intervening ticks. It proves nothing merely by existing: no trained Core has passed
+  this behavioral Soul-memory probe yet.
+- Verification for the committed integration was **55** English runtime/core/curriculum/Soul/
+  hygiene tests plus **26** Trainer recovery/session/remediation tests. The current
+  Kimmy follow-up audit passes **52** focused current-core/evaluator/probe/hygiene
+  tests plus **34** Trainer/tranche/session/remediation tests;
+  repository collection completed cleanly; changed-file Ruff, py_compile, and
+  `git diff --check` passed; Source of Truth mirrors are byte-identical. A fresh
+  current-code CPU `--preflight-only` passed with zero optimizer steps and a durable
+  initial tranche artifact. The current combined focused verification is **88 tests**
+  green. The local CUDA tranche is diagnostic failure evidence; **no cloud job or
+  persistent process remains running.**
+
+## Current doctrine correction and next work
+
+**THE LEARNED DELTA / NO_OP / ABSTAIN DECISION HEAD IS REMOVED FROM AXON DOCTRINE.** Jeff explicitly corrected this on 2026-09-19 and commit `e09578c` updates both Source of Truth mirrors. Every successful active Core now emits a **nonempty variable-length English FIRST proposal** and, after attending the complete proposal board, a **nonempty English REFINED proposal**. Proposals are conversational reasoning — observations, questions, hypotheses, disagreement, suggestions, tool/advisor requests, uncertainty stated constructively — and need not themselves encode a canonical mutation. English vocabulary, grammar, syntax, discourse and refinement are explicit curriculum capabilities.
+
+Public proposal text has one exact width-neutral identity: exact Unicode is represented through the frozen 16D transport substrate and Heart mechanically repacks it for D64/D128/D256/etc. Private hidden tensors and private Soul state remain arbitrary architecture-native latent state. Proposal length is independent of input/page count; no `output_slots <= input_slots` doctrine exists and EMPTY padding is not proposal capacity.
+
+The rotating consolidator still reasons as a Core but its FINAL output is deliberately simple **tagged-region English**: for example `#responseDraft# Hello Jeff.` and `#scratch# remember this issue`. Each tag names one canonical region and the following text is that region's complete desired body; unmentioned regions remain unchanged. Heart already owns the frozen field/tick and consolidator binding, so those receipts and numeric addresses are not learned output. Heart parses the tags, compares desired bodies with the frozen base, materializes internal typed mutations, validates fail-closed, and alone commits `F_N+1`.
+
+**TRAINING BOUNDARY:** `copy_alignment` and `transport_eos` remain valid learned transport evidence through accepted step **720**. The 720->780 `decision` tranche trained an interface that is now doctrinally obsolete; step **780 is diagnostic evidence only and must not parent English-proposal training**. Step 720 is the last semantically aligned trained state, but adding the English proposal/verdict output anatomy may require a governed donor/new-generation transition rather than exact checkpoint resume. No further optimizer steps are authorized on the old `decision/operation/address/joint` ladder. Before training resumes, runtime/proposal-board/parser/curriculum/evaluation/gate code must implement and prove the new English interface.
+
+The older decision-head forensic result remains useful architectural evidence: its near-constant recurrent summary does **not** need to be repaired as a classifier, but the measured richer memory channels may inform the later English decoder/readout design. The private Soul has not yet been proven to perform useful autobiographical reasoning merely from that probe.
+
+**THE ACTIVE RUNTIME CIRCULATION IS NOW ENGLISH-NATIVE.** Commit `729d55d` introduced exact English proposals, `5a80465` simplified the consolidator to tagged desired-region text, and commit `924547b` removes the typed-delta/NO_OP/ABSTAIN success path from `ProposalBoard`, `ProposalWorkspace`, and `ReasoningCirculation`. Every successful FIRST and REFINED participant now returns a nonempty `EnglishProposal`; only failure/timeout may complete runtime accounting without one. Proposal workspaces expose readable exact English and repack it losslessly across rail widths. The rotating consolidator emits only tagged desired-region FINAL text such as `#responseDraft# Hello Jeff.` and `#scratch# remember this`; Heart binds field/tick/author metadata out of band and alone materializes/validates internal `FieldDelta` transactions. Runtime autobiography/recovery now supports circulation v3 while preserving historical v2 evidence. Focused migration verification is 42/42 tests green plus ruff, py_compile, and `git diff --check`; `924547b` is pushed to `origin/main`. **No training was launched.** The remaining obsolete decision-head anatomy is confined to the pre-amendment training candidate/curriculum, remains non-serving, and is unauthorized for optimizer steps until the next bounded migration replaces it.
+
+**HISTORICAL SCRATCH LAUNCH PLAN (superseded by the current review above).** `evt-20260919T235514609806Z-chatgpt-substrate-lifelong-soul-ready`. The active English D64 decoder now treats EOS as ordinary generated sequence termination independent of the content copy/generate gate and rejects the retired receipt/termination-head routes. `training/substrate_literacy_curriculum.py` provides 228 train and 12 held-out Stage-0 experiences over the frozen native symbol bank, exact ordering/sequence use, whitespace/punctuation/case, and Unicode compositions. The first durable lineage is fresh parameters ? **no step-720 donor** ? with D64, one 64D attention head, two layers, FFN 16384, four state tokens, page size 32 and neutral copy/generate bias. Soul is present from birth with HOT/WARM/COLD/DEEP_COLD and persists across experiences and optimizer steps: eight lived experiences run under fixed weights, each performs FIRST/REFINED/CONSOLIDATED Soul transitions, then one optimizer update is accepted atomically with all 24 Soul receipts. A one-step GTX 1650 shape proof succeeded end-to-end in 86.28 seconds; focused verification is 52 tests green, full pytest collection is clean, and changed-file Ruff/py_compile/diff checks pass. The planned first durable local tranche is 64 optimizer steps / 512 lived experiences, competency-gated afterward, with no promotion attempt.
+
+## Current mission and honest status
+
+**THE UN-WINNABLE STAGE-0 GATE IS REPAIRED — BY SCOPING THE PROBE, NOT BY RENAMING
+THE METRICS.** `evt-20260918T165000Z`. `foundation_motor_v2_probe` now takes
+`training_stage=` and narrows **only** `payload_transport_exact_rate` and
+`payload_eos_accuracy` to the stage's declared `eligible_actions`; the gate's metric
+names are unchanged, so every hand-built test probe and the recorded v6 verdict (which
+reads `final_evaluation`/`tournament_metrics`, a different field) stay valid. The
+declaration was **already drifting** from the body — it omitted three requirements the
+body enforced — so `FOUNDATION_MOTOR_V2_STAGE_GATE_PLAN` is now the single source of
+truth for both. A **data-reachability axis** was added beside the gradient axis, and the
+verdict is now explicit and **fail-closed** (`passed = not failures and not unreachable`).
+
+**Proved instrumentation-only, not asserted.** The change is pinned against the
+authoritative v6 segment report: `foundation_motor_v2_objective_program_id` recomputes to
+`d0092331a509646b1c75081629558ddefeb0eca99d92e763afeaeb51cd09c979` — the recorded value,
+byte for byte — and the recorded `foundation_motor_v2_stage_policy` for `copy_alignment`
+is byte-identical to the current table. The recorded v6 `payload_transport_exact_rate`
+was `0.6666666666666666` with `constant_payload_transport_exact_floor`
+`0.3333333333333333`, matching the proven 16/24 and 8/24 counts. **141 tests across 9
+suites pass**; `git diff --check` and `py_compile` both exit 0.
+
+**Two more real defects were found and fixed while implementing it.** (1) My own
+regression: the rewritten gate body applied `copy_alignment`'s eos-head overlay
+**unconditionally**, dropping its `receipt_continuation` condition —
+`test_foundation_motor_objective_identity.py` caught it with a bare
+`KeyError: 'alignment_eos_gate_accuracy'`; fixed structurally by extracting
+`foundation_motor_v2_stage_eos_head_active()`, which both the declaration and the body
+now read. (2) A **fail-closed gap**: an `unreachable` gate with no threshold failure
+still reported `passed: True`, and `_foundation_motor_v2_stage_from_reports` advances a
+stage on exactly `bool(gate.get("passed"))` — so the defect would have advanced the
+campaign while reporting success.
+
+**THE v6 REPAIR HAS NOW BEEN RUN, AND IT BROKE THE FIXED POINT.** `9655abb` →
+job `2a9f934e…` → `600/600` → paused for renewal. All four acceptance conditions
+PASS; content accuracy went **0.0 → 1.000**, transport **0.1667 → 0.6667**,
+heldout loss **4.3974 → 0.5882**, `alignment_eos_gate_accuracy` **0.3125 → 1.000**.
+
+**STAGE 0 IS MASTERED — MY PREVIOUS "SOLE REMAINING BLOCKER" CLAIM WAS WRONG.**
+`evt-20260919T040000Z`, superseding `evt-20260919T010000Z`. The `0.6667` figure I
+twice reported as a Stage-0 blocker is the **explicitly namespaced
+`whole_surface_*` legacy continuity view**. The **gated** metrics are
+stage-scoped to `copy_alignment`'s declared `eligible_actions [copy, insert,
+replace]`, and there the renewal's heldout **and** regression probes both read
+`payload_eos_accuracy` **1.0** and `payload_transport_exact_rate` **1.0** over 16
+eligible cases against a scoped constant floor of **0.0625**. The stage gate
+therefore reads **`passed=True`, `verdict="passed"`, `failures=[]`,
+`unreachable_requirements=[]`**. The 60-step renewal was a **null result by
+construction — there was zero headroom** — and I had also mis-stated its
+arithmetic: `0.6667` is **16/24 payload phases**, not 48/72 cases. The 8 phases it
+loses are **exactly the 8 `delete` phases** (target payload `""`;
+`constant_payload_transport_target_histogram: {"": 8}`), and `copy_alignment` is
+**contractually forbidden** to teach `delete`/`no_op`/`abstain`. Nothing is
+promoted or served: the gate itself declares
+`scope: curriculum_advancement_only_not_serving_or_promotion`. `typed_exact 0.0`
+is likewise not a defect — it is pinned to the full DELTA action set and is first
+reachable at the `address` rung.
+
+**And my own floor repair was still hollow.** `81dd8a3`. The surface merge
+iterated a `dict` row directly, so it merged to `{}` and both constant-emitter
+floors collapsed to `0.0` — the same vacuous-floor trap `ee7d859` removed, one
+shape down — which made every *AT-FLOOR* / *BEATEN* verdict in that run a
+comparison against nothing. Raised rather than returned now, and pinned against
+the other two copies of the merge.
+
+<details>
+<summary>The pre-v6 status this supersedes: ratified-but-never-run</summary>
+
+**WE RATIFIED THE v6 TERMINATION REPAIR AND NEVER RAN IT. THAT IS WHAT WE WERE
+DOING WRONG.** `evt-20260918T012800000000Z`. I read the completed tranche's
+**authoritative** segment report
+(`…/jobs/389df54d…/outputs/axon_job/State/training/reasoning/r64v3-5cab79da3c43f00d/segment_000000001_000000600.json`)
+instead of the monitor's rendering, and the run's own verdict is not a
+construction defect: `foundation_motor_v2_stage_gate` **passed false with 12
+failures, every one of them a reachable metric.** This is a genuine learning
+failure — and its numbers reproduce the v5 autopsy's prediction exactly.
+
+| the prediction | the run's own number |
+|---|---|
+| content is learned | `payload_content_accuracy` **0.8710** |
+| transport is blocked by the stop token | `payload_transport_exact_rate` **0.1667** |
+| the stop head never learns | `payload_teacher_forced_eos_accuracy` **0.2917**, `alignment_eos_gate_accuracy` **0.3125** |
+| the continue class is unsupervised | `termination_continue_positions` **0.0 for all 600 steps** while `termination_continue_accuracy` read a **vacuous 1.0** |
+
+`termination_continue_loss` was **never computed at all**. The route that
+produced this is the **legacy** one: `receipt_continuation false`,
+`receipt_teaching_profile null`, `payload_eos_weight 4.0`,
+`alignment_eos_gate` weight **0.0**, `effective_objective_program_id
+3b41008e…` (the base program).
+
+**The repair exists, is ratified, is documented as the fix, and was selected by
+zero launchers.** `RECEIPT_TERMINATION_HEAD_BALANCED_TEACH` — profile
+`termination_head_balanced_v6`, overlay `c7712969…`, program `d0092331…` — sits
+at `training/foundation_motor_curriculum.py:410-425`. Its own header names the
+defect it corrects: *"a canceling-gradient fixed point where EOS wins every
+argmax and free-running transport emits nothing."* Kimi's canonical event calls
+it *"exactly the equilibrium-breaking fix."* A scan of all 18
+`configs/kaggle/*.json` launchers found **zero** selecting
+`--termination-head-route` and **zero** naming `termination_head_balanced_v6`.
+The emission rung re-tested the known-broken fixed point for the ninth time.
+
+> **A ratified objective repair must be reachable from a launcher. Defining,
+> documenting and unit-testing a repair while no config selects it means every
+> later tranche re-tests the configuration the autopsy already rejected, and the
+> plateau it produces must be read as an execution defect — not as evidence
+> about the core.**
+
+**Fixed, and made unrepresentable.** A launcher now executes it:
+`configs/kaggle/axon_d64_emission_rung_v6_termination_balanced.json` (fresh
+candidate label — an objective change invalidates the optimizer state, so v6 is
+never a resume). Same geometry, seed, gate bias, page size, manifests,
+checkpoint interval and 600-step budget as the emission rung, so the comparison
+is controlled and exactly one variable group changed:
+`--receipt-continuation --receipt-teaching-profile termination_head_balanced_v6
+--termination-head-route`. A guard holds it in place
+(`tests/test_termination_repair_is_launched.py`, originally 2 tests, now 8): one
+requires a config to select v6 with that exact triple **and** to cite the v6
+program id in its `notes`; the other enforces the launcher's own profile/route
+pairing rules across every config, so no config can claim an objective profile
+it cannot execute. **That guard was itself insufficient** — auditing checked-in
+configs cannot stop a hand-written `argv`, and omitting every flag silently
+restored the legacy route. The route is now refused at runtime in three layers;
+see *"the legacy route is now unlaunchable, not merely rejected"* above. The same define-but-do-not-wire pattern appeared a second time —
+`FOUNDATION_MOTOR_V2_RECEIPT_TERMINATION_HEAD_BALANCED_PROGRAM_ID` was the one
+variant program id **not** exported from `training/__init__.py`; it is now.
+
+**And I executed it rather than only reading it.** Local proof run
+`axon-d64-v6-proof-local` (lineage `r64v3-0e99ec81e79b7bfb`), 12 steps on the
+GTX 1650, `EXIT=0`:
+
+- `effective_objective_program_id` **`d0092331…`** against the emission rung's
+  `3b41008e…` — the change is real, not claimed.
+- **`termination_continue_positions` = 1.0 on every one of the 12 steps**,
+  against **0.0 on all 600** of the emission rung. The 1.0 accuracy is now
+  backed by real supervised anchors instead of a divide-by-zero.
+- `payload_eos_weight` **1.0** (was 4.0), `alignment_eos_gate` weight **1.0**
+  (was 0.0).
+- `alignment_eos_gate_accuracy` moved **0.5 → 1.0** over 12 steps, so the
+  symmetric stop supervision is not inert.
+- The v6 gate raises **20** failures where the legacy gate raises **12**, and
+  the 8 additions are exactly the `eos_gate` and `position` requirements that
+  receipt continuation makes reachable. **Zero** legacy failures are absent from
+  the v6 list.
+
+**The monitor no longer spits in Jeff's face.** The panel was correct and mute:
+`exact_match` is `terminated and payload == target.payload`
+(`living_reasoning_curriculum.py:789`), so a row that matches its expected
+payload character-for-character still fails when the core never learned to stop
+— and the display never said why. `_qa_failure_reason(row)` now names the
+binding condition from the row's own fields (`payload` / `stop` / `typed`,
+joined with `+`), the verdict line tallies the reasons, failing rows show the
+**predicted** `decision/operation/region`, and the redundant `(expected …)` echo
+is suppressed when the payload already matches. `--qa` remains **opt-in**, so
+the panel no longer occupies the screen by default. Verified by replaying all
+**606 real events** through the renderer, not a fixture:
+
+```
+ qa: sample of 8 teacher-forced cases @final step 600: 0/8 exact   payload 4  payload+stop 4
+  Q: Insert the current SOURCE_SYMBOL between the …  A: '' (expected 'Α') ✗ payload+stop  DELTA/REPLACE/TOOL_RESULTS
+  Q: Delete exactly response position 1; emit no r…  A: 'i' (expected '') ✗ payload  DELTA/REPLACE/TOOL_RESULTS
+```
+
+`DELTA/REPLACE/TOOL_RESULTS` on every failing row is the constant-answer
+degeneracy made visible in one line. 22 tests in
+`tests/test_training_watch.py` pass.
+
+**Corrected.** `evt-20260917T224500000000Z` described the emission rung's gate
+as reporting `stage: copy_alignment`. The gate dict has no `stage` key; the
+fields are `foundation_stage` (`typed_motor_v2`) and `training_stage`
+(`copy_alignment`). Both runs carry identical gate key sets — my key name, not a
+defect.
+
+**Also repaired, and disclosed: a pre-existing red test that was not mine.**
+`runtime/trainer/attempt_workspace.py` was added by Jeff's own `0a51bc8` without
+adding it to the day-zero trainer-surface allowlist, so
+`test_day_zero_active_python_surface_is_narrow` **failed on a clean checkout** and
+the governance suite could never be green. One allowlist line added; a
+permanently failing test hides future regressions.
+
+**Still open and still Jeff's:** whether `decision` should carry weight at
+`copy_alignment`; whether the 48 zero-weight `no_op`/`abstain` phases belong in
+the typed-exact denominator; Stage-0 emission balance; the **cold start on five
+heads** at the `address` boundary (0.0 weight in one stage, then required ≥0.95
+in the next); whether `termination_continue_accuracy` should be **rejected**
+when positions are zero (the vacuous-pass guard, same class as the floor traps);
+whether `termination_continue_loss` should be emitted so the stop head is
+observable rather than inferable; and `AXON_KAGGLE_SYNC` — attach it or stop
+advertising `sync_mid_run`, since mid-run sync has still never run on any job.
+
+**`D:\AxonGliksbot` cannot help our binding constraint.** Its proven lanes
+(`fill_acc 0.967`, `[CF_PROBE] orig=23/24 swap=24/24 zero=24/24 SOUL_IS_READ`)
+all **fill-in-place at a masked draft region** with **no autoregressive emission
+and no stop token**; its closest termination supervision is a `length_head`. What
+does transfer: the **grad-carrying egress** (a `no_grad()` wrapper once made the
+fill loss reach nothing), **pad-weighted CE** (entity `1.0` vs pad `0.1`, because
+at full weight the cheap minimum is *predict space everywhere*), the burnt trap
+that *"continuous reconstruction losses cannot be the primary objective"*
+(`capsule_core_v2` collapsed to a padded-MSE constant at 8,000 steps), and
+**readiness-gated rather than clock-gated** difficulty ramping (`md=3` piled onto
+a core that had not learned `md=1` pinned accuracy at 0).
+
+**THE EMISSION RUNG'S VERDICT, READ AGAINST THE REAL FLOORS: content learned,
+exactness went backwards into noise.** `evt-20260917T220500000000Z`. The
+600-step tranche finished. Final heldout: `heldout_loss 5.206 → 1.056`,
+**payload teacher-forced token accuracy 0.0% → 61.8% (real floor 43.6% —
+BEATEN)**, motor-v2 copy gates 0.000 → heldout `copy-gate 0.903 / position 0.968
+/ pair-gate 0.625 / pair-pos 0.875`, regression `0.914 / 0.971 / 0.750 / 0.875`.
+**But:** `typed_exact` fell from **33.3% (exactly at the 24/72 floor, i.e. the
+constant answer) to 0.0% — below floor**, and payload exactness sits at
+**16.7% against the 8/24 = 33.3% floor — below floor**. The teacher-forced rows
+show why: cases that must emit *nothing* now answer `'i'`, `'oo'`, `'VV'`, `'YYY'`.
+The core left the emit-nothing dead state and entered a **noisy-emission** state.
+**The rung did not pass its stage gate.** Content moved; exactness moved the wrong
+way. The next objective must separate those two failure modes.
+
+**Also found: a false-success fetch.** `Adapter.fetch` stamped the job record
+`outputs_fetched` and returned exit 0 while downloading **zero** files, because a
+still-running kernel downloads as an empty tree without raising. Now guarded
+(`CloudPacketError` naming the provider status); the record for this run was
+wrongly marked and has been corrected back to `submitted`. Outputs are still
+unavailable — the kernel has not left `RUNNING` long after the loop and final
+eval finished.
+
+**I FOUND AN UNWINNABLE GATE, AND IT WAS MINE.** `evt-20260917T224500000000Z`.
+While verifying my own floor repair I discovered that the `beat_floor`
+assertions I had just added to `copy_alignment` and `transport_eos` required
+`typed_emission_exact_rate` — a metric whose inputs that stage weights at
+**0.0**. `typed_emission_exact_rate` is a DELTA conjunction over decision,
+operation, region, start, end and exact free-running payload transport
+(`living_reasoning_curriculum.py:897`), and `decision` is the decision head's
+argmax (`:702`) whose loss carries weight `0.0` there (`:401-405`).
+**Zero weight is exactly zero gradient**, so the maximum reachable value in
+those stages is `0`. No lineage could ever have passed. That is the definition
+of "setting us up for failure", and I had just written it in.
+
+**The same defect class explains the flat lineage.** The historical
+`transport_eos` gate demanded `payload_transport_exact_rate >= 0.95` while the
+typed conjunction's inputs were untrainable in that stage. The termhead-v1
+probation's "exhausted 3/3" plateau was a **mathematical impossibility recorded
+as a learning failure**, not a core that failed to learn.
+
+**Fixed, and made unrepresentable.** Both unreachable floor assertions are
+removed. The emission rung keeps its real, trainable anti-vacuity proof —
+`payload_content_accuracy > payload_content_constant_floor`, which an
+emit-nothing core scores `0.0` on. The two floor comparisons moved to `joint`,
+the first stage that weights every component the typed conjunction needs. And
+the invariant is now declared in the objective program itself:
+
+> **A stage gate may only require a metric whose causal components all carry
+> nonzero weight in that stage.**
+
+`FOUNDATION_MOTOR_V2_METRIC_COMPONENTS` and
+`FOUNDATION_MOTOR_V2_STAGE_GATE_METRICS` declare the dependency map;
+`foundation_motor_v2_unreachable_gate_requirements()` returns `[]` for the base
+program, all six receipt teaching profiles and the multicell overlay.
+`tests/test_foundation_motor_gate_reachability.py` holds seven tests including a
+**negative control** that re-declares the historical defect and asserts the
+guard fires. 131 tests pass, `EXIT=0`. Design choices that remain Jeff's: see
+open questions (a)–(e) below.
+
+**THE FALSE-PROGRESS TRAP IS FIXED — and the number we were reading as progress
+was the constant answer.** `evt-20260917T211900000000Z`. Two exactness floors
+(`constant_typed_emission_exact_floor`, `constant_payload_transport_exact_floor`)
+were literal `0.0` in three modules. They are now derived from the strongest
+fixed answer over the evaluated surface. On the real 72-case heldout FFCS
+surface the typed floor is **24/72 = 33.3%** and the transport floor is
+**8/24 = 33.3%**. The step-0 `typed_exact 33.3%` on the dashboard was therefore
+**exactly at the constant-answer floor**: an emit-nothing policy reported as a
+learned result. Full detail in *"2026-09-17 — the false-progress trap, the
+screen-hogging monitor, and a sync that never ran"* below.
+
+**Also found: mid-run checkpoint sync has never worked on any cloud job.** Every
+sync-enabled job in `State/training/cloud/jobs/*/outputs/axon_observability/**/sync_receipts.jsonl`
+records `"status": "disabled"` with `SyncCredentialsMissing` (or "mid-run sync
+environment is not set"). `sync_mid_run: true` in a recipe turns on internet and
+injects `AXON_SYNC_MID_RUN=1`, but the `AXON_KAGGLE_SYNC` Kaggle User Secret is
+never attached, so `_resolve_credentials()` fails, the failure is caught, and the
+receipt said only `SyncCredentialsMissing`. The reason is now recorded and
+rendered. **Jeff's decision:** attach the secret, or stop advertising sync.
+
+**IN FLIGHT:** Kaggle job
+`389df54d01fbda8ec6625b9019ff5fb1ec254c08360bf3d8cf4570c41ee45bd9`, revision
+`1a4bc416`, Tesla T4, 600-step emission-rung tranche — **completed and fetched**;
+its authoritative verdict, the legacy route it ran, and the ratified repair it
+never executed are recorded at the top of this file.
+`evt-20260918T012800000000Z`.
+
+**Prior state — the emission rung, launched on Kaggle.**
+**EMISSION RUNG IMPLEMENTED LOCALLY, THEN LAUNCHED ON KAGGLE — the rung moved
+but only partially: content now beats the constant floor and typed emission is
+exact 25% of the time, yet exact end-to-end payload transport is still 0.0.**
+(`evt-20260917T103000Z-copilot-emission-rung-implemented-and-local-gpu-tranche`;
+full detail in *"2026-09-17 — the emission rung implemented and run"* below.)
+**Caveat added 2026-09-17T21:19 (see the new section at the top of this file):
+the "25%" figure and every exactness percentage in this summary must be read
+against its constant-answer floor. 33.3% typed is the floor, so 25% is *below*
+the emit-nothing baseline.**
+
+**IN FLIGHT:** the same configuration now runs on Kaggle as a **600-step**
+tranche — job `389df54d01fbda8ec6625b9019ff5fb1ec254c08360bf3d8cf4570c41ee45bd9`,
+committed revision `1a4bc416`, Tesla T4, mid-run sync enabled, launched with a
+live dashboard open. The recipe changes exactly one variable versus the local run
+(`--tranche-steps` 60 → 600) and deliberately omits `--evaluation-case-limit`, so
+the stage gate can return a **real** verdict. The two numbers to watch are
+`payload_transport_exact_rate` leaving `0.0` and `nonzero_exact_output_observed`
+flipping `True`. **Live progress at ~step 247/600 (≈7.2 s/step): loss has fallen
+from ≈19 to ≈2.4–3.7**, the first checkpoint `0dfed88de4396d4` is written, and
+mid-run sync reports `kernel disabled` (observation missing, training unaffected). (`evt-20260917T200034380158Z-copilot-kaggle-emission-rung-launch`;
+full detail in *"2026-09-17 — the emission rung launched on Kaggle"* below.)
+
+Jeff authorized the fix: *"Yes please do it. forget about kaggle for now and use
+the local GPU. if the soul does not interfere than we can leave it as it."* The
+Soul was verified untouched and non-interfering (40/40 `SoulLayer` records still
+hold 0 bytes, generation 0), so it is left exactly as it is.
+
+The corrected-v5 fix set is implemented as ONE identity-bearing opt-in change:
+
+- `alignment_supervision` gains `supervise_termination_continue`: explicit BCE
+  pushing the dedicated termination logit toward **stop=0 at every learned
+  content anchor**, symmetric with the existing stop=1 BCE at the EOS position
+  (`training/living_reasoning_d64.py`). Flag off = byte-identical to v5.
+- New teach profile **`termination_head_balanced_v6`** (program variant-v7, id
+  `9673967b...`, distinct from v5's unchanged `998dc091...`): restores the
+  v4-balanced `payload_eos_weight 1.0` (v5 carried 4.0 — the parallel audit's
+  arrow direction was backwards, substance confirmed), sets the continue flag,
+  pins the component table explicitly.
+- The **`transport_eos` stage gate now requires `payload_transport_exact_rate`
+  >= 0.95** on both surfaces; the emit-nothing dead state (0.333 floor) can
+  never pass again. Applies to v5 too, so the `bfe76d52` re-eval runs under
+  corrected metrics.
+- Five new tests in `tests/test_termination_head_route.py` (file 24/24); full
+  `tests/` suite green EXCEPT a **pre-existing** stale day-zero hygiene
+  allowlist (`runtime/trainer` surface, 28 committed files vs ~8 expected) —
+  unrelated to this change set, left for Jeff.
+
+Open decisions for Jeff: (a) v6 cannot resume `bfe76d52` in place (different
+objective identity) — fresh lineage vs governed checkpoint seeding; (b) whether
+to run the zero-GPU `bfe76d52` re-eval under the corrected gate; (c) the stale
+hygiene allowlist.
+
+**Prior state — why the fix was needed. `transport_eos` probation exhausted
+3/3 FLAT.**
+
+`d64-reference-termhead-v1` (candidate generation `r64v3-1b55ea4fa59ebf64`,
+architecture `living-d64-receipt-e0c4e6487b5930b30b5d93dd`, profile
+`termination_head_v5`) completed `copy_alignment` (landmark `063dcc0a`, stage
+gate passed) and four `transport_eos` tranches (steps 25-48). Every tranche:
+guard `plateau`, `improvements: []`, `failures: []`, action `probate`;
+exhaustion then abandoned the probation branch and archived its sidecar.
+Confirmed/accepted state is still step 24 `bfe76d52`; probationary step 48
+`6ccf3b1b` is abandoned by design.
+
+Verified step-48 state, both complete surfaces (heldout and regression):
+corrected `alignment_eos_gate_accuracy` 1.0 (no termination collapse under
+stage pressure, ever), `alignment_position_accuracy` 1.0,
+`alignment_copy_gate_accuracy` 1.0, `payload_eos_accuracy` 1.0,
+**`payload_content_accuracy` 0.0**, changed-source `content` 0.0,
+`payload_transport_exact_rate` 0.3333 (exactly the empty-payload cases,
+12/36). Heldout loss rose this tranche (0.7757 -> 0.8935) after four falls;
+train loss flat/oscillating 3.60 -> 3.44 -> 3.39. Every QA transcript in the
+report shows `predicted_payload: ''` with `terminated: True`.
+
+**The stage gate never passed at `transport_eos`.** The step-48 report has
+`foundation_motor_v2_stage_gate.passed = false`, six failures, all content on
+both surfaces (`payload_content_accuracy` below 0.95, changed-source content
+below 0.95, content does not beat the 0.125 constant floor), and
+`task_gate_passed = false`. Tranches were driven only by the retention guard,
+never by gate progress.
+
+**Read-only audit, 2026-09-16 (this turn) — why the lineage is flat.** Numbers
+are from `segment_000000041_000000048_probation.json`:
+
+1. **Executed weights are not the declared weights.** At `transport_eos` the
+   weights are the stage entry (`payload 1.0`, `alignment_position 1.0`,
+   `alignment_copy_gate 4.0`, `alignment_eos_gate 1.0`), because
+   `apply_receipt_continuation_teach_weights` applies the receipt overlay
+   **only when `training_stage == "copy_alignment"`**. Every claim that the EOS
+   gate carries weight 0.0 under v3/v4/v5 — and that v5's pressures are
+   identical to v3's — is false in the stage that matters; the legacy EOS-gate
+   BCE (post-repair, scoring the termination logit) runs at weight 1.0.
+2. **83% of the objective sits on already-correct scalar decisions.** The
+   `transport_eos` lane supervises one alignment position per episode
+   (`alignment_copy_positions: 1.0` in `phase_metrics`), so position/copy_gate/
+   eos_gate are 0/1 constants — all 1.0. Step-48 loss decomposes as payload
+   0.59 + position 0.29 + 4.0*copy_gate 2.48 + eos_gate 0.08 = 3.44; 72% is one
+   copy-gate BCE whose sign is already right.
+3. **The payload term is 4:1 against content.** `sequence_cross_entropy(...,
+   eos_weight=4.0, token_mask=learned_decision_mask)` masks out every
+   deterministic-continuation position, leaving one content token plus EOS
+   weighted 4x over a denominator of 5: the content token contributes 0.675 of
+   3.44, and its gradient is scaled 0.2 while the copy gate's is scaled 4.0.
+   Per-episode content CE is ~3.37 nats (P ~ 3.4% over 353 categories) at step
+   41 and unchanged at step 48 — the content head has had almost no usable
+   pressure in 48 steps.
+4. **Net termination pressure is toward stopping immediately.** Content
+   positions push the stop logit down (dL/dz_stop = +1/(1-stop)); the EOS
+   position pushes it up at 4/5 of the payload weight, plus the active eos_gate
+   BCE at 1.0. The fixed point is stop ~ 1 — hence empty payloads and transport
+   exact = the empty cases.
+5. **The gate never looks at free-running emission.** The `transport_eos`
+   branch of `decide_foundation_motor_v2_stage` requires
+   `alignment_position_accuracy`, `alignment_copy_gate_accuracy`,
+   `payload_content_accuracy`, `payload_eos_accuracy` and pairs
+   position/copy_gate/content (+eos_gate); it does **not** require
+   `payload_transport_exact_rate`, the only metric that exposes the
+   immediate-termination dead state. Its content requirement is teacher-forced
+   over a mask of 8 learned positions in 36 cases, and teacher-forced content
+   argmax is insensitive to the stop head by construction (the combined content
+   logits differ from the content logits by the additive constant log(1-stop)).
+   The termhead experiment's stated success signal cannot be seen through the
+   metric used to judge it.
+6. **Probation spent compute on no information.** `max_plateau_probation = 3`
+   x 8 steps = 24 optimizer steps on a flat objective whose probation branch is
+   discarded by design on exhaustion, while nothing asked whether the gate
+   metric was reachable first.
+
+This audit is the evidence base for the fix set Jeff authorized on 2026-09-17
+("correct the trainer but don't launch") — now implemented as
+`termination_head_balanced_v6` above.
+
+**Independent Kimi audit, 2026-09-17 (`evt-20260917T013451Z`) — delta over the
+audit above.** A second read-only audit (code plumbing + full history synthesis)
+confirmed all six findings and adds: (a) the primary root cause is that stop=1
+is supervised twice while **stop=0 is never explicitly supervised anywhere**
+(`living_reasoning_d64.py:1220-1242` touches the termination logit only at the
+EOS position, only toward 1); the only downward pressure is the implicit
+`log(1-stop)` term inside content CE, giving a stable canceling-gradient fixed
+point `sigma* = (n+8)/(2n+8) ~ 0.8-0.9` — a plateau by construction, not by
+bad luck; (b) `termination_head_v5` silently **reverted the deliberate v4 fix**
+`payload_eos_weight 4.0 -> 1.0` (`foundation_motor_curriculum.py:331-341` vs
+`:379`); (c) the minimal fix set is: explicit stop=0 BCE at content anchor
+positions in `alignment_supervision` under `termination_head_route` (preserves
+the train/runtime distribution identity), restore `payload_eos_weight 1.0`, and
+make the profile overlay apply per-stage (pinned by test); (d) the historical
+synthesis shows this is one instance of a recurring objective class failure —
+loss-down-behavior-wrong, teacher/free-running divergence, constant-prior
+collapse, route-weight seesaw — while the process class (guard, probation,
+lease) is now sound.
+
+</details>
+
+## 2026-09-19 — Scope artifact explains the v6 plateau, and the ladder advances to transport_eos
+`evt-20260919T040000Z-copilot-scope-artifact-explains-the-v6-plateau`
+(supersedes `evt-20260919T010000Z`)
+
+### The headline: the renewal was a null result **by construction**, not a defect
+
+I reversed my own verdict a second time, and this time the reversal is provable
+from source. The renewal (`segment_000000601_000000660.json`) gate object:
+
+| field | value |
+|---|---|
+| `verdict` | **`"passed"`** |
+| `passed` | **`True`** |
+| `failures` | **`[]`** |
+| `unreachable_requirements` | **`[]`** |
+| `training_stage` | `copy_alignment` |
+| `scope` | `curriculum_advancement_only_not_serving_or_promotion` |
+
+Its **heldout and regression probes** (both `case_count 72`) each read:
+
+| metric | heldout | regression |
+|---|---|---|
+| `alignment_position_accuracy` | 1.0 | 1.0 |
+| `alignment_copy_gate_accuracy` | 1.0 | 1.0 |
+| `alignment_eos_gate_accuracy` | 1.0 | 1.0 |
+| `payload_content_accuracy` | 1.0 | 1.0 |
+| `payload_eos_accuracy` | **1.0** | **1.0** |
+| `payload_transport_exact_rate` | **1.0** | **1.0** |
+| `scoped_constant_payload_transport_exact_floor` | 0.0625 | 0.0625 |
+| `whole_surface_payload_eos_accuracy` | 0.6667 | 0.6667 |
+| `whole_surface_payload_transport_exact_rate` | 0.6667 | 0.6667 |
+
+The `0.6667` I twice recorded as a Stage-0 blocker is the **legacy whole-surface
+name**, retained for continuity. The **gated** metric is stage-scoped.
+
+### The arithmetic, corrected — including my own unit error
+
+`payload_scope` (verbatim): `basis=stage_eligible_actions`,
+`eligible_actions=[copy, insert, replace]`, `eligible_case_count=16`,
+`excluded_actions=[abstain, delete, no_op]`, `excluded_case_count=56`,
+`training_stage=copy_alignment`. `16 + 56 = 72`.
+
+I had recorded `0.6667 = 48/72` **cases**. That was a unit error. The `rate()`
+closure at `training/foundation_motor_curriculum.py:1936-1946` sums
+`count_key`/`correct_key` over the chosen surface, so
+`whole_surface_payload_transport_exact_rate = payload_transport_exact_count /
+payload_supervised_phase_count` = **16/24 payload phases**.
+
+**The floor arithmetic names the 8 lost phases exactly.** The emit-nothing
+baseline wins `constant_payload_transport_exact_count 8.0 / 24.0 = 0.3333`, and
+`constant_payload_transport_target_histogram` is `{"": 8}` — the **eight empty
+target payloads**. The model wins all 16 non-empty-target phases and 0 of the 8
+`delete` phases, where it emits a REPLACE. `copy_alignment`'s `eligible_actions`
+exclude `delete`; it becomes teachable at `decision` and first weighted at
+`operation`. The loss is therefore **out of contract at this rung**.
+
+`typed_emission_exact_rate 0.0` is the same kind of artifact: it is pinned to the
+full `FOUNDATION_MOTOR_V2_METRIC_DENOMINATOR_ACTIONS` set and is unreachable and
+ungated before `address`.
+
+### What the next rung actually changes — proved from the policy table
+
+| | `copy_alignment` | `transport_eos` |
+|---|---|---|
+| `eligible_actions` | `[copy, insert, replace]` | `[copy, insert, replace]` |
+| `payload` | 1.0 | 1.0 |
+| `alignment_position` | 1.0 | 1.0 |
+| `alignment_copy_gate` | 4.0 | 4.0 |
+| **`alignment_eos_gate`** | **0.0** | **1.0** |
+| gated metrics | + `payload_transport_exact_rate` | + `payload_eos_accuracy` |
+| `decision`/`operation`/`region`/`start`/`end` | 0.0 | 0.0 |
+
+So ChatGPT's "one narrow intervention" is **not** an EOS objective or data change:
+it is **advance the ladder**. Its advice to stop stacking identical epochs was the
+right tactic for the wrong reason — there was no headroom to spend.
+
+Ladder: `FOUNDATION_MOTOR_V2_STAGE_ORDER = (copy_alignment, transport_eos,
+decision, operation, address, joint)`. With the step-600 gate `passed=False` and
+the renewal gate `passed=True`, `_foundation_motor_v2_stage_from_reports` now
+derives **`transport_eos`** — verified by calling it against the merged state
+before preparing the packet.
+
+### Base identity: the local BLAS build was the outlier, not the record
+
+Kaggle reproduced **all 95** recorded base hashes bit-exactly (`created-verified`,
+drifted set empty). The local build now reports `action=adopted`, artifact
+`19d4efae…`, `recorded_base_inventory_id 598955928fa2220f…`,
+`reconciled_record_count 15`, `max_abs_delta 1.6689300537109375e-06` against
+`atol 1e-5` — and those 15 records are **exactly** the 15 measured before the
+repair, so the reconciliation is targeted, not a blanket accept.
+
+**Tested non-finding:** `action=adopted` with `recorded_base_inventory_id=null`
+and `reconciled_record_count=0` is **not** a fail-open.
+`base_artifact.py:166-218` unconditionally compares the stored artifact to the
+**live** module tensor-by-tensor and fails closed on version drift;
+`:242-274` returns early only when there is no inventory to cross-check.
+
+### Honest costs and my own errors
+
+- `heldout_mean_loss 0.588237865207096 → 0.6084178631297417` — **+0.0202 worse**
+  over 60 fully saturated steps. Real, and it bought nothing.
+- **Monitor defect (fixed in `9a0f6dc`):** the watch had no knowledge of
+  `probe.payload_scope`, so it printed the whole-surface rate and **hid the very
+  number the gate used**. That defect is what misled me twice. `_motor_v2_line`
+  now prints `payload[stage] {rate} over {n} eligible excl {actions}` and makes
+  **no** stage-payload claim when the probe carries no `payload_scope`.
+- **My own unit error** (`48/72` → `16/24`), corrected here rather than by editing
+  the earlier event: the canonical ledger is append-only.
+- **My own timing evidence was wrong at first.** I cited progress seq 1 vs seq 3
+  (`239.488458445` → `248.172380693`) as the adoption proof; that pair measures
+  **run setup**. The load-bearing pair is the initial evaluation's own events:
+  `evaluating 248.165262895` → `evaluated 248.172380693` = **0.0071 s** for 72
+  cases, versus the final evaluation's `evaluating 642.012684458` → `evaluated
+  1261.504383683` = **619.4917 s** for the same 72 cases. A 72-case pass cannot
+  complete in 7 ms on any hardware.
+- `curriculum_stage_complete=FAIL` while the **gate** is `passed=True` is a label
+  conflation, not a contradiction: at `train_living_reasoning_smoke.py:2627` that
+  flag means *program* complete (`stage == FOUNDATION_MOTOR_V2_STAGE_ORDER[-1]`),
+  i.e. the whole six-rung ladder, not the current rung.
+
+### What changed on disk
+
+`9a0f6dc` — 3 files, **210 insertions, 0 deletions**:
+`scripts/axon_training_watch.py` (+44), `tests/test_training_watch.py` (+152),
+`scripts/train_living_reasoning_smoke.py` (+14). `git diff --check` exit 0;
+`tests/test_training_watch.py` **28 passed**; full suite #2
+(`D:\AxonBaseProof\full_suite_2.log`) **`exit=0`, `[100%]`, zero failures**.
+No objective, weight, geometry, data, seed, or architecture change.
+
+## 2026-09-19 — The `transport_eos` rung passes, and the ladder reaches `decision`
+`evt-20260919T050000Z-copilot-transport-eos-rung-passed-and-ladder-advanced-to-decision`
+
+### The rung is done, and the gate is read from disk, not from the dashboard
+
+Job `8cfa2116b24c37dea5d76c0bf3c1da421246d92f775d74ca6aaced9b6085c307`,
+revision `7e9957e`, 60/60 to global step **720**, `loss 0.007`, `pace 6.6 s/step`,
+`termination: continue positions 1 (min 1 of 60 steps) cont-loss 0.004`,
+`train eos-gate 100%`.
+
+All four motor-v2 probes — `{initial, final} × {heldout, regression}`, `n=72` —
+read **`copy-gate 1.000  position 1.000  eos-gate 1.000  pair-gate 1.000
+pair-pos 1.000`**. `alignment_eos_gate_accuracy` entered this rung at `0.0` and
+left at `1.0`.
+
+The stored gate object (`segment_000000661_000000720.json`) reads
+`passed=True`, `verdict="passed"`, `failures=[]`, `unreachable_requirements=[]`,
+`scope=curriculum_advancement_only_not_serving_or_promotion`,
+`report_id 7fa534810e2d457f6b3ed045237f2d8011470c001cd9e2efe8814fd1f03f730c`.
+Both probes read the five gated metrics at **1.0** against
+`scoped_constant_payload_transport_exact_floor 0.0625`.
+
+The `whole_surface_*` pair still reads **0.6667** — unchanged, still the legacy
+continuity view, still not a defect. Do not misread it a third time.
+
+### Two more observability holes of the same family, both closed
+
+Both were **producer-side**: the number the reader needed was never emitted.
+
+| hole | where | effect | commit |
+|---|---|---|---|
+| #2 | `_compact_motor_v2_probes` rebuilt each probe from a hardcoded key allowlist | stripped `payload_scope` + both payload rates, so the `9a0f6dc` display fix **could never fire** on a dashboard `motor v2` line | `69de279` |
+| #3 | the `completed`/`paused` progress emit carried only four coarse flags | omitted the rung gate, so a passed rung printed `curriculum_stage_complete=FAIL` and read as a failed run | `191c722` |
+
+Hole #3's own test **failed first**, with
+`AssertionError: 'foundation_motor_v2_stage_gate_passed=PASS' not in rendered`.
+Cause: the renderer wraps `PASS` in ANSI colour, splitting the literal with an
+escape sequence. Fixed by asserting against `_plain(...)`, the helper already at
+`tests/test_training_watch.py:433`. **43 passed**; `git diff --check` exit 0.
+
+The dashboard now prints a `ladder:` line naming the rung and whether the next
+tranche is `PAUSED` or `RUNNABLE`, with the note that
+`curriculum_stage_complete` means the whole six-rung program, not this rung.
+
+### The merge, proved rather than assumed
+
+`fetch` → **`Phase: outputs_fetched`**, `Fetch mode: bundle`, 9,548 files /
+60.6 MiB. Merged into `D:\Axon\State` and then **re-compared from scratch**:
+**9,248 files identical, 0 missing, 0 differing**. The 15 pre-merge differences
+were all backed up to `D:\AxonBaseProof\premerge_backup_stage2\`. Manifests:
+`merge_manifest_stage2.json`, `merge_copied_stage2.json`.
+
+The merge needed a **long-path fix**: the first attempt died with
+`FileNotFoundError` on a 271-character snapshot path. Re-running with the `\\?\`
+prefix on source, destination *and* backup completed it.
+
+`_foundation_motor_v2_stage_from_reports` on the merged directory returns
+**`('decision', False)`**.
+
+### The next rung is real work, not another scope artifact
+
+`FOUNDATION_MOTOR_V2_STAGE_GATE_PLAN['decision']` is `metrics ()`,
+`pairs ('decision',)`, `any_checks ('per_decision_accuracy',)`. Entry readings:
+
+| reading | value |
+|---|---|
+| `pair_exact_rates["decision"]` | 0.3333 |
+| `per_decision_accuracy` | `{abstain 0.0, delta 1.0, no_op 0.0}` |
+
+`eligible_actions` becomes the **complete** set
+`[copy, insert, replace, delete, no_op, abstain]`, so the stage-eligible
+denominator finally covers all 24 DELTA phases and the legacy whole-surface view
+stops being narrower than the scoped one. Component weights move to
+`decision 1.0`, `alignment_copy_gate 1.0`, `alignment_eos_gate 0.25`,
+`alignment_position 0.25`, `payload 0.25` — read from the shipped
+`FOUNDATION_MOTOR_V2_PROGRAM`, not authored here.
+
+**Local `--preflight-only` on the real path** proved it before any cloud spend:
+`preflight_passed true`, stage `decision`, base `adopted`
+(`19d4efae…`, 15 reconciled records, `max_abs_delta 1.6689300537109375e-06`),
+`resource_tranche 720 → 780`, `tranche_id 369d3fee…`,
+`preflight_receipt_id 302b27c1…`.
+
+**FLAGGED, NOT ACTED ON.** `decision` is the first stage where a component weight
+jumps `0.0 → 1.0` across a boundary. The `copy_alignment` comment claims no
+component does that any more, so the table and that comment disagree. It is a
+pre-existing property of the shipped program and was deliberately **not** changed.
+
+### Launched
+
+`configs/kaggle/axon_d64_emission_rung_v6_decision.json` committed as `26712ea`
+so the stamped revision contains the packet definition. `prepare` → job
+**`4e84089cd8bf249f5870a782f83266efb318d00466d355ba682bd6f05eb33a2a`**,
+revision `26712ea`, 56.8 MiB / 9,420 files. `launch --yes` → `submitted`.
+`monitor --follow` open, teeing to `D:\AxonBaseProof\monitor_stage3.log`.
+
+## 2026-09-18 — v6 at step 600: the fixed point is broken, and my own floor repair was still hollow
+`evt-20260918T064500Z-copilot-v6-tranche-verdict-and-stage0-gate`
+
+Job `2a9f934e878642bb3dd965c367c89658853418dc8c040246e85d2d67070c66af`,
+revision `9655abb`, candidate `axon-d64-emission-rung-v6-term-cloud`,
+lineage `r64v3-e28a4842607db328`,
+`effective_objective_program_id d0092331a509646b1c75081629558ddefeb0eca99d92e763afeaeb51cd09c979`.
+It ran, it reached `600/600`, and it paused for renewal.
+
+### Jeff's four acceptance conditions — all four PASS
+
+| # | Condition | Legacy | v6 final | Verdict |
+|---|---|---|---|---|
+| 1 | `termination_continue_positions > 0` from the first applicable step | `0.0` on all 600 steps | **`1` on all 1,200 rows** | PASS |
+| 2 | new continuation-loss trend is visible | never computed | deciles **0.5004 → 0.0057** | PASS |
+| 3 | `alignment_eos_gate_accuracy > 0.3125` | 0.3125 (5/16) | **1.000** (16/16) heldout **and** regression | PASS |
+| 4 | `payload_transport_exact_rate > 0.1667` | 0.1667 (12/72) | **0.6667** (48/72) heldout **and** regression | PASS |
+
+### The margin erosion I flagged mid-run was real and resolved favourably
+
+Over the complete 1,200-row run the continuation loss deciles are
+`[0.5004, 0.3975, 0.4113, 0.5068, 0.3180, 0.0605, 0.0178, 0.0104, 0.0075, 0.0057]`.
+It rose **back to decile-1 level at decile 4** (0.5068) and then collapsed. So the
+eroding anchor margin was a genuine regression mid-run, the fixed point briefly
+re-formed, and then it broke through. The alarm was correct when it was raised.
+
+### The headline: the canceling-gradient fixed point is broken
+
+| metric | v6 initial @0 | v6 final @600 | legacy final |
+|---|---|---|---|
+| `heldout_mean_loss` | 4.3974 | **0.5882** | — |
+| `payload_teacher_forced_content_accuracy` | 0.0 | **1.000** | 0.8710 |
+| `payload_transport_exact_rate` | 0.3333 | **0.6667** | 0.1667 |
+| `payload_teacher_forced_eos_accuracy` | 1.0 | **0.6667** | 0.2917 |
+| `alignment_eos_gate_accuracy` | 0.125 | **1.000** | 0.3125 |
+| `alignment_copy_gate_accuracy` | 0.0 | **1.000** | — |
+| `alignment_position_accuracy` | 0.0 | **1.000** | — |
+| `payload_teacher_forced_token_accuracy` | 0.600 | **0.800** | 0.6182 |
+| `typed_emission_exact_rate` | 0.3333 | **0.0** ← regressed | 0.0 |
+
+Content is now **perfect**; the **only** remaining defect is the stop token.
+Legacy was blocked by eos 0.2917 with content 0.8710. v6 has content 1.000 with eos
+0.6667. The blockade moved from fatal to partial. `pair_exact_rates` — content,
+copy_gate, eos_gate, position — are all **1.0**, i.e. exactly the four things
+Stage 0 trains; `address`, `decision`, `operation`, `joint` sit at chance, i.e.
+exactly the things Stage 0 assigns weight `0.0`.
+
+### Why it paused — four reachable failures, not a construction defect
+
+```
+heldout    payload_transport_exact_rate  0.6667 < 0.95
+heldout    payload_eos_accuracy          0.6667 < 0.95
+regression payload_transport_exact_rate  0.6667 < 0.95
+regression payload_eos_accuracy          0.6667 < 0.95
+```
+
+The gate is well-formed and the metrics are on trained heads. This is a genuine
+learning shortfall, so the tranche correctly refused to advance to `transport_eos`.
+`task_gate_passed` is **true** (heldout loss below baseline, token accuracy 0.800
+above floor, all counterfactuals > 1e-8).
+
+### `typed_emission_exact_rate == 0.0` — a stage-scoping defect, not the cause
+
+`evaluation_component_weights` gives `decision`, `operation`, `region`, `start` and
+`end` all **0.0** at `copy_alignment`. A DELTA phase is only exact when all five are
+right, and `region_accuracy` is **0.0** — so `typed_exact ≡ 0` **by construction** at
+Stage 0, and `nonzero_exact_output_observed` `(typed > floor)` cannot be true there.
+The decision head is a constant DELTA predictor (`decision_correct_by_target [24, 0, 0]`):
+its weights are frozen at 0.0 but its input `summary` moved as the body trained, so its
+argmax flipped from init-luck to a constant. **This did not cause the pause** — the pause
+is driven by `campaign_complete` semantics (`foundation_motor_v2_program_complete` requires
+the *final* stage, so it is false for any non-final stage) plus the four real failures.
+
+### The defect I found in my own repair — the floors were still vacuous
+
+`constant_typed_emission_target_histogram` and
+`constant_payload_transport_target_histogram` are **both `{}`** in the report, and both
+constant floors are **`0.0`**, while the motor-v2 probe on the *same run* reports the
+correct **0.3333**. Cause, proven in isolation: the 72-case surface assembler iterated
+`row.get(name)` directly, but `evaluate_living_episode`
+(`living_reasoning_curriculum.py:991`) returns `dict(sorted(hist.items()))`. **Iterating a
+mapping yields its keys**, which match neither branch, so every entry was skipped, the
+merge returned `{}`, and both floors collapsed to `0.0`.
+
+That is the **same vacuous-floor trap `ee7d859` was supposed to remove, one shape down**:
+the literal `0.0` became a computed floor that silently returned `0.0` again. The report
+still rendered `typed 0.0% vs floor 0.0%` as *AT-FLOOR* and `payload 66.7% vs floor 0.0%`
+as *BEATEN* — both comparisons against nothing. Three copies of this merge existed;
+`foundation_motor_curriculum._merge_row_histogram` and
+`sequential_first_form._merged_tick_histogram` both unwrap the mapping correctly, which is
+exactly why the probe was right and the tranche report was wrong.
+
+**Fixed fail-closed in `81dd8a3`**: `merge_surface_histogram` is now module-scope, unwraps
+`Mapping` rows, keeps the list-of-pairs and keyed-dict forms, and **raises** rather than
+returning an empty merge when there were cases to merge. Two tests added, including one
+that pins all three copies of the merge to the same output. **69 tests pass, exit 0;
+`git diff --cached --check` exit 0.** Instrumentation only — no objective, weight,
+geometry, data, or seed moved. The training result stands; the *floor verdicts* in that
+report do not.
+
+### Do not overclaim
+
+Stage 0 is **not** mastered. Nothing is promoted and nothing is served:
+`exact_serving_gate_passed` requires both exact rates `== 1.0` and we are at `0.6667`.
+The overfitting signal is real — training loss **0.009** against `heldout_mean_loss`
+**0.5882**, a ~65× gap — so more steps of the *identical* recipe may not close
+0.6667 → 0.95. The scales differ (weighted objective sum versus plain CE), so that is a
+signal, not a proof.
+
+## 2026-09-18 — the observability hole is closed, and v6 is running with live proof  of it
+`evt-20260918T043735Z`. Jeff's instruction: keep every pre-v6 route refused,
+close the hole where `termination_continue_accuracy` reported a vacuous `1.0`
+while `termination_continue_positions == 0`, emit a separate
+`termination_continue_loss` from the **already-existing** stop=0 BCE terms with
+instrumentation only, run the regression and `git diff --check`, commit
+cleanly, then launch exactly the existing v6 tranche and verify four conditions.
+
+**What the hole was.** The legacy 600-step tranche reported
+`termination_continue_positions 0.0` on every single step *and*
+`termination_continue_accuracy 1.0`. Zero supervised anchors was being scored as
+perfection. That is the same class of defect as the hardcoded `0.0` floors: an
+unavailable measurement masquerading as a good one.
+
+**The fix (instrumentation only).** `termination_continue_accuracy` now returns
+`None` when no anchor was supervised, and `alignment_supervision` raises
+`RuntimeError("…no content anchor was supervised…")` if continue supervision was
+selected but nothing was supervised — the state is fail-closed, never flattering.
+The new `termination_continue_loss` is emitted by appending **the very same BCE
+tensor object** that `eos_gate_losses` already receives (bound once as
+`continue_bce`), so the gradient, the weights, the geometry, the data, the seed
+and every other training behavior are bit-identical. Pinned by the invariant
+`eos_gate_loss == (base + continuation_loss) / 2`.
+
+**Reachability, honestly stated.** The raise can only fire when
+`target.payload_alignment is not None` produced zero anchors — which requires
+`segments: []`. Both emission-rung manifests have **32 alignment targets, all
+exactly 1 segment**, so the raise cannot fire on this campaign's data, and
+evaluation never passes `supervise_termination_continue` at all. The fail-closed
+path is therefore a guard against a future curriculum, not a live risk.
+
+**Committed `9655abb`** — 7 files (+259/−20 plus the operator-guide subsection),
+8 tests added/updated. Target suites **25 + 23 + 8 passed**, combined re-run
+**33 passed**, regression Groups A and B `EXIT=0`, `git diff --check` clean after
+normalizing the added lines in the two mixed/CRLF test files to LF. An
+end-to-end CPU run of the ratified route via `--progress-dir` printed
+`positions 1 | cont-loss 0.7189…` on steps 1–3 and exited 0.
+
+**The tranche is running, unchanged.** Job `2a9f934e…`, revision `9655abb175d1…`,
+Tesla T4, 600 steps, ETA ~59m, `--receipt-continuation --receipt-teaching-profile
+termination_head_balanced_v6 --termination-head-route`. Monitor in async shell
+`v6watch`.
+
+**Acceptance — 2 of 4 verified live, 2 still open:**
+
+- **1 SATISFIED** — `termination: continue positions 1 (min 1 of 13 steps)` on
+  every observed step, no `UNSUPERVISED STEP(S)` marker. The legacy route was 0
+  for all 600 steps.
+- **2 SATISFIED** — the new `cont-loss 0.609 → 0.607` trend with a sparkline is
+  rendered per step, next to `train eos-gate 50–100%`.
+- **3 OPEN** — accepted only against an end-of-tranche evaluation. The legacy
+  **0.3125** is a *final*-eval number (5/16), confirmed by reading
+  `segment_000000001_000000600.json` directly; the v6 step-0 baseline is
+  `eos-gate 0.125` heldout / `0.062` regression (2/16, 1/16). Comparing a step-0
+  baseline to a legacy final would be dishonest.
+- **4 OPEN** — same reasoning for `payload_transport_exact_rate > 0.1667`.
+
+**Corrections to my own record.** I had earlier described a local probe's
+`eos-gate 1.000/0.500` without noting it used `--evaluation-case-limit 2`; that
+is not the authoritative 72-case surface and must not be conflated with 0.3125.
+I also record that the monitor's `payload_exact` line **is** the same field as
+`payload_transport_exact_rate` (`axon_training_watch.py:394` and `:594`), so the
+label is not a second measurement — but the *step* at which it is read still has
+to match.
+
+### The first real reading of the new instrument — and it is an alarm, not a trophy
+
+`evt-20260918T045700Z`. The monitor's `cont-loss` sparkline is min-max
+normalized inside a 60-step window, so a 0.05 wobble renders as a full-scale
+ramp. I stopped reading the picture and parsed the raw `AXON_PROGRESS` events
+(`kaggle kernels logs -f`, 392 events, 386 training rows). The real series:
+
+| decile | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| mean cont-loss | .569 | .519 | .428 | .435 | .392 | .375 | **.357** | .385 | .454 | .481 |
+| implied anchor stop-logit | −.27 | −.38 | −.62 | −.60 | −.71 | −.76 | **−.85** | −.74 | −.54 | −.47 |
+
+`termination_continue_positions` is **exactly 1 on all 386 steps** — condition 1
+is proven, not merely displayed. The new loss exists on every step. But its
+trend is **not monotone**: it fell 37% over the first seven deciles and has
+**risen over the last three**, giving back more than half the margin it earned.
+
+Because the term is a BCE with target 0 at a content anchor, the loss maps onto
+the anchor's stop-logit as `log(1+exp(x))`. So the head drove the anchor margin
+to ≈ −0.85 by decile 7 and has since retreated to ≈ −0.47. **If it reaches 0 the
+head calls stop at content anchors and free-running payload transport emits
+nothing — the exact failure v6 was built to correct.**
+
+What makes this the strongest argument yet for the instrumentation: on 89.6% of
+steps `training_alignment_eos_gate_accuracy` reads a flat **1.0** (minimum
+0.500). Accuracy alone reports unqualified success while the margin that
+produces it decays. The accuracy field would have hidden this; the loss field
+did not.
+
+I did **not** treat this as condition 2 satisfied. It is visible, measured, and
+currently regressing.
+
+**Safety check before waiting 40 minutes:** I enumerated every consumer of the
+two new keys by ripgrep — the D64 supervision, the curriculum metrics
+passthrough, `_continuation_step_telemetry`, the watcher, and two tests. The
+**evaluation report contains no `termination_continue` keys at all**, and
+`phase_metrics` is never numerically aggregated, so the fail-closed `None`
+cannot crash the run at step 600.
+
+**Two other corrections.** (a) The v6 step-0 eval is **not** comparable to the
+legacy step-0 eval: v6 adds a dedicated scalar termination head, so its
+untrained heldout `eos-gate` reads `0.125` while the legacy untrained gate read
+`1.0` — different parameter sets, not a regression. (b) `ee7d859` replaced the
+legacy report's hardcoded `constant_typed_emission_exact_floor 0.0` and
+`constant_payload_transport_exact_floor 0.0` with histogram-derived floors, so
+the legacy **0.0 floors are not trustworthy baselines** — though the two exact
+*rates* themselves (`payload_exact / max(1, payload_count)`) are computed
+identically, so the 0.3125/0.1667 comparison still stands.
+
+**Still open.** Mid-run sync is disabled
+(`sync credentials unavailable: Kaggle User Secret AXON_KAGGL…`), so no
+checkpoint comes home mid-run and the final evaluation is only readable by
+downloading the kernel output after completion. The tranche evaluates once, at
+its end. At step 193/600 the ETA was ~43 minutes and **conditions 3 and 4 were
+still unread**.
+
+## 2026-09-18 — the legacy route is now unlaunchable, not merely rejected
+
+`evt-20260918T033934Z`. Jeff's instruction was *"first make sure that it is
+impossible to run a legacy route again, then explain to me what the repair does
+and the objective of the next tranche."* This is the enforcement half.
+
+**The hole was not the launchers. It was the defaults.** A guard test that
+audits `configs/kaggle/*.json` proves no *checked-in* config selects the legacy
+route. It cannot stop a Kaggle notebook cell, a tournament run, a test, or a
+hand-written `argv`. And `--receipt-continuation` defaults to **absent** while
+`--receipt-teaching-profile` defaults to `continuation_v1`, so **omitting every
+flag silently reproduces the rejected objective** — the route is reachable
+*because* it is never named. That is why nine tranches re-tested it. The guard I
+wrote last turn was the same class of artifact as the repair itself: correct,
+committed, and not load-bearing.
+
+**The enforcement is derived, not a list.** Membership of the rejected set is
+computed from each objective's **own**
+`termination_continue_supervision` declaration
+(`foundation_motor_v2_ratified_termination_profiles()`), so the ratified set is
+`('termination_head_balanced_v6',)` *because v6 is the only profile that
+declares the mechanism* — not because I enumerated it. A newly added profile is
+therefore **refused by default**. `foundation_motor_v2_termination_route_rejection()`
+returns two distinct refusals, each naming the objective program id and, for the
+pre-receipt base, the rung's own numbers plus the exact ratified invocation. A
+hand-maintained allowlist would have been the tenth version of the same mistake.
+
+**Three layers, innermost decisive.** (1)
+`scripts/train_living_reasoning_smoke.py` raises `RuntimeError` **before any
+compute** — this is the choke point every path funnels through, including a
+notebook run by hand, so the refusal is unconditional. (2)
+`scripts/run_d64_tournament.py:_command` raises before spawning a candidate
+subprocess, and now derives the route flag *from the profile*, so the ratified
+route is expressible at all. (3) `scripts/axon_kaggle.py` audits on **prepare**
+(before a packet is built) and on **launch** (reading the recorded argv out of
+`packet_manifest.json`, so a packet prepared before the gate existed is still
+refused at upload) — no provider quota is ever contacted. Scoped to motor-v2:
+probing showed v6 flags on a motor-v1 curriculum fail for an unrelated reason,
+so motor-v1/sequential/organism campaigns are different objectives, not the
+rejected route. `--evaluate-only` always passes — historical runs stay
+reproducible.
+
+**Proven by execution, on the real trainer.** Real published motor-v2 campaign,
+real subprocess:
+
+```
+legacy base           rc=1  refusing to train the pre-receipt-continuation motor-v2
+                            termination route (objective program 3b41008e394…)
+termination_head_v5   rc=1  refusing … profile 'termination_head_v5' (76d1ae00…)
+route_eos_balanced_v2 rc=1  refusing … profile 'route_eos_balanced_v2' (8c269847…)
+ratified v6           rc=0  trains
+```
+
+`3b41008e…` is not an arbitrary id — it is **the exact program the 600-step
+emission rung ran**. The refusal quotes the receipt of what actually ran. Config
+audit over all 18 launchers: **9 refused** (the emission rung + the 8 motor-v2
+mixer variants — kept in the repo as receipts), **9 allowed**. Affected suites:
+**144 passed, EXIT=0**.
+
+**One caveat I did *not* silently fix, because it is a doctrine call.**
+`termination_continue_accuracy` still returns `1.0` when
+`termination_continue_positions == 0` (`living_reasoning_d64.py:1317-1319`) —
+the same vacuous-pass shape as the floor traps. I checked whether it is a gate:
+it is in **none** of `FOUNDATION_MOTOR_V2_STAGE_GATE_METRICS`, so nothing passes
+through it, and `tests/test_termination_head_route.py:877` **deliberately pins**
+that off-path value to v5 semantics. So it is a reporting trap, not an unwinnable
+one. Closing it means changing a deliberately pinned number, so I flagged it
+rather than editing it.
+
+## 2026-09-18 — the full suite, and the last artifact of the hardcoded-zero era
+
+`evt-20260918T022500000000Z`. The full suite
+(`python -m pytest -q -p no:cacheprovider`, ~55 min) ran **to completion** and
+reported **exactly one failure**:
+
+```
+FAILED tests/test_tournament_metrics.py::test_evaluate_sequential_case_measures_real_tick_chain
+E   assert 0.3333333333333333 == 0.0
+    assert row["constant_typed_emission_exact_floor"] == 0.0
+```
+
+**That failure was mine, and I verified it against disk before touching
+anything.** `git show ee7d859^:training/living_reasoning_curriculum.py` shows
+the literal `"constant_typed_emission_exact_floor": 0.0`; commit `ee7d859`
+("Remove the hardcoded floors and the monitor traps") replaced it with the
+**measured** quantity at `living_reasoning_curriculum.py:613`:
+
+```python
+"constant_typed_emission_exact_floor": max(
+    typed_target_histogram.values(), default=0
+) / max(1.0, supervised_phase_count),
+```
+
+So the metric is right and the **test** was stale: it was the last assertion in
+the repository still encoding the retired hardcoded zero. Every sibling already
+expects the measured floor —
+`test_foundation_motor_objective_identity.py`, `test_termination_head_route.py`
+and `test_training_watch.py` all assert `1.0 / 3.0`;
+`test_constant_baseline_floors.py` asserts `> 0.0` and `>= 1.0/3.0`.
+
+**I fixed the assertion, not the metric.** The replacement states the property
+that actually matters and cannot go stale with the fixture:
+
+```python
+# The floor is measured, not hardcoded: it is the strongest constant
+# emitter's score over this case's own supervised phases. A floor pinned to
+# 0.0 would let a lineage that only ever emits the majority answer look like
+# progress.
+assert row["constant_typed_emission_exact_floor"] > 0.0
+assert row["constant_typed_emission_exact_floor"] == pytest.approx(
+    row["constant_typed_emission_exact_count"] / row["supervised_phase_count"]
+)
+```
+
+Targeted run `test_tournament_metrics.py` + `test_constant_baseline_floors.py` +
+`test_sequential_first_form.py` → **exit 0**. LF preserved (0 CRLF, 252 LF).
+
+**Why the trap survived:** the earlier segment ran a wide set of *targeted*
+suites and never named `test_tournament_metrics.py`. A fix that changes a
+metric's **value** must be followed by every suite that asserts that value; the
+full suite is what closes that class of gap, and it has now been run to
+completion with a known-good result. Recorded as a new canonical event rather
+than an edit to `ee7d859`'s event, per the append-only rule.
+
+## Open proposal — Soul completion + Dormant trainer (reviewed 2026-09-17)
+
+`roundtable/proposals/PROPOSAL_SOUL_COMPLETION_DORMANT_TRAINER_2026-09-16.md`
+(ChatGPT / GPT-5.6 Sol; proposal only, not ratified). Requested decision: pause
+wider curriculum expansion, make private Soul a proven load-bearing memory, and
+point the trainer at governed Dormant State as the lifelong school.
+
+Two independent reviews now agree on the blocking defect. Kimi's
+(`evt-20260917T015800Z`) reached the same verdict — approve with named changes —
+and the same first correction (the premise predates the objective-level root
+cause; a perfect Soul still emits empty payloads); it adds the missing
+Living-core training adapter and the C1 eligibility envelope as S0
+prerequisites. It modified no files, so no review document exists yet under
+`roundtable/reviews/`. This section records the independent review
+(`evt-20260917T032500Z`) and only its deltas over Kimi's.
+
+**Verdict: approve the direction, reject the sequencing — approve with named
+changes.** The diagnosis is right and the doctrine is preserved (Shared Field
+stays the input interface, Soul stays private, Heart stays sole committer,
+`.derived` stays out of supervision). Two blocking corrections before
+ratification:
+
+1. **Every Soul canary in S1/S2 requires free-running emission, which the
+   current objective actively suppresses** (stop ~ 1, `predicted_payload: ''`).
+   `ZORP -> BLUE` recall cannot be measured until the stop-supervision defect is
+   fixed, so the S0/S1 order as written will fail for an unrelated reason and be
+   misdiagnosed as "Soul is not memory." Fix the termination/content objective
+   and its gate first; then Soul.
+2. **The proposal asserts motor exactness the audits contradict.** At the
+   accepted step 24, `evaluation_component_weights.alignment_eos_gate = 0.0`
+   (verified): the EOS gate is *untrained* in every accepted checkpoint, not
+   proven. `alignment_copy_gate 4.0` / `alignment_position 1.0` are genuine;
+   transport exact 0.333 is the empty-payload floor.
+
+Verified premises (confirmed against disk, so they stand): corpus counts are
+exact (`container` 427,001; `semantic_edges` 351,978; `layout_groups` 4,198);
+`exhale_transition` does emit only HOT (`living_reasoning_d64.py:1483`); the
+Soul codec is `f32le[state_tokens=4, d_model=64]` = 1 KB/layer, and both
+`encode` (`state.detach()`) and `decode` (`frombuffer(...).clone()`) are
+non-differentiable, so **cross-phase Soul credit assignment is identically
+zero** — only same-graph probes can teach writing.
+
+Findings the proposal must absorb:
+
+- **Soul is already measured and already known to be decorative.** The
+  tournament emits `relevant_soul_ablation_degradation`,
+  `irrelevant_soul_ablation_delta`, `stale_soul_degradation`, and
+  `swapped_soul_rejection_rate`; the step-48 report records degradation 0.0 and
+  delta 0.0, and `tests/test_tournament_metrics.py:243-244` *asserts* 0.0 as the
+  honest value. Nothing in `foundation_motor_curriculum.py` gates on any of
+  them. Adopt that exact behavioral-differential metric as the S1/S2 instrument;
+  the proposal's "the answer must change under ablation" test would pass on
+  noise and repeats the same class of instrument error as the stage gate.
+- **`semantic_edges` is not a clean relation curriculum.** 351,978 edges carry
+  **41,142 distinct `edge_type` strings**, 20,684 of them singletons
+  (`uses` 12,913 is the top), with free-text `target`s averaging 33 chars. The
+  good hidden-target family is the container `edges` (`edge_type: "is a"` ->
+  short `target` such as `tool`, `file`, keyed by `letters`/`entity_type`).
+- **Recovered autobiography is not this core's life.** `experience_v1` holds
+  59,925 records but 59,875 of them are the single import
+  `d00-recovered-autobiography-v1` (`evidence_class:
+  recovered_lived_evidence`, real `occurred_at`/`sequence`, D2-era "hello
+  world", March 2026); live Heart-owned ingress is ~50 records. Training a
+  current core's *private* Soul on another life risks manufactured memory —
+  D1 needs an identity ruling, not just an eligibility ruling. Container
+  `created_tick` is `-1` corpus-wide, so delay-age buckets need
+  `experience_v1.occurred_at`.
+- **v5 re-adopts a pressure v4 had already falsified.** v4
+  (`payload_eos_weight 1.0`) documents that 4x EOS "still rewards the
+  immediate-EOS basin"; v5 inherits v3's 4.0. The Kimi delta above states the
+  numeric direction backwards (it is v4=1.0, v5=4.0) though its substance —
+  v5 carries the discredited 4x weight — is correct. Both accepted reports do
+  record `payload_eos_weight 4.0`.
+- **Unresolved architectural conflict:** Soul is parameter-generation-bound,
+  so every accepted parameter update invalidates it, while the proposal's goal
+  is learning from a long life. Either freeze the Soul codec across
+  generations, or make migration automatic and free, or lifelong memory is
+  structurally impossible. This needs an answer before S1, not before D3.
+- The proposal cites no ledger event and neither audit
+  (`evt-20260917T013100Z`, `evt-20260917T013451Z`), though it was written after
+  both.
+
+No review of it existed under `roundtable/reviews/` when it was written.
+
+**Follow-up, same turn (`evt-20260917T032500Z`):** filed the full review as
+`roundtable/reviews/COPILOT_SOUL_COMPLETION_DORMANT_TRAINER_REVIEW_2026-09-17.md`
+and amended the proposal in place at Jeff's direction — a
+`## Reviewer corrections (2026-09-17)` block with both blocking corrections and
+the seven named changes, an inline correction on the "Why this discussion now"
+paragraph, and an ordering note on `## Proposed training sequence`. The phase
+plan itself is unchanged and still not executable as ordered.
+
+## Soul architecture under discussion (open, 2026-09-17)
+
+Direction, raised by Jeff and accepted as stronger than the additive-projection
+design filed in the review: **the Soul is what the core attends every tick**,
+not a tensor inhaled at phase boundaries. The breath becomes: the Heart posts
+the shared field into the HOT layer, the core attends the whole Soul, and the
+exhale yields both a rail proposal and the Soul update.
+
+- Soul = 64 slots, structured into named **regions**; four temperature layers
+  (HOT/WARM/COLD/DEEP_COLD); HOT is replaced by the posted field each tick,
+  WARM holds a frequently-updated persistent **scratch** region, the coldest
+  layer holds a **journal** region of summarized lessons shaped for LoRA or
+  offline parameter training.
+- This is the only proposal so far that removes the `detach()`ed codec from the
+  inner loop, i.e. the only one under which gradients can reach the write path
+  inside an unroll.
+- Open refinements to be ruled on: persistence begins at WARM, since the Heart
+  overwrites HOT each tick — HOT is a scratchpad, not memory; each layer needs
+  a distinct write frequency, a distinct loss and at least one read no field can
+  substitute, or "layer" stays decorative; **16D substrate** must be either a
+  one-way Heart-side lens with a declared reconstruction error or a learned
+  round trip with an explicit reconstruction loss — it cannot be both the
+  storage format and lossless; the in-graph write opens a private-channel
+  shortcut, so the canary must compare intact against **retained-slots-removed**
+  and require the removed condition to fall to chance; durable identity lives in
+  the journal region, which is what finally resolves the `parameter_generation`
+  binding that makes every Soul die at the next accepted checkpoint.
+- Cost envelope: a full four-layer read is 256 slots × 64D, so it should be one
+  attention over the union with a layer embedding, not four attentions.
+
+**Verified 2026-09-17 (`evt-20260917T044500Z`) — the 16D↔64D round trip already
+exists, and it changes this design.** The 64D rail is four concatenated 16D lanes
+per row (`runtime/field/compiler_d64.py:52-54`; `lane_cell16` at `:270`), and the
+core lifts 16D cells with a frozen QR-derived (16,64) orthonormal-rows matrix
+(`training/complete_field_64d.py:416-420`, registered `:523`, applied `:582`).
+Orthonormal rows make it an isometry whose exact left inverse is `L.T`, so the
+round trip is exact — **but only inside the lift's 16D subspace**; an arbitrary
+64D write silently loses the other 48 dimensions. Store Soul slots in
+**substrate coordinates** and lift on read, and the round trip becomes exact.
+Byte-neutral: 64 slots × 16D × f32 = 4,096 B = today's 4 temperatures × 4
+state_tokens × 64D × f32. Because the lift is frozen and seeded, substrate
+coordinates also survive a parameter update — a better answer to the
+`parameter_generation` binding than the journal-region workaround. HOT must be
+documented as Heart-refreshed and therefore **not** the core's memory.
+
+**Correction accepted 2026-09-17 (`evt-20260917T050000Z`) — the Soul's regions
+are private and must NOT reuse `LogicalRegion`.** Jeff ruled that the canonical
+`SCRATCH` and `DIARY` are not the Soul's scratch and journal: the shared field is
+many cores proposing and a consolidator deciding, while a Soul scratch is a
+private region in a protected layer of one core, never shared. Verified:
+`authority.py:74-76` makes `CONSOLIDATOR_GOVERNED_REGIONS` every canonical region
+except `IDENTITY`; a `core` grant governs only its `permitted_regions`
+(`:102`, `:239-241`); `assert_delta_permitted` fails closed on an ungoverned
+region (`:260-262`); `circulation.py` runs proposal → refinement barrier → consolidator.
+The Soul is already private by contract (`runtime/soul/contracts.py:3-5` — the
+organism validates lineage without interpreting the payload, whose tensor/layout
+dialect belongs exclusively to the owning core; `:71` `tensor_layout:
+core-private`; `circulation.py:96` refuses a foreign core's soul). **My earlier
+"adopt the field taxonomy" line was wrong — withdrawn.** The Soul needs a private
+region namespace disjoint from `LogicalRegion`, so no `AuthorityGrant` can address
+it and no `FieldDelta` can carry it. Full design filed at
+`roundtable/proposals/PROPOSAL_SOUL_PRIVATE_ATTENDED_SUBSTRATE_2026-09-17.md`
+(PROPOSAL ONLY, awaiting seven rulings from Jeff).
+
+**Sibling proposal filed 2026-09-17 — Kimi's
+`roundtable/proposals/PROPOSAL_SOUL_LAYERED_MEMORY_LIFECYCLE_2026-09-17.md`**
+(`evt-20260917T071000Z`), reviewed by Copilot at `evt-20260917T073500Z`.
+It reframes the storage question as per-layer — *how long must this layer live,
+and must it be decodable without the parameters that wrote it?* — and its premise
+is **verified and stronger than claimed**. `substrate.py:299-309` `char_to_slot`
+is a pure function of structural features against a fixed basis matrix, cached,
+**no learned parameters**; `LetterBank` (`:376-406`) is documented as a pure
+function and `decode_letter` recovers the exact character by cosine nearest
+neighbour; the alphabet is **95 characters, order frozen, first 67 immutable,
+append-only** (`:326-349`). So the substrate really is a fixed public character
+code that any future reader or a human can decode.
+
+**New finding — the substrate is 95 discrete codewords, not a continuous space,
+and one slot is one character.** `text_to_field` yields one 16D row per character
+(`:315-319`, `SLOT_DIM = 16` at `:39`) and `decode_index` is `argmax` cosine
+(`:386-390`) — it always returns an index, so arbitrary geometry written into a
+substrate slot is **silently snapped to the nearest of 95 letters**; non-native
+Unicode is escaped through a UTF-8 byte-token path at 2–4 slots per character
+(`substrate/unicode_transport.py:171-199`). **A 64-slot substrate layer holds
+about 64 native characters — roughly one sentence.** This quantifies the
+"language-bandwidth memory" price and makes Jeff's "summarize and compress into
+colder layers" quantitatively self-consistent: a summary is short, geometry is
+not. It also bounds my own earlier overclaim — the *linear algebra* of the round
+trip is exact, the *semantics* are discrete and only exact for text.
+
+**Storage format and read adapter are different objects.** `frozen_orthogonal_lift`
+seeds on `seed + d_model` (`complete_field_64d.py:416-420`, registered from
+`cfg.lift_seed` at `:523`), so the **64D lift is d_model-dependent** while the
+**16D cell is architecture-independent** (a pure function of the character). The
+16D cell is the storage format; the lift is a per-model read adapter.
+
+**Correct separation of expressibility from privacy.** Expressibility
+(text-shape) buys survival across codecs and architectures. Privacy is bought by
+**access control** — the `core-private` contract, the per-core content-addressed
+store, `circulation.py:96` generation refusal — **not** by obscurity of the
+encoding. Both are obtainable independently, so Kimi's removal of `KEEL` as a
+Soul region (routing identity content to public canonical custody) **collides
+with Jeff's private-regions ruling** and is flagged, not accepted. Also conceded:
+`WORKBENCH` should be **latent**, not substrate as I proposed — workbench content
+is reasoning geometry, and snapping it to the nearest of 95 letters each tick
+would be destructive; the verbatim-field-carry argument survives only as a small
+substrate anchor sub-region. Per-region dialects need **zero contract change**:
+the payload is opaque, so the core may carry its own dialect header inside its own
+bytes.
+
+### Third proposal reviewed 2026-09-17 (`evt-20260917T075500Z`) — GPT-5.6 Sol's `PROPOSAL_FROZEN_SOUL_INTERFACE_2026-09-17.md`
+
+Verdict: **the best-posed question of the three documents — two blocking defects,
+five findings.** The proposal asks whether the Soul's read/write machinery should
+be a slow-changing frozen private organ while reasoning generations evolve. That
+is the right question. It is not yet answerable the way the document answers it.
+
+**Blocking 1 — there is no writer to freeze.** `exhale_transition`
+(`living_reasoning_d64.py:1504-1523`) emits `updates=(self.soul_codec.encode(
+exhaled_state, HOT),)` where `exhaled_state` is the reasoning body's own hidden
+state. The complete present Soul inventory is therefore:
+`soul_projection` = 4 × `nn.Linear(64,64,bias=False)` = 16,384 params (`:808-813`);
+`soul_gate_logits` = `nn.Parameter(torch.zeros(4))` (`:814`);
+`initial_state` = `nn.Parameter(randn(4,64)*0.02)` = 256 params
+(`complete_field_64d.py:528`); `soul_codec` = pure bytes, zero parameters;
+`phase_embedding` (`:807`). **The proposal's §3A "Soul write/update machinery"
+candidate set is empty in the present code.** Freezing the read side while the
+write side is the hidden state of the tissue being trained means the dialect is
+authored by exactly the parameters the proposal wants kept trainable — so §2's
+own warning is not hypothetical, and the fix is §2's own test: an addressed frozen
+write head. **The frozen-interface proposal requires the interface redesign it
+defers in §13.**
+
+**Blocking 2 — §5's gates with §14's default rule either block every promotion or
+pass vacuously.** §5 requires each candidate reasoning generation to show that
+body+Soul materially beats zero Soul. Measured today:
+`relevant_soul_ablation_degradation = 0.0` (`reasoning_tournament.py:61-62,
+434-438`), **asserted** at `tests/test_tournament_metrics.py:243-244`. The Soul is
+causally inert, so under §14 as written no reasoning generation can ever be
+promoted; read as scoped to "memory-dependent behavior", it is vacuous, not
+passing. Fix: require a **positive baseline** first, and record retention gates as
+"not yet applicable" rather than "passed". This also inverts §13 — "do not redesign
+Soul first" freezes an organ that provably does nothing, and §6's upgrade triggers
+(saturation, interference, consolidation failure) cannot fire on an inert organ.
+**You cannot measure the capacity of a memory nothing uses.**
+
+**Finding 3 — `soul_gate_logits` is the switch-off mechanism.** Zero-initialized,
+so gates start at `sigmoid(0)=0.5`, and the read is `soul_projection[t](decoded) *
+gates[i]` (`:1371`). A trainable body that does not need the Soul has one clean
+move: drive four logits to −∞. Silent, no error, no receipt. Freezing §3A's list
+without a non-zero supervised gate freezes an organ that is already off.
+
+**Finding 4 — §7's no-accumulation rule conflicts with its own audit requirement.**
+Migration N→N+1 needs reader N; re-auditing it later needs reader N again; §7
+forbids accumulating readers. Soul bytes without their reader are **undecodable** —
+a privacy feature **and** an auditability cost. Unruled.
+
+**Finding 5 — convergence to ratify.** §2, §9 and Q8 reach what Kimi's §2 gets
+wrong: expressibility ≠ publicity. Verified reason: `char_to_slot`
+(`substrate.py:299-309`) is pure and parameter-free, so the substrate code is
+**public by construction**, while an equally deterministic **core-private codebook**
+over the same characters gives determinism without publicity. Privacy is enforced
+by access control, never by obscurity of the encoding.
+
+**Finding 6 — precedent against the core lifecycle claim.**
+`D64ReceiptMigrationReceipt` (`:361-393`) **requires** a new architecture identity
+*and* a new parameter generation on any migration (`:384-387` raises when source ==
+target). The codebase's existing doctrine is "a change creates a new generation",
+so the frozen-interface lifecycle is an **amendment to that doctrine**, not a new
+default. (Scoped: that class governs receipt migration, not Soul promotion; cited
+as precedent.)
+
+**Finding 7 — working-contract gap.** `PROPOSAL_FROZEN_SOUL_INTERFACE_2026-09-17.md`
+(18,424 bytes) has **zero mentions in the canonical ledger**. Its author should
+file that event; Kimi filed `evt-20260917T074000Z` reviewing it, and I filed
+`evt-20260917T075500Z` reviewing it too.
+
+**Answers with evidence, for GPT-5.6 Sol's questions.** Q1 — the dialect tensors
+are the five above, and the write side is empty. Q2 — **no**, the current projected
+initial recurrent state is not a sufficient interface: `inhale` is `initial_state +
+Σ_t sigmoid(gate_t)·soul_projection[t](decode(layer_t))` plus a phase embedding, and
+`initial_state` is a learned per-core **default**, not memory — an additive learned
+prior with no addressing, no slots, no keys. Q3 — the writer is the body, so it
+must become a frozen addressed head or nothing is frozen. Q4 — yes, split
+`reasoning_generation` from `soul_interface_generation`, against the
+generation-per-change precedent above. Q5 — yes, deny ordinary mutation grants, but
+§3A's exclusion list is incomplete because it enumerates a write side that does not
+exist.
+
+### Value audit 2026-09-17 (`evt-20260917T091500Z`) — *the Soul has never held a byte*
+
+Jeff asked whether the Soul is worth the trouble, whether it is what is breaking
+training, and whether frozen cores fed by Dormant tranches would suffice.
+
+**Measured fact that outranks every proposal written about the Soul.**
+`State/active/souls` holds 8 cores (`candidate-a/b/c`, `organism-l0l4-1x64`,
+`mixer-4l-ffn256-h1-local-probe`, `receipt-r12-local-smoke-v1`,
+`receipt-route-balanced-v2-local`, `candidate-a-1x64`). Each has **exactly one
+snapshot and one journal line**, `generation: 0`, `parent_soul_id: null`, journal
+event `initialized`. Of the **32 `SoulLayer` records, 0 hold bytes** — every
+hot/warm/cold/deep_cold layer has `payload_base64: ""`, `payload_bytes: 0`, and
+`payload_sha256: e3b0c442…b7852b855`, **the SHA-256 of the empty string**. The
+entire active Soul store is **21,432 bytes over 32 files** — ~2.6 KB of JSON
+envelope per core, containing nothing. Every `branch.json`
+`parameter_generation` ends in `-untrained-base-v1`; none was ever re-bound to a
+trained generation. `State/souls` is empty.
+
+**Contrast — `State/dormant`:** `containers.jsonl` 950,542,916 B,
+`semantic_edges.jsonl` 139,721,379 B, `corpus_manifest` reporting **427,001
+containers / 351,978 semantic edges / 4,198 layout groups**, typed kinds
+`fact 143,132`, `relation 103,254`, `tool 42,202`, `procedure 37,944`,
+`entity 32,425`, `concept 26,948`, `episode 19,726`, `backlog_job 8,567`,
+`person 8,319`, `place 3,989`, `organization 462`, `diary 33`; plus
+`experience_v1` with **210 content-addressed exact-experience files**
+(`imports/`, `source_snapshots/`, schema `axon-dormant-experience-record-v1`).
+
+**Is the Soul breaking training? No — and not close.** `grep -i soul` in
+`training/foundation_motor_curriculum.py` returns **one hit: line 6, a docstring
+phrase.** The failing motor lineage has *zero* Soul contact. The Soul lives only
+in the experimental living-reasoning path. What is breaking the motor lineage is
+the six recorded root causes. What is true about the Soul is narrower: it is
+**inert and costly, not breaking.** Inert — `relevant_soul_ablation_degradation`
+fixed at `0.0`, asserted at `tests/test_tournament_metrics.py:243-244`. Costly —
+the **generation binding**: `inhale` raises when `soul.parameter_generation`
+mismatches (`living_reasoning_d64.py:1351`) and `decode` raises on
+`tensor_layout` mismatch (`:272`), where `tensor_layout` embeds
+`soul_codec_version:architecture_id:f32le[state_tokens,d_model]` (`:242-244`).
+So any parameter update, codec bump, or width change invalidates every stored
+Soul. **It has never fired only because the Souls are empty.** The hazard is real
+and deferred; the benefit is zero and current.
+
+**Frozen cores + Dormant tranches is not a new design — it is the existing
+working half.** `runtime/trainer/sessions.py:1` — "Durable training sessions
+compiled from Axon's exact lived experience" — and `episodes.py`,
+`training/first_form_curriculum.py`, `training/sequential_first_form.py`,
+`runtime/heart/autobiography.py`, `runtime/heart/coordinator.py`,
+`scripts/compile_lived_experience_sessions.py`,
+`scripts/compile_first_form_curriculum.py`. `runtime/dormant` ships
+`experience.py` (exact content-addressed storage that normalization may never
+replace), `relevance.py`, `generations.py`, `evaluation.py`, `incremental.py`,
+`evidence_bridge.py`. **This is the only part of the memory story that has ever
+produced artifacts.**
+
+**What the shared field gives, and what it does not.** The field *is* durable and
+append-only (`runtime/field/state_branch.py`: the same immutable
+`SharedFieldSnapshot`/`FieldDelta` objects as runtime, append-only journal,
+atomic HEAD, `axon-canonical-state-branch-v1`), and growth is by **mask, not
+removal** (`RegionMaskPolicy`) per Jeff's ruling. Region order is explicit —
+10 → 11 → 13 (`field/schema.py:45-71`). But it is **consolidator-governed and
+shared**: a core persists only via a governed delta through the refinement
+barrier and consolidation, and it **cannot author its own `IDENTITY`**
+(`heart/authority.py:74-80`). So the field lets a core **look up** its past; the
+Soul was supposed to let a core **remember** it. That gap is the whole of what the
+Soul uniquely offers.
+
+**What a private Soul really buys.** Its intended four goods: continuity of self
+across generations; a private workspace that need not be shared, summarized or
+graded; a compressed journal usable as distillation feedstock; and genuine
+opacity. Today it buys none, measurably. What *nothing else in the architecture
+can* supply is the last one — **opacity, plus a namespace no authority grant can
+address**. Everything else Dormant already does, at 1.1 GB, with a working
+Trainer pipeline. So the question is axiological, not engineering: **do we want a
+core to have an inner life the organism cannot read?** And the honest price of
+yes is **permanent unfalsifiability** — `runtime/soul/contracts.py:3-5` forbids
+interpreting the payload, so a populated Soul can never be gated, benchmarked, or
+proven not to drift.
+
+**Recommendation recorded.** (1) Declare the Soul **dormant-by-evidence**, not
+dormant-by-doctrine: freeze it at its present (empty) interface with **no
+promotion gate attached** until one falsifiable canary shows a core using its own
+bytes across a generation boundary — inverting Sol's §13, which freezes before
+the ablation gate can pass. (2) Invest in the tranche pipeline, which already
+carries curriculum-shaped typed kinds. (3) Change the generation binding from
+**raise** to **discard-with-receipt** while the organ is empty; a landmine under
+empty boxes is pure downside. (4) If the Soul is wanted, build it from **access
+control with a frozen addressed write head** — today's writer *is* the reasoning
+body (`exhale_transition:1504-1523`), so today's "private Soul" is neither
+private nor stable.
+
+**Convergence.** Kimi independently reached the same direction at
+`evt-20260917T084000Z-kimi-ditch-the-soul-analysis`, naming three real losses
+(conditioning-without-queries, sub-verbal learning between updates, and the
+Source-of-Truth thesis itself) and proposing a **third control arm** — no-Soul
+retrieval-only Dormant notebook — inside the eight-binding canary. That arm is the
+right instrument; the "never held a byte" measurement above is the baseline it
+must be read against, and it is also the reason ditching later is cheap: a
+provably-empty organ can be retired any day, while rebuilding a needed one is a
+re-architecture.
+
+## 2026-09-17 — "Are we still stuck?" — the missing rung and the open loop
+(`evt-20260917T100000Z-copilot-stuck-diagnosis-stage-cliff-and-emission-rung`)
+
+Jeff asked three questions in one: *are we still stuck, can we train the core to
+produce output, and how do we move forward with or without the Soul.* Two
+findings answer all three, and neither is about the Soul.
+
+**1. The core is not broken. It is precisely obeying a cliff-shaped objective.**
+`_weights()` (`foundation_motor_curriculum.py:64-76`) defaults every unnamed
+component to **0.0**. `copy_alignment` (`:87-94`) names only
+`alignment_position=1.0, alignment_copy_gate=4.0` — so **`payload = 0.0` and
+`alignment_eos_gate = 0.0`**, and the core passes that stage (landmark `063dcc0a`)
+**having never once been asked to emit content**. `transport_eos` (`:95-104`)
+then names `payload=1.0` **and** `alignment_eos_gate=1.0`: both jump **0 → 1 in
+one stage step**, against a copy gate still saturated at 4x. `copy_alignment` is
+exactly where stop pressure is 0.0 — the ideal place to learn emission — and
+instead emission is never taught while stopping is rewarded. For an untrained
+emitter the cheapest loss reduction is **emit nothing and stop**. Every symptom
+follows mechanically: `payload_content_accuracy 0.0`, `payload_eos_accuracy 1.0`,
+`payload_transport_exact_rate 0.3333` (**exactly** the 12/36 empty-payload cases),
+every QA transcript `predicted_payload: ''` with `terminated: True`, train loss
+flat/oscillating 3.60 → 3.44 → 3.39, `improvements: []`, heldout loss 0.7757 →
+0.8935.
+
+**This is a MISSING RUNG, not a weak weight.** It supersedes the earlier "content
+gradient is ~20x weaker" framing as the primary explanation and reframes the whole
+question: *a plateau is what a correct optimizer does on a wrong objective. We are
+paying for the wrong thing and correctly receiving what we paid for.* The one-line
+fix is to give `copy_alignment` a non-zero `payload` weight, or to insert an
+explicit emission stage before `transport_eos`.
+
+**2. The loop is open, and that is itself part of being stuck.**
+`python scripts/axon_kaggle.py --json jobs` → 34 local jobs: **`outputs_fetched`
+17, `submitted` 10, `prepared` 6, `failed` 1.** Every `submitted` job has
+`provider_status: null` — **Kaggle was never queried about any of them.** Four of
+the six `prepared` jobs were abandoned without ever being uploaded (`10d55b39`,
+`35c5c22b`, prepared since 2026-09-13 02:09 UTC). Newest cloud activity overall:
+**2026-09-14 16:39 UTC**. `Get-ScheduledTask` confirms **no** axon/kaggle/training/
+soul task exists — the supervision loop was deleted and never replaced, so
+submitted jobs are never watched, fetched, or failed. **The job table cannot
+currently tell us whether a run happened**, which makes every other reading
+provisional. This corrects the "four submitted / one prepared" figure in
+`evt-20260917T091500Z`; the direction is unchanged and the stall is larger.
+
+**3. The Soul changes none of this — and that is the answer.** Nothing above
+differs with or without the Soul: it is inert (**all 32 `SoulLayer` records hold
+0 bytes**, `payload_sha256 = e3b0c442…b855`, the SHA-256 of the empty string) and
+absent from the failing lineage (`grep -i soul
+training/foundation_motor_curriculum.py` → exactly one hit, line 6, a docstring).
+**No Soul work should be sequenced ahead of or in parallel with the motor fix.**
+Correct order: *motor produces output → then ask what needs remembering.* A core
+that emits nothing has no experience worth a memory architecture. The only Soul
+work justified now is zero-risk, zero-GPU cleanup already named above: change the
+generation binding from **raise** to **discard-with-receipt**, and declare the
+empty-Soul state explicitly so nothing downstream assumes memory exists.
+
+## 2026-09-17 — the emission rung implemented and run on the local GPU
+(`evt-20260917T103000Z-copilot-emission-rung-implemented-and-local-gpu-tranche`)
+
+Jeff: *"Yes please do it. forget about kaggle for now and use the local GPU. if
+the soul does not interfere than we can leave it as it."*
+
+**1. What was changed (code, tested).** `copy_alignment` now supervises emission.
+Its `component_weights` gains **`payload = 1.0`** while **`alignment_eos_gate`
+stays 0.0** — stage 0 therefore teaches emission with *zero* competing stop
+pressure, which is the entire point of the rung. Its **stage gate** now
+additionally requires `payload_content_accuracy`, `payload_transport_exact_rate`,
+`pair_exact_rates["content"]`, and that payload content beats the
+constant-payload floor, mirroring the `transport_eos` precedent; the module
+docstring now states the emission-before-termination rule. New program identity
+`3b41008e39430fb2356d464ce64f44dc83ce02c07d565f58e0f6ef3983f5e5ee`, which resets
+the ladder cursor to `STAGE_ORDER[0]`. Tests: **76 passed** on the six targeted
+suites, **60 passed / exit 0** on the full foundation-motor-adjacent set; three
+synthetic probe fixtures were patched to carry the new content keys and a new
+regression test `test_copy_alignment_teaches_emission_before_termination` asserts
+the rule.
+
+**2. The gate now expresses content — demonstrated on real data.** Feeding the
+control run `r64v3-119d02212023ef3e`'s final probe through the **new** gate yields
+**10 content failures**; the **old** gate could express **none** of them (it
+required only position, copy_gate, and eos).
+
+**3. SELF-CORRECTION — the receipt arm already saw emission in its loss.**
+`apply_receipt_continuation_teach_weights`
+(`scripts/train_living_reasoning_smoke.py:1191-1201`, called at `:1556-1587`)
+**already** overrode `payload: 1.0` **and** `alignment_eos_gate: 2.0` at
+`copy_alignment` and early-returns unchanged for every other stage. The
+`foundation_motor_v2_stage_policy` recorded in reports is the **bare table used by
+the gate**, *not* the training loss. Therefore the failing receipt arm's real
+defects were **stop pressure co-active with emission in stage 0** *plus* **a gate
+that could not express content** — not a missing payload weight. The base-table
+`payload=1.0` is decisive for the **plain / non-overlay arm**; the gate change is
+decisive for **every** arm. This narrows the earlier "missing rung" framing rather
+than discarding it: the rung was missing in the **gate** for all arms and missing
+in the **loss** for the plain arm.
+
+**4. The run.** Plain arm (no `--receipt-continuation`), so the fixed base table
+governs: `--device cuda --ffn-dim 256 --layers 4 --heads 1 --page-size 32 --seed
+20260908 --tranche-steps 60 --checkpoint-interval 60 --evaluation-case-limit 16`
+against the two FFCS manifests (`12df4547…`, `a872278f…`, 144 verified_target
+cases each). Generation `r64v3-547233f2383a7c68`, 331,319 params, exit 0, 1185 s
+of training at **~19.8 s/step**. A first launch was stopped after ~45 min stalled
+in the initial *full-surface* evaluation (GPU 39%, no progress past journal
+sequence 2) and its job-id-locked progress directory deleted; the bounded relaunch
+is the run reported here. Mean first-10 loss **19.874** → mean last-10 **11.796**
+(**−41%**), still descending at step 60.
+
+**5. What it produced — the rung moved.** Bounded heldout probe, 16 of 72 cases:
+`payload_content_accuracy` **0.3636** against a constant-payload floor of
+**0.1818** — it now *beats* the floor, where the prior lineage scored 0.0 and
+could not express content at all; `typed_emission_exact_rate` **0.25** (prior
+lineage 0.0); `payload_teacher_forced_eos_accuracy` **0.6667**;
+`payload_teacher_forced_token_accuracy` **0.4706** vs floor 0.3529;
+`alignment_eos_gate_accuracy` 1.0.
+
+**6. What it did NOT produce — the rung is not crossed.**
+`payload_transport_exact_rate` is still **0.0** over 6 supervised phases,
+`pair_exact_rates.content` **0.0**, `nonzero_exact_output_observed` **False**,
+`exact_serving_gate_passed` **False**, `foundation_motor_v2_program_complete`
+**False**, and the stage gate reports **16 failures** (position, copy_gate,
+content, and transport on both surfaces, plus "heldout/regression surface is
+incomplete" — guaranteed, because 16 of 72 cases were evaluated). All six sampled
+QA transcripts show `decision: ABSTAIN` with an empty `predicted_payload` in four
+of them. **The core is learning to emit content under teacher forcing but still
+does not deliver a payload exactly end-to-end.** This run is diagnostic evidence,
+not a gate-grade or serving result.
+
+**7. Comparability caveat.** The control run `r64v3-119d02212023ef3e` was
+evaluated on a **2-case** bounded surface and this run on a **16-case** surface, so
+the apparent collapse of `alignment_copy_gate_accuracy` from 1.0 to 0.0 is
+confounded by surface size and **must not** be asserted as a regression without a
+matched-surface comparison.
+
+**8. The Soul.** Verified untouched and inert: 40 files / 26,836 bytes under
+`State/active/souls`, **40 of 40 `SoulLayer` records with empty `payload_base64`**,
+all `generation: 0`, `parent_soul_id: null`. `git diff` of the two edited files
+introduces no Soul logic. It did not interfere, so per Jeff's ruling it is left
+exactly as it is. Its cross-phase credit assignment is still identically zero
+(`encode` detaches, `decode` uses `torch.frombuffer`).
+
+## 2026-09-17 — what the curriculum actually trains on
+(`evt-20260917T172500Z-copilot-what-the-curriculum-actually-trains-on`)
+
+Jeff: *"very good. what exactly will this next tranche train on? what is the
+curiculum?"*
+
+Read-only turn. Nothing was changed; the question is answerable from the shipped
+filter and the two manifests, and changing the material is Jeff's call.
+
+**1. The curriculum is `foundation_motor_v2` "unicode walk"** — the Axon First
+Form Curriculum v1 (`schema axon-first-form-curriculum-v1`, published by
+`training/first_form_curriculum.py:906`). Every case is a **Shared-Field v3
+snapshot** with 11 regions (`conversation_history`, `user_input`, `cortex`,
+`situation_awareness`, `tool_results`, `advisor_input`, `task_state`, `scratch`,
+`response_draft`, `diary`, `identity`) rendered to **76–77 D64 rail pages**
+(`transport_pages`). The `cortex` region holds `SOURCE_SYMBOL[<hash>]=<one
+Unicode char>`; `user_input` holds a one-line instruction such as *"Insert the
+current SOURCE_SYMBOL between the brackets at response position 1."* Each episode
+carries **three** targets — `first` (`no_op`, weight 0.0), `refined` (`no_op`,
+weight 0.0) and **`consolidated`** (weight 1.0) — so **only the consolidated
+phase is supervised**. The consolidated target is a single typed delta into
+`response_draft` with `payload_alignment` authority
+`exact_current_shared_field` and **`supervise_eos_generate: true`**. Raw corpus:
+**288 cases, family F0 only**, `procedural_depth 1` and eligibility
+`verified_target` for all, split 144 train / 72 heldout / 72 regression.
+
+**2. The stage's `eligible_actions` filter, not the manifest, defines the
+material — and it is much narrower.** At `copy_alignment` and `transport_eos` the
+eligible set is `{copy, insert, replace}`, which **removes `abstain`, `no_op` and
+`delete` entirely**. The real stage-0 training set is therefore **32 cases**
+(16 `insert`, 8 `replace`, 8 `copy` across the two manifests, 16 per lane) —
+**100 % `decision = delta` and 100 % non-empty single-character payload.**
+
+| stage | eligible lanes (per manifest) | train cases | 60 steps = |
+|---|---|---|---|
+| `copy_alignment` | 16, 16 | **32** | 3.75 epochs |
+| `transport_eos` | 16, 16 | **32** | 3.75 epochs |
+| `decision` | 72, 72 | **144** | 0.83 epochs |
+| `operation` | 24, 24 | **48** | 2.50 epochs |
+| `address` | 24, 24 | **48** | 2.50 epochs |
+| `joint` | 72, 72 | **144** | 0.83 epochs |
+
+**3. One case per step, deterministic round robin.**
+`_scheduled_material` (`scripts/train_living_reasoning_smoke.py:638-650`) picks
+`lane = lanes[step % len(lanes)]` and `lane[lane_cycle % len(lane)]` — no
+shuffling, no batching, exactly one case per optimizer step. With two manifests
+there are two lanes, so **60 steps consumed 30 cases per lane**, i.e. **3.75
+epochs of the 32-case stage-0 set** — *not* 0.42 epochs of 144.
+
+**4. SELF-CORRECTION.** My earlier framing that ~67 % of the train corpus is
+unsupervised and ~78 % carries an empty payload is **true of the raw manifest but
+false of the material actually trained.** The filter removes exactly the cases I
+was worried about. **The emission signal at stage 0 is clean**: the loss is not
+being pulled toward emitting nothing, and the reported loss still descending at
+11.8 is mild under-training on a small clean set rather than evidence of a broken
+objective.
+
+**5. NEW STRUCTURAL DEFECT (verified) — `--evaluation-case-limit` makes every
+stage gate unpassable.** `complete_heldout_evaluation` and
+`complete_regression_evaluation` are True only when *all* 72 heldout and 72
+regression episodes were evaluated (`scripts/train_living_reasoning_smoke.py:1549-1554`),
+and the gate appends `"heldout surface is incomplete"` /
+`"regression surface is incomplete"` whenever they are False
+(`training/foundation_motor_curriculum.py:1798-1801`). With
+`--evaluation-case-limit 16` the verdict was therefore **foredoomed regardless of
+model quality**: of the run's 16 gate failures, **14 are genuine metric
+shortfalls and 2 are this artifact**. Every historical tranche run with that flag
+has no actionable gate verdict.
+
+**6. The "abstain" reading is a default collapse, not learned behaviour.** The
+stage-0 probe surface includes `abstain` and `no_op` cases the core has *not*
+trained on at that stage. `per_action_joint_exact_rate {abstain 1.0, delete 0.0,
+insert 0.0, no_op 0.0}` and `per_decision_accuracy {abstain 1.0, delta 0.0, no_op
+0.0}` come from an **untrained decision head** (`decision` weight is 0.0 at
+`copy_alignment`). `decision` and per-action metrics are not gated at stage 0, so
+this collapse is currently harmless — but the six `ABSTAIN` QA transcripts must
+not be read as the core reasoning about abstention.
+
+**7. Verified: the ladder is otherwise coherent.** I read the per-stage gate
+branch structure (`training/foundation_motor_curriculum.py:1730-1797`) and each
+stage gates only the metrics its own `eligible_actions` and `component_weights`
+actually train; `abstain`/`no_op` re-enter at `decision` and `joint`, so the
+ladder is not unwinnable in the way `--evaluation-case-limit` makes it. Also
+verified `payload_transport_exact` is exactly `terminated and payload ==
+target.payload` (`training/living_reasoning_curriculum.py:720`) — a **free-running
+emission** metric, not an address metric — which confirms the emission rung is
+aimed at the right quantity.
+
+**8. Two smaller corrections.** The `copy` curriculum action **supervises the
+`replace` operation** (`start 0`, `end 0`), so copy and replace must not be
+conflated in per-operation accounting. And a **concurrent writer** is active in
+`training/foundation_motor_curriculum.py`; my emission-rung edits are intact
+(`:107` `payload=1.0`; gate at `:1730` requires content), but the file is now a
+multi-writer surface.
+
+**9. Recommended next tranche.** Plain arm, same architecture (`--ffn-dim 256
+--layers 4 --heads 1 --page-size 32 --seed 20260908`), same two FFCS manifests,
+**omit `--evaluation-case-limit`** so the gate can emit a real verdict, and size
+in epochs of 32: **600 steps ≈ 37.5 epochs ≈ 3.3 h** at ~19.8 s/step;
+2000 steps ≈ 11 h. Watch `payload_transport_exact_rate` to leave 0.0 and
+`nonzero_exact_output_observed` to flip True. **One variable at a time** — the
+emission rung is the only live intervention and must not be stacked.
+
+## 2026-09-17 — the 32 cases, the Shared Field, and live monitoring
+
+**1. The 32 stage-0 cases are enumerated, not summarised.** Both FFCS manifests
+contribute 16 each: 24 insert, 6 replace, 2 copy. Every payload is **exactly the
+`SOURCE_SYMBOL` character held in the `cortex` region**, so the task is literally
+*"put one character into `response_draft` at a position."* Only **four distinct
+instruction strings** exist, and only **three distinct target shapes**:
+`insert@[1,1)`, `replace@[0,0)` (the lane labelled *copy*), and
+`replace@[2,3)`/`[1,2)`. Lane 0 labels carry a `unicode-walk` infix and use
+accented-Latin/CJK/emoji payloads; lane 1 labels carry no infix and mix ASCII/CJK.
+**The model has exactly two degrees of freedom: which character, and which
+position.** This is the entire stage-0 curriculum.
+
+**2. The `copy` action supervises the `replace` operation.** Restated here
+because it is the single most misreadable label in the curriculum: `copy-024-*`
+and `copy-027-*` are `operation=replace` at `[0,0)`.
+
+**3. The Shared Field is authored, not runtime.** It lives in
+`State/training/curricula/ffcs_v1/<manifest_id>/manifest.json` at
+`cases[i].episode.snapshot`, schema `shared-field-v3`.
+`SharedFieldSnapshot` → `tick_id, regions, parent_field_id, source_manifest_ids,
+schema_version, field_id, canonical_hash`; `RegionState` → `name` (a
+`LogicalRegion` enum), `spans, visibility, write_policy, attended_intervals,
+mask_policy`; `FieldSpan` → `span_id, text, kind, source, provenance, confidence,
+container_refs, edge_refs`. All 11 regions are present in every case:
+`conversation_history, user_input, cortex, situation_awareness, tool_results,
+advisor_input, task_state, scratch, response_draft, diary, identity`;
+`user_input` carries `attended_intervals=(0,77)` — the 76–77 transport pages.
+**Access is attribute-only**; the snapshot is not subscriptable.
+Set `$env:PYTHONIOENCODING='utf-8'` before printing, or the emoji/CJK payloads
+fail to encode.
+
+**4. A per-step event stream has always existed.** `runtime/trainer/progress.py`
+`TrainingProgressJournal.emit` appends to `<progress-dir>/events.jsonl` with
+`fsync`, atomically rewrites `current.json`, **and prints `AXON_PROGRESS {json}`
+to flushed stdout.** The 60-step local run produced **66 journal events**
+(1 `starting`, 2 `evaluating`, 2 `evaluated`, 60 `training`, 1 `paused`); 60 of
+66 carry `details.loss`. This is the authoritative live surface for a workstation
+run.
+
+**5. I corrected my own prior claim.** I had reported that the local trainer never
+prints `AXON_PROGRESS`, based on a grep of `scripts/train_living_reasoning_smoke.py`
+alone. **That was wrong** — the emitter lives in `runtime/trainer/progress.py`, and
+stdout has always carried one event per optimizer step.
+
+**6. The monitoring gap is now closed.** `scripts/axon_training_watch.py` could
+already parse this exact schema (`Watcher.consume` handles
+`axon-training-progress-event-v1`; `_iter_progress_lines` filters `AXON_PROGRESS`),
+but `main()` had **no way to be pointed at a workstation journal**: `--local` and
+`--replay` hardcoded `_local_events_path(job_id)` under
+`State/training/cloud/jobs/<job_id>/outputs/axon_observability/trainer/events.jsonl`.
+Added **`--events PATH`**: it implies `--local`, needs **no positional job id**
+(it reads `job_id` out of the journal itself), **waits up to 60 s** for a journal
+that does not exist yet, and **disables the cloud mid-run sync poller** because a
+local run has no cloud job. Verified by rendering the finished run's own journal
+through the CLI. Four regression tests added.
+
+```
+python scripts/axon_training_watch.py --events State\training\progress\<label>\events.jsonl --qa --replay
+```
+
+**7. Both provenance gaps are now closed.** Both manifests derive the
+**identical lane name `ffcs-F0-copy_alignment`**, and a `training` event carried
+no `case_id`. Both are fixed by widening the emitted `details` — see
+*"2026-09-17 — provenance closed: every step now names its case and its
+curriculum"* below.
+
+## 2026-09-17 — provenance closed: every step now names its case and its curriculum
+
+Authorized by Jeff: *"yes please."* One identity-free, telemetry-only change; no
+training math, no capacity, no program ID touched.
+
+**1. The two gaps were real and are now closed by a field, not by a rename.**
+The trainer now emits `material_id`, `material_label` and `source_manifest_id` on
+every `training` event (`scripts/train_living_reasoning_smoke.py:2237-2239` hoists
+one local used by both the report step record and the event, so they cannot
+diverge; emitted at `:2271-2273`). The report's `steps[]` already carried
+`source_manifest_id`; only the **progress event** lacked attribution — which is
+why telemetry alone could not confirm a step's case.
+
+**2. Deliberately NOT renamed the lanes.** Attribution is a **field**;
+disambiguation is a **display key**. `scripts/axon_training_watch.py` gained
+`_manifest_tag` (`:96-104`) and the watcher renders the composite key
+`lane@manifest8` — e.g. `ffcs-F0-copy_alignment@12df454…` — in both the `lanes:`
+counter (`:247`) and the last-steps table (`:267`), which now also carries the
+case label. Keeping the lane name stable avoids churning the report schema and
+preserves `tests/test_foundation_motor_curriculum.py:182`
+(`assert step["curriculum_lane"] == "ffcs-F0"`) and `tests/test_tournament_metrics.py:198-211`.
+
+**3. A serious self-inflicted regression was introduced and fixed in the same
+turn.** The first `_manifest_tag` body returned a hard-bounded slice
+(`return text[:8]`). The repo's capacity-poison guard
+(`training/heart_preflight.py`, `_CapacityPoisonVisitor.visit_Return`, flag
+*"bounded returned slice over authoritative text"*) flagged
+`scripts/axon_training_watch.py:107`. **Because `_ACTIVE_SCAN_ROOTS` includes
+`scripts`, that single line made `scan_active_capacity_poison()` return
+`passed: False` → `TrainingPreflightReceipt.passed` False → every trainer
+invocation dying with `ValueError: training preflight does not authorize this
+candidate: passed`.** It would have blocked the next GPU tranche. Confirmed
+against `HEAD` that the violation was mine (the file's two pre-existing returns
+are `_short`-style conditionals with no hard-bounded return), then rewrote it to
+delegate to `_short(value, 8)` — the sanctioned idiom, which returns the whole id
+when it fits and marks the remainder with an ellipsis so a truncated id is never
+presented as complete.
+
+**4. Backwards compatibility is proven, not assumed.** An event with no
+`source_manifest_id`/`material_label` still renders bare `lanes: ffcs-L0:1` with
+no `@`. That is why the pre-existing
+`State/training/progress/axon-d64-emission-rung-local2/events.jsonl` (written
+before this change) still renders correctly.
+
+**5. Operator-visible proof through the real CLI.**
+
+```
+lanes: ffcs-F0-copy_alignment@12df454…:1  ffcs-F0-copy_alignment@a872278…:1
+   1  loss 19.874  ffcs-F0-copy_alignment@12df454…  first_form_case  foundation-motor-v2-unicode-walk-…  15.7s
+   2  loss 18.992  ffcs-F0-copy_alignment@a872278…  first_form_case  foundation-motor-v2-train-copy-00…  14.9s
+```
+
+**6. Three regression tests added.** Two in `tests/test_training_watch.py`
+(12 tests) — two curricula sharing a lane stay attributable; a legacy event with
+no attribution still renders. One end-to-end in `tests/test_trainer_progress.py`
+(4 tests) — a real 3-step **CPU subprocess** trainer run with **two** FFCS
+manifests, asserting two distinct `source_manifest_id`s reach the journal.
+Non-obvious facts that test had to learn: the subprocess needs a
+`HeartHost(...).amend_identity(...)`-bootstrapped state root, the trainer
+rejects duplicate episodes and mixed motor generations, the randomized v2 is
+disqualified by preflight evidence so
+`compile_foundation_motor_v2` + `..._unicode_walk` is the working pair, and
+`standard_ffcs` is sorted by **manifest id** (not argument order) so assertions
+must be order-agnostic.
+
+**7. Resolved the same day.** Jeff answered *"yes if we need it"* to both open
+questions, so both were settled empirically rather than by preference: the
+historical blank line at canonical line 192 is **not** needed and stays, and the
+QA/`evaluated` attribution **is** needed and was implemented — see
+*"2026-09-17 — QA transcripts attributed"* below.
+
+## 2026-09-17 — QA transcripts attributed: the other half of the provenance
+
+Authorized by Jeff: *"yes if we need it."* Telemetry-only again; no training
+math, no capacity, no program ID touched.
+
+**1. The blank line at canonical `:192` — NOT needed. Decision recorded.**
+The canonical ledger has exactly **one** reader in the repository:
+`scripts/append_engineers_ledger_event.py` (default path at `:71`). It appends
+bytes, `flush()`es, `os.fsync()`es, asserts the last line equals the event it
+wrote, and — when checking `event_id` uniqueness — **skips blank lines with the
+comment that historical blank lines are immutable too and the ledger must never
+be normalized or rewritten.** No code path parses every line. All 316 non-blank
+lines parse as JSON. **Verdict: no reader needs it removed; line 192 stays.**
+
+**2. The QA gap was worse than a missing label.** An `evaluated` event's
+`qa_transcripts` rows carried
+`episode_id, prompt, predicted_payload, expected_payload, exact_match,
+terminated, operation, region, decision` — `episode_id` being an opaque 64-char
+hash and **nothing** naming the case or the curriculum. A failing transcript was
+therefore unattributable. Worse, the report's own aggregate
+`isolated_manifest_evaluations` had **collapsed to a single manifest key**
+(`12df454…`) although **two** manifests were supplied, because
+`--evaluation-case-limit 16` truncated the evaluated surface — and nothing in the
+live surface revealed that collapse.
+
+**3. Three surfaces changed, all additive.**
+- `training/living_reasoning_curriculum.py` (transcript row builder): the row now
+  carries `episode_label`. It is built only when a sink is supplied and
+  `payload_count <= 3`, and `payload_count` increments only for DELTA-supervised
+  targets, so the guard captures the first supervised items of each episode.
+- `scripts/train_living_reasoning_smoke.py`: two new maps
+  (`evaluation_case_id_by_episode`, `evaluation_train_manifest_by_episode`) beside
+  the existing `evaluation_family_by_episode` / `evaluation_manifest_by_episode`,
+  and `result["qa_transcripts"] = qa_rows[:12]` replaced by a loop that spreads
+  each row and adds `family`, `case_id`, `source_manifest_id`, `manifest_id`.
+- `scripts/axon_training_watch.py` `_format_qa`: renders
+  `Q: <prompt>  [<case-label>@<manifest8>]  A: …`, the tag emitted as **one**
+  colored unit and omitted entirely when a row carries neither field.
+
+**4. A mislabel of my own making, found and fixed mid-turn.** My first
+enrichment set `source_manifest_id` from `evaluation_manifest_by_episode` — the
+**published** ffcs manifest id — while the training lanes tag every step with
+`item.teaching_living_curriculum.train_manifest_id`
+(`scripts/train_living_reasoning_smoke.py:561`). **These are different hashes for
+the same curriculum**, so the same key would have disagreed between the two
+surfaces. Fixed: `source_manifest_id` carries the **train** id; the published id
+is kept as a separate `manifest_id` key.
+
+**5. Two id spaces — do not conflate them.**
+
+| id | source | value (probe) | used for |
+|---|---|---|---|
+| published ffcs id | `manifest.json["manifest_id"]` | `12df4547…`, `a872278f…` | key of `isolated_manifest_evaluations`; new `manifest_id` field |
+| living-curriculum train id | `load_first_form_curriculum(p).teaching_living_curriculum.train_manifest_id` | `edfe2a9d…`, `b7ff2b63…` | lane `source_manifest_id`; training events |
+
+`case.case_id` is a 64-char content hash and `case.label` is `None` on ffcs
+cases, so the human-readable key is `case.episode.label`
+(e.g. `foundation-motor-v2-heldout-insert-000-0`).
+
+**6. Operator-visible proof through the real CLI** (synthetic two-manifest
+journal, `--events … --qa --replay`):
+
+```
+lanes: ffcs-F0-copy_alignment@a872278…:1  ffcs-F0-copy_alignment@edfe2a9…:1
+   1  loss 19.900  ffcs-F0-copy_alignment@a872278…  first_form_case  foundation-motor-v2-unicode-walk-…  19.8s
+  Q: Insert the current SOURCE_SYMBOL between the …  [foundation-motor-v2-unicode-walk-holdout-insert-000…@a872278…]  A: '' (expected '😂') ✗
+  Q: Insert the current SOURCE_SYMBOL between the …  [foundation-motor-v2-holdout-insert-000-1@edfe2a9…]  A: 'Q' ✓
+```
+
+**7. Backwards compatibility proven, not assumed.** The real journal
+`State/training/progress/axon-d64-emission-rung-local2/events.jsonl` (written
+before these fields existed) renders **528** QA lines across replay frames with
+**no** bracket and **no** `@`, and its lane line stays `lanes:
+ffcs-F0-copy_alignment:60`. Cloud and pre-existing journals degrade exactly as
+before.
+
+**8. Tests.** Two render tests in `tests/test_training_watch.py` (attributed row
+renders `[label@manifest8]`; unattributed row renders no bracket) and the
+existing two-manifest end-to-end subprocess test in
+`tests/test_trainer_progress.py` was renamed and extended to assert that every
+`evaluated` transcript carries a non-empty `episode_label`, a 64-char `case_id`,
+`family == "F0"`, a non-empty `manifest_id`, and a `source_manifest_id` that is a
+member of **the same expected train-manifest-id set the training steps are
+checked against** — which is what makes the id-space question decided rather than
+opinioned.
+
+**9. Own goal, recorded.** I deleted `$env:TEMP\axw` recursively **while a test
+suite was still running**, which removed the running fixture's state root and
+produced a misleading `FileNotFoundError` in
+`tests/test_sequential_wiring.py::test_smoke_script_renews_legacy_candidate_without_restart`.
+Re-running that suite alone: **7 passed**. Temp cleanup must happen only after all
+subprocess suites have exited.
+
+## 2026-09-17 — the emission rung launched on Kaggle, with a live dashboard
+
+Jeff: *"ok lets run the training on kaggle and please open a monitor so I can see
+it."*
+
+### The blocker that would have wasted the GPU spend
+
+`runtime/trainer/cloud_jobs.py:132-154` `_committed_source()` runs
+`git status --porcelain --untracked-files=no` and, if anything tracked is
+modified, raises `CloudPacketError("tracked Axon files are modified; commit them
+before exporting a cloud packet")`. The emission rung and the QA-transcript
+attribution were both **uncommitted**. A packet built at that moment would have
+shipped without either fix and the run would have failed for exactly the reasons
+the fixes exist to cure.
+
+Note the asymmetry: a modified **tracked** file blocks the packet, but an
+**untracked** file neither blocks nor ships. `roundtable/` is not in
+`_SOURCE_ROOTS` either — so the roundtable artifacts ride the commit but never
+ride the packet.
+
+Jeff authorized **one commit containing everything**; pre-commit verification was
+`scan_active_capacity_poison` (**147 files, 0 violations, passed**) and seven
+focused suites (**69 passed, exit 0**).
+
+### Commit `1a4bc416` — *"Teach Stage-0 emission and attribute every training surface"*
+
+23 files, +7,562 / −444. New: the Kaggle recipe, `scripts/diagnose_d64_routes.py`,
+`tests/test_d64_route_diagnostic.py`, `tests/test_termination_head_route.py`,
+the Copilot Soul-completion review, and the four roundtable proposals that had
+been sitting untracked. Modified: `scripts/train_living_reasoning_smoke.py`,
+`scripts/axon_training_watch.py`, `training/foundation_motor_curriculum.py`,
+`training/living_reasoning_curriculum.py`, `training/complete_field_64d.py`,
+`training/living_reasoning_d64.py`, `training/__init__.py`, four test files, and
+the roundtable ledger files.
+
+### The recipe — `configs/kaggle/axon_d64_emission_rung_first_tranche.json`
+
+`config_id 73898b62333eaf87627e69449a93c194635076f49429425b53a63a5c1212fcab`,
+validated by feeding it through the real `CloudJobConfig.from_mapping`. It mirrors
+local run `r64v3-547233f2383a7c68` exactly — same `seed 20260908`, same
+`--generate-gate-bias 1.5`, same `--heads 1 --layers 4 --ffn-dim 256
+--page-size 32`, same two ffcs manifests — and changes **one** variable:
+
+| variable | local | cloud |
+|---|---|---|
+| `--tranche-steps` | 60 | **600** |
+
+Two deliberate omissions:
+
+- **No `--evaluation-case-limit`.** `complete_heldout_evaluation` is true only
+  when *every* episode is evaluated (`scripts/train_living_reasoning_smoke.py:1549-1554`),
+  and the gate otherwise appends *"heldout surface is incomplete"*
+  (`training/foundation_motor_curriculum.py:1798-1801`). Any limited surface
+  therefore fails its own stage gate **by construction** and teaches us nothing.
+- **No `--resume`.** The local step-60 lineage is nowhere near converged, so 600
+  fresh steps are cheaper than paying continuation-closure risk. 600 steps is
+  roughly an hour on a T4; the risk is not worth the ~6 minutes saved.
+
+`sync_mid_run: true` and `allow_sensitive_state_upload: true` are set because the
+recipe includes `State/active/` and the two curriculum manifests.
+
+### Launch
+
+- `doctor` → **READY**: account `axongliksbot`, Kaggle CLI 2.2.4, **27.34 of 30
+  GPU hours** remaining, TPU 20/20.
+- **Quota is not entitlement.** The 27.34 h figure proves nothing about GPU
+  allocation; only the in-job probe does, and it passed — the runner reports
+  `accelerator: cuda` with a Tesla T4 resolved rather than falling back to CPU.
+- Job `389df54d01fbda8ec6625b9019ff5fb1ec254c08360bf3d8cf4570c41ee45bd9`;
+  phase `prepared` → `submitted`; git revision `1a4bc416`; packet **7.5 MiB /
+  459 files**. The four load-bearing files were re-hashed against disk and
+  match: `axon_training_watch.py 07b63977768e0941`,
+  `train_living_reasoning_smoke.py b5d56d065f1ff416`,
+  `foundation_motor_curriculum.py 42aed216815736e0`,
+  `living_reasoning_curriculum.py 89eb0013447a2fcb`. So the emission rung and the
+  QA attribution are **provably inside the shipped packet**, not merely inside
+  the commit.
+- Private dataset `axongliksbot/axon-job-389df54d01fbda8e-input`; private kernel
+  `axongliksbot/axon-job-389df54d01fbda8e`. Status `KernelWorkerStatus.RUNNING`.
+- Dashboard open (`monitor 389df54d… --follow`): candidate
+  `axon-d64-emission-rung-cloud-v1`, `tranche: 0/600`, runner sequence
+  `input_discovery → python_selected → running → sync_enabled`, status
+  `evaluating(initial)`. **No QA events yet, and that is expected** — transcripts
+  are emitted at the terminal evaluation, not per step.
+
+### What to watch
+
+The run has three observable stages: the initial baseline evaluation of the
+**complete** surface (no `--evaluation-case-limit`, so the whole heldout +
+regression surface), then 600 training steps, then the terminal evaluation that
+carries the QA transcripts and the stage-gate verdict.
+
+The decisive signals are exactly the two that were still dead in the local run:
+
+- **`payload_transport_exact_rate` leaving `0.0`** (local was `0.0`)
+- **`nonzero_exact_output_observed` flipping to `True`** — it requires *both*
+  typed emission *and* exact transport above the constant floor, so it is the
+  single honest "the core emitted a real answer" flag.
+
+Reference from the local run to beat: `payload_content_accuracy` 0.3636 against a
+0.1818 floor, `typed_emission_exact_rate` 0.25, `alignment_eos_gate_accuracy`
+1.0, `alignment_copy_gate_accuracy` 0.0, heldout mean loss 3.437 (first-10 mean
+19.874 → last-10 mean 11.796).
+
+Operational notes: `python scripts\axon_kaggle.py status <job_id>` and
+`fetch <job_id>` are available; `MONITOR_AXON_KAGGLE.bat` opens the same
+dashboard with no arguments; and **closing any window never stops the cloud
+job.** `sync:` reads *"waiting for first checkpoint upload"* until the first
+checkpoint boundary (step 60) — and if the one-time `AXON_KAGGLE_SYNC` secret is
+absent, sync quietly disables itself with a journal note and **no failure**.
+Synced artifacts are observation-only: never canonical State, never a
+continuation grant.
+
+### The Soul stayed out of it
+
+Per Jeff's standing ruling — *"if the soul does not interfere then we can leave
+it as it"* — this run touches nothing under `State/active/souls`. Re-verified on
+disk: 40 files / 26,836 bytes / 40 `SoulLayer` records, **every
+`payload_base64` empty**, every `generation: 0`, every `parent_soul_id: null`.
+The sequencing rule stands: no Soul work ahead of or in parallel with the motor
+fix. This run is the test of whether the motor fix alone moves the rung.
+
+## 2026-09-17 — the unwinnable gate (this turn's headline)
+
+`evt-20260917T224500000000Z-copilot-unwinnable-gate-audit-and-reachability-contract`.
+Corrects `evt-20260917T211900000000Z`. That earlier event's floor repair was
+right about the *numbers* and wrong about *where to enforce them*.
+
+### The defect, line by line
+
+Stage weight tables (`training/foundation_motor_curriculum.py`, `_weights`
+defaults every unlisted component to `0.0`):
+
+| stage | decision | operation | region | start | end | payload | eos_gate |
+|---|---|---|---|---|---|---|---|
+| `copy_alignment` | **0.0** | 0.0 | 0.0 | 0.0 | 0.0 | 1.0 | **0.0** |
+| `transport_eos` | **0.0** | 0.0 | 0.0 | 0.0 | 0.0 | 1.0 | 1.0 |
+| `decision` | 1.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.25 | 0.25 |
+| `operation` | 0.25 | 1.0 | 0.0 | 0.0 | 0.0 | 0.25 | 0.25 |
+| `address` | 0.25 | 0.25 | 1.0 | 1.0 | 1.0 | 0.25 | 0.25 |
+| `joint` | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 |
+
+The metric being gated on:
+
+- `living_reasoning_curriculum.py:702` — `decision_is_exact = decision is target.decision`
+  (argmax of `output.decision_logits`).
+- `:897` — for a DELTA target, `exact = exact and all((operation is target.operation,
+  region is target.region, start == target.start, end == target.end, payload_match))`.
+- `:789` — `payload_match = terminated and payload == target.payload`, i.e. the
+  **free-running** decode; `terminated` is the payload decoder's own EOS token
+  (`living_reasoning_d64.py:2040-2070`), not `alignment_eos_gate`.
+- `:927` — `typed_emission_exact_rate = typed_exact / supervised`.
+- `:401-405` — `decision_loss = F.cross_entropy(output.decision_logits, …)` then
+  `loss = weighted("decision", decision_loss)`, and `weighted` multiplies by
+  `weights["decision"]`.
+
+So at `copy_alignment` and `transport_eos` the decision head receives **exactly
+zero gradient**, and the DELTA inputs the conjunction demands are untrained.
+The maximum reachable `typed_emission_exact_rate` in those stages is **0**. The
+requirement I added could never be satisfied, at any step, by any lineage.
+
+The teaching overlays do not rescue it: `apply_receipt_continuation_teach_weights`
+and `apply_copy_alignment_multicell_teach_weights` return early unless the stage
+is `copy_alignment`, and none of the six receipt profiles or the multicell
+overlay gives `decision`, `operation`, `region`, `start` or `end` a nonzero
+weight there.
+
+### The historical damage this explains
+
+`transport_eos` gated on `payload_transport_exact_rate >= 0.95` (`gate_threshold
+= 0.95`) while the typed conjunction's inputs carried weight `0.0` in that
+stage. The termhead-v1 probation's **"exhausted 3/3"** plateau at
+`payload_transport_exact_rate = 0.3333` was therefore not a learning failure.
+It was a **gate that could not be passed** — recorded, correctly for the
+instrument but wrongly for the science, as the core's shortcoming.
+
+### The fix
+
+1. Removed `beat_floor("typed_emission_exact_rate", …)` from **both**
+   `copy_alignment` and `transport_eos`, with in-code comments stating why it is
+   unreachable there. Removed the redundant duplicate
+   `require("payload_transport_exact_rate")` and corrected the stale comment
+   claiming an always-stopping lineage "can never satisfy" transport
+   exactness — it can satisfy the *floor*, which is why the `0.95` threshold and
+   not the floor is the binding requirement.
+2. Retained the emission rung's genuine anti-vacuity proof at
+   `copy_alignment`: `payload_content_accuracy > payload_content_constant_floor`,
+   which an emit-nothing core scores `0.0` on. The dead state is still rejected;
+   it is now rejected by a metric that stage can actually move.
+3. Moved both floor comparisons to `joint` — the first stage that weights every
+   component the typed conjunction needs.
+4. Declared the invariant in the objective program itself:
+   `FOUNDATION_MOTOR_V2_METRIC_COMPONENTS` (metric → causal components),
+   `FOUNDATION_MOTOR_V2_STAGE_GATE_METRICS` (stage → enforced metrics),
+   `foundation_motor_v2_component_weights` (base ∪ teaching overlay),
+   `foundation_motor_v2_first_reachable_stage`, and
+   `foundation_motor_v2_unreachable_gate_requirements`.
+   `foundation_motor_v2_first_reachable_stage("typed_emission_exact_rate") == "address"`.
+5. `tests/test_foundation_motor_gate_reachability.py` — 7 tests, including a
+   negative control that re-declares `typed_emission_exact_rate` as a
+   `copy_alignment` requirement and asserts the guard reports exactly one
+   violation naming `decision` as the dead component. The guard is not vacuous.
+
+### Verification
+
+`foundation_motor_v2_unreachable_gate_requirements()` → `[]` for the base
+program, all six receipt teaching profiles, and the multicell overlay.
+`tests/test_foundation_motor_gate_reachability.py`,
+`test_foundation_motor_objective_identity.py`, `test_termination_head_route.py`,
+`test_foundation_motor_v2_curriculum.py`, `test_constant_baseline_floors.py`,
+`test_living_reasoning_smoke_gates.py`, `test_living_reasoning_d64.py`,
+`test_training_watch.py`, `test_trainer_cloud_bundle.py` → **131 passed,
+EXIT=0**. `py_compile` clean on every edited file.
+
+### Files
+
+Modified: `training/foundation_motor_curriculum.py`, `training/__init__.py`,
+`tests/test_foundation_motor_objective_identity.py`,
+`tests/test_constant_baseline_floors.py`.
+Created: `tests/test_foundation_motor_gate_reachability.py`.
+
+## 2026-09-17 — the false-progress trap, the screen-hogging monitor, and a sync that never ran
+
+`evt-20260917T211900000000Z-copilot-constant-floor-and-monitor-trap-repair`.
+Jeff: *"It sounds like a terrible mess setting us up for failure. please fix all
+hardcoded traps and build the trainer to be successful. also please the terrible
+monitor."* Plus: the Teacher-forced payload panel *"serves no purpose other than
+to take up most of the screen and spit in my face"*, and *"maybe you can find
+some insights here `D:\AxonGliksbot`"*.
+
+### What was hardcoded
+
+Two exactness floors were literal `0.0`:
+
+| file | symbol |
+|---|---|
+| `training/living_reasoning_curriculum.py` | `constant_typed_emission_exact_floor`, `constant_payload_transport_exact_floor` |
+| `training/sequential_first_form.py` | same two |
+| `scripts/train_living_reasoning_smoke.py` | same two |
+| `tests/test_living_reasoning_smoke_gates.py` | the fixture that certified them |
+
+A floor of `0.0` means *"any non-negative number beats the constant answer"* —
+including `0.0`. It is the strongest possible way to make a gate unfalsifiable.
+
+**Measured, with no model in the loop,** against the two live recipe manifests
+`State/training/curricula/ffcs_v1/a872278f…/manifest.json` and `12df4547…/manifest.json`:
+
+```
+episodes 288  splits {'train': 144, 'heldout': 72, 'regression': 72}
+heldout: supervised=72 delta=24
+  constant_typed_emission_exact_count 24.0  floor 0.3333
+  constant_payload_transport_exact_count 8.0 floor 0.3333
+  top typed keys  no_op 24, abstain 24, delete|response_draft|1|2| 8, then 16 singletons
+  top payloads    '' x8, then 16 singletons ('Q', ']', 'Z', 'l', …)
+train:   supervised=144 delta=48, floors 0.3333 / 0.3333
+```
+
+- `constant_typed_emission_exact_floor = 24/72 = 33.3%`. The observed step-0
+  `typed_exact 33.3%` is **exactly at the floor** — zero learned typed behaviour
+  displayed as a result.
+- `constant_payload_transport_exact_floor = 8/24 = 33.3%`. The observed
+  transport `0.0%` is **below** the emit-nothing baseline.
+- **56 of 72 = 77.8% of the surface is satisfied by silence.** `copy_alignment`
+  weights `decision/operation/region/start/end/alignment_eos_gate = 0.0`, so the
+  48 `no_op` + `abstain` targets contribute **zero gradient** while scoring
+  `typed_exact` for free. Only **16 of 72** cases demand emitting a character.
+- This is why the training loss fell 2.2 → 0.78 while heldout emission stayed
+  empty: the objective is consistent with **learning to be silent**.
+
+### What changed
+
+- `constant_baseline_target_key(target)` — non-DELTA keys on
+  `decision.value`; DELTA keys on the full `decision|operation|region|start|end|payload`
+  tuple (different tuple lengths make collision impossible).
+- `constant_baseline_floors(typed_histogram, payload_histogram, …)` returns
+  `max(histogram, default=0) / max(1, denominator)`. Histograms are **merged
+  across rows** (`_merge_row_histogram`, `_merged_tick_histogram`, `merged_histogram`
+  in `aggregate`): the real surface has ~1 supervised phase per row, so per-row
+  maxima would sum to 1.0 and no floor would ever be beatable.
+- `beat_floor(rate_metric, floor_metric, *, …)` in
+  `training/foundation_motor_curriculum.py` replaces direct probe indexing in the
+  `copy_alignment` and `transport_eos` gate branches. **Fail-closed, never
+  raises:** a missing metric appends *"cannot attest `<rate>` against `<floor>`:
+  the probe does not carry it"*. This also fixed 5 real `KeyError` test failures.
+- Both floors now travel on the `evaluated` progress event. Previously only
+  `constant_payload_token_accuracy_floor` reached the wire, so **no dashboard
+  could ever have shown them** even with correct rendering.
+
+### The monitor
+
+Jeff's screen pain had a call site: `scripts/axon_kaggle.py`'s `monitor` forced
+`follow_job(job_id, qa=True)`. It is now `qa=bool(args.qa)` with a `--qa` flag.
+
+- The QA panel is **opt-in**; by default there is one line:
+  `qa: sample of N teacher-forced cases @phase step S: E/N exact  (sample, not the full surface)`.
+  The wording is deliberate: `qa_transcripts` are capped `[:12]` then `[:8]` before
+  going on the wire, so the panel was never the full surface.
+- Transcripts are **de-duplicated by content** — the trainer reports each
+  evaluation twice (progress event + eval event), which is why 4 unique cases
+  rendered as 8 rows.
+- Every exactness rate now renders **beside its floor** with a verdict:
+  `typed_exact 33.3% floor 33.3% AT-FLOOR` (GREEN = BEATEN, YELLOW = AT-FLOOR,
+  RED = BELOW). A bare percentage is no longer possible.
+- The eval block is labelled `eval[{phase} @step {n}]`. The trainer evaluates
+  **only at a tranche's start and end**, so a step-0 number sat under a
+  step-554 banner for 554 steps. Labelling fixed; periodic evaluation not
+  implemented.
+- Sync receipts now surface their `reason`, and a `kernel disabled` note renders
+  in YELLOW instead of reading as a shrug.
+
+### Mid-run sync has never worked
+
+`sync_mid_run: true` → `kaggle_adapter.py` sets `enable_internet: true` and
+injects `AXON_SYNC_MID_RUN=1` + `AXON_SYNC_DATASET=…-sync`. But
+`cloud_bundle.py:_resolve_credentials()` needs `KAGGLE_USERNAME`/`KAGGLE_KEY`
+**or** the `AXON_KAGGLE_SYNC` Kaggle User Secret, and raises
+`SyncCredentialsMissing`. Every receipt in
+`State/training/cloud/jobs/*/outputs/axon_observability/**/sync_receipts.jsonl`
+says `"status": "disabled"`. `note_disabled` recorded only
+`type(exc).__name__`, so all four distinct failure conditions looked identical;
+it now records the exception message (built from the secret label, never a
+value). **No launcher preflight warns that a sync-enabled recipe has no secret.**
+
+### `D:\AxonGliksbot` — prior art worth keeping
+
+Delegated mining pass. Five load-bearing findings:
+
+1. **Its only measured non-empty emitter supervises a known slot.** `fill_acc=0.967 n=60`,
+   peaks `1.000`; `[CF_PROBE] step=100000 orig=23/24 swap=24/24 zero=24/24 SOUL_IS_READ`;
+   `core d=64 h=1 l=2 ffn=16384 params=6,605,188`. `fill_acc` is **exact whole-entity
+   match**. AdamW `lr=1e-3, betas=(0.9,0.999)`, `clip_grad_norm_(…,1.0)`, batch=1, 100k steps.
+2. **The recipe:** discrete per-slot CE over the codebook through a
+   **gradient-carrying egress** (`field_recall.py:56-63`, `# (..., 16) grad ON`); entity
+   chars weighted `1.0` vs pad `PAD_W=0.1` (`:38-41`, `:137-147`), because *at full weight
+   the cheap minimum is "predict space everywhere" (CE floor ≈1.1, exact-acc 0)*. It had
+   already been burned once by `RailEncoder.project_out` being wrapped in `no_grad()` —
+   **no gradient ever reached the core**.
+3. **That lab has no autoregressive emission and no stop token.** Every proven lane is
+   *fill-in-place at a masked draft region*. Closest termination supervision is a
+   `length_head`. Our termination-head problem is not solved anywhere in that repo.
+4. **The direct analog of our trap, already burned there:**
+   *"`capsule_core_v2` collapsed to a padded-MSE constant-output solution and was caught
+   at 8,000 steps"* (`docs/SOURCE_OF_TRUTH.md:1285-1287`) → *continuous reconstruction
+   losses cannot be the primary objective for discrete substrate content*;
+   *"losses must make constant-output collapse unprofitable"* (`:970`); *"the task metric
+   climbs above the constant-output floor BEFORE any long run is launched"* (`:962`).
+   Anti-constant mechanism to clone: frozen substrate prototypes + CE, plus an
+   identity-swap contrastive margin.
+5. **Readiness-gated ramp beats a clock ramp.** *"Clock-based ramping piled md=3 on a core
+   that hadn't learned md=1 and pinned acc at 0"*; the fix gates on
+   `md_acc >= 0.5` with `ramp_min_steps=4000`, visible as
+   `[RAMP] md -> 2 (level 1 mastered @ 0.583, step 22000)`.
+
+Also: that lab's Soul is **d_model thought vectors** (`soul_v2.py`), never 16D and never
+through the rail; `exhale()` returns `thought.detach()`; hot→warm/warm→cold run under
+`no_grad()`; its field contract has **10 regions** and **predates** our 11-region
+`shared-field-v3` — do not treat its schema as newer. Latent bug to avoid copying:
+`return exact / total if total else 1.0` — empty text scores a perfect roundtrip gate.
+That lab never had a training dashboard at all.
+
+### Verification
+
+- `py_compile` on all edited modules → exit 0.
+- Focused 9-suite run → **120 passed, exit 0**;
+  `tests/test_constant_baseline_floors.py` → **3 passed** (including the real-`State`
+  measurement); `tests/test_training_watch.py` → **20 passed**;
+  `tests/test_foundation_motor_objective_identity.py` + `tests/test_termination_head_route.py` → **40 passed**.
+- `scan_active_capacity_poison(Path("."))` → 147 files, `violations: []`, `passed: True`.
+- `tests/test_living_reasoning_smoke_gates.py` previously asserted that
+  `typed=1/3, payload=1/3` **counts as progress**. Under the real floors that is
+  exactly AT the floor. Split into
+  `test_matching_the_constant_answer_is_not_progress` (must be False) and
+  `test_nonzero_exact_output_is_progress_not_serving_readiness` (True at 2/3).
+
+### The 600-step tranche's verdict (`evt-20260917T220500000000Z`)
+
+The tranche finished at step 600 (loss 0.473, checkpoint `7856218f7e873de…`,
+10 checkpoints / 10 bundles) and evaluated. Read against the **corrected** floors:
+
+| metric | step 0 | step 600 | real floor | verdict |
+|---|---|---|---|---|
+| heldout loss | 5.206 | **1.056** | — | down |
+| payload teacher-forced token accuracy | 0.0% | **61.8%** | 43.6% | **BEATEN** |
+| `typed_emission_exact_rate` | 33.3% | **0.0%** | 33.3% | **BELOW** |
+| payload exactness | 0.0% | **16.7%** | 33.3% | **BELOW** |
+| motor-v2 copy-gate / position (heldout, n=72) | 0.000 / 0.000 | **0.903 / 0.968** | — | up |
+| motor-v2 pair-gate / pair-pos (heldout) | 0.000 / 0.000 | **0.625 / 0.875** | — | up |
+| motor-v2 copy-gate / position (regression) | 0.000 / 0.000 | **0.914 / 0.971** | — | up |
+
+The teacher-forced rows explain the exactness collapse: cases whose expected
+payload is **empty** (the `delete` cases) now answer `'i'`, `'oo'`, `'VV'`,
+`'YYY'`. The core stopped being silent and started emitting noise. It moved off
+the emit-nothing dead state in the wrong direction.
+
+**Reading:** content is genuinely learned and above its constant floor; exact
+transport is not, and `typed_exact` is now *worse* than doing nothing. The rung
+did not pass its stage gate. Content-accuracy and exactness moved in opposite
+directions, which is the signature of an objective that is not asking for the
+thing the gate measures.
+
+**Also:** `Adapter.fetch` reported success while downloading 0 files. A
+still-running kernel downloads as an empty tree without raising, so the job
+record was stamped `outputs_fetched` with `result: null`. Guarded now
+(`CloudPacketError` naming the provider status); this run's record was corrected
+back to `submitted`. The kernel has not left `RUNNING` since.
+
+### Open for Jeff
+
+(a) Should the 48 zero-weight `no_op` + `abstain` phases leave the
+`typed_emission_exact_rate` denominator, or should the Stage-0 surface be
+rebalanced toward emission? Only 16/72 cases currently demand a character.
+**The measured verdict above makes this urgent:** a core can now *lose* typed
+exactness without the loss noticing, because those 48 phases carry zero gradient.
+(b) Attach `AXON_KAGGLE_SYNC`, or stop advertising sync on recipes that cannot use it?
+(c) Adopt the readiness-gated difficulty ramp and the grad-carrying-egress +
+pad-weighted-CE recipe from `D:\AxonGliksbot`?
+(d) Should `evaluation` run periodically inside a tranche instead of only at its ends?
+(e) The `evaluating(final)` phase emits **no events at all** while it runs (≈30 min
+of a frozen-looking dashboard). Should the trainer emit progress during evaluation?
+
+## Paused lineages (preserved as diagnostic evidence, untouched)
+
+- **termhead-v1 at confirmed step 24 `bfe76d52`** (guard-accepted; copy_gate
+  1.0, position 1.0, corrected EOS gate 1.0, transport 0.333 empty-payload
+  floor, content 0.0) — `transport_eos` probation exhausted 3/3 at step 48;
+  the probationary branch is discarded by design; awaiting Jeff's decision.
+- fullguard-bias1.5 at step 16; b0 at step 24 (EOS 0.0); v3guard at step 8
+  (lr 3e-4, swap at step 16); v3slow at step 16 (lr 1e-4, swap at step 24).
+  All four shared-softmax lineages end at the same content<->EOS swap wall —
+  the evidence base for the termination-head experiment.
+- No live run remains; all supervision crons are deleted (a continuation
+  turn creates its own).
+- Codex's fix set, Kimi's diagnose fix, and this termination-head change
+  remain uncommitted pending Jeff's decision.
+
+## Binding decisions and invariants
+
+- Canonical text remains exact D16. D64 pages pack four exact D16 cells per row
+  with receipts; larger vectors never replace the canonical substrate.
+- Cortex and reasoning rails are separate organs.
+- Soul is private recurrent experiential state. Durable learning requires
+  retained Soul and/or parameter changes whose later effects are tested.
+- A valid optimizer step and a completed assignment remain independent.
+- Checkpoint continuation requires the exact accepted parameter, optimizer,
+  Soul, curriculum, and objective parent.
+- Architecture changes are opt-in and encoded in architecture identity.
+- Training and free-running execution must implement the same learned decision.
+- Partial screens, loss decline, and teacher-forced scores never authorize
+  promotion or serving.
+- Acceptance policy (guard semantics, probation allowance) never enters
+  candidate identity; only choices that change optimizer pressure may.
+- No production Heart or serving process changed in this work.
+- **Gate reachability (new, 2026-09-17): a stage gate may only require a metric
+  whose causal components all carry nonzero weight in that stage.** A component
+  weighted `0.0` receives exactly zero gradient, so a metric depending on it
+  cannot move during the stage and the requirement is unreachable by
+  construction. Enforced by `foundation_motor_v2_unreachable_gate_requirements()`
+  and `tests/test_foundation_motor_gate_reachability.py`. A plateau produced by
+  such a gate is a construction defect and must never be recorded as a failure
+  of the core to learn.
+
+## Verification
+
+- **WHAT THE "CONSTANT FLOOR" ACTUALLY IS — AND A CORRECTION TO MY OWN LAST
+  MESSAGE.** (`evt-20260917T203355955734Z-copilot-constant-floor-attribution-correction`)
+  `constant_payload_token_accuracy_floor` is *not* a threshold. It is computed at
+  `training/living_reasoning_curriculum.py:848` and `:911` as
+  `max(payload_target_counts) / payload_token_count` — the accuracy a **constant
+  emitter** would score by always outputting the single most frequent payload
+  token, EOS included. `payload_target_counts` is a per-token bincount over every
+  supervised payload target (`:630-635`, `:782-785`).
+  The **real** stage bar is `gate_threshold: 0.95`
+  (`training/foundation_motor_curriculum.py:176`, consumed at `:1698`): the
+  `require()` calls at `:1731-1739` demand `alignment_position_accuracy`,
+  `alignment_copy_gate_accuracy`, `payload_content_accuracy` and
+  `payload_transport_exact_rate` all ≥ 0.95 on **both** the complete heldout and
+  complete regression probes, plus `complete_field_coverage_rate == 1.0` exactly,
+  plus — as one *extra, lower* condition at `:1744-1747` —
+  `payload_content_accuracy > payload_content_constant_floor`.
+  **My error:** I wrote that "the full-surface floor is 43.6%, not the 18.18% the
+  local 16-case probe showed." Those are **two different metrics**. 43.6% is the
+  *token* floor (EOS included); `0.18181818181818182` is exactly `2/11`, the
+  *content* floor (EOS excluded). The like-for-like local figure is the token
+  floor `0.35294117647058826` = `6/17`. The conclusion survives — the floor really
+  is surface-dependent, which independently re-justifies omitting
+  `--evaluation-case-limit` — but I quoted the wrong local number and I am
+  recording that rather than quietly restating it.
+- **THE LOCAL RUN CLEARED BOTH FLOORS — ON A 16-CASE SLICE ONLY.**
+  `State/training/reasoning/r64v3-547233f2383a7c68/segment_000000001_000000060.json`:
+  `initial evaluated_case_count 16`; token floor `0.3529` (6/17) with
+  `payload_teacher_forced_token_accuracy` `0.0 → 0.4706` (8/17); content floor
+  `0.1818` (2/11) with `payload_teacher_forced_content_accuracy` `0.0 → 0.3636`
+  (4/11). Both floors beaten, neither *transport*. The cloud run measures all 72
+  heldout cases, where the same token floor reads **43.6%** — so the local slice
+  was **not** a valid stand-in and the local result does **not** yet show the real
+  bar can be cleared. (`evt-20260917T203355955734Z`)
+- **`typed_emission_exact_rate` CAN BE EARNED BY EMITTING NOTHING.**
+  `payload_match = terminated and payload == target.payload`
+  (`training/living_reasoning_curriculum.py:716`) and `typed exact` additionally
+  requires operation/region/start/end to be exact (`:836-845`) — so a no-op case
+  answered with an empty payload **and a stop** is legitimately typed-exact. The
+  live cloud initial evaluation proves the degenerate case is worth real credit:
+  `typed_exact 33.3%` with `payload_exact 0.0%` at **step 0 on freshly initialised
+  tissue**. So a third of typed-exact credit needs no learning at all. This is the
+  same family as the emit-nothing dead state the transport rung exists to kill.
+  (`evt-20260917T203355955734Z`)
+- Kaggle launch (`evt-20260917T200034380158Z-copilot-kaggle-emission-rung-launch`):
+  `scan_active_capacity_poison(r"D:\Axon")` → **passed: True, 147 files,
+  0 violations**; seven focused suites (`test_training_watch`,
+  `test_sequential_wiring`, `test_living_reasoning_smoke_gates`,
+  `test_no_tissue_ceilings_policy`, `test_heart_training_preflight`,
+  `test_foundation_motor_objective_identity`, `test_living_reasoning_d64`)
+  → **69 passed, exit 0**.
+- Kaggle launch: the recipe was validated by feeding it through the real
+  `CloudJobConfig.from_mapping` rather than by eyeballing JSON;
+  `config_id 73898b62333eaf87627e69449a93c194635076f49429425b53a63a5c1212fcab`.
+  `sync_mid_run: true` joins the identity **only** when enabled, so older recipes
+  keep their historical ids.
+- Kaggle launch: the packet was re-hashed member-by-member against disk —
+  `scripts/axon_training_watch.py 07b63977768e0941`,
+  `scripts/train_living_reasoning_smoke.py b5d56d065f1ff416`,
+  `training/foundation_motor_curriculum.py 42aed216815736e0`,
+  `training/living_reasoning_curriculum.py 89eb0013447a2fcb` — **all match**.
+  This is what proves the emission rung and the QA attribution were actually
+  shipped, not merely committed.
+- Kaggle launch: the dirty-tree blocker was read at source
+  (`runtime/trainer/cloud_jobs.py:135-137`) and the post-commit tracked tree was
+  confirmed clean, so the packet gate and the launch both saw the same revision
+  `1a4bc416`.
+- Kaggle launch: entitlement was proved by the job, not by the quota page — the
+  dashboard reports `accelerator: cuda` with a Tesla T4 resolved, which is the
+  fail-closed CUDA probe passing rather than a CPU fallback.
+- Kaggle launch: the canonical ledger tail was re-read immediately before
+  appending (319 raw lines, trailing newline present, no concurrent append), the
+  event was appended through the sanctioned appender, and the file now reads
+  **320 raw lines = 319 events + blank line 192 + trailing newline**. The new
+  event's `actions` are all objects and `identity_stamp` is a string.
+- QA attribution (`evt-20260917T193000000000Z`): `tests/test_training_watch.py`
+  **14 passed** (12 + 2 new render tests); `tests/test_trainer_progress.py`
+  **4 passed** (the extended two-manifest CPU subprocess test now also asserts
+  the **evaluation** surface reuses the training id space);
+  `tests/test_sequential_wiring.py` **7 passed** on a clean re-run;
+  all `PYTEST_EXIT=0`.
+- QA attribution (`evt-20260917T193000000000Z`): capacity guard clean —
+  `scan_active_capacity_poison(r"D:\Axon")` → **passed: True, 147 files,
+  0 violations**, with `scripts/axon_training_watch.py`,
+  `scripts/train_living_reasoning_smoke.py` and
+  `training/living_reasoning_curriculum.py` all in the scanned set. Proved on
+  **both** ends: attribution renders for a two-manifest journal, and the legacy
+  real journal renders **528** QA lines with no bracket and no `@`.
+- QA attribution (`evt-20260917T193000000000Z`): one failure seen in the combined
+  run — `test_sequential_wiring.py::test_smoke_script_renews_legacy_candidate_without_restart`
+  — was **self-inflicted**: my own `Remove-Item -Recurse -Force $env:TEMP\axw`
+  deleted the running fixture's state root. Clean re-run passes.
+- Blank-line verdict (`evt-20260917T193000000000Z`): the canonical ledger's only
+  reader is `scripts/append_engineers_ledger_event.py`, which appends, fsyncs,
+  asserts the last line and **skips** blank lines as immutable history; all 316
+  non-blank lines parse. **No reader needs line 192 removed.**
+- Canonical ledger integrity (`evt-20260917T193000000000Z`): **319 body lines =
+  318 JSON events + blank line 192 + trailing newline**; both new events were
+  appended through the sanctioned `scripts/append_engineers_ledger_event.py`
+  (required-field validation + last-line assertion), not by hand.
+- Schema self-audit (`evt-20260917T191000000000Z`): all **316** prior events
+  re-parsed. **11** events do not carry `actions` as a list of objects — **8** are
+  other agents' historical events with `actions: null` (chatgpt, hermes, kimi),
+  and **3 are mine** (file lines 309, 312, 317) with `actions` as a list of
+  strings. **8** events do not carry a string `identity_stamp` — the same 7
+  historical nulls plus **mine at line 317, the only `dict` `identity_stamp` in
+  the file**. My events at 309 and 312 carry the incomplete stamp
+  `"GitHub Copilot CLI / deepseek-v4.1-flash"` (no `:cloud`, no date). Corrected
+  **additively**; no prior line touched.
+- Provenance widening (`evt-20260917T181000Z`): `tests/test_training_watch.py`
+  **12 passed**; `tests/test_trainer_progress.py` **4 passed** (incl. the new
+  two-manifest CPU subprocess test); a combined 7-suite run
+  (`test_training_watch`, `test_trainer_progress`, `test_trainer_cloud_bundle`,
+  `test_termination_head_route`, `test_living_reasoning_smoke_gates`,
+  `test_tournament_metrics`, `test_communication_first_c1`) **93 passed**;
+  the 3 foundation-motor suites **26 passed**; all `PYTEST_EXIT=0`, and
+  `tests/test_foundation_motor_curriculum.py:182` is unchanged.
+- Provenance widening (`evt-20260917T181000Z`): the capacity guard is clean
+  again after the self-inflicted regression was fixed —
+  `scan_active_capacity_poison(r"D:\Axon")` → **passed: True, 147 files,
+  0 violations**; `tests/test_no_tissue_ceilings_policy.py` **5 passed**
+  (it already calls the scanner on `ROOT`, so the rule needed no new test).
+  Operator-visible render verified through the real CLI:
+  `ffcs-F0-copy_alignment@12df454…:1` and `@a872278…:1` with matching case
+  labels; mechanism episodes confirmed to carry a label
+  (`build_living_reasoning_smoke_curriculum().split("train")[0].label
+  == "unicode-head-copy"`).
+- New `tests/test_termination_head_route.py` 16/16: content logits cannot
+  move the termination logit (old eos route still couples — discriminating
+  negative control), gradient isolation, clean stop/continue scaling, gate
+  immunity, teacher-forced == causal == runtime selector == closed-form,
+  memory=None normalization, identity/provenance, v5 profile/program identity,
+  stage-gate pairing, strict/fail-closed state_dict.
+- Live monitoring (`evt-20260917T173500Z`): the per-step journal is real —
+  `State/training/progress/axon-d64-emission-rung-local2/events.jsonl` holds
+  **66 events** for the 60-step run (1 `starting`, 2 `evaluating`,
+  2 `evaluated`, 60 `training`, 1 `paused`), and **60 of 66 carry
+  `details.loss`**, one per optimizer step. `runtime/trainer/progress.py`
+  `TrainingProgressJournal.emit` is the emitter and it also prints
+  `AXON_PROGRESS {json}` to flushed stdout.
+- Live monitoring (`evt-20260917T173500Z`): `--events PATH` added to
+  `scripts/axon_training_watch.py`; **42 passed / PYTEST_EXIT=0** on
+  `tests/test_training_watch.py` + `tests/test_trainer_cloud_bundle.py` (10 in
+  the watch suite, up from 6, with four new regression tests). Verified by
+  rendering the finished run's own journal through the CLI end to end, and by
+  the fail-closed contract: no arguments exits 2 with *"a job_id or --events
+  path is required"*. `scripts/axon_kaggle.py:335 follow_job(job_id, qa=True)`
+  still satisfies the widened signature.
+- 38/38 test_living_reasoning_d64 + test_d64_route_diagnostic +
+  test_foundation_motor_objective_identity.
+- 68/68 trainer/tournament/motor/pointer/bundle targeted suites.
+- Full `tests/`: 835 collected, 834 passed, 1 failure —
+  `test_day_zero_hygiene.py::test_day_zero_active_python_surface_is_narrow`,
+  PRE-EXISTING and unrelated (committed `runtime/trainer/attempt_workspace.py`
+  from 0a51bc8 missing from the test's whitelist; no runtime/ files were
+  touched in this work). Flagged, not fixed.
+- Historical architecture identity
+  `living-d64-receipt-242266f0633f2e7e1943d128` reproduces exactly (pinned by
+  test); the eos-route distribution is byte-identical to before (all eos-route
+  tests pass unchanged).
+- Emission rung (`evt-20260917T103000Z`): **76 passed** on
+  `test_foundation_motor_v2_curriculum`, `test_foundation_motor_objective_identity`,
+  `test_living_reasoning_d64`, `test_termination_head_route`,
+  `test_living_reasoning_smoke_gates`, `test_tournament_metrics`; **60 passed /
+  PYTEST_EXIT=0** on the full foundation-motor-adjacent set
+  (`test_foundation_motor_curriculum`, `test_foundation_motor_v2_curriculum`,
+  `test_foundation_motor_objective_identity`, `test_termination_head_route`,
+  `test_d64_tournament_launcher`, `test_training_watch`).
+- Emission rung post-edit stage table confirmed both in code and in the emitted
+  report: `copy_alignment {payload 1.0, alignment_position 1.0,
+  alignment_copy_gate 4.0, alignment_eos_gate 0.0}` with
+  `evaluation_component_weights == foundation_motor_v2_stage_policy` and
+  `foundation_motor_v2_program_id = 3b41008e39430fb2356d464ce64f44dc83ce02c07d565f58e0f6ef3983f5e5ee`.
+- Emission rung local tranche `r64v3-547233f2383a7c68` (`device: cuda`, exit 0,
+  60 steps, 1185 s, ~19.8 s/step, `resource_tranche` base 0 → final 60):
+  train loss mean first-10 **19.874** → mean last-10 **11.796** (−41%);
+  `payload_content_accuracy` **0.3636** ≥ constant floor **0.1818**;
+  `typed_emission_exact_rate` **0.25** > floor 0.0;
+  `payload_teacher_forced_eos_accuracy` **0.6667**; `alignment_position_accuracy`
+  0.5455; `alignment_copy_gate_accuracy` 0.0; `alignment_eos_gate_accuracy` 1.0;
+  `decision_accuracy` 0.25; `heldout_mean_loss` 3.437 — and still
+  `payload_transport_exact_rate` **0.0**, `pair_exact_rates.content` **0.0**,
+  `nonzero_exact_output_observed` **False**, `exact_serving_gate_passed` **False**,
+  stage gate `passed = False` with **16 failures**.
+- Gate-receives-full-probe check (guards against the compacted progress form):
+  `foundation_motor_v2_stage_gate.heldout_probe` carries
+  `payload_content_accuracy = 0.36363636363636365` and
+  `payload_content_constant_floor = 0.18181818181818182`, and the
+  "payload content does not beat constant floor" failure is correctly **absent**.
+- Soul non-interference check (`evt-20260917T103000Z`): 40 files / 26,836 bytes
+  under `State/active/souls`, **40 of 40** `SoulLayer` records with empty
+  `payload_base64` (`e3b0c44298fc…` = SHA-256 of the empty string), all
+  `generation: 0`.
+- Curriculum composition (`evt-20260917T172500Z`, both FFCS manifests read and
+  filtered through the shipped stage filter): raw corpus 288 cases, **family F0
+  only**, `procedural_depth 1` and `verified_target` for all, split 144/72/72;
+  the two manifests share **0 of 144** `case_id`s yet carry an identical
+  `identity_text_sha256 = 63f7b61587647b991e0b2ded10345dfeb8429539595a6aeb643ada9c7d7049fc`.
+  Stage-filtered training material: `copy_alignment` **32** (16 insert, 8 replace,
+  8 copy) — **100 % `delta`, 100 % non-empty single-character payload**;
+  `transport_eos` 32; `operation` 48; `address` 48; `decision` 144; `joint` 144.
+- Sampler check: `_scheduled_material` (`scripts/train_living_reasoning_smoke.py:638-650`)
+  consumes **exactly one case per step** by deterministic family round robin, so
+  two lanes over 60 steps = **3.75 epochs of the 32-case stage-0 set**.
+- Surface-completeness check: `--evaluation-case-limit 16` of 72 makes
+  `complete_heldout_evaluation` / `complete_regression_evaluation` False
+  (`scripts/train_living_reasoning_smoke.py:1549-1554`), which emits
+  `"heldout surface is incomplete"` / `"regression surface is incomplete"`
+  (`training/foundation_motor_curriculum.py:1798-1801`) — **the stage gate cannot
+  pass under a limited surface for any model**.
+- Ladder-coherence check (`training/foundation_motor_curriculum.py:1730-1797`):
+  each stage gates only metrics its own `eligible_actions` and
+  `component_weights` train; `abstain`/`no_op` re-enter at `decision` and `joint`,
+  so the ladder is coherent apart from the surface-completeness defect.
+  `payload_transport_exact` verified to be `terminated and payload ==
+  target.payload` (`training/living_reasoning_curriculum.py:720`) — a free-running
+  emission metric, not an address metric.
+- Emission-rung edits intact after a **concurrent write** by another agent into
+  `training/foundation_motor_curriculum.py`: `:107` `payload=1.0` inside
+  `copy_alignment`; gate at `:1730` requires `payload_content_accuracy`,
+  `payload_transport_exact_rate` and the `content` pair.
+
+## Active blockers and risks
+
+- **`constant_typed_emission_exact_floor` IS HARDCODED `0.0` AND IS NOT A FLOOR.**
+  It is a literal `0.0` in three places —
+  `training/living_reasoning_curriculum.py:909`,
+  `training/sequential_first_form.py:654`, and the aggregation at
+  `scripts/train_living_reasoning_smoke.py:1787` — never computed from the
+  surface, unlike its content and token siblings. The live cloud initial
+  evaluation scores `typed_exact 33.3%` at **step 0 with random tissue**, so a
+  degenerate emit-nothing emitter beats the declared floor by a third of the
+  surface. **No gate is currently broken**: `typed_emission_exact_rate` is not a
+  `require()`d metric at `copy_alignment` or `transport_eos`, and the
+  `nonzero_exact_output_observed` flag needs *both* typed emission and transport
+  above their floors, so transport still refuses the degenerate case. But a number
+  advertised as a floor that a degenerate emitter trivially beats is a latent
+  trap: any future gate that requires typed emission would be satisfiable by
+  emitting nothing. **Open item for Jeff.**
+  (`evt-20260917T203355955734Z-copilot-constant-floor-attribution-correction`)
+- **MID-RUN SYNC IS DISABLED FOR THE RUNNING JOB (`kernel disabled`).** The
+  dashboard reports `sync: waiting for first checkpoint upload  kernel disabled`.
+  The runner-side `sync_enabled` fired, but the kernel side has no sync channel,
+  so the one-time Jeff-only Kaggle UI step (secret `AXON_KAGGLE_SYNC`, or
+  `KAGGLE_USERNAME`/`KAGGLE_KEY`, attached to the kernel **with internet
+  enabled**) was not applied. This is **not a failure** — training is unaffected —
+  but it means **no mid-run observability** for this tranche; the outputs arrive
+  only with the final bundle. Fix it once in the Kaggle UI to stream future runs.
+  (`evt-20260917T203355955734Z`)
+- **CLOUD PACKET GATE REFUSES A DIRTY TRACKED TREE — RESOLVED THIS TURN, BUT IT
+  IS A STANDING TRAP.** `runtime/trainer/cloud_jobs.py:135-137` raises
+  `CloudPacketError("tracked Axon files are modified; commit them before
+  exporting a cloud packet")` whenever `git status --porcelain
+  --untracked-files=no` is non-empty. The failure mode is safe but *late*: the
+  error only fires at `prepare`, and the natural workaround — committing first —
+  is undone the moment any later edit touches a shipped root (`adapters/`,
+  `configs/`, `cores/`, `curator/`, `runtime/`, `scripts/`, `slots/`,
+  `substrate/`, `training/`). Note the asymmetry: a modified **tracked** file
+  blocks the packet, while an **untracked** file neither blocks nor ships; and
+  `roundtable/` is not a `_SOURCE_ROOT`, so ledger edits do not ship (and did not
+  need to). **Rule: commit the shipped source, then `prepare`, then launch — and
+  never edit a `_SOURCE_ROOT` path between `prepare` and `launch`.**
+  (`evt-20260917T200034380158Z-copilot-kaggle-emission-rung-launch`)
+- **THE STAGE GATE FAILS BY CONSTRUCTION ON ANY LIMITED EVALUATION SURFACE.**
+  `complete_heldout_evaluation`/`complete_regression_evaluation` are true only
+  when *every* episode is evaluated
+  (`scripts/train_living_reasoning_smoke.py:1549-1554`), and otherwise the gate
+  appends *"heldout surface is incomplete"*
+  (`training/foundation_motor_curriculum.py:1798-1801`). Any recipe passing
+  `--evaluation-case-limit` therefore cannot pass its own stage gate, no matter
+  how well the model did. The cloud recipe deliberately omits the flag. This
+  remains an **open defect** in the product, not just a recipe choice.
+  (`evt-20260917T200034380158Z-copilot-kaggle-emission-rung-launch`)
+- **QUOTA IS NOT ENTITLEMENT.** `doctor` reports 27.34 of 30 GPU-hours remaining,
+  but that figure says nothing about whether a GPU will be allocated. Only the
+  in-job CUDA probe does, and it must fail **closed** — never fall back to CPU.
+  It passed for this job (`accelerator: cuda`, Tesla T4). Treat the quota page as
+  a scheduling hint, never as proof. (`evt-20260917T200034380158Z-copilot-kaggle-emission-rung-launch`)
+- **MID-RUN SYNC IS OBSERVATION-ONLY.** `sync_mid_run: true` needs a one-time
+  Jeff-only Kaggle UI step attaching the `AXON_KAGGLE_SYNC` secret with internet
+  enabled. Without it, sync disables itself with a journal note and **no
+  failure**, so *"sync: waiting for first checkpoint upload"* is not an error
+  signal. Synced payloads are never canonical State and never a continuation
+  grant. (`evt-20260917T200034380158Z-copilot-kaggle-emission-rung-launch`)
+- **THE DECISIVE CLOUD SIGNALS ARE STILL UNKNOWN.** `payload_transport_exact_rate`
+  was `0.0` and `nonzero_exact_output_observed` was `False` in the local run. The
+  Kaggle run exists to move them. Until the terminal evaluation reports, the
+  emission rung is **partially** validated at best, and no further GPU hours
+  should be spent on widening Stage-0 material before those two numbers are
+  known. (`evt-20260917T200034380158Z-copilot-kaggle-emission-rung-launch`)
+- **CANONICAL LEDGER BLANK LINE (line 192) — CLOSED: LEAVE IT.** Jeff's answer to
+  "should we delete it?" was *"yes if we need it."* Empirically **we do not**.
+  `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl` is now 320 body lines (**319 JSON
+  events** + the empty line 192 + one trailing newline); line 192 sits between
+  `evt-20260908T163825100000Z-gemini-pickup-codex-google-prep` (191) and
+  `evt-20260908T171000000000Z-gemini-deep-repo-analysis` (193). The canonical
+  ledger has **exactly one** reader in the repo,
+  `scripts/append_engineers_ledger_event.py`, and it **explicitly skips blank
+  lines** while validating `event_id` uniqueness, with the comment that historical
+  blank lines are immutable too and the ledger must never be normalized or
+  rewritten. No code path parses all lines; every non-blank line parses. Deleting
+  it would violate immutability for zero benefit, so it stays. (`evt-20260917T193000000000Z`)
+- **MY OWN EARLIER EVENTS DEVIATE FROM THE CANONICAL SCHEMA (corrected
+  additively).** File lines 309, 312 and 317 list `actions` as plain **strings**
+  instead of objects with `kind/target/summary/result`; 309 and 312 carry the
+  incomplete `identity_stamp` `"GitHub Copilot CLI / deepseek-v4.1-flash"` (no
+  `:cloud`, no date); 317 carries the **only `dict` `identity_stamp` in the file**
+  plus a second-precision `event_id`. Recorded by
+  `evt-20260917T191000000000Z-copilot-event-schema-self-correction`; the original
+  lines are untouched. All future Copilot events go through
+  `scripts/append_engineers_ledger_event.py`. (`evt-20260917T191000000000Z`)
+- **EIGHT HISTORICAL EVENTS CARRY `actions: null`** (file lines 56, 152, 153, 154,
+  256, 261, 265, 273 — chatgpt/hermes/kimi; seven also lack `identity_stamp`).
+  They parse and they are immutable; their authors would have to correct them. A
+  house ruling is owed on whether null-actions events are schema-valid history.
+  (`evt-20260917T191000000000Z`)
+- **APPEND-ORDER vs TIMESTAMP-ORDER.** My own two events this turn were appended
+  turn-event-then-correction, so the file's last two lines are stamped `19:30`
+  then `19:10`. The canonical file is authority in **append** order; nothing was
+  reordered. Append corrections **before** the turn event in future.
+- **CONCURRENT-APPEND HAZARD (demonstrated twice).** A splice at line 312 once
+  merged two agents' events onto one line (repaired by Kimi), and a later reader
+  saw out-of-order events 313-316. **Two agents must never append to the canonical
+  ledger concurrently; always re-read the tail immediately before writing.**
+- **`--evaluation-case-limit` MAKES EVERY RUN FAIL ITS OWN STAGE GATE.** Still
+  open. `complete_heldout_evaluation` is `True` only when **every** episode is
+  evaluated (`scripts/train_living_reasoning_smoke.py:1549-1554`), so the gate
+  appends *"heldout surface is incomplete"*
+  (`training/foundation_motor_curriculum.py:1798-1801`) and the run fails **by
+  construction, for any model**. The next tranche must omit the flag.
+- **`isolated_manifest_evaluations` SILENTLY DROPS MANIFESTS WHEN THE SURFACE IS
+  LIMITED.** The `r64v3-547233f2383a7c68` report carries **one** manifest key
+  (`12df454…`) although **two** manifests were supplied. Live-surface attribution
+  now compensates for the *live* events, but the aggregate table itself still
+  collapses and nothing else reveals it.
+- **TEMP CLEANUP CAN BREAK A RUNNING SUITE.** I deleted `$env:TEMP\axw` while
+  `tests/test_sequential_wiring.py` was mid-flight, which produced a misleading
+  `FileNotFoundError` on the fixture's published manifest. Clean temp directories
+  **only after** all subprocess suites have exited.
+- NO live training run. `transport_eos` probation exhausted 3/3 (steps 25-48)
+  with zero improvements and a loss reversal; all supervision crons deleted.
+- **Content has no usable learning pressure in the current objective** (audit
+  above): its gradient is ~20x weaker than an already-correct one-position
+  gate's, and the net pressure at the termination head is 4:1 toward immediate
+  termination. No further tranche changes this; a fresh identical lap from
+  `bfe76d52` should be expected to reproduce the plateau.
+- **The `transport_eos` stage gate is unreachable as instrumented**: it judges
+  content by a teacher-forced metric with 8 learned positions and requires no
+  free-running emission at all.
+- **MISSING RUNG — CLOSED in code 2026-09-17 (`evt-20260917T103000Z`); retained
+  below as the record of the diagnosis.** `copy_alignment` now supervises emission
+  (`payload = 1.0`, `alignment_eos_gate = 0.0`) and its gate requires content, so
+  the rung exists in both the loss and the gate. The finding that superseded it is
+  the **transport wall** bullet below.
+  Original finding (`evt-20260917T100000Z`):
+  `foundation_motor_curriculum.py:64-76` `_weights()` returns
+  `{name: float(overrides.get(name, 0.0)) for name in names}`, so any component a
+  stage does not name **defaults to 0.0**. `copy_alignment` (`:87-94`) names only
+  `alignment_position=1.0, alignment_copy_gate=4.0`; therefore
+  **`payload = 0.0` and `alignment_eos_gate = 0.0`**, and the core passes that
+  stage (landmark `063dcc0a`) having **never once been asked to emit content**.
+  `transport_eos` (`:95-104`) then names `payload=1.0` **and**
+  `alignment_eos_gate=1.0` — both jump **0 → 1 in a single stage step**, against a
+  copy gate still saturated at 4x. `copy_alignment` is exactly the stage where
+  stop pressure is 0.0, i.e. the ideal place to learn emission; instead emission
+  is never taught while stopping is rewarded, so the cheapest loss reduction for
+  an untrained emitter is **emit nothing and stop**. This is a **missing rung,
+  not a weak weight**, and it supersedes the "content gradient is ~20x weaker"
+  framing above as the primary explanation. One-line fix: give
+  `copy_alignment` a non-zero `payload` weight, or insert an explicit emission
+  stage before `transport_eos`.
+- **THE TRANSPORT WALL — emission is now taught, but exact delivery is not
+  (`evt-20260917T103000Z`).** With `payload = 1.0` and `alignment_eos_gate = 0.0`
+  at `copy_alignment`, 60 CUDA steps moved content accuracy from 0.0 to
+  **0.3636** (2x the constant floor of 0.1818) with loss still descending
+  (19.874 → 11.796), and `typed_emission_exact_rate` reached **0.25**. But
+  `payload_transport_exact_rate` stayed **0.0** over 6 supervised phases,
+  `pair_exact_rates.content` stayed 0.0, and `nonzero_exact_output_observed`
+  stayed **False**; every sampled transcript still `ABSTAIN`s with an empty
+  payload. So the binding constraint has moved one rung: the core now *learns* to
+  emit content under teacher forcing but does not deliver a symbol
+  **end-to-end** in free running. Two candidate causes are unresolved and must
+  not be conflated: (a) 60 steps is ~9% of a real tranche, so this may simply be
+  undertraining (loss had not plateaued); (b) the decision head is **untrained**
+  at this stage (`decision = 0.0` in the policy) yet is the component that
+  chooses `ABSTAIN` vs `REPLACE` at inference, and every transcript shows
+  `ABSTAIN` — a trained-to-emit core vetoed by an untrained gate would be
+  invisible to the current instruments.
+- **THE LIMITED-SURFACE DEFECT — every bounded-surface gate verdict is
+  meaningless (`evt-20260917T172500Z`).** `complete_heldout_evaluation` and
+  `complete_regression_evaluation` are True only when **all** 72 heldout and 72
+  regression episodes have been evaluated
+  (`scripts/train_living_reasoning_smoke.py:1549-1554`), and the gate appends
+  `"heldout surface is incomplete"` / `"regression surface is incomplete"`
+  whenever they are False (`training/foundation_motor_curriculum.py:1798-1801`).
+  So **any** run passing `--evaluation-case-limit` fails its stage gate by
+  construction, for every architecture and every loss value. Of the local
+  tranche's 16 gate failures, **14 are genuine and 2 are this artifact**.
+  Consequence: the verdicts of `r64v3-547233f2383a7c68` and of every other bounded
+  run — including the 2-case control `r64v3-119d02212023ef3e` — are **nullities**
+  as gate evidence and may only be read as metric samples.
+- **THE MATERIAL MAY BE TOO SMALL — stage 0 trains on 32 cases
+  (`evt-20260917T172500Z`).** The `copy_alignment` `eligible_actions` filter
+  (`{copy, insert, replace}`) removes `abstain`, `no_op` and `delete`, leaving
+  **32 distinct cases** (16 insert, 8 replace, 8 copy) consumed one per step by
+  deterministic round robin. This is *good* news for the objective — stage-0
+  material is **100 % `delta` with a non-empty single-character payload**, so the
+  emission signal is clean and the earlier "78 % empty payload poisons emission"
+  worry was a **raw-manifest artifact, corrected**. But whether 32 cases carry
+  enough entropy to teach exact end-to-end delivery of a symbol is unproven.
+- **THE LOOP IS OPEN — 16 cloud jobs in flight with no reconciliation
+  (`evt-20260917T100000Z`).** `python scripts/axon_kaggle.py --json jobs` reports
+  34 local jobs: **`outputs_fetched` 17, `submitted` 10, `prepared` 6, `failed`
+  1.** Every `submitted` job has `provider_status: null` — **Kaggle was never
+  queried about any of them** — and 4 of the 6 `prepared` jobs were abandoned
+  without ever being uploaded (two "Living-core architecture screen stage 1"
+  jobs, `10d55b39` and `35c5c22b`, prepared since 2026-09-13 02:09 UTC). Newest
+  cloud activity overall is **2026-09-14 16:39 UTC**. `Get-ScheduledTask` shows
+  **no** axon/kaggle/training/soul task exists, so submitted jobs are never
+  watched, never fetched, and never marked failed. **The job table cannot
+  currently tell us whether a run happened**, which makes every other reading
+  provisional. (This corrects the "four submitted / one prepared" figure stated
+  in `evt-20260917T091500Z`.)
+- The rolling summary itself was stale through this turn (it still described
+  the step-8 tranche-1 state and claimed no transport_eos work had run); it has
+  been corrected against the canonical events. Treat the canonical JSONL as the
+  authority when the two disagree.
+- `legal/`, `scripts/diagnose_d64_routes.py`,
+  `tests/test_d64_route_diagnostic.py`, and now the termination-head change
+  set remain untracked/uncommitted.
+- Pre-existing day-zero hygiene failure (above) needs Jeff/the table's ruling.
+
+## 2026-09-18 — why the guards block us: they are correct guards with a blind spot, not traps
+
+`evt-20260918T152000Z-copilot-guard-doctrine-audit-why-the-gates-block-us`
+
+Jeff asked *why* the previous engineer installed all these guards that seem buried in
+code and block progress at every turn. Audited rather than assumed.
+
+**Every blocking guard is a response to a real observed false PASS**, each a genuine
+self-deception that was caught: hardcoded `0.0` constant-emitter floors making every
+*BEATEN* label meaningless (`ee7d859`); `termination_continue_accuracy = 1.0` while
+`termination_continue_positions = 0`, a **fabricated perfect score** (`9655abb`);
+`copy_alignment` gating on `typed_emission_exact_rate` while its components were all
+weighted `0.0`, so the "plateau" was a **mathematical impossibility** (`845bf8b`); and
+the ratified `termination_head_balanced_v6` objective running in **zero of 18
+launchers** because omitting the flags silently selected the legacy route (`24bd44b`).
+Plus `_committed_source` refusing a modified tracked tree so the run must match the
+commit, and refusal of any unratified receipt profile.
+
+**The doctrine is defensible on the repo's own terms.** The ledger is the authority for
+load-bearing claims, so a false PASS corrupts the authority of everything built on it,
+while a false BLOCK is merely expensive. **Prefer a false block over a false pass** is
+the right bias — and its cost is exactly what Jeff is feeling: false blocks are silent
+and arrive after an expensive run.
+
+**Three findings, one of them about my own work:**
+
+1. **The blind spot has a shape.** `FOUNDATION_MOTOR_V2_METRIC_COMPONENTS` maps
+   `payload_transport_exact_rate → ("payload",)` and `copy_alignment` weights `payload`
+   at `1.0`, so `foundation_motor_v2_unreachable_gate_requirements()` **passes**. It is
+   correct on its own terms: the metric is reachable **by gradient**. It never reads
+   `eligible_actions`, so it is blind to the second axis — whether the metric's
+   **denominator cases** are in the teaching stream. **The invariant models weight
+   reachability; this defect is data reachability.**
+2. **The invariant checks a hand-maintained COPY of the gate, and the copy has already
+   drifted.** `FOUNDATION_MOTOR_V2_STAGE_GATE_METRICS["copy_alignment"]` omits
+   `payload_eos_accuracy` and `alignment_eos_gate_accuracy`, yet the gate body
+   **requires both** under `receipt_continuation` (`:2071-2075`) — and those are the two
+   metrics that actually failed. **Nothing pins the declaration to the body**: it is read
+   only by the invariant and its own tests. Any invariant built on it is only as complete
+   as the last incident that updated it.
+3. **I over-claimed in my own docstring.** `tests/test_foundation_motor_gate_reachability.py`
+   (mine, `845bf8b`) says these tests make *the class* unrepresentable, and its negative
+   control is literally `test_the_invariant_catches_the_defect_it_was_written_for`. It
+   pins **one axis, from the shape of one incident**, and names it the class — the same
+   error pattern as the guards themselves. **The docstring should be corrected.**
+
+**Also read the prior engineer fairly:** `foundation_motor_curriculum.py:2059-2070`
+explicitly refuses to gate a stage on a metric it cannot move, reasoning that requiring
+`typed_emission_exact_rate` at `copy_alignment` "would be a gate no lineage can ever
+pass". **The reachability doctrine was deliberate — it was applied on the weight axis
+and missed on the data axis two lines later.**
+
+**Why they FEEL buried and hostile:** a fail-closed gate **cannot distinguish
+*unsatisfiable* from *failed*** — it prints `below 0.95` and never `unsatisfiable`, so a
+construction defect and a learning failure are **indistinguishable from outside**. That
+ambiguity is exactly what made me misrecord the v6 pause as a genuine learning
+shortfall. Second, absolute literals (`0.95`) are applied to surfaces whose **meaning
+changes with the stage design** (`1a4bc41` gave `copy_alignment` payload supervision,
+silently re-scoping the metric). Third, the stage contract has two consumers that are
+**not joined**: `_training_lanes` enforces `eligible_actions`; the gate never reads it.
+Fourth, guards, invariant, tests and their reliance were **all authored in a single pass
+with no second reader** to ask what the *other* way to be unreachable is.
+
+**Recommended three-part remedy (keeps the doctrine, removes the blind spot):**
+derive the gate-metric declaration **from the gate body** instead of hand-maintaining it;
+extend the invariant with the **`eligible_actions` / data-reachability axis**; and emit
+**`unreachable` as a verdict distinct from `below threshold`** so the monitor can tell a
+construction defect from a learning failure.
+
+## 2026-09-18 — the Stage-0 gate is UN-WINNABLE: it grades 8 delete phases the stage refuses to teach
+
+`evt-20260918T140000Z-copilot-v6-checkpoint-preserved-and-stage0-gate-unreachable`
+
+Jeff pasted ChatGPT's next-step plan (freeze the v6 checkpoint, re-evaluate it with
+zero optimization, build a per-case forensic table for `payload_eos_accuracy = 0.6667`
+/ `payload_transport_exact_rate = 0.6667`, then recommend exactly one intervention)
+and asked what we should do next. **The plan is aimed at the wrong target.** Verifying
+its load-bearing assumption produced the real diagnosis.
+
+**1. The checkpoint DID come home and IS preserved.** `latest_checkpoint.json` records
+step 600 / micro_step 600, `artifact_sha256 33174bb6bb732901…`, 4,026,981 bytes,
+`optimizer_included true`, `gradient_state_included true`, `scaler_included false`,
+lineage `r64v3-e28a4842607db328`. Ten `checkpoint_records` (interval 60) map to
+**four surviving artefacts — steps 420, 480, 540, 600**, each exactly 4,026,981 bytes.
+The `.pt` mtimes (03:25:49–03:25:54, a five-second burst) **cannot** be run times: the
+run's own `paused` event is `06:01:08Z` with `monotonic_seconds 5941.277` at 7.2 s/step.
+They are local extraction times and carry **no ordering information**. So the final
+parent is a genuine optimizer-carrying state, **and** a three-point trajectory of the
+last third of the run is available for diagnosis at zero training cost.
+
+**2. The failing third is ONE family, not six problems.** Censusing the two `ffcs_v1`
+manifests gives the heldout DELTA payload phases exactly: **24**, being delete 8
+(`payload ''`), insert 8, replace 8, copy 4 — matching the report's
+`payload_supervised_phase_count 24.0`. `payload_teacher_forced_content_count` is **16**,
+so content is only counted where a payload is non-empty. Therefore
+`payload_transport_exact_rate = 0.6667` **is exactly 16/24**, and
+`payload_eos_accuracy = 0.6667` is the same 16/24: **every taught payload phase is
+exact; every untought delete payload phase fails.**
+
+**3. Stage 0 REFUSES to teach delete.**
+`foundation_motor_v2_stage_policy("copy_alignment")["eligible_actions"]` is
+`["copy","insert","replace"]` (`foundation_motor_curriculum.py:99`); `transport_eos`
+declares the identical set (`:118`). Delete joins only at `operation` (`:139`) and
+`address` (`:151`). `_training_lanes` **enforces** that contract at
+`scripts/train_living_reasoning_smoke.py:649-668` by filtering teaching cases to
+`foundation_motor_v2_action(case.episode) in eligible`, so the 16 train delete cases
+never enter the Stage-0 stream. The run's own lanes confirm it: only
+`ffcs-F0-copy_alignment` appear. **Delete first becomes teachable at Stage 3.**
+
+**4. The gate ignores that contract.** `decide_foundation_motor_v2_stage`
+(`training/foundation_motor_curriculum.py:1951+`) for `copy_alignment` **requires**
+`payload_transport_exact_rate` (`:2050`) and, when `receipt_continuation`,
+`payload_eos_accuracy` (`:2072`) — both at `gate_threshold 0.95`, both computed over
+**all 24** payload phases. The ratified comment at `:2082-2086` shows the authors
+reasoned explicitly about the 24-vs-16 split ("sixteen of the 24 heldout transport
+cases require a non-empty payload") but **did not notice that the eight empty-payload
+cases are delete-family cases the stage excludes from teaching.**
+
+**5. THE ARITHMETIC CEILING.** 16 taught phases exact + 8 untought phases ⇒ at most
+**16/24 = 0.6667 < 0.95**. The model is exactly there. `transport_eos` has the same
+eligible set and the same requirements, and delete is not taught until `operation`,
+which is unreachable. **The campaign is blocked at Stage 0 permanently.** No amount of
+further identical training and **no EOS-mechanism change** can move 0.6667 to 0.95.
+
+**6. The constant floor corroborates it.** The motor-v2 probe reports
+`constant_payload_transport_exact_floor 0.3333` = **8/24** — the score of a constant
+emit-nothing-and-terminate answer, exact on the eight empty-payload delete cases and
+wrong on all sixteen taught ones. The **trained** model scores **0/8** on that same
+family: perfect on what it was taught, below the trivial baseline on what it was not.
+That is the signature of *graded on material never taught*, not of undertraining.
+
+**7. Correction to my own reading.** I had called the four failures *"a genuine learning
+shortfall, not a construction defect"* and treated the ~0.009 training loss as an
+overfitting signal. **Both were wrong.** `0.009` is mastery of **100%** of the taught
+material, and the shortfall is a **gate construction defect**. ChatGPT's overfitting
+worry misreads the same evidence.
+
+**8. ChatGPT's case-level table does not exist yet.** The segment report has **110
+top-level keys and no `qa` / `samples` / `transcript` / per-case surface**; the progress
+journal's two `evaluated` events carry only `global_step`, `monotonic_seconds`, `phase`.
+So the forensic table must be **produced**, not fetched.
+
+**9. The single recommended intervention (RATIFIED AND IMPLEMENTED, `evt-20260918T165000Z`).** `decide_foundation_motor_v2_stage`
+now **honours the stage's declared `eligible_actions`** —
+restrict the payload/EOS gate denominators to in-stage-eligible action families. This is
+a **coherence fix to a contract already declared in the stage table**, not an objective,
+weight, geometry, data, or seed change. Expected effect on the existing v6 step-600
+state: **16/16 = 1.0 ≥ 0.95 ⇒ Stage 0 passes and the campaign advances for the first
+time.** The alternative — teach delete at Stage 0 — contradicts the ratified stage
+design that deliberately isolates emission. **This is the THIRD instance of the
+un-winnable-gate class**; `845bf8b` fixed the *vacuous-denominator* form
+(`termination_continue_positions == 0` reading `1.0`). This is the
+*family-excluded-from-teaching* form — **now pinned by 16 tests** in
+`tests/test_foundation_motor_gate_reachability.py`, up from 7. The fix shipped as
+**probe scoping rather than metric renaming**, so the metric names and every recorded
+verdict are untouched.
+
+## 2026-09-19 — THE DECISION RUNG FAILED FOR A MEASURED PHYSICAL REASON: its head reads a near-constant vector
+
+`evt-20260919T051000Z-copilot-decision-rung-completed-and-hole-4-fixed`
+`evt-20260919T052000Z-copilot-stage3-merge-proven-and-establish-vs-refine`
+`evt-20260919T054500Z-copilot-decision-head-input-is-near-constant`
+
+### The rung ran, and hole #4 was found **live**
+
+Job `4e84089c…` ran its 60 steps to global **step 780**. While it ran, the fourth
+observability hole of the same family was found *on the screen*: the `decision` rung's
+gate grades `pair decision` and **every** `per_decision_accuracy` value, and **neither
+the producer nor the display carried either reading to the screen**. The rung the whole
+ladder turns on was invisible while it ran. Producer
+(`scripts/train_living_reasoning_smoke.py`), display (`scripts/axon_training_watch.py`)
+and tests fixed, committed **`6325279`** (4 files, +357/−7), and proved
+**instrumentation-only** by an *empty* `git show 6325279 -- training/ runtime/` — so the
+run's own evaluation math equals current HEAD and its numbers are usable as evidence.
+
+### The stored gate, read from disk
+
+`passed False`, `unreachable_requirements []`, **4 failures**, over a **complete 72/72
+heldout + 72/72 regression** evaluation with **0 deferred**:
+`payload_transport_exact_rate 0.6667 → 0.875`; `payload_content_accuracy 0.8125`;
+`payload_eos_accuracy 1.0`; `alignment_* 1.0`; `typed_emission_exact_rate 0.3333`
+(still at floor, blocked on `address`).
+
+**The decisive reading is `decision_correct_by_target`:**
+
+| array | value | meaning |
+|---|---|---|
+| `initial_evaluation` | `[24, 0, 0]` | always **DELTA** |
+| `final_evaluation` | `[0, 0, 24]` | always **ABSTAIN** |
+| `campaign_baseline_evaluation` | `[0, 0, 24]` | always **ABSTAIN** |
+
+The rung spent its **entire budget moving a fresh head from one constant policy back to
+the campaign baseline constant policy**, and `start_accuracy` fell `0.3333 → 0.1667` on
+the way. This also **resolved the `ReasoningDecision` index order** from evidence as
+`(delta, no_op, abstain)` — **never infer it again**; and it confirmed the head moved only
+`|dW| = 0.031` against `|W₀| = 0.975`, i.e. **~22 effective supervised steps' worth** of
+travel at `lr 1e-4` in 60 steps.
+
+### The merge was **proved**, and the head was **byte-frozen** until this rung
+
+`merge_stage3.py` was written, fixed twice for Windows long-path/path-normalisation
+faults, and then **proved rather than trusted**: 9,976 files compared, 743 copied,
+second pass **`MERGE PROVEN: 0 missing, 0 differing`**, report **sha256-identical**. The
+stage re-derives as **`('decision', False)`**. Measuring the head across the rung's own
+checkpoints: **`|W − W@720| = 0.000000` at steps 600, 660 and 720** — byte-frozen until
+this rung — then `|dW| = 0.031`. Head inventory at step 780: `operation_head |W| 0.943620`
+(exact init draw), `region_head |W| 2.068436` (exact default init, **never trained**),
+`region_embedding ≈ N(0, 0.02²)` frozen, `termination_output 0.821422` (moved from `0.577`,
+established), `copy_gate 0.424066`.
+
+A **matched-budget simulation** under the rung's real contract: **60 steps @ `lr 1e-4` →
+0.319** (≈ chance, even on classes separated by 20σ); **1800 steps → 0.958**. Hence the
+**establish-vs-refine precedent**: the **600-step rung ESTABLISHES** heads; every
+**60-step rung only REFINES** pre-trained ones. `operation` holds a fresh head and
+`address` a fresh head **plus** fresh query heads — **neither can be established by a
+60-step rung.**
+
+### The physical cause, measured instead of inferred
+
+**The head's input is a near-constant vector.** `reader_state` *is* LayerNorm'd
+(`complete_field_64d.py:737`); only `copy_gate(cat(output, context))` reads a bare decoder
+hidden — my earlier "every failing head reads an unnormalized mean" was imprecise and is
+corrected here.
+
+| quantity | pre-`state_norm` | post-`state_norm` |
+|---|---|---|
+| `‖state‖` | 485.3961 | 8.245884 |
+| per-dim across-case σ | `1.504e-3` (**3.1e-6** relative) | `2.43e-5` |
+| pairwise L2 across cases | `0.0156` | `0.000252` |
+
+The four state slots are **near-identical to each other** (pre-norm pairwise L2 1.65–2.99
+on a 485-norm vector), cosine between case summaries is **1.000000000**, and
+`‖state − initial_state‖ = 8.2348` against `‖initial_state‖ = 0.167` — the read moves far
+from init to a learned **near-fixed-point**. `state_norm` is called **exactly 6× per
+episode** for all 72 episodes.
+
+**Two of my own errors, caught and retracted rather than reported:**
+
+1. My **first probe was invalid** — Adam at `lr 1e-2` × 4000 steps caps `|w| ~ 40` while
+   the signal needed `|w| ~ 4000`, so it could not have succeeded whatever the
+   representation. Declared invalid, rewritten with standardised inputs, a closed-form
+   `lstsq` baseline, and the rung's **real** contract. The invalid run is kept on disk as
+   the record of the error.
+2. My **first pre-norm capture was misaligned** — it stacked all 48 `state_norm` calls
+   (heterogeneous phases) and compared them against only the 24 graded phases, yielding a
+   nonsense attenuation of `4.57e-8`. Re-run with **exact tensor matching**
+   (`state_norm(input) == reader_state`, max abs diff `0`), the true figure is
+   **`0.0161`, i.e. 62×**. The LayerNorm prediction for the post-norm spread
+   (`2.461e-5`) matches the observed `2.426e-5`.
+
+**Budget and learning rate are EXONERATED — my earlier "the budget is binding" is
+WITHDRAWN.** The raw representation scores **0.3333 at every budget 60/180/600/1800/6000/
+12000** and at **`lr 1e-4`/`1e-3`/`1e-2`**, and `|W|` stayed `1.0330–1.0335` against
+`|W₀| 1.033436` — the head **cannot move at all**.
+
+**The discriminative residue IS present and IS linearly separable** — the z-scored probe
+reaches **288/288** and closed-form `lstsq` **288/288** — **but both are IN-SAMPLE**
+(the probe trains and evaluates on the same tensor), so **288/288 is a ceiling, not a
+generalisation result.** The raw-vs-z-scored comparison is matched and its *relative*
+conclusion stands.
+
+What each transform actually achieves:
+
+| treatment | result |
+|---|---|
+| raw | `0.3333` at **every** budget and learning rate |
+| remove dataset mean only | `0.6806` |
+| **per-sample** LayerNorm | `0.3333` everywhere — **does not help** |
+| across-sample z-score, `lr 1e-4` | `0.6250 @60` → `0.8681 @180` → **`0.9653 @600`** → `0.9896 @1800` → `1.0 @12000` |
+| across-sample z-score, `lr 1e-2` | **`0.9931 @60`** |
+
+### The channel ranking — the memory pool carries ~100× more case variation
+
+Measured at matched phases, comparable norms:
+
+| channel | per-dim across-case σ | pairwise L2 | `|w|` to separate |
+|---|---|---|---|
+| recurrent **post**-LayerNorm summary (current head input) | `2.43e-5` | `0.000252` | **~4000** |
+| recurrent **pre**-LayerNorm | `1.504e-3` | `0.0156` | ~64 |
+| `complete_memory` pool | `2.51e-3` | `0.026957` | **~37** |
+| `canonical_memory` pool | `3.47e-3` | `0.037308` | ~35 |
+
+Corpus inventory: **two DISJOINT `ffcs_v1` manifests**, 144 episodes each (72 train / 36
+heldout / 36 regression), **0 episode-id overlap** ⇒ **288 supervised phases** (144 train,
+144 heldout+regression), **exactly one supervised phase per episode, always
+`consolidated`**, `48` phases per decision class. The probe's 288 came from **both**
+manifests, so `288/288` is not duplication.
+
+### What is still open, and what was launched to close it
+
+`State/training/diagnostics/summary_channel_probe.py` (**new**, git-ignored like all of
+`State/*`) collects **all four channels** for **all 288 supervised phases** across **both**
+manifests and then sweeps the rung's real protocol **training on the train split ONLY and
+scoring on heldout+regression** — so its number will be a **generalisation** result rather
+than an in-sample ceiling. It is running in the background
+(`D:\AxonBaseProof\summary_channel_probe.log`, ~45 min).
+
+**The full test suite passes on HEAD with `exit 0`.** **No** objective, weight, geometry,
+data, seed, architecture, curriculum or ladder content was changed, and **nothing was
+launched or promoted.** The single open question is whether the **memory-pool** channel
+clears the threshold where the recurrent summary stays at `0.3333`.
+
+## Next actions
+
+**CURRENT STATE (2026-09-19, `evt-20260919T054500Z`).** The `decision` rung **has now run
+and failed**, and the failure has a **measured physical cause, not a design one**: the
+head's input is a **near-constant vector** (per-dim across-case σ `2.4e-5` on an `8.25`-norm
+summary, i.e. **3e-6 relative**), its cross-entropy gradient is dominated by the constant
+component, and the fresh head learned **only the class prior** — flipping always-DELTA
+`[24,0,0]` to always-**ABSTAIN** `[0,0,24]`, which is **exactly the campaign baseline**.
+Budget and learning rate are **exonerated** (`0.3333` at every budget `60→12000` and at
+`lr 1e-4`/`1e-3`/`1e-2`; `|W|` never left `1.0330–1.0335`). The fix is **not** more steps.
+**Awaiting the convener's ratification of exactly ONE intervention** — the leading
+candidate is feeding the summary-path heads from a **content-bearing channel** (the memory
+pool carries **~100× more case variation**, `|w| ~ 37` vs `~4000`), pending the running
+`summary_channel_probe.py`. The v6 termination repair
+**succeeded**, and the ladder has now **advanced twice**. `copy_alignment` passed,
+`transport_eos` passed — job `8cfa2116…` ran 60/60 to global step **720** with all
+four motor-v2 probes at `copy-gate/position/eos-gate/pair-gate/pair-pos = 1.000`,
+`n=72`, and its stored gate object reads `passed=True`, `failures=[]`. The
+`whole_surface_payload_transport_exact_rate 0.6667` is still the namespaced legacy
+continuity view (16/24 payload phases; the 8 lost phases are exactly the
+empty-payload `delete` phases `copy_alignment` may not teach) and is **not a
+defect**. `_foundation_motor_v2_stage_from_reports` on the merged state returns
+**`('decision', False)`**. Two more **producer-side** observability holes of the
+same family were closed (`69de279`, `191c722`); in both cases the number the reader
+needed was simply never emitted. The fetched state was merged and independently
+re-verified: **9,248 identical, 0 missing, 0 differing**. Everything below is
+retained as history; where a bullet says a renewal is "NEXT" or a pass is "not yet
+observed", read it as superseded by this paragraph.
+
+**NEXT ACTION — the `decision` rung is running; do not design a new intervention.**
+Job `4e84089cd8bf249f5870a782f83266efb318d00466d355ba682bd6f05eb33a2a` was
+prepared at revision `26712ea` (56.8 MiB / 9,420 files), launched with `--yes`, and
+is under a followed monitor (`mon3`, tee'd to
+`D:\AxonBaseProof\monitor_stage3.log`). On completion: `fetch` → **MERGE**
+(mandatory — `export_cloud_packet` builds from the **local** state root) →
+**re-verify all-identical** → read the gate from the stored segment report, **never
+from the dashboard flags** → derive the next stage → append the turn event.
+**Read the next report as follows so `0.6667` is not misread a third time:**
+`whole_surface_payload_transport_exact_rate` remains **0.6667** until the
+`delete`/`no_op`/`abstain` phases are actually learned, and because
+`eligible_actions` is now the complete set the **scoped rate converges with it**.
+`typed_emission_exact_rate` remains **0.0** until `address`. The `decision` gate
+hinges on `pairs decision` and **every** `per_decision_accuracy` value at `0.95`;
+`abstain` and `no_op` both enter at `0.0`. The substantive work for "attend and
+produce deltas" is at `decision` / `operation` / `address` / `joint`.
+
+**PRIORITY 0 — DONE: the un-winnable Stage-0 gate was scoped to `eligible_actions`**
+(`evt-20260918T165000Z`):
+
+- **DONE — the repair is implemented as probe scoping.** `foundation_motor_v2_probe(...,
+  training_stage=...)` narrows `payload_transport_exact_rate` and `payload_eos_accuracy`
+  to the stage's declared `eligible_actions`; `payload_scope` records the basis, the
+  eligible/excluded case counts and the excluded families, and the whole-surface values
+  are kept alongside (`whole_surface_payload_transport_exact_rate`) so nothing is hidden.
+  `--evaluate-only` and `scripts/diagnose_d64_routes.py` pass no stage and keep
+  whole-surface behaviour. **Expected reading on the existing step-600 state: 16/16 = 1.0
+  ≥ 0.95 ⇒ Stage 0 passes.** (Expected, not yet observed — no run has consumed it yet.)
+- **DONE — the three guard fixes.** (a) `FOUNDATION_MOTOR_V2_STAGE_GATE_PLAN` is the
+  single source of truth for the declaration *and* the body, so they cannot drift again.
+  (b) A data-reachability axis sits beside the gradient axis in
+  `foundation_motor_v2_unreachable_gate_findings()`, covering `metrics`, `pairs`,
+  `any_checks`, `continuation_*` and `floor_beats`; verified `[]` for defaults,
+  `teach_multicell_copy=True` and the v6 route, and it still catches `termination_head_v5`
+  (`copy_alignment` gates on `alignment_eos_gate_accuracy` while weighting
+  `alignment_eos_gate` at `0.0`). (c) The verdict is explicit
+  (`passed|below_threshold|unreachable`) and fail-closed.
+- **DONE — the reachability suite was extended**, 7 → 16 tests, pinning the
+  *family-excluded-from-teaching* form with data-axis negative controls, a probe-scoping
+  proof, a per-stage eos-head overlay pin, and a fail-closed verdict proof. The earlier
+  over-claim ("unrepresentable") was corrected to two axes.
+- **NEXT — a SHORT REAL renewal, not `--evaluate-only`.** `_foundation_motor_v2_stage_from_reports`
+  **skips `evaluation_only` reports**, so an evaluation pass can never carry a stage-advancing
+  gate. Note the two-step consequence, now measured: derivation reads the **stored** `passed`
+  flag, and the stored v6 gate says `passed: false` (four whole-surface failures), so the
+  **next** run is still `copy_alignment`; that run re-emits the gate under the repaired
+  contract, it passes, and the run **after** it becomes `transport_eos`. Resume the preserved
+  step-600 parent with `--resume`, `--tranche-steps` ~60–120, `--device cuda`.
+- **RECOMMENDED, NOT LAUNCHED — exactly one intervention: a governed continuation of the
+  current v6 lineage through the stage ladder** (start with the short `copy_alignment`
+  renewal above). Rejected for now: changing Stage-0/1 curriculum breadth to admit
+  empty-payload termination earlier — that is the change that would fix the 8, but it is a
+  breadth change and must be *ratified*, not performed.
+- **FLAGGED — the largest measured defect is not EOS at all.** `typed_emission_exact_rate`
+  is `0.0`, `region_accuracy` `0.0`, `pair_exact_rates.address`/`joint` `0.0`, `decision`/
+  `operation` `0.3333`. The core produces payload content correctly but **cannot yet emit a
+  typed delta**. That is `address`/`joint` territory and is the real target for "attend and
+  produce deltas".
+- **DONE — the "stupid payload samples" panel was a real defect, not cosmetics.**
+  `evaluate_living_episode` capped the sink at `payload_count <= 3`, so only the first three
+  payload phases per episode were ever recorded, and the event slice took the first 8 rows;
+  the panel could *only* ever show a wall of identical early failures. Fixed: uncapped sink
+  (`transcript_sink_cap=None`), deterministic **family-balanced, failures-first** sampling
+  (`select_qa_transcript_rows`), `[family case@manifest]` attribution per row, an explicit
+  "across N families … (balanced sample, not the full surface)" line, and a `[:6]` slice.
+  Pinned by 5 new tests.
+- **DONE — the per-case forensic table exists, and it corrected my own claim.**
+  `evt-20260918T183000Z`. A local zero-optimization pass over the preserved step-600
+  checkpoint (2 manifests × {heldout, regression}, no case limit, no optimizer step)
+  produced a content-addressed artifact. **The failing third is exactly the 8
+  empty-payload `delete` phases** — target payload is empty *by construction* for
+  `DELETE` (`living_reasoning_curriculum` rejects a `DELETE` with a non-empty payload).
+  On each of them the model emits **exactly one** learned copy-anchor symbol
+  (`transport_categories: [8]`/`[14]`/`[47]`/`[50]` heldout, `[59]`/`[41]`/`[9]`/`[10]`
+  regression; `trace[0]` says `route: "learned_copy_anchor"`, `memory_index: 93`,
+  `work_units_completed: 1`) and **never terminates**; the diagnostic halts it with
+  `irreversible_category_mismatch` and records
+  `termination_after_mismatch: "not_measured"`.
+  **Teacher-forced EOS is *also* 8/12 per split**, so this is a supervision defect in the
+  empty-payload regime, not a free-running decode artefact. Where content exists it is
+  perfect (`payload_teacher_forced_content_correct 8/8`, `payload_content_accuracy 1.0`).
+  **Correction to `bc30bbf`:** I claimed the failing third was delete being "untaught with
+  an arithmetic ceiling". Half right, half wrong — the cases *are* outside Stage 0's
+  eligible lanes, but the mechanism is a **measured termination defect**, not a case with
+  nothing to learn. The scoping repair itself stands.
+- **DONE — the root cause is exact and lives in the ratified stage policy, not a bug.**
+  `copy_alignment` weights `alignment_eos_gate` at **`0.0`**, so Stage 0 applies *no*
+  stopping gradient at all. `delete`/`no_op`/`abstain` are first *eligible* at `decision`
+  (Stage 2) and `delete` is first *weighted* at `operation` (Stage 3). **No number of
+  additional Stage-0 or Stage-1 steps can move those 8 phases** — their objective weight
+  is `0.0` and their cases are excluded from the lanes by `_training_lanes`.
+- **DONE — the repaired Stage-0 gate decides `passed=true` on the preserved checkpoint.**
+  `decide_foundation_motor_v2_stage(training_stage="copy_alignment", <scoped probes>,
+  receipt_continuation=True, termination_head_route=True)` → `passed true, failures []`.
+  The scoped probe reports `whole_surface_*` alongside the scoped values, so the narrowing
+  is visible rather than hidden. **This upgrades the earlier "expected, not yet observed"
+  to *observed*.**
+- **Do not** promote, serve, or advance stages, and do not modify the objective,
+  weights, geometry, data, or seed without the convener's word.
+
+**PRIORITY 0b — the legacy route is unlaunchable, and the ratified v6 objective has now
+actually run**
+(`evt-20260918T033934Z`, `evt-20260918T012800000000Z`,
+`evt-20260918T064500Z`):
+
+- **DONE — it is impossible to run a legacy route again.** The rejected set is
+  derived from each objective's own `termination_continue_supervision`
+  declaration, so a new profile is refused by default. Refused with
+  `RuntimeError` before any compute in `scripts/train_living_reasoning_smoke.py`,
+  before spawning a candidate in `scripts/run_d64_tournament.py`, and before a
+  packet is built or uploaded in `scripts/axon_kaggle.py`. `--evaluate-only`
+  always passes. Proven by subprocess: legacy base / `termination_head_v5` /
+  `route_eos_balanced_v2` → rc=1 naming program `3b41008e…`; v6 → rc=0. Config
+  audit 9 refused / 9 allowed. Affected suites **144 passed, EXIT=0**.
+- **DONE — job `2a9f934e…` at revision `9655abb` ran the ratified v6 termination
+  repair to `600/600` and paused for renewal**
+  (`evt-20260918T043735Z`, `evt-20260918T045700Z`,
+  `evt-20260918T064500Z`). All **four** of Jeff's acceptance conditions PASS:
+  `termination_continue_positions` is **1 on all 1,200 rows** (legacy 0.0 on all
+  600); the new continuation loss runs **0.5004 → 0.0057**; heldout and
+  regression `alignment_eos_gate_accuracy` are **1.000** against legacy **0.3125**;
+  heldout and regression `payload_transport_exact_rate` are **0.6667** against
+  legacy **0.1667**. Content accuracy went **0.0 → 1.000** and `heldout_mean_loss`
+  **4.3974 → 0.5882** — the canceling-gradient fixed point is broken.
+- **IT PAUSED — and the Stage-0 blocker is a CONSTRUCTION DEFECT, not a learning
+  shortfall.** (Corrected this turn —
+  `evt-20260918T140000Z`. My earlier reading of the four failures as *"a genuine
+  learning shortfall"* was **wrong** and is superseded.) The gate's requirement is
+  **unreachable in principle**: see the headline section below.
+  `foundation_motor_v2_stage_gate.passed` is `false` on exactly four metrics, on
+  trained heads and trained families — heldout and regression
+  `payload_transport_exact_rate` and `payload_eos_accuracy`, all **0.6667** against
+  a required **0.95** — but **`0.6667` is the arithmetic ceiling at this stage**, so
+  the tranche could not have advanced no matter how well it trained.
+- **RESOLVED — the anchor-margin erosion alarm.** Over the complete 1,200-row run
+  the deciles are
+  `[0.5004, 0.3975, 0.4113, 0.5068, 0.3180, 0.0605, 0.0178, 0.0104, 0.0075, 0.0057]`
+  — the margin re-formed at decile 4 and then **broke through**. The alarm was a
+  correct observation of a real mid-run regression, not a false one. Do not read
+  the monitor's min-max-normalized `cont-loss` sparkline as a rate of change.
+- **FIXED — my own floor repair was still hollow (`81dd8a3`).** The 72-case
+  surface assembler iterated `row.get(name)` directly while
+  `evaluate_living_episode` returns a `dict`, and iterating a mapping yields its
+  keys — so every entry was skipped, the merged histogram returned `{}`, and both
+  constant-emitter floors collapsed to **`0.0`** (both are `{}` in the v6 report,
+  while the motor-v2 probe on the same run reports the correct **0.3333**). Every
+  *AT-FLOOR* / *BEATEN* verdict in that run compared against nothing. The merge is
+  now module-scope, unwraps `Mapping` rows, and **raises** rather than returning an
+  empty merge. Three copies of that merge existed and only the smoke script's was
+  wrong; a test now pins all three together.
+- **MID-RUN SYNC IS DISABLED — now confirmed from the inside, not inferred.**
+  The output carries `axon_observability/trainer/sync_receipts.jsonl`, whose single
+  receipt reads `status: disabled`, reason *"sync credentials unavailable: Kaggle
+  User Secret AXON_KAGGLE_SYNC is not attached to this kernel"*. So the final
+  evaluation can only be read by downloading the kernel output after the job
+  completes. This is the standing `AXON_KAGGLE_SYNC` item.
+- **DONE — read the progress journal, not the log capture.**
+  `axon_observability/trainer/events.jsonl` (619,613 bytes, **606 events**: 600
+  `training`, 2 `evaluating`, 2 `evaluated`, 1 `starting`, 1 `paused`) ships
+  inside the kernel output and is the complete authoritative per-step record.
+  The streamed `kaggle kernels logs -f` capture is redundant and was truncated
+  once already. `current.json` is the final snapshot (`sequence 606`, `paused`,
+  `global_step 600`, `monotonic_seconds 5941.277`, `heldout_mean_loss 0.588238`,
+  `task_gate_passed true`, `curriculum_stage_complete false`,
+  `nonzero_exact_output_observed false`, `exact_serving_gate_passed false`).
+- **`typed_emission_exact_rate` REGRESSED `0.3333 → 0.0`** across the tranche —
+  from at-floor to *below* the true `0.3333` floor, driven by the decision head
+  collapsing to a constant DELTA (`per_decision_accuracy` `{abstain 1.0}` →
+  `{delta 1.0}`, `per_action_joint_exact_rate` `{abstain 1.0}` → all `0.0`). It is
+  out-of-stage at `copy_alignment`, so **do not gate a renewed Stage 0 on typed
+  exactness**; the in-stage surface is payload transport and EOS precision.
+- **The proof run already exists locally** (`axon-d64-v6-proof-local`, lineage
+  `r64v3-0e99ec81e79b7bfb`, 12 steps, `EXIT=0`): `effective_objective_program_id`
+  `d0092331…`, `termination_continue_positions` **1.0 on every step**,
+  `alignment_eos_gate_accuracy` **0.5 → 1.0**. It is evidence, not a serving
+  candidate — 12 steps, never promoted, no Soul claim.
+- **DONE — the objective repair is observable.** `termination_continue_loss` is
+  emitted from the already-existing stop=0 BCE terms and renders on the monitor,
+  and `termination_continue_accuracy` now reads `None` instead of a vacuous `1.0`
+  when `termination_continue_positions == 0`.
+- **Scope `nonzero_exact_output_observed` to in-stage components.** At Stage 0 it
+  evaluates `decision`/`operation`/`region`/`start`/`end`, all of which carry weight
+  `0.0` there, and `region_accuracy` is `0.0`, so `typed_exact ≡ 0` **by
+  construction** and the flag can never be true. It is a labelling defect that
+  **did not** cause the pause (`curriculum_stage_complete` also requires the
+  *final* stage via `foundation_motor_v2_program_complete`).
+- **Renew Stage 0 or target the EOS margin directly.** The stage policy is
+  `advance_only_after_complete_heldout_and_regression_gate`, so advancing is
+  forbidden. Note the **generalization gap**: training loss **0.009** against
+  `heldout_mean_loss` **0.5882** (~65×, different scales — a signal, not a proof),
+  so more steps of the *identical* recipe may not close 0.6667 → 0.95.
+- **Attach `AXON_KAGGLE_SYNC` or stop advertising `sync_mid_run`.** Mid-run
+  checkpoint sync has still never executed on any job
+  (`SyncCredentialsMissing`); `configs/kaggle/axon_d64_emission_rung_v6_termination_balanced.json`
+  currently carries `sync_mid_run: true`.
+- **Evaluate periodically inside a tranche and emit progress events during
+  evaluation.** Today the trainer evaluates only at a tranche's start and end, so
+  the eval block can be hundreds of steps stale.
+- **The design calls that remain Jeff's** (the invariant only forbids gating on a
+  metric a stage cannot move): decision weight at `copy_alignment`; the 48
+  zero-weight `no_op`/`abstain` phases in the typed-exact denominator; Stage-0
+  emission balance; the **cold start on five heads** at the `address` boundary
+  (`decision`/`operation`/`region`/`start`/`end` are 0.0 weight at
+  `copy_alignment`/`transport_eos`, then required ≥0.95 at `address`); whether
+  `termination_continue_accuracy` should be **rejected** when
+  `termination_continue_positions == 0` (vacuous-pass guard, same class as the
+  floor traps); whether v1–v4 receipt profiles should **stay** refused (today
+  the gate refuses everything but v6); and whether the receipt overlay's
+  `alignment_eos_gate: 2.0` should be re-ratified.
+- **Two unexplained measurements**, possibly defects: counts differ across metrics
+  on one evaluation surface (`alignment_position_count 31` vs
+  `alignment_eos_gate_count 16` vs `payload_teacher_forced_eos_count 24`), and
+  `payload_content_accuracy` equals `payload_teacher_forced_content_accuracy` at
+  exactly `0.8709677419354839`.
+- **CLOSED — the full suite has been run to completion.** `pytest -q -p
+  no:cacheprovider`, ~55 min, exit 1 with exactly one failure — the stale
+  hardcoded-zero floor assertion above, now fixed and re-verified green. No
+  other regressions. Any future change to a metric's **value** must be followed
+  by every suite that asserts that value; targeted suites alone leave this class
+  of trap behind.
+
+**Superseded below (kept as the historical record).**
+
+- **CLOSED — the 600-step cloud tranche has completed and been fetched; its
+  authoritative verdict is at the top of this file
+  (`evt-20260918T012800000000Z`).**
+  `evt-20260917T200034380158Z-copilot-kaggle-emission-rung-launch`: job
+  `389df54d01fbda8ec6625b9019ff5fb1ec254c08360bf3d8cf4570c41ee45bd9`, committed
+  revision `1a4bc416`, packet 7.5 MiB / 459 files with the four load-bearing
+  source hashes verified against disk, running privately on a Tesla T4 with
+  mid-run sync enabled. **Nothing else should be launched while it runs.** When
+  it reaches its terminal evaluation, read the two decisive numbers
+  (`payload_transport_exact_rate`, `nonzero_exact_output_observed`), then
+  `python scripts/axon_kaggle.py fetch <job_id>` — the bundle path verifies the
+  archive hash, re-hashes every member, and quarantines on any mismatch.
+  **Do not widen Stage-0 material before those numbers are known.**
+- **Zero-GPU measurement.** Re-evaluate `bfe76d52` under the corrected gate
+  (`payload_transport_exact_rate >= 0.95`) **and add a free-running
+  non-empty-emission count metric** — `terminated: True` with
+  `predicted_payload: ''` on every transcript is the smoking gun and the current
+  instruments do not read it.
+- **Close the loop.** Reconcile the 16 in-flight cloud jobs (fetch outputs or
+  mark failed) and add automatic status reconciliation, so the job table becomes
+  authoritative; today it cannot tell us whether a run happened.
+- **Missing rung is FIXED (`evt-20260917T103000Z`); the open question is now the
+  TRANSPORT WALL.** `copy_alignment` supervises and requires payload emission.
+  60 steps moved content accuracy 0.0 → **0.3636** (2x the constant floor of
+  0.1818) with loss still descending (19.874 → 11.796), while
+  `payload_transport_exact_rate` stayed **0.0**. Next: a **600-2000 step** plain-arm
+  tranche — but **omit `--evaluation-case-limit`** (`evt-20260917T172500Z`; a
+  limited surface makes the gate fail by construction, so a bounded run yields no
+  verdict at all) and size the run in **epochs of the 32-case stage-0 set**, not of
+  144: 600 steps = **37.5 epochs** ≈ 3.3 h and 2000 steps ≈ 11 h at ~19.8 s/step on
+  the GTX 1650. Watch for transport to leave 0.0 and `nonzero_exact_output_observed`
+  to flip True. Do **not** stack a second
+  intervention in the same shot; the two candidate causes (undertraining vs an
+  untrained `decision = 0.0` head vetoing emission with `ABSTAIN`) must be
+  separated one variable at a time. Any cross-run metric comparison must first be
+  made surface-matched (the control was 2-case, this run 16-case).
+- **Per-step attribution is now available for that tranche**
+  (`evt-20260917T181000Z`): every `training` event carries `material_id`,
+  `material_label` and `source_manifest_id`, and the watcher renders
+  `lane@manifest8` plus the case label. Two curricula sharing a lane name can no
+  longer be confused, and no run needs to be re-instrumented.
+- **Per-transcript attribution is available too**
+  (`evt-20260917T193000000000Z`): every `evaluated` transcript now carries
+  `episode_label`, `family`, `case_id`, `source_manifest_id` (the **train**
+  manifest id, matching the training steps) and `manifest_id` (the published ffcs
+  id), and the watcher renders `[case-label@manifest8]` on each QA line. A failing
+  transcript is now attributable **during** the run instead of only after it — and
+  this matters most for the next tranche, whose whole purpose is to see
+  `payload_transport_exact_rate` move off 0.0. Legacy and cloud journals are
+  unaffected (verified: the pre-existing 66-event journal renders 528 QA lines
+  with no tag).
+- **The canonical blank line 192 question is CLOSED — leave it**
+  (`evt-20260917T193000000000Z`). No reader needs it removed; the sole reader
+  skips blank lines by design.
+- **Sequence rule: no Soul work ahead of or in parallel with the motor fix.** The
+  Soul is inert (0 bytes) and absent from the motor lineage; nothing in the
+  diagnosis changes with or without it, and a core that emits nothing has no
+  experience worth a memory architecture.
+
+1. Jeff decides the exhausted-probation branch (audit above). The
+   pre-authorized fallback — a fresh identical lap from `bfe76d52` — was predicted
+   to reproduce the plateau because the content signal was the binding
+   constraint; the emission rung has since made the content signal real at
+   `copy_alignment`, so re-read that prediction against
+   `evt-20260917T103000Z` before acting on it.
+2. Before any new GPU tranche, note what the emission rung already settled and
+   what it left open, one variable at a time: (a) **done 2026-09-17** — the
+   payload term now carries `copy_alignment` at 1.0 with `alignment_eos_gate` at
+   0.0, so no EOS-gate BCE competes with emission in stage 0; (b) **done
+   2026-09-17** — the `copy_alignment` gate now names content and
+   `payload_transport_exact_rate`, so a lineage that emits nothing cannot pass;
+   (c) **still open** — whether the receipt overlay's `alignment_eos_gate: 2.0` at
+   `copy_alignment` should be re-ratified to 0.0 now that the base table teaches
+   emission without stop pressure; (d) **still open** — the untrained
+   `decision = 0.0` head that may be vetoing emission with `ABSTAIN`;
+   (e) **new, and blocking a clean experiment (`evt-20260917T172500Z`)** — the next
+   tranche must evaluate the **full** 72+72 surface or its gate verdict is
+   meaningless, and Jeff decides whether to widen stage-0 material beyond its
+   current **32 cases** before spending hours of GPU on it.
+3. Keep the confirmed parent `bfe76d52`; do not promote the abandoned
+   probationary branch; do not stack interventions; one controlled variable per
+   shot; do not mutate any paused lineage.
+4. Jeff: commit decision for the accumulated uncommitted training-surface
+   changes (Codex fix set + Kimi diagnose fix + termination-head change +
+   tests) and a ruling on the day-zero hygiene whitelist.
+5. Later decision, operation, address, and joint assignments remain untrained;
+   resume architecture breadth only from a known-working motor and with a fresh
+   tournament/campaign identity.
+6. Implement the real Heart-owned Living-core training adapter and cross-store
+   recovery transaction before claiming canonical runtime training.
+
+
+## 2026-09-16 — ChatGPT directive to Kimi: termhead-v5 repair, continuation recovery, and archival cleanup
+
+**Status: executed 2026-09-16 (see the canonical events for the repair,
+re-evaluation and sweep records); its detailed text is kept for provenance
+only. Superseded originals are preserved under
+`archive/termhead_repair_sweep_20260916/`.**
+
+**STATUS: BLOCK NEW GPU TRANCHES UNTIL REPAIRED AND VERIFIED.**
+
+Detailed machine-readable directive: `State/tmp/pending_ledger_event_chatgpt_kimi_termhead_repair_directive.json`
+
+### What is actually broken
+
+1. **termhead-v5 EOS supervision/stage-gate wiring is stale.** The dedicated termination head is working at runtime (`payload_eos_accuracy=1.0`), but the copy-alignment stage gate is still evaluating EOS through the old `generate_gate_logits` path (`alignment_eos_gate_accuracy=0.0`). `LivingReasoningCoreD64._decoder_logits()` creates `alignment["termination_logits"]`, but teacher/scheduled alignment plumbing does not propagate it, and `alignment_supervision()` scores the EOS position of `generate_gate_logits`. This traps the lineage in `copy_alignment` and means the expected content-onset test has not really happened yet.
+
+2. **The tranche-4 resume chain is invalid.** `State/tmp/termhead_v1_tranche4.log` exits immediately with `runtime.trainer.tranche.TrancheError: continuation receipt disagrees with its resource tranche`. The previous ledger statement that tranche 4 was running is therefore stale and must be corrected by appending a corrective event, not by rewriting history.
+
+3. **Governed state remains:** confirmed/accepted parent = step 16 checkpoint `0da538d4...`; step 24 checkpoint `6124c2fa...` is probationary only. Do not treat step 24 as accepted. Do not burn probation 2/3 or 3/3 on the current wiring.
+
+### Required repair sequence
+
+1. Capture and ledger a forensic snapshot before changing anything: accepted step-16 checkpoint/optimizer/Soul/receipts, step-24 probation sidecar/checkpoint, tranche-3 report, failed tranche-4 log, resource tranche, continuation receipt, parent bundle, optimizer receipt, plan/module/candidate/generation IDs, active task/backstop IDs, and hashes.
+2. In `training/living_reasoning_d64.py`, propagate `termination_logits` (and `termination_stop_probability` if downstream diagnostics need it) through teacher and scheduled decoder alignment whenever `termination_head_route=True`.
+3. In `LivingReasoningCoreD64.alignment_supervision()`, under `termination_head_route=True`, compute EOS supervision/loss/accuracy from the dedicated `termination_logits`. Content-position copy/generate routing must continue to use `generate_gate_logits`. Do not change historical legacy/v3/v4 semantics.
+4. Audit every downstream use of `alignment_eos_gate_accuracy`, `eos_gate_correct`, `eos_gate_supervised_positions`, `pair_exact_rates["eos_gate"]`, changed-source EOS probes, heldout/regression aggregation, and `decide_foundation_motor_v2_stage()`. Under termhead-v5, all EOS gate decisions must measure the dedicated termination route consistently.
+5. Add tests proving: termhead-v5 teacher alignment exposes termination logits; good termination logits pass EOS even when the old generate gate is intentionally wrong; bad termination logits fail even when generate gate is favorable; changed-source EOS probes use termination head; copy_alignment can advance using corrected termhead metrics; v3/v4 snapshots remain behaviorally and identity stable; architecture/objective/state-dict validation remains fail-closed.
+6. Run focused termination-head/foundation-motor tests first, then the relevant D64 trainer/curriculum/retention/tranche suites. Record exact commands and pass counts. A green suite without the new end-to-end stage-gate path is not sufficient.
+7. Diagnose the tranche continuation mismatch by comparing `resource_tranche`, `tranche_continuation`, probation sidecar, confirmed/probationary checkpoint IDs and steps, `prior_tranche_id`, `parent_bundle_id`, optimizer receipt, `plan_id`, `module_id`, `candidate_generation_id`, and `learning_policy_id`. Fix the creator/selector logic; do not hand-edit hashes and do not bypass `TrancheStore.write_continuation()` validation.
+8. Add an exact regression for the sequence **step16 confirmed -> step24 probationary -> next renewable probation tranche**, plus a negative test that reproduces and rejects the mismatch that killed tranche 4.
+9. Re-evaluate the accepted **step-16** checkpoint under the corrected termhead-v5 metrics with **no optimization**. If corrected copy_alignment passes, create governed stage-transition evidence from the accepted state. If it fails, report the precise corrected metric before authorizing training.
+10. Only after the corrected gate and continuation chain both pass governance, launch the first genuine `transport_eos` tranche. Watch payload content, transport exactness, payload EOS, corrected termination EOS, regression retention, guard state, and stage identity. Stop immediately on regression, receipt mismatch, route mismatch, or unexpected objective/profile identity.
+11. Append a canonical corrective event stating that tranche 4 never became a live training tranche because it failed during continuation validation, and that no `train_living_reasoning_smoke.py` trainer remained active at review time.
+
+### Remove/archive everything that can recreate this failure
+
+Create a dated archive under the repository's established archive location (prefer `State/archive/...` if that is the current convention). **Preserve forensic originals with a manifest and hashes; do not destroy evidence.** Then remove active references to archived items.
+
+Archive or retire, as applicable:
+
+- stale launch wrappers or one-off commands that select the old EOS route for termhead-v5;
+- superseded route experiments that can be mistaken for current candidate inputs;
+- incompatible continuation/resource-tranche receipts and failed-resume artifacts after they are captured in the forensic manifest;
+- stale pending ledger events or task/backstop/cron definitions that claim dead trainers are running;
+- obsolete resume-discovery inputs that rely on `latest`, broad globs, timestamp ordering, or ambiguous files across candidate lineages;
+- duplicate/superseded diagnostic scripts whose assumptions conflict with the dedicated termination-head architecture;
+- operator notes or ledger guidance that still says termhead-v5 EOS is measured by `generate_gate_logits`;
+- old route-specific temporary artifacts that can be auto-discovered during resume or stage evaluation.
+
+After archival, active code and launch paths must select exact candidate/module/generation/profile/program/tranche IDs. Do not allow archived experimental artifacts to participate in discovery.
+
+Add fail-closed startup validation before any future resume:
+
+- exactly one matching candidate lineage;
+- continuation receipt agrees exactly with its resource tranche;
+- confirmed/probationary parent relationship is valid;
+- training stage agrees with objective program;
+- receipt teaching profile agrees with architecture route;
+- `termination_head_v5` requires `termination_head_route=True` and `eos_generate_head_route=False`;
+- no conflicting trainer process exists;
+- ledger/task state is never treated as proof that a process is alive;
+- ambiguous/multiple matching receipts or lineages cause an immediate stop, not best-effort selection.
+
+Do a repo-wide audit for: `generate_gate_logits`, `alignment_eos_gate`, `eos_gate_accuracy`, `termination_logits`, `termination_head_route`, `eos_generate_head_route`, `receipt_teaching_profile`, `write_continuation`, `resource_tranche`, and `--resume`. Every retained legacy use must be explicitly justified as historical compatibility or patched so termhead-v5 cannot fall through to it.
+
+Do **not** delete compatibility code required to load historical accepted checkpoints. Where old routes must remain, isolate them behind explicit profile/architecture checks and mark them legacy. Preserve v3/v4 semantics exactly.
+
+### Completion requirement
+
+Kimi must update both `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl` and `roundtable/ENGINEERS_LEDGER.md` with the root cause, exact files changed, tests added, archive manifest, corrected process status, corrected EOS/stage semantics, step-16 re-evaluation result, tranche-continuation repair, and the next governed launch command. No new GPU tranche until all of that evidence exists.

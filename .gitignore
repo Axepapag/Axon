@@ -1,0 +1,27 @@
+__pycache__/
+.pytest_cache/
+.venv/
+*.egg-info/
+build/
+dist/
+.ipynb_checkpoints/
+
+# Runtime and training state is local; only the README is tracked.
+State/*
+!State/README.md
+checkpoints/
+runs/
+*.pt
+*.zip
+*.log
+*.part
+
+# Legacy raw curricula hold personal material (journals, old conversations): keep them on disk, out of git.
+curricula/legacy_raw/
+
+# Credentials: never committed.
+.env
+*.key
+*.pem
+ssh.py
+ssh_helper.py

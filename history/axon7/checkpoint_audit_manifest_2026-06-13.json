@@ -1,0 +1,102 @@
+{
+  "date": "2026-06-13",
+  "source_audit": "D:\\axon7\\AXON_CORE_CURRICULUM_AND_CHECKPOINT_AUDIT.md",
+  "quarantine_folder": "D:\\axon7\\checkpoints_quarantine\\2026-06-13_soul_first_checkpoint_audit",
+  "action": "Moved non-candidate checkpoint .pt files out of D:\\axon7\\checkpoints. Nothing was deleted. Logs were preserved in D:\\axon7\\logs.",
+  "selection_rule": "Active checkpoints are limited to direct soul-first continuation candidates plus model-creation config JSONs.",
+  "kept_active_checkpoints": [
+    {
+      "file": "D:\\axon7\\checkpoints\\cv2copy_128_stage9_schema_mix_acc4_001200.pt",
+      "reason": "Best current soul-alive 128D salvage candidate; strong old schema/copy metrics and live act_reflect_v2 soul gates."
+    }
+  ],
+  "kept_active_configs": [
+    "D:\\axon7\\checkpoints\\_custom_config.json",
+    "D:\\axon7\\checkpoints\\_cv2_64_local_smoke_config.json",
+    "D:\\axon7\\checkpoints\\_state256_2h2l_ffn32768_config.json",
+    "D:\\axon7\\checkpoints\\_v2_128_act_reflect_v2_smoke_config.json"
+  ],
+  "verification": {
+    "checkpoint_loads": "All listed .pt files loaded with torch.load on CPU during verification.",
+    "local_trainer_running": false,
+    "logs_preserved": true
+  },
+  "moved_files": [
+    {
+      "file": "128_001200.pt",
+      "size_bytes": 166101067,
+      "category": "reference",
+      "reason": "Older 128D overfit lineage; soul gates exist but weaker/less balanced than the selected stage9 candidate."
+    },
+    {
+      "file": "32_001200.pt",
+      "size_bytes": 38778635,
+      "category": "quarantine",
+      "reason": "Tiny 32D lineage; Jeff said he was okay getting rid of the little 32, and it is not a selected soul-first continuation candidate."
+    },
+    {
+      "file": "act_reflect_v2_128_stage128_005500.pt",
+      "size_bytes": 166108427,
+      "category": "reference",
+      "reason": "Intact 128D act-reflect checkpoint, but weak draft/change metrics relative to later schema checkpoints."
+    },
+    {
+      "file": "cv2copy_128_stage2_full48_acc4_002000.pt",
+      "size_bytes": 166109131,
+      "category": "reference",
+      "reason": "Strong older copy/delta metrics and soul influence, but superseded by stage9 for active soul-first work."
+    },
+    {
+      "file": "cv2copy_128_stage6_schema_acc4_001600.pt",
+      "size_bytes": 166109131,
+      "category": "reference",
+      "reason": "Strong schema/soul-diversity reference, but superseded by stage9 as active candidate."
+    },
+    {
+      "file": "state256_2h2l_ffn32768_all_018000.pt",
+      "size_bytes": 664011595,
+      "category": "reference",
+      "reason": "Large state/delta body with strong preservation, but muted soul path and failed runtime gate; kept only as evidence/reference in quarantine."
+    },
+    {
+      "file": "statecopy64_stage1_003000.pt",
+      "size_bytes": 22734091,
+      "category": "reference",
+      "reason": "Kindergarten copy proof, not a responder and not a soul-first continuation candidate."
+    },
+    {
+      "file": "v7_000100.pt",
+      "size_bytes": 38778635,
+      "category": "quarantine",
+      "reason": "Early 32D intermediate; superseded and not selected."
+    },
+    {
+      "file": "v7_000500.pt",
+      "size_bytes": 79350923,
+      "category": "quarantine",
+      "reason": "Old 64D intermediate from pre-soul-first path; superseded."
+    },
+    {
+      "file": "v7_001000.pt",
+      "size_bytes": 79350923,
+      "category": "quarantine",
+      "reason": "Old 64D intermediate from pre-soul-first path; superseded."
+    },
+    {
+      "file": "v7_001200.pt",
+      "size_bytes": 38778123,
+      "category": "quarantine",
+      "reason": "Early 32D/v7 lineage reference; not selected for active folder."
+    },
+    {
+      "file": "v7_core64_fullcurr_gpu_resume_006000.pt",
+      "size_bytes": 79360843,
+      "category": "quarantine",
+      "reason": "Old 64D full-curriculum result with failed runtime eval and collapsed/near-zero soul gates."
+    }
+  ],
+  "caveats": [
+    "The selected stage9 checkpoint is a salvage candidate, not a deployable runtime core.",
+    "It still needs placement exams through the ordered curriculum, especially Pre-K through Grade 4 soul-causality gates."
+  ]
+}

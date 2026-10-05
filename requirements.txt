@@ -1,0 +1,4 @@
+numpy>=1.26
+pytest>=8.2
+# Needed once the GRU core and trainer exist (CUDA build recommended; local GPU is a GTX 1650, 4 GiB):
+torch>=2.3
