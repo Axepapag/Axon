@@ -1,0 +1,32 @@
+{
+  "reviewed_at_utc": "2026-10-05T15:48:08.606397+00:00",
+  "local_head": "4fced91",
+  "tests": {
+    "passed": 144,
+    "elapsed_seconds": 12.66,
+    "command": "python -B -m pytest"
+  },
+  "substrate_self_tests": {
+    "16d_exit_code": 0,
+    "1024d_exit_code": 0
+  },
+  "reference_artifacts_equal_archive": true,
+  "native_bank_equal_1024_rows": true,
+  "gpu": {
+    "name": "NVIDIA GeForce GTX 1650",
+    "memory_mib": 4096,
+    "compute_capability": "7.5"
+  },
+  "combined_stage_overlap": {
+    "combined_records": 384,
+    "stage_records": 384,
+    "stage_files": 8,
+    "exact_hash_overlap": 384
+  },
+  "runtime_state_files": [
+    "README.md"
+  ],
+  "git_remote_configured": false,
+  "real_memory_databases_opened": false,
+  "source_fixes_made": false
+}

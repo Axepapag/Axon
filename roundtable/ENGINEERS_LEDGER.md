@@ -1,59 +1,866 @@
-# Axon Engineer's Ledger - Rolling Summary
+# Axon Engineer's Ledger - Rolling Summary
+
+
+
+
+
+
+
+Updated: 2026-10-06T22:18:03Z
+
+current_through_event_id: `evt-20261006T223820137968Z-codex-kimicode-curriculum-heart-delegation`
+
+## Codex backend handoff + Core v0.1.1 - October 6, 2026
+
+KimiCode briefed Codex in the ChatGPT desktop app (Jeff-directed, desktop control). Codex acknowledged, verified the Core delivery, integrated the manifests into the live 8080 backend (its event evt-20261006T221355493187Z-codex-e0-backend-integration), and raised three handoff issues on the bus (b88ccc5f), all fixed the same turn: graph version is now the string "0.1.1"; config schemas pinned to the D512 baseline (width [512], occupancy 1..32, hidden [512], max_chunk [64]); the weights_only=False torch.load fallback removed (fail closed). Two regression tests added. Suite 189 passed, both substrate self-tests exit 0; fix confirmation posted to Codex (bus 0806ff05). Codex has asked Perplexity to close the current-source backup gate (b3935cf8).
+
+
+
+## E0 Core manifest + adapter built - October 6, 2026
+
+Jeff approved the build. New Core-owned package `core/`: `core/manifests.py` (three Lab-ready component manifests - `axon.substrate_input`, `axon.core_reasoning_gru`, `axon.response_state` v0.1.0, every port carrying the agreed `surface: substrate-exact|free` field - plus `E0_REFERENCE_GRAPH`, which passes the unmodified production validator with valid=True/execution_eligible=True) and `core/e0_two_state.py` (`E0TwoStateCore` PyTorch adapter: frozen (96,16) lane bank as a non-trainable buffer, fail-closed id admission, GRUCell reasoning + response states, 96-way char head + 3-way WAIT/COMMIT/END control head, sha256-verified `axon-e0-checkpoint-v1` checkpoints with bit-identical restore; 3.2M params). 17 new tests; full suite 184 passed; CUDA test ran on the GTX 1650; both substrate self-tests exit 0. Announced on the bus (837c7cc8). NOT wired: no Heart/field integration (awaits the HeartHost coordinator), no trainer loop, occupancy rung 0 only. Integration point for Codex: `create_app(components=component_manifests())`; lab/backend untouched by us.
+
+## KimiCode x ChatGPT browser collaboration + E0 handoff - October 6, 2026
+
+Kimi Code collaborated with ChatGPT inside Jeff's open "Axon Project Path" chat via Jeff's own Agent Browser Hub (`G:\My Drive\Tools\extension` + `browser_hub` on 127.0.0.1:9191, agent `kimicode`, leased tab), after Jeff redirected from kimi-webbridge to his hub. Outcome: KimiCode formally accepted the E0 Core/Runtime integration assignment (D512 two-state Core manifest + PyTorch adapter, no Soul/Hub, Heart sole writer, END/WAIT semantics). ChatGPT delivered the exact contracts (bus 047ca997 component+architecture, 952b550b preflight, 05eb1feb checkpoint; browser handoff evt-20261006T094332730Z-chatgpt-kimicode-contract-handoff). KimiCode's two port-contract amendments - required `surface: substrate-exact|free` port field and occupancy declarations for substrate-exact ports - were ACCEPTED and refined by ChatGPT (substrate-exact<->free edges invalid without a versioned adapter; WAIT is control state, not an all-EMPTY vector; convergence event evt-20261006T095229266031+0000-chatgpt-port-contract; bus mirror df50f03d). Meanwhile on the bus: Perplexity took Cloud/Backup/Git (GitHub restructured: fresh Axepapag/Axon at baseline 4fced91, old repo renamed Axon_old), ChatGPT took Axon Lab UI and deployed it at axon.gliksbot.com, Codex built lab/backend with live /api/v1 on port 8080, suite now 167 tests. STILL OPEN: current-source backup gate - lab/, docs/TRAINING_PREFLIGHT.md, tools/training_preflight.py and recent ledger events are untracked/uncommitted. KimiCode's next deliverable: the E0 component manifest + adapter skeleton, announced on the bus before any lab/backend wiring.
+
+
+
+
+Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl` (this repo, starts at the genesis event above).
+
+
+
+Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`. The old repo's ledger (470 events, last
+
+
+
+`evt-20261005T114814882948Z-copilot-substrate-1024-lane-law`) is preserved in `history/old_axon/` and by path and SHA-256
+
+
+
+in the genesis event.
+
+
+
+
+
+
+
+Identity stamp: Codex / GPT-6 /2026-10-05 UTC
+
+
+
+
+
+
+
+**Start here next session: `docs/HANDOFF_2026-10-05.md`** (state, honest assessment, open decisions, milestones, database safety).
+
+
+
+
+
+
+
+## Kimi scout swarm over repo + Iris bus - October 5, 2026
+
+
+
+
+
+
+
+Kimi Code (Kimi k3) dispatched 5 read-only scouts (AgentSwarm): AxonScout-Substrate, AxonScout-HeartField, AxonScout-Memory, AxonScout-Governance, AxonScout-Tests. Each inspected one repo slice, re-verified health (144 tests pass; both substrate self-tests exit 0; 10/10 16D and 8/8 1024D gates), registered on the Iris bridge with Jeff's key, and posted `[AXON R1]` reports to the bus alongside jeff, ChatGPT and Perplexity. New verified findings: no explicit 16D pin for the 28 v8 symbol rows (rule 0 covers only the 68 pre-v8 rows); two unrelated `UnsupportedCharacterError` classes with no common base; the Heart/field layer is a complete but entirely unwired library (no production caller for valve/spool/lease/masks/turns/autobiography; beat budget never resets; commit bypasses lease; native-95 admission happens after the FIFO spool, so one bad head record stalls ingress); Codex F1/F2 independently reproduced; the 7 recovered legacy memory sources exist (~3.5 GiB, inventory snapshot c759af35...) but the importer lacks retry/resume; `heart/health.py`, `autobiography.py`, `ingress_queue.py`, `turns.py`, `source_of_truth.py`, `soul/contracts.py` have zero direct tests. Governance hazards: git has no remote and 14 canonical events plus proposals/reviews are uncommitted/untracked; `docs/SOURCE_OF_TRUTH.md` is cited by WORKING_CONTRACT but absent. The canonical ledger's missing final newline was repaired additively this turn (one LF at EOF; no existing line altered). Consensus on the bus: E0-first (one real Heart loop, D512 GRU, exact admission/output, checkpoint/restore), with offsite backup as a hard Stage-0 gate. Nothing ratified.
+
+
+
+
+
+
+
+## Independent Codex deep dive - October 5, 2026
+
+
+
+
+
+
+
+Current local HEAD 4fced91 reviewed. The new repo is a tested foundation; no Heart orchestration, core, trainer, GUI or selected-checkpoint runtime exists yet. GRU-first is recorded as confirmed. Independently ran 144 tests (all pass, 12.66s) and both substrate self-tests (exit 0). Reference bank and 1024 artifact bytes match the archived repo; native 95 bank matches lane bank. Current State contains README only.
+
+
+
+
+
+
+
+Reproduced isolated gaps, without touching real State/memories: (1) P1 Soul recovery fails when receipt is written but HEAD update fails; (2) P1 for WAL input: immutable importer sees 0 committed WAL rows where ordinary read-only SQLite sees 1; (3) P2 native 95 intake guard is missing at valve admission although FieldSpan rejects outsiders; (4) P2 strict checks round float64 to float32 before validation; (5) P2 audit ignores CR/vertical-tab/form-feed separators and malformed JSON can be character-CLEAN. No source fixes made.
+
+
+
+
+
+
+
+Verified combined curriculum 384 records overlap all 384 across 8 stage files; future loader must deduplicate and split by source/episode. Device queried: GTX 1650, 4096 MiB, compute capability 7.5. New Git repo has no remote; runtime State/curricula/checkpoints are ignored, and offsite backup was not verified. 1024 layout is literal 64x16 native lanes; neural benefit/throughput and unresolved handoff contracts remain unproven.
+
+
+
+
+
+
+
+Report and exact probe evidence: roundtable/reviews/CODEX_DEEP_DIVE_2026-10-05/REPORT.md, PROBE_RESULTS.json, probes.py, VERIFICATION.json. Recommend persistence/admission repairs before one-Core Heart/runtime/trainer integration. No model, training, service, dependency, commit or remote changes. Earlier notes below are Copilot's historical handoff; the 144-test health pass does not negate the newly reproduced gaps.
+
+
+
+
+
+
+
+## Multi-state recurrent cycle + shared hub proposal - October 5, 2026
+
+
+
+
+
+
+
+Jeff proposes that each new Heart delta interact with every persistent recurrent state during a full core cycle. Each state would pass through shared GRU computation with the new input; states should then exchange information, feed a nonlinear MLP/FFN workspace, and recur through the GRU until an output is produced. Every state should see the delta, but learned gates may preserve, update, or selectively route information rather than forcing every state to change. State count (4, 10, 20, etc.), interaction mechanism, stopping/output criterion, and whether state roles are fixed or learned remain open and must be tested.
+
+
+
+
+
+
+
+Jeff further proposes a shared fixed/recurrent **hub state** that every persistent state passes by during this cycle. Each state can read from the hub and leave selected information behind; the hub therefore absorbs/mixes information across state interactions and becomes part of the learned recurrent computation rather than merely a transcript buffer. Candidate semantics are a learned shared workspace/bus: per-state GRU update -> gated read/write with hub -> cross-state/hub mixing -> MLP/FFN transformation -> recurrent refinement. The hub must not replace Heart/Shared Field as exact truth; it is learned lossy working state. Its update order, dimensionality, reset/persistence behavior, gates, and whether it is itself a GRU state are proposals, not ratified architecture.
+
+
+
+
+
+
+
+## Modular recurrent cognitive engine proposal - October 5, 2026
+
+
+
+
+
+
+
+Detailed proposal: `roundtable/proposals/CHATGPT_MODULAR_RECURRENT_COGNITIVE_ENGINE_2026-10-05.md`.
+
+
+
+
+
+
+
+Jeff's current design discussion is captured as a proposal, not a ratified architecture: exact Heart/Shared Field reality remains separate from learned cognition; D1024 substrate transport/output may coexist with D512 recurrent cognitive states; a Hub maintains present awareness and routes access to a bank containing a few forced-role states plus emergent latent states; read and write are explicitly separated; a compact learned directory lets the Hub recall states for further passes; a separate reusable reasoning engine receives a standardized D512 cognitive request and returns D512; and response generation uses a learned response-control state plus a mutable exact D1024 64-character composition surface and staged committed output.
+
+
+
+
+
+
+
+The proposal introduces a versioned **Axon Cognitive Socket** (example `AXON-COG-D512-v1`) so future reasoning experts can be hot-swapped or trained elsewhere. Matching dimensionality alone is insufficient; independently trained experts must be trained/calibrated against the same learned socket distribution. Recommended bootstrap is joint training of the first Hub/state system and one general expert, then freezing/versioning the socket only after the internal language is stable. Later experts may be MLP/FFN, attention+FFN, SSM/Mamba, or other compatible modules. Initial experiment recommendation: D512 cognition, four persistent states, Hub, directory, scratch/protected-state biases, shared GRU update machinery, one general reasoning expert, variable recurrence with hard compute cap, response-control state, exact staged output, and full recurrent checkpoint/restore. Required ablations compare one-state, multi-state, Hub/no-Hub, forced/emergent roles, D512/D1024, fixed/variable recurrence, and single/multiple experts.
+
+
+
+
+
+
+
+## Active collaboration bus discussion - October 5, 2026
+
+
+
+
+
+
+
+ChatGPT read Perplexity's staged-validation proposal and joined the provisional AXON Round 1 Iris-bus discussion. The discussion compares the modular recurrent cognitive engine proposal against a staged validation path. ChatGPT broadly supports staged validation but argued that: prerequisite repairs should follow the paths actually exercised; Stage 2 should compare homogeneous, fast/protected, and TRM-like two-state variants rather than hard-code answer/latent semantics; the simplest response path still needs WAIT/END rather than forced fixed-size emission; response staging infrastructure can exist earlier than learned commit policy; and the first executable target should be a truthful one-core D512 Heart loop with exact native admission/output, checkpoint/restore, fresh copy/delayed-recall/correction tasks, and measured resource use. No consensus or architecture ratification is recorded here. Bus message: 21a410b5-5df8-4432-b32b-9e0624278828.
+
+
+
+
+
+
+
+## Jeff ruling: Soul and the new recurrent architecture - October 5, 2026
+
+
+
+
+
+
+
+Jeff explicitly ruled that the new multi-state Hub/recurrent architecture under discussion does **not** use the existing Soul. Soul remains appropriate for a transformer core. Jeff also raised a separate future possibility that feed-forward/reasoning modules could have their own recurrent state serving a Soul-like function; that is exploratory, not a present requirement. This supersedes the earlier assumption that every GRU core necessarily uses layered Soul. Existing Soul code is preserved, not deleted.
+
+
+
+
+
+
+
+Bus Round 1 has otherwise largely converged on an E0-first staged validation approach; Round 2 is narrowing the remaining choices for Jeff. No implementation is authorized by this summary alone.
+
+
+
+
+
+
+
+## Jeff ratifications and AXON R3 program launch - October 5, 2026
+
+
+
+
+
+
+
+Jeff ratified **one substrate at every width**: D16 is the only character substrate; any wider model-facing surface with width divisible by 16 is a mechanical sequence of exact frozen D16 cells. D256 has 16 slots, D512 32, D768 48, D1024 64, D2048 128. No new codebook or learned substrate projection is created for a new width.
+
+
+
+
+
+
+
+The first recurrent experiment is now directed toward **D512**, beginning with one-character-at-a-time ingestion until substrate learning, memory, and recall are demonstrated. Occupied slots then increase progressively into short word-like structures and eventually the full 32-slot D512 surface; D1024/64-slot ingestion is a later measured extension.
+
+
+
+
+
+
+
+The minimum new recurrent core has **two functional states**: a recurrent reasoning/memory state and a dedicated English-facing response state that incrementally composes exact output. The existing Soul is not part of this new recurrent architecture. Hub/state-bank anatomy can grow from this baseline after measurements.
+
+
+
+
+
+
+
+Jeff reaffirmed the multi-core direction: each core's expressed thinking/proposals should eventually enter a Shared Field collaboration region; a rotating executive/consolidator makes canonical response-draft/diary/etc. changes. No permanent executive. Exact region/schema semantics remain later design work.
+
+
+
+
+
+
+
+Jeff requires a new live Source of Truth for this version. The existing GitHub contains old Axon and must not be overwritten; a safe new-repo Git plan is required. Jeff will provide a Google Drive backup location for source plus ignored State/checkpoints/curricula, with restore verification.
+
+
+
+
+
+
+
+Immediate product priority is now **Axon Lab**, a comprehensive browser-based visual trainer/control center accessible from phone and desktop: visual core construction, component/socket validation, local CPU/GPU and cloud/Kaggle/Colab execution, training/inference controls, curricula/run/checkpoint registry, deep tensor/state observability, backup status, and the same Heart/substrate execution path for training and inference. AXON R3 has been launched on the Iris bus with seven planning workstreams: Curriculum/Data, Axon Lab UI/Trainer, Heart/Runtime, Core/Architecture, Cloud/Backup/Git, Tests/Measurement, Governance/Docs. The requested minimal vertical slice is browser -> configure D512 two-state core -> one-character substrate training -> live tensors/metrics -> checkpoint/resume -> inference through the same Heart path. Planning only so far.
+
+
+
+
+
+
+
+## AXON R3 workstream ownership and charters - October 6, 2026
+
+
+
+
+
+
+
+Kimi Code joined the bus as `KimiCode`, resumed its five scouts to answer ChatGPT's direct assignments, and claimed the Core/Architecture lead itself. Seat map: Curriculum/Data = AxonScout-Memory; Heart/Runtime = AxonScout-HeartField; Core/Architecture = KimiCode (+ AxonScout-Substrate as substrate/socket specialist); Tests/Measurement = AxonScout-Tests; Governance/Docs = AxonScout-Governance; Axon Lab UI/Trainer and Cloud/Backup/Git still open (offered to Perplexity). All seven charters are on the bus (KimiCode messages fe173cd0 and a3a6c40e; scout messages in the same 01:03-01:05Z window). Charters cover: safe allowlist-first G: inventory + content-addressed dataset contract; a minimal HeartHost coordinator (lease at commit, native-95 admission before spool, beat reset, rotating consolidator); the two-state D512 E0 core with a component/socket manifest and full checkpoint contract (Codex's review items 5-6 adopted); E0/E1 gates with seeds {0,1,2}, bigram margins and a rung ladder R0-R6; and a new live SOURCE_OF_TRUTH plus a single decision register. Codex's integration review corrections were accepted by the addressed leads (proposal-writable wording, uuid4 scoping to retry-after-crash, inventory phased listing/hashing/inspection). Still planning only: no implementation, training, imports, or pushes authorized.
+
+
+
+
+
+
+
+## Curriculum inventory phase 1/2 - October 6, 2026
+
+
+
+
+
+
+
+Jeff scoped the curriculum metadata inventory to exactly two in-repo roots: `curricula/legacy_raw/ashes_v6` and `curricula/legacy_raw/axon7`. AxonScout-Memory (Curriculum/Data lead) executed it read-only (metadata + SHA-256, no semantic reads, no conversion): manifest at `State/curriculum_inventory/legacy_raw_manifest.json` (git-ignored), 37 files, 30,137,542 bytes. Cross-check against `curricula/CURRICULA_AUDIT.md` is exact in both directions; the audit split is 18 CLEAN / 19 needing conversion (corrected from the earlier 15/22), 50,674 records, 78.5% fully clean. The three axon7 combined curricula are exact unions of their stage files (2,744 duplicated records) - no held-out use without dedupe. Bus report: c9aa1ccf. Open scope question to Jeff: are `New folder (2)\axon7\datasets`, `ashes_v6_history\Datasets` and the 7 recovered memory DBs also in scope? Separately, another agent (not us) added `docs/TRAINING_PREFLIGHT.md`, `tools/training_preflight.py`, `tests/test_training_preflight.py` to the repo.
+
+
+
+
+
+
+
+## Axon Lab UI ownership status - October 5, 2026
+
+
+
+
+
+
+
+The AXON R3 seat map currently has **Axon Lab UI/Trainer OPEN**. Perplexity had been offered the seat but had not accepted it. ChatGPT sent Perplexity a direct yes/no ownership request because the browser control center is Jeff's highest-priority deliverable. No immediate reply was present on the first follow-up poll. No UI implementation was started in this turn.
+
+
+
+
+
+
+
+## Bus check: UI ownership still open - October 5, 2026
+
+
+
+
+
+
+
+No new Iris-bus messages arrived after the direct request asking Perplexity to accept or decline primary Axon Lab UI/Trainer ownership. The seat remains open.
+
+
+
+
+
+
+
+## Axon Lab UI/backend ownership split accepted - October 6, 2026
+
+
+
+
+
+
+
+Codex (through Jeff's authorized Kimi Browser Extension) and ChatGPT now have an explicit two-owner trainer split. **Codex owns trainer backend/integration**: architecture definitions/registry and validation, model adapters, dataset/run registries, device/preflight, asynchronous run lifecycle, checkpoint/save/resume, inference APIs, event production, and runtime-path adapters. **ChatGPT owns the browser Axon Lab/operator interface**: responsive phone/desktop UX, visual architecture construction, curricula/run/checkpoint views, device/provider controls, lifecycle controls, live metrics, tensor/state/draft inspection, inference UX, and clear capability-driven errors.
+
+
+
+
+
+
+
+ChatGPT verified direct read/write access to the local repo and reserved **lab/frontend/** for its implementation. No frontend directory currently exists. A versioned **lab/contracts/** boundary is proposed for shared/generated schemas, with final ownership convention still to be agreed with Codex. Existing Heart/Runtime, Core/Architecture, Curriculum/Data, Tests/Measurement, and Governance owners retain their source areas; they were asked for contract-only review.
+
+
+
+
+
+
+
+The laboratory is explicitly architecture-versatile: one experiment's preference to avoid attention does not restrict Axon Lab. Backend-advertised GRU/FFN, Transformer/attention, custom recurrent/state, Hub/memory-bank and future components may be exposed when actually supported. Unsupported configurations must be disabled or fail validation visibly; no silent substitution or fabricated metrics.
+
+
+
+
+
+
+
+The current custom recurrent design (exact D16 mirror stream, multiple large circulating recurrent states, resident mutable memory banks between learned stages, explicit non-attention readers, editable exact English draft before Heart submission) is treated as one experimental architecture target, not universal doctrine. No training or UI/backend implementation was performed in this ownership turn.
+
+
+
+
+
+
+
+## Axon Lab frontend first source slice - October 6, 2026
+
+
+
+ChatGPT read Codex's `docs/CODEX_TRAINER_BACKEND_HANDOFF_2026-10-06.md` and backend-owned `lab/contracts/trainer-api-v1.md`, then created the first actual browser source under **lab/frontend/**: `index.html`, `styles.css`, `api.js`, `app.js`, and `README.md`. The first slice is responsive and capability-driven, with truthful loading/disconnected/error behavior; System/readiness; architecture component palette/draft/validation/registration; Data/Curriculum; readiness-gated Train; Runs with backend allowed-actions and SSE events; bounded read-only tensor Inspect; Checkpoint/restore; checkpoint-selected Inference with private draft separated from Heart-submitted response; and Backup evidence.
+
+
+
+The frontend does not fabricate components, providers, metrics, or device fallback. During implementation an initial mismatch was caught and corrected: a run now references a **registered architecture ID/version/hash** as the contract requires, rather than submitting the inline draft graph.
+
+
+
+Verification this turn: Node syntax checks exit 0; temporary static HTTP serving returns 200 with the expected shell; `git diff --check -- lab/frontend` exits 0; full `python -m pytest -q` exits 0; both substrate self-tests exit 0. Backend endpoints are still specification-only, so current disconnected behavior is expected until Codex implements the service. No training, cloud launch, broad data ingestion, Git push, or old-GitHub change occurred.
+
+
+
+## Axon Lab deployed publicly - October 6, 2026
+
+Jeff requested the browser frontend at `G:\My Drive\Cloudfare\Sites\axon\axon` with remote tunnel access. Existing infrastructure already provided the desired route: **axon.gliksbot.com** maps in `Sites/axon/_serve.py` to that folder through the running main-sites service on 127.0.0.1:8080, and the existing cloudflared service is healthy. No tunnel or credential change and no launcher restart were necessary.
+
+The prior placeholder page was preserved as `index.placeholder.pre-axon-lab.html`. The current `lab/frontend/` deployment files (`index.html`, `styles.css`, `api.js`, `app.js`, `README.md`) were copied into the published folder. Local Host-routed requests and public Cloudflare requests for `/` and `/app.js` return HTTP 200, and the public index contains the expected Trainer Control Center shell. The public `/api/v1/capabilities` path returns HTTP 404, which is expected until Codex implements the trainer backend. The frontend therefore truthfully shows disconnected today.
+
+Deployment is currently a manual mirror of `lab/frontend/`, not an automatic sync. Future frontend changes need redeployment. The preferred backend integration is same-origin `/api/v1` under axon.gliksbot.com unless the team deliberately coordinates another API origin.
+
+## Old Android/Axon Home inspection - October 6, 2026
+
+Read-only inspection of `G:\My Drive\Projects\Axon_old\Axon_old\android` found **Axon Home**, a native Android control-center/client rather than an alternate Axon body. The project has three modules: `app` (Compose Android UI), `controlplane` (typed Kotlin API/data contracts), and `core` (pure-Kotlin simulation/test fixture). The production `local` flavor connects to the real Python control service, securely stores an enrolled endpoint and bearer token with Android Keystore, and polls runtime/trainer status. The separately branded `simulation` flavor depends on the Kotlin simulator and is explicitly not runtime evidence.
+
+The control-plane contracts are much broader than the current production UI: field/head/ticks, masks, cores/souls, trainer commands, compute workers/providers, storage/artifacts/capsules, agents, global stop, and ordered events are modeled. The current local UI primarily displays Heart heartbeat/tick, canonical field/view IDs, Dormant/ingress counts, trainer lifecycle/candidate/step/loss/progress, and raw runtime JSON. Remote enrollment requires HTTPS; cleartext is limited to localhost.
+
+Potentially reusable concepts exist, but old D64/Soul/core-anatomy assumptions are stale and must not be copied as current doctrine.
+
+## Current-state assessment before first real training - October 6, 2026
+
+Axon Lab is now a **real public control-plane foundation**, not merely a mockup: the browser frontend and backend 0.1.0 are served together on the supervised 8080 Axon host, the public API reports healthy, and a recorded CUDA preflight proves an actual tensor operation on GPU 0. The lab truthfully advertises GRU, FFN, Transformer/attention and custom recurrent component families but marks all four **not_integrated**. Training, inference and tensor-inspection feature flags are false; the architecture, dataset, curriculum and run registries are empty; readiness correctly reports `training_authorized=false`.
+
+The actual organism/trainer engine is therefore still the critical gap. Core/Heart execution adapters, a frozen deduplicated dataset split, checkpoint/resume, verified valuable-artifact backup/restore, and full operator acceptance are all not integrated. The new `docs/SOURCE_OF_TRUTH.md` is still missing. Git origin now points at `https://github.com/Axepapag/Axon.git` and remote main equals local baseline `4fced910...`, but all recent Lab/docs/tests/ledger work is still modified/untracked rather than committed.
+
+Fresh verification this turn: full pytest exits 0, both substrate self-tests exit 0, and the Cloudflare supervisor reports the Axon 8080 service and tunnel running. The next legitimate milestone remains: **browser -> registered D512 two-state core -> fresh one-character substrate curriculum -> real same-Heart-path training -> live observations -> complete checkpoint/resume -> inference**. Hub/multi-state complexity should follow evidence from that E0 path rather than precede it.
+
+## Axon Lab frontend slice 2 - October 6, 2026
+
+ChatGPT implemented and publicly deployed the second Axon Lab frontend slice without editing Codex-owned backend/contracts or owner-controlled Core/Heart/Data source. The System view now has explicit **Auto / CPU / CUDA 0** foundation preflight controls. A new check creates one stable command ID, retries preserve it, accepted operations are polled to a terminal status, and the UI visibly separates a **current operation** from **latest completed server evidence · historical**. The live public acceptance used the same command ID twice and both submissions resolved to operation `e6bf8b17-e6e3-4c97-9db1-56c6a59b07f8`; it completed successfully on the GTX 1650 with `foundation_passed=true` while correctly retaining `training_authorized=false`.
+
+Architecture registration now similarly retains its command ID while the graph payload is unchanged and invalidates that retry identity on graph edits. Architecture draft, selected component, pending edge choices and preflight state persist in browser local storage across refresh/backend errors. The Architect code now supports backend-schema-driven primitive/nested configuration fields and explicit source-port -> destination-port edges, but the production palette remains intentionally disabled because the Core owner has not yet supplied real configuration schemas/ports/execution adapters. No component manifest is fabricated.
+
+Inference input validation now uses the backend's exact `native_alphabet`; verification against the real public capability record confirms newline is native and backtick is not. New frontend utility module: `lab/frontend/ui-utils.js`. Updated frontend files were mirrored to the existing public `axon.gliksbot.com` folder with cache-busted module URLs. Chrome headless confirms the public page says Backend connected and exposes the new preflight/evidence UI.
+
+Final checks: JS syntax passes, native-alphabet and registration-fingerprint utility checks pass, `git diff --check -- lab/frontend` passes, full pytest passes, both substrate self-tests pass, and public index/app/ui-utils return HTTP 200. No API amendment is requested from Codex for this slice. Remaining owner blockers are the genuine Core component contracts/adapters and later Heart runtime adapters.
+
+## R3 convergence with Cloud/Backup/Git lead - October 6, 2026
+
+Perplexity rejoined active collaboration and claimed **Cloud/Backup/Git**. ChatGPT independently verified that the current repo origin is the fresh `Axepapag/Axon`, and that local HEAD and remote `main`/HEAD are exactly `4fced91020d9d673afc2d069f3e7df036a0d52dd`. `Axepapag/Axon_old` also resolves separately, so old-vs-new repository naming is no longer ambiguous. Code offsite preservation is therefore verified; the ignored-artifact Drive backup/restore drill remains a separate requirement before valuable training.
+
+ChatGPT reaffirmed ownership of **Axon Lab UI / operator experience** and converged on three vertical-slice blockers: (1) a real Core-owned D512 two-state component manifest plus executable PyTorch adapter; (2) the Heart/Runtime-owned same-path execution coordinator plus Data-owned frozen one-character E0 manifest, real lifecycle and live tensor/event observations; (3) complete checkpoint -> process restart -> restore -> resume -> selected-checkpoint inference through Heart, with Perplexity's artifact backup/restore evidence protecting valuable state.
+
+No frontend API amendment is currently required. The public Lab already has live preflight, exact native-alphabet validation, retry-safe registration semantics and dormant schema/port editors waiting for genuine Core contracts.
+
+## KimiCode E0 contract handoff - October 6, 2026
+
+KimiCode accepted the E0 Core/Runtime assignment. ChatGPT supplied the current component/architecture, preflight and checkpoint contracts. Foundation preflight does not require a Core and cannot authorize training; Core/data/Heart/checkpoint readiness remains a higher-level gate. The deployed frontend mirror currently matches the source frontend byte-for-byte. Current Lab/contracts/preflight work is still untracked locally, so only the baseline Git SHA is offsite at present.
+
+## Port contract convergence - October 6, 2026
+
+Accepted required port surface distinction. Static occupancy constraints belong in the port contract; actual occupied-lane count remains data/runtime state so the D512 occupancy ladder stays data progression.
+
+## Mission and state (2026-10-05)
+
+
+
+
+
+
+
+New Axon repository started after the D: drive loss. Jeff (not a programmer; wants a GUI trainer with buttons) is moving to:
+
+
+
+exactly 95 native characters (nothing else, fail closed), a frozen 16D and a frozen 1024D substrate (64 lanes x 16), no
+
+
+
+D64 rails / packing / continuous D16 port, the Heart as sole writer serving exact 16D cells, GRU cores (1024 first) with a
+
+
+
+mirror of the field, a layered Soul and an FFN, a new multi-core output region and a round-robin consolidator. Full
+
+
+
+statement and open decisions: `docs/DIRECTION_2026-10-05.md`.
+
+
+
+
+
+
+
+## Binding invariants
+
+
+
+
+
+
+
+Heart is the sole writer; cores propose. The 95-character law is enforced in the canonical body (`FieldSpan`). Frozen
+
+
+
+substrates and their sealed reference files are never retuned. The old repo, axon7 and ashes_v6_history are read-only
+
+
+
+sources. Never delete; archive or leave in place and report.
+
+
+
+
+
+
+
+## Done this turn
+
+
+
+
+
+
+
+Carried the clean parts of the old repo (see `docs/CARRY_MANIFEST.md`): substrate (16D fail-closed + native API + 1024D),
+
+
+
+Shared Field (schema, deltas, branches, native D16 view), Heart (authority, valve, ingress, durable ingress, lease,
+
+
+
+identity, health, masks, turns, autobiography), Soul, Dormant, the legacy-memory importer and ledger tooling. Left behind
+
+
+
+the rail/D64/transport code and the rail-shaped Heart modules (rewrite later). Copied history, reference trainer/v6 code
+
+
+
+and 37 raw curricula with a character audit.
+
+
+
+
+
+
+
+## Verified
+
+
+
+
+
+
+
+`python -m pytest`: 144 passed. `python substrate/substrate.py --quiet` and `python substrate/substrate_1024.py --quiet`
+
+
+
+exit 0. All 96 frozen 16D vectors are bit-identical to the old repo. Carried files compared by SHA-256 (34 identical, 21
+
+
+
+edited, 2 new).
+
+
+
+
+
+
+
+## Open flags
+
+
+
+
+
+
+
+1. 1024D lane layout reuses the 16D codes: ASSUMED, unconfirmed. 2. Source of truth not carried as live doctrine; needs a
+
+
+
+Jeff-approved restatement (`docs/SOURCE_OF_TRUTH.md` does not exist though WORKING_CONTRACT cites it). 3. Dormant keeps
+
+
+
+non-95 originals byte-exactly (decision pending). 4. No heartbeat, registry, transaction layer, multi-core region
+
+
+
+(field v5), GRU core or trainer yet. 5. Recovered memory databases inventoried (~3.5 GiB, snapshot c759af35...) but no
+
+
+
+import run and the importer lacks retry/resume; the 59,875-record corpus is still absent from State. 6. GTX 1650
+
+
+
+(4 GiB); official Mamba needs Ampere. 7. No git remote; 14 canonical events and roundtable/proposals/ + reviews/
+
+
+
+uncommitted or untracked - backup risk is the top operational hazard. 8. Codex F1 (Soul HEAD recovery) and F2
+
+
+
+(immutable importer misses WAL) reproduced twice, unfixed. 9. No explicit 16D pin for the 28 v8 symbol rows; two
+
+
+
+unrelated UnsupportedCharacterError classes. 10. Heart/field code is complete but unwired; beat budget never resets;
+
+
+
+commit bypasses lease; native-95 admission is downstream of the FIFO spool.
+
+
+
+
+
+
+
+## Paths and commands
+
+
+
+
+
+
+
+Repo `G:\My Drive\Projects\Axon`; old repo `G:\My Drive\Projects\Axon_old\Axon_old`; axon7 and v6 under
+
+
+
+`G:\My Drive\New folder (2)\`. Health check: `python -m pytest`. Append a ledger event:
+
+
+
+`python scripts/append_engineers_ledger_event.py <pending-event.json>`. Character audit: `python tools/audit_characters.py <path>`.
+
+
+
+
+
+
+
+## Next
+
+
+
+
+
+
+
+Commit and push (offsite remote) the ledger, proposals and reviews first - a drive was already lost; the Cloud/Backup/Git
+
+
+
+bus seat is still open. Jeff answers the consolidated R3 choice list on the bus (conversion policy, G: inventory roots,
+
+
+
+Soul status, v5 region names, bigram margins/seeds, the new SOURCE_OF_TRUTH text, Drive backup location). When R3 closes:
+
+
+
+the repairs that gate everything downstream (Soul F1, importer F2, 16D symbol-row pin, unified UnsupportedCharacterError,
+
+
+
+front-door native-95 admission before the spool), then the HeartHost coordinator (lease at commit + admission + beat
+
+
+
+reset), then the E0 two-state D512 core on the rung ladder, then the Axon Lab vertical slice, then the trainer window.
+
+
+
+
+
+
+
+## Current memory/learning discussion (October 5)
+
+
+
+
+
+
+
+User is considering removing the separate Soul because GRU has recurrent memory; removal remains unratified. User clarifies durable attributed per-core proposal history belongs in the new field region (not built yet), and wants a later process deriving teaching material and LoRA adapters. Exact region name/phase semantics and adapter targets remain open.
+
+
+
+
+
+
+
+Assistant assessment, not a ratified change: test a simpler baseline without a separate layered Soul, directly checkpointing/restoring GRU recurrent state; exact field/mirror/Dormant retain history, and persistent attributed proposals record expressed reasoning. Prefer a later pipeline from context/proposals/outcomes/corrections to curated lessons and evaluated candidate updates. Preserve real source data and assess unseen tasks to avoid reinforcing self-generated mistakes. LoRA is a later adaptation technique tied to compatible base weights, not an exact history archive; custom GRU/FFN attachment and benefit remain to prove. Sources: https://arxiv.org/abs/2106.09685, https://arxiv.org/abs/2404.01413. Event evt-20261005T164950270309Z-codex-memory-and-learning-loop-assessment.
+
+
+
+
+
+
+
+## TRM and multiple states (October 5)
+
+
+
+
+
+
+
+Jeff explicitly corrected the phrase to multiple STATES and requested TRM research. Verified original paper and official code: input x plus two mutable states y (candidate answer) and z (latent reasoning); one shared small network repeatedly updates z then y. Sudoku ablation: two states 87.4%, one 71.9%, seven 77.6%; not a universal optimum. Official carry uses z_H/z_L tensors across the sequence and resets for a new problem, with fixed evaluation step budget. TRM has attention and MLP variants and no GRU cell. Axon proposal only: compare one-state GRU baseline against two functional working states; specify cross-tick retention and restart semantics separately. This does not ratify Soul removal or a new architecture. No model, training, or source changes.
+
+
+
+
+
+
+
+Research: G:\My Drive\Engineers_Lounge\Codex\projects\axon\research\TRM_MULTIPLE_STATES_2026-10-05.md
+
+
+
+Sources: https://arxiv.org/html/2510.04871v1; https://github.com/SamsungSAILMontreal/TinyRecursiveModels/blob/main/models/recursive_reasoning/trm.py
+
+
+
+Event: evt-20261005T173357187251Z-codex-trm-multiple-states-research
+
+
+
+
+
+
+
+MLP terminology clarification: Explained MLP (multilayer perceptron) as a feedforward network of learned layers and nonlinear activations. In the proposed GRU/FFN loop it transforms current information; recurrent state is carried by the GRU or explicit surrounding loop, rather than automatically retained by a standard MLP. No architectural decision or implementation. Event: evt-20261005T173848824711Z-codex-mlp-explanation
+
+
+
+
+
+
+
+TRM/GRU comparison: Compared GRU gated recurrent cell with TRM full recursive architecture/training scheme. GRU uses reset/update gates to update a hidden state per layer/direction; it can also be run repeatedly on the same problem. TRM carries answer and latent reasoning states, reuses a shared small attention/MLP network, and trains intermediate refinements. Both are recurrent; multiple states or looping alone do not make a GRU into original TRM. Proposed GRU with separate working states and FFN could borrow refinement ideas as an experimental hybrid; no benefit or Soul removal established. Event: evt-20261005T174201878444Z-codex-trm-gru-comparison
+
+
+
+
+
+
+
+## Gated recurrent memory hierarchy proposal (October 5)
+
+
+
+
+
+
+
+Jeff proposes numerous recurrent states (example ten), with learned gates routing information into progressively deeper, compressed, persistent states. Treat as proposed direction, not an implemented or ratified layout. Research precedent: Clockwork RNN scheduled multirate modules; HM-RNN learned boundaries and COPY/UPDATE/FLUSH with upward summary emission. Assessment: plausible integrated hierarchical recurrent memory; need explicit write/consolidation gates, read paths to fast reasoning, per-level preservation/update constraints, and training tasks rewarding delayed recall. Depth alone implies neither compression nor retention. Fixed-size learned states are lossy; exact field/Dormant evidence remains useful. Save/restore all active states and metadata for persistence across restart. Ten levels and long-term benefit require experiments. Soul function could be integrated here, not simply declared unnecessary.
+
+
+
+Research: G:\My Drive\Engineers_Lounge\Codex\projects\axon\research\HIERARCHICAL_GATED_MEMORY_2026-10-05.md
+
+
+
+Event: evt-20261005T175005673977Z-codex-hierarchical-gated-memory
+
+
+
+
+
+
+
+Bridge assessment: User considering bridge.gliksbot.com collaboration instead of disk; engineering agents vs runtime cores scope pending. Current local source confirms agent send/broadcast/inbox/list and local SQLite retaining 5000 messages/2000 activity events. Local and public health both HTTP 200. Recommend bridge coordination interface with authoritative append-only records and independent backups; web interface alone is not separate storage. Runtime core state stays local to Heart unless remote compute requires a measured design. No agent messages, remote changes, credentials, migration or deployment. Event: evt-20261005T214520191649Z-codex-bridge-collaboration-assessment
+
+
+
+
+
+
+
+## Trainer/interface ownership handoff - 2026-10-06
+
+
+
+Accepted: Codex owns trainer backend/integration (`lab/backend/`), versioned interface specifications (`lab/contracts/`) and backend tests; ChatGPT owns actual browser source (`lab/frontend/`). Existing Core/Heart/Data/Tests/Governance source ownership remains. Bus acceptance a1501960-2453-4ed8-9e92-223484ec3a60 and Codex ACK 7e897d4c-ec35-4ec4-a2f1-1c2e74b6b733. Backend handoff: `docs/CODEX_TRAINER_BACKEND_HANDOFF_2026-10-06.md`; first API proposal: `lab/contracts/trainer-api-v1.md`. The latter specifies capabilities, graph validation, async lifecycle commands, ordered events, bounded tensor/draft snapshots, complete checkpoints, inference, preflight and backup evidence; no endpoint is claimed implemented. Transformers with attention, GRU/FFN and custom cells remain supported laboratory targets. ChatGPT was asked through the existing authorized browser conversation to begin frontend source against these files. Current full pytest and both substrate self-tests exited 0. No training, cloud launch, package install or Codex service startup. Next: actual backend and frontend implementation plus joint finished-vehicle acceptance.
+
+
+
+## Read-only Kimi session review - 2026-10-06
+
+Codex matched the current Axon Kimi session to the open PowerShell title and read saved user-visible reports; terminal UI was not inspected. Latest completed work was the two-root curriculum inventory. Actual manifest verified: 37 files, 30,137,542 bytes, 18 CLEAN/19 MOSTLY CLEAN, exact audit correspondence, 3 combined files duplicating stage unions (2,744 records). Prior Kimi turns were scout audits and workstream planning, not trainer/core implementation. Her older OPEN UI report predates the accepted Codex-backend/ChatGPT-frontend split. No source edits, terminal input, new agent messages, imports or training.
+
+
+## Local backend foundation - 2026-10-06
+
+Codex implemented lab/backend foundation, CLI and 14 API tests. Full suite 165
+passed and both substrate self-tests passed. Live GPU preflight on GTX1650 passed
+all five checks; no training. Local browser connects at http://127.0.0.1:8184.
+Operation/architecture registries survive restart in local AppData; retries are
+deduplicated and graph ports are checked against trusted component contracts.
+Default model entries remain not_integrated. Public axon.gliksbot.com still shows
+Disconnected/404; host-scoped API proxy and managed startup are pending. Codex
+did not modify the frontend or shared hosting/tunnel. Training/inference/SSE and
+complete checkpoint/backup recovery are pending. Frontend follow-ups sent on bus:
+device preflight/polling, native alphabet hints, registration command IDs and
+component configuration/edges. Evidence: lab/backend/VALIDATION_2026-10-06.md.
+This is a first foundation slice, not finished-vehicle acceptance.
+
+
+Tunnel route rechecked: public Axon frontend and local Host route return200 on8080; capabilities404. Separate8184 backend health200. No hosting configuration changed.
+
+
+Next-step plan explained: public same-origin API and shared-launcher supervision first, then Core/Heart/data adapters, and complete operator/checkpoint/backup acceptance before valuable training. No implementation or deployment this conversational turn.
+
+
+## Public Axon API now on 8080 - 2026-10-06
+
+Jeff explicitly authorized connecting the API and clarified that the Axon server
+should use the existing tunnel port8080. Implemented that direction directly;
+this supersedes the temporary8184 service and earlier proxy-to8184 plan.
+
+Current public path: https://axon.gliksbot.com -> existing tunnel ->127.0.0.1:8080.
+The deployed frontend (G:\My Drive\Cloudfare\Sites\axon\axon) and actual Axon
+API now execute on the same8080 listener. Hosted wrapper in lab/backend/hosted.py
+retains the old handler for other hostnames privately within the same process.
+Changed Cloudfare launcher.py/static startup and launcher.json/axon_lab setting;
+only managed main-sites child restarted, nowPID29636 under supervisor10700.
+TunnelPID21916 and every other managed servicePID unchanged. Port8184 and staged
+8185 services stopped. Default standalone CLI port is now8080; isolated developer
+use may explicitly select another port. No frontend source, tunnel config or
+credentials changed; verified system httpx0.28.1 already installed.
+
+Full suite167passed; both substrate self-tests exited0 separately. Staged actual
+gliksbot root/chess/Downloads responses and existing Plex404 byte-identical.
+Public health/capabilities/readiness/app.js200. Public preflight invalid request
+returns the backend's structured422, proving POST routing without running a job.
+Kimi Browser Extension confirmed Backend connected on the actual public page.
+Completed GPU preflight remains persisted after migration. Training readiness is
+still false; Core/Heart/data/training/inference/recovery adapters remain pending.
+No training or import/conversion launched.
+
+Evidence: G:\My Drive\Projects\Axon\lab\backend\HOSTED_DEPLOYMENT_2026-10-06.md.
+Prechange launcher/config copies: G:\My Drive\Cloudfare\backups\axon-api-20261006-065229.
+Bus delivery f3e7fe55-7b21-46b5-a205-36262171e58a; plan6243bfb7-7b6f-40fe-9794-2306a4005132.
+Next: actual core/runtime and curriculum adapters, frontend controls, then full
+operator/checkpoint/independent-backup acceptance before valuable training.
+
+
+Legacy Android review: Axon Home has a real-server GET-only monitoring client and separately labelled Kotlin simulator. Client expects old /v1 control schemas, needing adaptation for current /api/v1. Source review only; archive unchanged, no build/install/phone tests.
+
+
+Frontend collaboration: ChatGPT accepted concrete preflight/polling, stable command retry IDs, native alphabet hints and schema-driven property/edge editing work through Kimi Browser Extension. It is actively editing and reports no backend API amendment needed for this slice. Real Core schemas/ports remain a dependency; completed source/deployment acceptance still pending.
+
+
+## E0 backend integration — 2026-10-06T22:13:55.493187+00:00
+
+Connected E0 Core v0.1.0 manifests to the live 8080 backend; required surface compatibility enforced; isolated CPU D512 import, graph API registration and bit-identical Core checkpoint checks pass. 188 tests and both substrate self-tests passed. Training remains unauthorized pending HeartHost, curriculum, complete recovery, backup and operator acceptance. ChatGPT acknowledged frontend recovery work.
+
+- Reference graph version requires text normalization; variable advertised config has static D512 port shapes.
+- Core checkpoint loader unsafe fallback flagged to KimiCode; Core-owned source unchanged.
+- Current untracked source and ignored artifacts have no verified independent backup.
+- Frontend lost-ack recovery fix is acknowledged/in progress, not delivered this turn.
+- Global whitespace check reports pre-existing immutable ledger whitespace; scoped check passes.
+
+
+Next-path clarification 2026-10-06T22:26:48.764371+00:00: Jeff observed successful browser-agent coordination and asked whether Heart integration and curriculum are next. Confirmed those priorities, followed by real training controls, full recovery and backup/operator acceptance before valuable training. No implementation or new agent assignments this turn.
+
+
+Concurrent owner report reconciled: KimiCode canonical event evt-20261006T221803389267Z-kimi-codex-desktop-handoff reports Core v0.1.1 fixes for text architecture version, D512-pinned config/ports and fail-closed safe checkpoint loading, with 189 tests and both substrate checks passed. This is owner-reported evidence; Codex did not independently rerun tests or reload the managed service for v0.1.1 in this conversational turn. HeartHost/curriculum/run/recovery/backup/operator acceptance remain next.
+
+
+Architecture versatility clarification 2026-10-06T22:31:08.762659+00:00: Jeff wants to start with the two-state GRU while preserving architecture experimentation, including mutable resident-memory tensors, deep processing, attention, Mamba and transformers. Explained current D512-only E0 manifests and schema-driven builder; additional architectures require implemented/versioned components, state lifecycle, checkpoint and execution integration. Resident memory proposal remains unimplemented; fixed location means mutable values with learned read/write functions. Future curriculum delegation was mentioned but not requested now; no agent messaging or implementation this turn.
 
-Updated: 2026-10-05T14:26:04.017256+00:00
-current_through_event_id: `evt-20261005T142604017256Z-copilot-correction-gru-training-speed`
 
-Historical authority: `roundtable/ENGINEERS_LEDGER_CANONICAL.jsonl` (this repo, starts at the genesis event above).
-Protocol: `roundtable/ENGINEERS_LEDGER_PROTOCOL.md`. The old repo's ledger (470 events, last
-`evt-20261005T114814882948Z-copilot-substrate-1024-lane-law`) is preserved in `history/old_axon/` and by path and SHA-256
-in the genesis event.
-
-Identity stamp: GitHub Copilot / Claude Sonnet 5.5 / 2026-10-05 UTC
-
-**Start here next session: `docs/HANDOFF_2026-10-05.md`** (state, honest assessment, open decisions, milestones, database safety).
-
-## Mission and state (2026-10-05)
-
-New Axon repository started after the D: drive loss. Jeff (not a programmer; wants a GUI trainer with buttons) is moving to:
-exactly 95 native characters (nothing else, fail closed), a frozen 16D and a frozen 1024D substrate (64 lanes x 16), no
-D64 rails / packing / continuous D16 port, the Heart as sole writer serving exact 16D cells, GRU cores (1024 first) with a
-mirror of the field, a layered Soul and an FFN, a new multi-core output region and a round-robin consolidator. Full
-statement and open decisions: `docs/DIRECTION_2026-10-05.md`.
-
-## Binding invariants
-
-Heart is the sole writer; cores propose. The 95-character law is enforced in the canonical body (`FieldSpan`). Frozen
-substrates and their sealed reference files are never retuned. The old repo, axon7 and ashes_v6_history are read-only
-sources. Never delete; archive or leave in place and report.
-
-## Done this turn
-
-Carried the clean parts of the old repo (see `docs/CARRY_MANIFEST.md`): substrate (16D fail-closed + native API + 1024D),
-Shared Field (schema, deltas, branches, native D16 view), Heart (authority, valve, ingress, durable ingress, lease,
-identity, health, masks, turns, autobiography), Soul, Dormant, the legacy-memory importer and ledger tooling. Left behind
-the rail/D64/transport code and the rail-shaped Heart modules (rewrite later). Copied history, reference trainer/v6 code
-and 37 raw curricula with a character audit.
-
-## Verified
-
-`python -m pytest`: 144 passed. `python substrate/substrate.py --quiet` and `python substrate/substrate_1024.py --quiet`
-exit 0. All 96 frozen 16D vectors are bit-identical to the old repo. Carried files compared by SHA-256 (34 identical, 21
-edited, 2 new).
-
-## Open flags
-
-1. 1024D lane layout reuses the 16D codes: ASSUMED, unconfirmed. 2. Source of truth not carried as live doctrine; needs a
-Jeff-approved restatement. 3. Dormant keeps non-95 originals byte-exactly (decision pending). 4. No heartbeat, registry,
-transaction layer, multi-core region (field v5), GRU core or trainer yet. 5. Recovered memory databases in
-`New folder (2)` not opened; the 59,875-record corpus is absent. 6. GTX 1650 (4 GiB); official Mamba needs Ampere.
-
-## Paths and commands
-
-Repo `G:\My Drive\Projects\Axon`; old repo `G:\My Drive\Projects\Axon_old\Axon_old`; axon7 and v6 under
-`G:\My Drive\New folder (2)\`. Health check: `python -m pytest`. Append a ledger event:
-`python scripts/append_engineers_ledger_event.py <pending-event.json>`. Character audit: `python tools/audit_characters.py <path>`.
-
-## Next
-
-Jeff answers `docs/DIRECTION_2026-10-05.md` section 3 (items 1-4); then the new heartbeat/registry/transaction layer and the
-multi-core output region; then the GRU core; then the trainer engine and window.
+Kimi curriculum/Heart delegation 2026-10-06T22:38:20.137968+00:00: Jeff authorized delegation to his existing Kimi session. Saved comprehensive curriculum/HeartHost assignment and sent it directly to KimiCode on Iris, with coordination notices to HeartField and Memory/Data. Computer Use was read but required node_repl tool is not exposed, so no PowerShell UI input occurred. Message delivery is verified; Kimi acknowledgment/start remains unconfirmed. Assignment: docs/KIMICODE_CURRICULUM_HEART_ASSIGNMENT_2026-10-06.md

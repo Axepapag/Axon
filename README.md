@@ -30,8 +30,9 @@ The full picture of the new direction, and what is still undecided, is in `docs/
 | Dormant: exact evidence index and retrieval | `runtime/dormant/` | working |
 | Character audit for curricula | `tools/audit_characters.py` | working |
 
-**Not built yet:** the heartbeat/tick and core registry, the multi-core output region, the GRU core, the trainer and
-its window. Those are the next phases.
+**Not built yet:** the heartbeat/tick and core registry, the multi-core output region, the wiring of the GRU core into the
+Heart path, and the trainer engine and window. (The E0 GRU core exists as component manifests plus a PyTorch adapter
+skeleton under `core/`, tested but not yet integrated.)
 
 ## Check that everything is healthy
 
@@ -48,6 +49,7 @@ All three should finish without errors (pytest prints the number passed; the oth
 | Folder | What it is |
 |---|---|
 | `substrate/` | The frozen 16D and 1024D substrates and their sealed reference files |
+| `core/` | Core-owned E0 component manifests and the two-state GRU adapter skeleton (unintegrated) |
 | `runtime/` | `field/`, `heart/`, `soul/`, `dormant/` and the capacity policy loader |
 | `curator/` | Importer that loads recovered legacy memories into Dormant |
 | `tools/` | Small standalone tools (character audit) |

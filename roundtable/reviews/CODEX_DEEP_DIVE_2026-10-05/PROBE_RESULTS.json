@@ -1,0 +1,32 @@
+{
+  "zero_tolerance_precision": {
+    "input_changed": true,
+    "difference": 2.220446049250313e-16,
+    "decoded": "A",
+    "modified_cell_lift_accepted": true
+  },
+  "ingress_character_guard": {
+    "admitted": true,
+    "field_span": "UnsupportedCharacterError"
+  },
+  "character_audit": {
+    "raw_outside_count": 4,
+    "reported_outside": 0,
+    "records": 5,
+    "clean_records": 5,
+    "malformed_json_records": 1,
+    "malformed_json_clean": 1
+  },
+  "soul_receipt_before_head_crash": {
+    "receipt_exists": true,
+    "head_is_old_before_recovery": true,
+    "recovery_error": "SoulIntegrityError",
+    "recovery_message": "requested soul is not an ancestor of branch HEAD",
+    "head_is_old_after_recovery": true
+  },
+  "wal_importer": {
+    "normal_readonly_rows": 1,
+    "importer_rows": 0,
+    "wal_exists": true
+  }
+}

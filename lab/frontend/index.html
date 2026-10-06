@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Axon Lab</title>
+  <link rel="stylesheet" href="./styles.css?v=20261006-s3">
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">AXON LAB</div>
+        <h1>Trainer Control Center</h1>
+      </div>
+      <div class="connection-cluster">
+        <span id="connection-pill" class="status-pill status-loading">Connecting</span>
+        <button id="retry-connection" class="button button-secondary" type="button">Retry</button>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <nav class="sidebar" aria-label="Axon Lab sections">
+        <button class="nav-item active" data-view="system">System</button>
+        <button class="nav-item" data-view="architect">Architect</button>
+        <button class="nav-item" data-view="data">Data</button>
+        <button class="nav-item" data-view="train">Train</button>
+        <button class="nav-item" data-view="runs">Runs</button>
+        <button class="nav-item" data-view="inspect">Inspect</button>
+        <button class="nav-item" data-view="inference">Inference</button>
+        <button class="nav-item" data-view="checkpoints">Checkpoints</button>
+        <button class="nav-item" data-view="backup">Backup</button>
+      </nav>
+
+      <main id="main-view" class="main-view" tabindex="-1" aria-live="polite"></main>
+    </div>
+  </div>
+
+  <template id="empty-state-template">
+    <section class="empty-state">
+      <h2></h2>
+      <p></p>
+    </section>
+  </template>
+
+  <script type="module" src="./app.js?v=20261006-s3"></script>
+</body>
+</html>
