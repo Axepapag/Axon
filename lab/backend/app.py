@@ -24,6 +24,7 @@ from .store import Registry, canonical, local_state
 from .validation import validate_graph
 from .core_checks import check_core
 from .runs import RunService, RunError, supported_graph
+from .acceptance import Acceptance
 
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = "axon-lab-api-v1"
@@ -53,7 +54,8 @@ def create_app(*, root: Path = ROOT, state_path: Path | None = None,
     pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="axon-preflight")
     running = threading.Lock()
     core_evidence = []
-    run_service = RunService(registry, root, gate=execution_gate)
+    acceptance = Acceptance(root, registry.path.parent)
+    run_service = RunService(registry, root, gate=execution_gate or acceptance)
 
     @asynccontextmanager
     async def lifespan(app):
@@ -99,14 +101,11 @@ def create_app(*, root: Path = ROOT, state_path: Path | None = None,
                    "reason": op.get("error", {}).get("message", "Review the actual preflight result; it does not authorize training.") if op else "Run a selected-device foundation check.",
                    "evidence": op["operation_id"] if op else None, "updated_at": op.get("finished_at") if op else None}]
         checks += core_evidence
-        checks += [{"id": name, "status": "not_integrated", "reason": reason}
-                   for name, reason in (("core_runtime", "E0 loop and Lab adapter exist; full response-learning and execution acceptance remain pending."),
-                       ("dataset_split", "Frozen E0 starter splits are available when verified; broad character/recall acceptance remains pending."),
-                       ("checkpoint_resume", "Episode-boundary composite save/restore is implemented; production recovery acceptance remains pending."),
-                       ("backup_restore", "No valuable-artifact backup/restore drill is verified."),
-                       ("operator_controls", "The complete phone/desktop training path is not accepted."))]
-        return {"schema_version": SCHEMA, "training_authorized": False,
-                "allowed_actions": ["preflight"], "checks": checks}
+        checks += acceptance.checks()
+        gate = run_service.gate()
+        return {"schema_version": SCHEMA, "training_authorized": gate['authorized'],
+                "execution_mode": gate.get('mode','test_fixture'), "execution_scope": gate.get('scope'),
+                "allowed_actions": ["preflight"] + (["start"] if gate['authorized'] else []), "checks": checks}
 
     @app.get("/api/v1/health")
     def health():
@@ -130,7 +129,7 @@ def create_app(*, root: Path = ROOT, state_path: Path | None = None,
                     {"id": "kaggle", "name": "Kaggle", "status": "not_integrated", "reason": "No launch adapter configured."},
                     {"id": "colab", "name": "Colab", "status": "not_integrated", "reason": "No launch adapter configured."}],
                 "native_alphabet": ALPHABET, "supported_actions": ["preflight", "validate_architecture", "register_architecture", "create_run"],
-                "feature_flags": {"training": False, "inference": False, "run_preparation": True, "tensor_inspection": True},
+                "feature_flags": {"training": run_service.gate()['authorized'], "inference": False, "run_preparation": True, "tensor_inspection": True},
                 "run_capabilities": {"pause_boundary": "after_current_episode", "mid_episode_resume": False,
                                      "start_authorized": run_service.gate()['authorized']}}
 
@@ -312,9 +311,7 @@ def create_app(*, root: Path = ROOT, state_path: Path | None = None,
 
     @app.get("/api/v1/backup/status")
     def backup():
-        return {"schema_version": SCHEMA, "status": "not_verified", "configured_destination": None,
-                "verified_artifact": None, "restore_drill": None,
-                "reason": "No backup destination and completed restore drill have been registered."}
+        return {"schema_version": SCHEMA, **acceptance.backup()}
 
     @app.api_route("/api/v1/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
     def not_integrated(path: str):

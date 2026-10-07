@@ -679,20 +679,21 @@ function renderRuns() {
 }
 
 function renderLatestResult(result) {
-  if (!result) return `<div class="notice">No completed episode result is available. Loss is unavailable from the current loop.</div>`;
+  if (!result) return `<div class="notice">No completed episode result is available yet.</div>`;
   const metrics = result.metrics || {};
   return `<div class="result-card">
     <div class="split"><strong>Latest real episode result</strong><span class="tag neutral">${esc(result.family || "episode")}</span></div>
     <dl class="detail-grid">
       ${detail("Episode", result.episode_id)}
       ${detail("Split", result.split)}
-      ${detail("Exact", metrics.exact)}
+      ${detail("Exact", metrics.exact_match)}
+      ${detail("Measurement", result.measurement_scope || result.generation?.mode)}
       ${detail("Per-char accuracy", metrics.per_char_accuracy)}
       ${detail("Control correct", metrics.control_correct)}
       ${detail("Binding error", metrics.binding_error)}
       ${detail("Obsolete error", metrics.obsolete_error)}
       ${detail("Invalid content", metrics.invalid_content)}
-      ${detail("Loss", "Unavailable — loop does not expose loss yet")}
+      ${detail("Mean training loss", result.training?.objective_loss)}
     </dl>
     <details><summary>Result row</summary><pre class="json-view">${esc(JSON.stringify(result, null, 2))}</pre></details>
   </div>`;

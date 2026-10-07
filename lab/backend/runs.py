@@ -96,7 +96,7 @@ class RunService:
     def get(self, identity):
         run = self.registry.get('run', identity)
         if not run: raise RunError(404, 'run_not_found', 'No such run.')
-        run['readiness'] = self.gate()
+        run['readiness'] = self.gate.for_run(run) if hasattr(self.gate, 'for_run') else self.gate()
         actions = {'created': ['stop'], 'running': ['pause', 'stop', 'checkpoint'],
                    'paused': ['stop'], 'failed': ['stop']}.get(run['lifecycle_state'], [])
         if run['readiness']['authorized'] and run['lifecycle_state'] in ('created', 'paused'):
@@ -198,6 +198,7 @@ class RunService:
         run.pop('pending_operation', None)
         self.registry.complete_run_operation(run, operation, {'timestamp': now(), 'type': 'lifecycle',
                                              'payload': {'state': run['lifecycle_state']}})
+        if hasattr(self.gate,'preserve_registry'): self.gate.preserve_registry(self.registry.path)
 
     def work(self, identity, resume):
         import random
@@ -288,6 +289,7 @@ class RunService:
                     else:
                         self.registry.put('run', identity, current, replace=True)
                         self.event(identity, 'lifecycle', {'state': 'completed'})
+                        if hasattr(self.gate,'preserve_registry'): self.gate.preserve_registry(self.registry.path)
         except Exception as exc:
             with self.lock:
                 current = self.get(identity)
@@ -346,11 +348,13 @@ class RunService:
                     'generation': loop.host.generation, 'files': {p.relative_to(directory).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
                         for p in directory.rglob('*') if p.is_file()}}
         (directory/'lab_manifest.json').write_text(canonical(metadata), encoding='utf-8')
+        preserved = self.gate.preserve_checkpoint(directory,run['run_id']) if hasattr(self.gate,'preserve_checkpoint') else None
         saved = {'checkpoint_id': identity, 'run_id': run['run_id'], 'parent_id': run.get('latest_checkpoint_id'),
                  'step': run['step'], 'architecture_hash': run['architecture_hash'], 'data_hash': run['dataset_hash'],
                  'completeness': True, 'boundary': 'episode', 'mid_episode_resume': False,
                  'directory': str(directory), 'manifest_sha256': hashlib.sha256((directory/'lab_manifest.json').read_bytes()).hexdigest(),
-                 'backup_state': 'not_verified', 'restore_verification': None, 'created_at': now()}
+                 'backup_state': 'local_copy_verified_cloud_pending' if preserved else 'not_verified',
+                 'backup_copy': preserved, 'restore_verification': None, 'created_at': now()}
         self.registry.put('checkpoint', identity, saved)
         self.event(run['run_id'], 'checkpoint', {key: value for key, value in saved.items() if key != 'directory'})
         return identity

@@ -16,7 +16,7 @@ def test_default_catalog_and_real_core_evidence_leave_training_locked(tmp_path):
             assert checks[key]["status"] == "passed", checks[key]
             assert len(checks[key]["source_hash"]) == 64
         assert ready["training_authorized"] is False
-        assert checks["core_runtime"]["status"] == "not_integrated"
+        assert checks["core_runtime"]["status"] == "not_verified"
         assert client.get("/api/v1/architectures").json()["items"] == []
         graph = deepcopy(E0_REFERENCE_GRAPH)
         graph["version"] = str(graph["version"])
