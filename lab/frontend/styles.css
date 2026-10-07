@@ -343,7 +343,7 @@ summary { cursor: pointer; color: var(--muted); }
 }
 .port-row {
   display: grid;
-  grid-template-columns: auto auto minmax(0,1fr) auto;
+  grid-template-columns: auto auto minmax(0,1fr) auto auto;
   align-items: center;
   gap: 8px;
   padding: 8px;
@@ -389,4 +389,26 @@ summary { cursor: pointer; color: var(--muted); }
   .edge-form { grid-template-columns: 1fr; }
   .port-row { grid-template-columns: auto minmax(0,1fr); }
   .port-row small, .port-row code { grid-column: 2; }
+}
+
+
+/* Frontend slice 4: run preparation, recovery and real run evidence */
+.operation-card,
+.result-card,
+.readiness-reasons {
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  background: rgba(8,12,18,.38);
+}
+.operation-card code {
+  overflow-wrap: anywhere;
+}
+.result-card details {
+  margin-top: 10px;
+}
+.readiness-reasons > strong {
+  display: block;
+  margin-bottom: 8px;
 }

@@ -40,7 +40,7 @@ def test_axon_public_and_local_hosts_use_real_api_and_deployed_frontend(tmp_path
             assert "Selected deployed" in client.get("/", headers={"Host": host}).text
         assert client.get("/api/v1/readiness", headers={"Host": "axon.gliksbot.com"}).json()["training_authorized"] is False
         response = client.post("/api/v1/runs", json={"command_id": "probe"}, headers={"Host": "axon.gliksbot.com"})
-        assert response.status_code == 503 and response.json()["code"] == "not_integrated"
+        assert response.status_code == 422 and response.json()["code"] == "unsupported_architecture"
 
 
 def test_other_hosts_retain_original_host_path_body_and_response_headers(tmp_path):

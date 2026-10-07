@@ -9,7 +9,8 @@ import {
   setAtPath,
   stableFingerprint,
 } from "./ui-utils.js?v=20261006-s4";
-import {PreflightController, isPreflightBusy} from "./preflight-controller.js?v=20261006-s4";
+import {PreflightController, isPreflightBusy} from "./preflight-controller.js?v=20261006-s5";
+import {RunMutationController, defaultRunMutationState, isRunMutationBusy} from "./run-controller.js?v=20261006-s5";
 
 const api = new AxonApi();
 const STORAGE_KEY = "axon-lab-ui-v2";
@@ -74,15 +75,22 @@ const state = {
   runs: [],
   selectedRun: null,
   runEvents: [],
+  runEventCursor: 0,
+  eventMode: "idle",
   eventSource: null,
+  eventPollTimer: null,
+  runMutation: {...defaultRunMutationState(), ...(persisted.runMutation || {})},
   tensors: [],
+  runSnapshot: null,
   selectedTensor: null,
+  tensorError: null,
   checkpoints: [],
   backup: null,
   inferenceSession: null,
 };
 
 let preflightController = null;
+let runMutationController = null;
 
 const dom = {
   main: document.querySelector("#main-view"),
@@ -108,6 +116,7 @@ function persistUiState() {
         generation: state.preflight.generation,
         evidenceRefreshError: state.preflight.evidenceRefreshError,
       },
+      runMutation: state.runMutation,
     }));
   } catch {
     // Storage failure must never break the operator surface.
@@ -172,6 +181,7 @@ async function connect() {
     setConnection("connected");
     await refreshCatalogs();
     void resumePreflightPolling();
+    ensureRunMutationController().resume();
   } catch (error) {
     setConnection("error", error);
   } finally {
@@ -567,34 +577,88 @@ function renderData() {
   `);
 }
 
+function readinessReasons(readiness = state.readiness) {
+  if (Array.isArray(readiness?.reasons)) return readiness.reasons;
+  return safeArray(readiness?.checks)
+    .filter(check => !["passed", "pass", "ready", "available"].includes(check.status))
+    .map(check => check.reason || `${check.name || check.id}: ${check.status || "unavailable"}`);
+}
+
+function architectureCurrent(architecture) {
+  const catalog = new Map(safeArray(state.capabilities?.components).map(component => [component.id, component]));
+  const nodes = safeArray(architecture?.nodes);
+  if (!nodes.length) return {current: false, reason: "No nodes in registered architecture."};
+  for (const node of nodes) {
+    const component = catalog.get(node.component_type);
+    if (!component) return {current: false, reason: `${node.component_type} is not in the live catalog.`};
+    if (String(node.component_version) !== String(component.version)) {
+      return {current: false, reason: `${node.component_type} is ${node.component_version}; live catalog requires ${component.version}. Rebuild/migrate explicitly.`};
+    }
+  }
+  return {current: true, reason: "Matches live component versions."};
+}
+
+function architectureSelectField() {
+  const items = state.registeredArchitectures;
+  return `<label class="field"><span>Registered architecture</span><select name="architecture"><option value="">Select…</option>${items.map(item => {
+    const status = architectureCurrent(item);
+    return `<option value="${esc(item.architecture_id)}" ${status.current ? "" : "disabled"}>${esc(item.name || item.architecture_id)} · v${esc(item.version || "?")}${status.current ? "" : " · REBUILD REQUIRED"}</option>`;
+  }).join("")}</select><small>Stored graphs are never silently upgraded when component versions change.</small></label>`;
+}
+
+function renderMutationStatus(slot, title) {
+  if (!slot?.commandId) return "";
+  return `<section class="operation-card">
+    <div class="split"><strong>${esc(title)}</strong><span class="tag ${statusClass(slot.status)}">${esc(slot.status || "idle")}</span></div>
+    <dl class="mini-details">
+      ${detail("Command ID", slot.commandId)}
+      ${detail("Operation ID", slot.operationId)}
+      ${detail("Run", slot.runId)}
+      ${detail("Operation", slot.operation?.kind)}
+      ${detail("Finished", slot.operation?.finished_at)}
+    </dl>
+    ${slot.error ? `<div class="validation-row bad">${esc(slot.error)}</div>` : ""}
+    ${slot.refreshError ? `<div class="validation-row warn">${esc(slot.refreshError)}</div>` : ""}
+    ${slot.status === "uncertain" ? `<button class="button button-secondary" data-action="recover-run-mutation" data-kind="${slot === state.runMutation.creation ? "creation" : "command"}">Recover with same command ID</button>` : ""}
+    ${slot.operation?.error ? `<pre class="json-view">${esc(JSON.stringify(slot.operation.error, null, 2))}</pre>` : ""}
+  </section>`;
+}
+
 function renderTrain() {
   const devices = safeArray(state.capabilities?.devices).filter(x => x.status === "available");
   const providers = safeArray(state.capabilities?.providers).filter(x => x.status === "available");
   const trainingAuthorized = Boolean(state.readiness?.training_authorized);
-  return page("Train", "Explicit run specification and lifecycle control", `
+  const preparationAvailable = Boolean(state.capabilities?.feature_flags?.run_preparation);
+  const creationBusy = isRunMutationBusy(state.runMutation.creation.status);
+  const reasons = readinessReasons();
+  return page("Train", "Prepare a pinned E0 run now; execution stays blocked until acceptance gates clear", `
     ${state.connection !== "connected" ? disconnectedBlock() : ""}
     <section class="panel">
-      <div class="panel-header"><div><h2>Create run</h2><p>Every run pins architecture, data, device/provider and seed. No silent fallback.</p></div>
-        <span class="tag ${trainingAuthorized ? "good" : "bad"}">${trainingAuthorized ? "Training authorized" : "Not training-ready"}</span>
+      <div class="panel-header"><div><h2>Prepare run</h2><p>Preparation validates and pins architecture, frozen data, device, seed and training settings. It does not start training.</p></div>
+        <span class="tag ${trainingAuthorized ? "good" : preparationAvailable ? "warn" : "bad"}">${trainingAuthorized ? "Execution authorized" : preparationAvailable ? "Preparation available · Start blocked" : "Run preparation unavailable"}</span>
       </div>
+      ${!trainingAuthorized && reasons.length ? `<div class="readiness-reasons"><strong>Execution remains blocked because:</strong>${reasons.map(reason => `<div class="validation-row warn">${esc(reason)}</div>`).join("")}</div>` : ""}
       <form id="create-run-form" class="form-grid">
         ${selectField("Dataset", "dataset", state.datasets, "dataset_id")}
-        ${selectField("Curriculum", "curriculum", state.curricula, "curriculum_id", true)}
+        ${selectField("Curriculum", "curriculum", state.curricula, "curriculum_id")}
         ${selectField("Device", "device", devices, "id")}
-        ${selectField("Provider", "provider", providers, "id", true)}
-        <label class="field"><span>Seed</span><input name="seed" type="number" value="1" step="1"></label>
-        ${selectField("Registered architecture", "architecture", state.registeredArchitectures, "architecture_id")}
+        ${selectField("Provider", "provider", providers, "id")}
+        <label class="field"><span>Seed</span><input name="seed" type="number" value="1" min="0" step="1"></label>
+        <label class="field"><span>Epochs</span><input name="epochs" type="number" value="1" min="1" max="100" step="1"></label>
+        <label class="field"><span>Learning rate</span><input name="learning_rate" type="number" value="0.001" min="0.0000001" max="0.1" step="any"></label>
+        ${architectureSelectField()}
         <div class="form-actions">
-          <button class="button" type="submit" ${state.connection === "connected" && trainingAuthorized ? "" : "disabled"}>Create run</button>
-          <span class="muted">${trainingAuthorized ? "Run creation still requires backend validation." : "Readiness must explicitly authorize training."}</span>
+          <button class="button" type="submit" ${state.connection === "connected" && preparationAvailable && !creationBusy ? "" : "disabled"}>Prepare run</button>
+          <span class="muted">Preparation only. Start remains server-gated and disabled until readiness authorizes execution.</span>
         </div>
       </form>
+      ${renderMutationStatus(state.runMutation.creation, "Run preparation operation")}
     </section>
   `);
 }
 
 function renderRuns() {
-  return page("Runs", "Real lifecycle state, allowed actions and ordered events", `
+  return page("Runs", "Prepared work, blocked execution, lifecycle commands and durable ordered events", `
     ${state.connection !== "connected" ? disconnectedBlock() : ""}
     <section class="runs-layout">
       <aside class="panel">
@@ -604,51 +668,99 @@ function renderRuns() {
             <button class="list-item ${state.selectedRun?.run_id === run.run_id ? "selected" : ""}" data-action="select-run" data-run-id="${esc(run.run_id)}">
               <span><strong>${esc(run.run_id)}</strong><small>${esc(run.architecture_id || "")}</small></span>
               <span class="tag ${statusClass(run.lifecycle_state)}">${esc(run.lifecycle_state || "unknown")}</span>
-            </button>`).join("") : `<div class="notice">No runs reported.</div>`}
+            </button>`).join("") : `<div class="notice">No prepared runs reported.</div>`}
         </div>
       </aside>
       <section class="panel">
-        ${state.selectedRun ? renderSelectedRun(state.selectedRun) : `<div class="canvas-empty"><strong>Select a run</strong><span>Lifecycle controls and events will appear here.</span></div>`}
+        ${state.selectedRun ? renderSelectedRun(state.selectedRun) : `<div class="canvas-empty"><strong>Select a run</strong><span>Lifecycle, readiness, real episode results and durable events will appear here.</span></div>`}
       </section>
     </section>
   `);
 }
 
+function renderLatestResult(result) {
+  if (!result) return `<div class="notice">No completed episode result is available. Loss is unavailable from the current loop.</div>`;
+  const metrics = result.metrics || {};
+  return `<div class="result-card">
+    <div class="split"><strong>Latest real episode result</strong><span class="tag neutral">${esc(result.family || "episode")}</span></div>
+    <dl class="detail-grid">
+      ${detail("Episode", result.episode_id)}
+      ${detail("Split", result.split)}
+      ${detail("Exact", metrics.exact)}
+      ${detail("Per-char accuracy", metrics.per_char_accuracy)}
+      ${detail("Control correct", metrics.control_correct)}
+      ${detail("Binding error", metrics.binding_error)}
+      ${detail("Obsolete error", metrics.obsolete_error)}
+      ${detail("Invalid content", metrics.invalid_content)}
+      ${detail("Loss", "Unavailable — loop does not expose loss yet")}
+    </dl>
+    <details><summary>Result row</summary><pre class="json-view">${esc(JSON.stringify(result, null, 2))}</pre></details>
+  </div>`;
+}
+
+function commandLabel(command) {
+  if (command === "pause") return "Pause after current episode";
+  if (command === "stop") return "Stop after current episode";
+  if (command === "checkpoint") return "Checkpoint at episode boundary";
+  return command[0].toUpperCase() + command.slice(1);
+}
+
 function renderSelectedRun(run) {
   const allowed = safeArray(run.allowed_actions);
   const commands = ["start", "pause", "resume", "stop", "checkpoint"];
+  const executionFeature = Boolean(state.capabilities?.feature_flags?.training);
+  const globalAuthorized = Boolean(state.readiness?.training_authorized);
+  const runReasons = readinessReasons(run.readiness);
+  const commandBusy = isRunMutationBusy(state.runMutation.command.status);
+  const cursor = run.execution_cursor?.position || {};
   return `
     <div class="panel-header split"><div><h2>${esc(run.run_id)}</h2><p>${esc(run.architecture_id || "architecture unavailable")}</p></div><span class="tag ${statusClass(run.lifecycle_state)}">${esc(run.lifecycle_state || "unknown")}</span></div>
+    ${!run.readiness?.authorized && runReasons.length ? `<div class="readiness-reasons"><strong>Execution blocked:</strong>${runReasons.map(reason => `<div class="validation-row warn">${esc(reason)}</div>`).join("")}</div>` : ""}
     <div class="button-row wrap">
-      ${commands.map(command => `<button class="button ${command === "stop" ? "button-danger" : "button-secondary"}" data-action="run-command" data-command="${command}" ${allowed.includes(command) ? "" : "disabled"}>${command}</button>`).join("")}
+      ${commands.map(command => {
+        const executionCommand = command === "start" || command === "resume";
+        const enabled = allowed.includes(command) && !commandBusy && (!executionCommand || (executionFeature && globalAuthorized && run.readiness?.authorized));
+        return `<button class="button ${command === "stop" ? "button-danger" : "button-secondary"}" data-action="run-command" data-command="${command}" ${enabled ? "" : "disabled"}>${esc(commandLabel(command))}</button>`;
+      }).join("")}
     </div>
+    <p class="muted">Pause and stop are episode-boundary operations: they take effect <strong>after the current episode</strong>, never mid-episode.</p>
     <dl class="detail-grid">
-      ${detail("Step", run.step)}
+      ${detail("Optimizer steps", run.step)}
       ${detail("Epoch", run.epoch)}
-      ${detail("Elapsed", run.elapsed)}
+      ${detail("Next episode", run.next_episode)}
       ${detail("Device", run.device?.name || run.device || null)}
       ${detail("Provider", run.provider?.name || run.provider || null)}
+      ${detail("Snapshot", run.snapshot_id)}
+      ${detail("Latest checkpoint", run.latest_checkpoint_id)}
       ${detail("Failure", run.failure_reason)}
+      ${detail("Cursor phase", cursor.phase)}
+      ${detail("Cursor episode index", cursor.episode_index)}
+      ${detail("Cursor optimizer step", cursor.optimizer_step)}
     </dl>
-    <div class="subheader"><h3>Ordered events</h3><span class="muted">${state.runEvents.length} received this session</span></div>
-    <div class="event-log">${state.runEvents.length ? state.runEvents.slice(-100).map(event => `
-      <div class="event-row"><code>${esc(event.sequence ?? "–")}</code><span>${esc(event.type || "event")}</span><small>${esc(event.timestamp || "")}</small></div>`).join("") : `<div class="notice">No events received yet.</div>`}</div>
+    ${renderLatestResult(run.latest_result)}
+    ${renderMutationStatus(state.runMutation.command, "Lifecycle operation")}
+    <div class="subheader"><h3>Durable ordered events</h3><span class="muted">${state.eventMode} · sequence ${state.runEventCursor} · ${state.runEvents.length} loaded</span></div>
+    <div class="event-log">${state.runEvents.length ? state.runEvents.slice(-120).map(event => `
+      <div class="event-row"><code>${esc(event.sequence ?? "-")}</code><span>${esc(event.type || "event")}</span><small>${esc(event.timestamp || "")}</small></div>`).join("") : `<div class="notice">No durable events received yet.</div>`}</div>
   `;
 }
 
 function renderInspect() {
-  return page("Inspect", "Bounded observational access to real backend tensors", `
+  const snapshot = state.runSnapshot;
+  return page("Inspect", "Bounded observational access to coherent episode-boundary snapshots", `
     ${state.connection !== "connected" ? disconnectedBlock() : ""}
     <section class="two-column">
       <div class="panel">
-        <div class="panel-header"><div><h2>Observable tensors</h2><p>Select a run first. Inspection is read-only.</p></div></div>
-        ${state.selectedRun ? `<button class="button button-secondary" data-action="load-tensors">Load tensors for ${esc(state.selectedRun.run_id)}</button>` : `<div class="notice">No run selected.</div>`}
+        <div class="panel-header"><div><h2>Observable tensors</h2><p>Tensor values are bounded to 256 per request and pinned to one snapshot ID.</p></div></div>
+        ${state.selectedRun ? `<button class="button button-secondary" data-action="load-tensors">Load current episode-boundary snapshot</button>` : `<div class="notice">No run selected.</div>`}
+        ${state.tensorError ? `<div class="validation-row bad">${esc(state.tensorError)}</div>` : ""}
+        ${snapshot ? `<dl class="mini-details">${detail("Snapshot", snapshot.snapshot_id)}${detail("Last event sequence", snapshot.last_observed_sequence)}${detail("Private draft", snapshot.draft)}${detail("Committed response", snapshot.committed_response)}</dl>` : ""}
         <div class="list compact">
           ${state.tensors.map(tensor => `<button class="list-item" data-action="select-tensor" data-tensor-id="${esc(tensor.tensor_id)}"><span><strong>${esc(tensor.name || tensor.tensor_id)}</strong><small>${esc(tensor.semantic_role || "")}</small></span><code>${esc((tensor.shape || []).join("×"))}</code></button>`).join("")}
         </div>
       </div>
       <div class="panel tensor-detail">
-        ${state.selectedTensor ? renderTensor(state.selectedTensor) : `<div class="canvas-empty"><strong>No tensor snapshot</strong><span>Values are shown only after the backend returns a coherent bounded snapshot.</span></div>`}
+        ${state.selectedTensor ? renderTensor(state.selectedTensor) : `<div class="canvas-empty"><strong>No tensor slice</strong><span>Reload the tensor list when a snapshot expires; stale snapshot slices are rejected explicitly.</span></div>`}
       </div>
     </section>
   `);
@@ -678,37 +790,21 @@ function renderTensor(t) {
 }
 
 function renderInference() {
-  const session = state.inferenceSession;
-  return page("Inference", "Checkpoint-selected inference with exact native-alphabet input validation", `
+  const enabled = Boolean(state.capabilities?.feature_flags?.inference);
+  return page("Inference", "Selected-checkpoint inference remains unavailable until the backend exposes the real same-path session adapter", `
     ${state.connection !== "connected" ? disconnectedBlock() : ""}
     <section class="panel">
-      <div class="panel-header"><div><h2>Start inference session</h2><p>Uses an explicit checkpoint. No UI-only bypass.</p></div></div>
-      <form id="create-inference-form" class="form-grid">
-        ${selectField("Checkpoint", "checkpoint", state.checkpoints, "checkpoint_id")}
-        <div class="form-actions"><button class="button" type="submit" ${state.checkpoints.length && state.connection === "connected" ? "" : "disabled"}>Create session</button></div>
-      </form>
-    </section>
-    <section class="two-column">
-      <div class="panel">
-        <div class="panel-header"><div><h2>Input</h2><p>Validated against the exact <code>native_alphabet</code> advertised by the backend. Newline is legal when present there; no printable-ASCII shortcut is used.</p></div></div>
-        <textarea id="inference-input" rows="7" placeholder="Enter native-95 text…" ${session ? "" : "disabled"}></textarea>
-        <div id="input-validity" class="muted">Type input to check the current backend alphabet.</div>
-        <div class="button-row"><button class="button" data-action="send-inference-input" ${session ? "" : "disabled"}>Send input</button><button class="button button-secondary" data-action="continue-inference" ${session ? "" : "disabled"}>Continue</button></div>
-      </div>
-      <div class="panel">
-        <div class="panel-header split"><div><h2>Response assembly</h2><p>Private exact draft is not a Heart commit.</p></div><span class="tag neutral">${esc(session?.status || "no session")}</span></div>
-        <div class="draft-block"><label>Private draft</label><pre>${esc(session?.private_draft?.text || session?.private_draft || "No draft available.")}</pre></div>
-        <div class="draft-block canonical"><label>Heart-submitted response</label><pre>${esc(session?.committed_response?.text || session?.committed_response || "No canonical submission available.")}</pre></div>
-      </div>
+      <div class="panel-header split"><div><h2>Inference</h2><p>No generic restore or UI-only inference bypass is permitted.</p></div><span class="tag ${enabled ? "good" : "bad"}">${enabled ? "Available" : "Not integrated"}</span></div>
+      ${enabled ? `<div class="notice">The backend now advertises inference; refresh this frontend slice before using it so the exact contract can be exercised.</div>` : `<div class="notice">Inference controls are intentionally disabled. Current checkpoints are observable artifacts only; generic restore/session endpoints remain unavailable.</div>`}
     </section>
   `);
 }
 
 function renderCheckpoints() {
-  return page("Checkpoints", "Completeness, ancestry and restore evidence", `
+  return page("Checkpoints", "Real episode-boundary artifacts; generic restore is intentionally unavailable", `
     ${state.connection !== "connected" ? disconnectedBlock() : ""}
     <section class="panel">
-      <div class="panel-header"><div><h2>Checkpoint registry</h2><p>An ID alone never proves coherent resume.</p></div></div>
+      <div class="panel-header"><div><h2>Checkpoint registry</h2><p>These artifacts come from the real E0 run adapter. Read-only display does not imply generic restore is available.</p></div></div>
       ${state.checkpoints.length ? `<div class="card-grid">${state.checkpoints.map(cp => `
         <article class="manifest-card">
           <div class="split"><strong>${esc(cp.checkpoint_id)}</strong><span class="tag ${cp.completeness === true ? "good" : "neutral"}">${cp.completeness === true ? "complete" : "unverified"}</span></div>
@@ -716,9 +812,13 @@ function renderCheckpoints() {
             ${detail("Run", cp.run_id)}
             ${detail("Step", cp.step)}
             ${detail("Parent", cp.parent_id)}
+            ${detail("Boundary", cp.boundary)}
+            ${detail("Mid-episode resume", cp.mid_episode_resume)}
             ${detail("Backup", cp.backup_state?.status || cp.backup_state)}
+            ${detail("Restore verification", cp.restore_verification?.status || cp.restore_verification)}
+            ${detail("Created", cp.created_at)}
           </dl>
-          <button class="button button-secondary" data-action="restore-checkpoint" data-checkpoint-id="${esc(cp.checkpoint_id)}">Request restore</button>
+          <div class="notice">Generic checkpoint restore is not integrated. Resume is only through the run lifecycle when the server allows it.</div>
         </article>`).join("")}</div>` : `<div class="notice">No checkpoints reported.</div>`}
     </section>
   `);
@@ -766,10 +866,15 @@ function manifestCards(items, key) {
       <strong>${esc(item.name || item[key] || item.id)}</strong>
       <small>${esc(item.version || item.stage || "")}</small>
       <dl class="mini-details">
+        ${detail("ID", item[key] || item.id)}
         ${detail("Native-95", item.native95_status)}
         ${detail("Conversion", item.conversion_status)}
         ${detail("Held-out", item.heldout_policy)}
-        ${detail("Progress", item.progress)}
+        ${detail("Dataset hash", item.dataset_hash)}
+        ${detail("Curriculum hash", item.curriculum_hash)}
+        ${detail("Manifest hash", item.manifest_hash)}
+        ${detail("Splits", item.splits)}
+        ${detail("Stages", item.stages)}
       </dl>
     </article>`).join("")}</div>`;
 }
@@ -910,14 +1015,65 @@ function resumePreflightPolling() {
   return ensurePreflightController().resume();
 }
 
+function ensureRunMutationController() {
+  if (!runMutationController) {
+    runMutationController = new RunMutationController({
+      api,
+      state: state.runMutation,
+      makeId: id,
+      persist: persistUiState,
+      onChange: () => {
+        if (state.view === "train" || state.view === "runs") render();
+      },
+      refreshRuns: refreshRunsData,
+    });
+  }
+  return runMutationController;
+}
+
+async function refreshRunsData() {
+  const [runs, checkpoints] = await Promise.all([api.runs(), api.checkpoints()]);
+  state.runs = safeArray(runs);
+  state.checkpoints = safeArray(checkpoints);
+  if (state.selectedRun) state.selectedRun = await api.run(state.selectedRun.run_id);
+}
+
 async function refreshRuns() {
   try {
-    state.runs = safeArray(await api.runs());
-    if (state.selectedRun) state.selectedRun = await api.run(state.selectedRun.run_id);
+    await refreshRunsData();
   } catch (error) {
     state.connectionError = error;
   }
   render();
+}
+
+function appendRunEvents(events) {
+  for (const event of safeArray(events)) {
+    const sequence = Number(event.sequence || 0);
+    if (!Number.isFinite(sequence) || sequence <= state.runEventCursor) continue;
+    state.runEvents.push(event);
+    state.runEventCursor = sequence;
+  }
+  if (state.runEvents.length > 500) state.runEvents.splice(0, state.runEvents.length - 500);
+}
+
+async function pollRunEvents(runId) {
+  if (state.selectedRun?.run_id !== runId) return;
+  try {
+    const payload = await api.runEvents(runId, state.runEventCursor);
+    appendRunEvents(payload);
+    state.selectedRun = await api.run(runId);
+    state.eventMode = "json-poll";
+    if (state.view === "runs") render();
+    const terminal = ["completed", "stopped", "failed"].includes(state.selectedRun.lifecycle_state);
+    if (!terminal) {
+      state.eventPollTimer = setTimeout(() => pollRunEvents(runId), 900);
+    }
+  } catch {
+    state.eventMode = "json-retry";
+    if (state.view === "runs") render();
+    state.eventPollTimer = setTimeout(() => pollRunEvents(runId), 1500);
+  }
 }
 
 async function selectRun(runId) {
@@ -925,6 +1081,10 @@ async function selectRun(runId) {
   try {
     state.selectedRun = await api.run(runId);
     state.runEvents = [];
+    state.runEventCursor = 0;
+    state.eventMode = "loading-history";
+    const history = await api.runEvents(runId, 0);
+    appendRunEvents(history);
     subscribeRunEvents(runId);
   } catch (error) {
     state.connectionError = error;
@@ -934,18 +1094,37 @@ async function selectRun(runId) {
 
 function subscribeRunEvents(runId) {
   try {
-    const source = api.eventSourceForRun(runId);
+    const source = api.eventSourceForRun(runId, state.runEventCursor);
     state.eventSource = source;
+    state.eventMode = "sse";
     source.onmessage = event => {
       try {
         const payload = JSON.parse(event.data);
-        state.runEvents.push(payload);
-        if (state.runEvents.length > 500) state.runEvents.shift();
+        appendRunEvents([payload]);
+        if (["episode_result", "snapshot", "checkpoint", "lifecycle"].includes(payload.type)) {
+          void api.run(runId).then(run => {
+            if (state.selectedRun?.run_id === runId) {
+              state.selectedRun = run;
+              if (state.view === "runs") render();
+            }
+          }).catch(() => {});
+        }
         if (state.view === "runs") render();
       } catch {}
     };
-    source.onerror = () => {};
-  } catch {}
+    source.onerror = () => {
+      if (state.selectedRun?.run_id !== runId) return;
+      source.close();
+      if (state.eventSource === source) state.eventSource = null;
+      state.eventMode = "json-poll";
+      if (state.eventPollTimer) clearTimeout(state.eventPollTimer);
+      state.eventPollTimer = setTimeout(() => pollRunEvents(runId), 150);
+      if (state.view === "runs") render();
+    };
+  } catch {
+    state.eventMode = "json-poll";
+    state.eventPollTimer = setTimeout(() => pollRunEvents(runId), 150);
+  }
 }
 
 function closeEventSource() {
@@ -953,34 +1132,53 @@ function closeEventSource() {
     state.eventSource.close();
     state.eventSource = null;
   }
+  if (state.eventPollTimer) {
+    clearTimeout(state.eventPollTimer);
+    state.eventPollTimer = null;
+  }
+  state.eventMode = "idle";
 }
 
 async function runCommand(command) {
   if (!state.selectedRun) return;
-  try {
-    await api.commandRun(state.selectedRun.run_id, {command, command_id: id()});
-    setTimeout(refreshRuns, 300);
-  } catch (error) {
-    alert(`Command failed: ${error.message}`);
-  }
+  await ensureRunMutationController().command(state.selectedRun.run_id, command);
 }
 
 async function loadTensors() {
   if (!state.selectedRun) return;
+  state.tensorError = null;
+  state.selectedTensor = null;
   try {
-    state.tensors = safeArray(await api.runTensors(state.selectedRun.run_id));
+    const [tensors, snapshot] = await Promise.all([
+      api.runTensors(state.selectedRun.run_id),
+      api.runSnapshot(state.selectedRun.run_id),
+    ]);
+    state.tensors = safeArray(tensors);
+    state.runSnapshot = snapshot;
   } catch (error) {
-    alert(`Tensor list unavailable: ${error.message}`);
+    state.tensors = [];
+    state.runSnapshot = null;
+    state.tensorError = error.message;
   }
   render();
 }
 
 async function selectTensor(tensorId) {
   if (!state.selectedRun) return;
+  state.tensorError = null;
+  const metadata = state.tensors.find(item => item.tensor_id === tensorId);
+  const snapshotId = metadata?.snapshot_id || state.runSnapshot?.snapshot_id || null;
   try {
-    state.selectedTensor = await api.tensor(state.selectedRun.run_id, tensorId, {offset: 0, count: 256});
+    state.selectedTensor = await api.tensor(
+      state.selectedRun.run_id,
+      tensorId,
+      {offset: 0, count: 256, ...(snapshotId ? {snapshot_id: snapshotId} : {})}
+    );
   } catch (error) {
-    alert(`Tensor snapshot unavailable: ${error.message}`);
+    state.selectedTensor = null;
+    state.tensorError = error.code === "snapshot_expired"
+      ? "Snapshot expired. Reload the current episode-boundary tensor list before requesting values."
+      : error.message;
   }
   render();
 }
@@ -997,16 +1195,14 @@ async function createRun(form) {
     curriculum_id: data.get("curriculum") || null,
     device: data.get("device") || null,
     provider: data.get("provider") || null,
+    split: "train",
     seed: Number(data.get("seed") || 1),
-    command_id: id(),
+    training_settings: {
+      epochs: Number(data.get("epochs") || 1),
+      learning_rate: Number(data.get("learning_rate") || 0.001),
+    },
   };
-  try {
-    const operation = await api.createRun(spec);
-    alert(`Run creation accepted as operation ${operation.operation_id || "unknown"}. Acceptance is not completion.`);
-    await refreshRuns();
-  } catch (error) {
-    alert(`Run creation failed: ${error.message}`);
-  }
+  await ensureRunMutationController().prepare(spec);
 }
 
 async function restoreCheckpoint(checkpointId) {
@@ -1149,6 +1345,7 @@ function bindViewEvents() {
   }));
 
   dom.main.querySelector("#create-run-form")?.addEventListener("submit", event => { event.preventDefault(); createRun(event.currentTarget); });
+  dom.main.querySelectorAll("[data-action='recover-run-mutation']").forEach(el => el.addEventListener("click", () => ensureRunMutationController().recover(el.dataset.kind)));
   dom.main.querySelector("[data-action='refresh-runs']")?.addEventListener("click", refreshRuns);
   dom.main.querySelectorAll("[data-action='select-run']").forEach(el => el.addEventListener("click", () => selectRun(el.dataset.runId)));
   dom.main.querySelectorAll("[data-action='run-command']").forEach(el => el.addEventListener("click", () => runCommand(el.dataset.command)));
@@ -1156,10 +1353,6 @@ function bindViewEvents() {
   dom.main.querySelector("[data-action='load-tensors']")?.addEventListener("click", loadTensors);
   dom.main.querySelectorAll("[data-action='select-tensor']").forEach(el => el.addEventListener("click", () => selectTensor(el.dataset.tensorId)));
 
-  dom.main.querySelectorAll("[data-action='restore-checkpoint']").forEach(el => el.addEventListener("click", () => restoreCheckpoint(el.dataset.checkpointId)));
-  dom.main.querySelector("#create-inference-form")?.addEventListener("submit", event => { event.preventDefault(); createInference(event.currentTarget); });
-  dom.main.querySelector("[data-action='send-inference-input']")?.addEventListener("click", () => sendInference("input"));
-  dom.main.querySelector("[data-action='continue-inference']")?.addEventListener("click", () => sendInference("continue"));
   dom.main.querySelector("#inference-input")?.addEventListener("input", event => updateInputValidity(event.target.value));
 }
 
@@ -1169,6 +1362,7 @@ window.addEventListener("beforeunload", () => {
   persistUiState();
   closeEventSource();
   preflightController?.dispose();
+  runMutationController?.dispose();
 });
 
 persistUiState();

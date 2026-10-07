@@ -36,11 +36,13 @@ def test_honest_capabilities_empty_registries_and_runtime_refusal(tmp_path):
             "axon.substrate_input", "axon.core_reasoning_gru", "axon.response_state"}
         assert all(d["status"] == "unavailable" for d in caps["devices"])
         assert client.get("/api/v1/readiness").json()["training_authorized"] is False
-        for kind in ("architectures", "datasets", "curricula", "runs", "checkpoints"):
+        for kind in ("architectures", "runs", "checkpoints"):
             assert client.get(f"/api/v1/{kind}").json()["items"] == []
+        assert client.get('/api/v1/datasets').json()['items'][0]['native95_status'] == 'validated'
+        assert client.get('/api/v1/curricula').json()['items']
         rejected = client.post("/api/v1/runs", json={"command_id": "run-1"})
-        assert rejected.status_code == 503
-        assert rejected.json()["code"] == "not_integrated"
+        assert rejected.status_code == 422
+        assert rejected.json()["code"] == "unsupported_architecture"
         assert client.get("/api/v1/backup/status").json()["status"] == "not_verified"
         assert client.get("/").status_code == 200
         assert "Trainer Control Center" in client.get("/").text

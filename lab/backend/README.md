@@ -33,10 +33,15 @@ it does not download a runtime, install packages or launch training.
   authority and required surface checks. Caller-supplied port declarations cannot
   override contracts; crossing substrate-exact/free surfaces needs an explicit
   versioned adapter.
-- Empty dataset/curriculum/run/checkpoint registries until actual manifests and
-  adapters are registered. The scoped inventory summary is evidence, not an
-  automatically admitted dataset. Backup status accurately remains unverified.
-- Structured errors for unavailable training, inference, events and inspection.
+- Verified E0 dataset/curriculum manifests and durable run/checkpoint registries.
+  The scoped legacy inventory summary is evidence rather than an automatically
+  admitted dataset. Backup status accurately remains unverified.
+- Structured errors for unauthorized execution, generic restore and inference.
+- Real E0 run preparation/lifecycle, ordered persisted events and coherent
+  state inspection are implemented; public execution stays acceptance-gated.
+  Pause/stop finish after the current episode. See
+  `RUN_ADAPTER_2026-10-07.md` for tested behavior and limits. The frozen E0
+  manifests are discovered from verified artifacts rather than invented rows.
 
 The default catalog now includes the Core owner's three E0 v0.1.0 manifests:
 `axon.substrate_input`, `axon.core_reasoning_gru`, and `axon.response_state`.

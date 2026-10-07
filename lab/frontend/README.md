@@ -93,3 +93,42 @@ Heart state, model checkpoints, and training evidence remain authoritative.
 - Terminal operation state is persisted before readiness/capability evidence is
   refreshed. If that auxiliary refresh fails, the completed/failed/interrupted
   probe remains authoritative and the refresh failure is shown separately.
+
+
+## Slice 3 E0 manifest exercise
+
+- The live E0 component cards, real JSON schemas and trusted ports are exercised
+  through the public browser against the live backend catalog.
+- Port rows visibly show `surface` as `substrate-exact` or `free`.
+- The edge editor filters impossible trusted-port pairings before validation,
+  including surface, meaning, dtype, shape, authority and exact-substrate
+  codebook mismatches. Backend validation remains authoritative.
+- Generic placeholder components stay disabled while the versioned E0 cards can
+  be configured and connected.
+
+
+## Slice 4 run preparation and recovery
+
+- `feature_flags.run_preparation=true` enables **Prepare run** while
+  `training_authorized=false`; preparation pins the current registered
+  architecture, verified frozen dataset/curriculum, device, provider, seed,
+  epochs and learning rate without starting execution.
+- Run creation and lifecycle commands persist one stable `command_id`.
+  Lost acknowledgements are recovered by replaying the same ID; definitive
+  server rejections such as `execution_blocked` are shown as failures rather
+  than uncertain submissions.
+- Start/Resume remain disabled until both advertised training capability and
+  readiness authorize execution. Pause and Stop are labeled **after current
+  episode** to match the backend boundary.
+- Run history is loaded from durable JSON events before SSE follow mode. SSE
+  failure falls back to ordered JSON polling from the last sequence.
+- Real optimizer-step counts, execution cursor and latest episode result rows are
+  displayed. Loss is explicitly shown as unavailable until the loop exposes it.
+- Tensor reads are capped at 256 values and include the source snapshot ID.
+  A stale snapshot rejection is shown explicitly and requires reloading the
+  current snapshot.
+- Checkpoints are read-only evidence in this slice. Generic restore and
+  inference controls remain unavailable until their real adapters are exposed.
+- Stored architecture graphs whose component versions differ from the live
+  catalog are marked **REBUILD REQUIRED** and cannot be silently selected as a
+  migrated graph.

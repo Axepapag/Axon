@@ -1,6 +1,10 @@
 # Axon Lab trainer API v1
 
 Codex / 2026-10-06. Interface specification for backend/frontend integration.
+Additive revision: `2026-10-07-e0-cursors-v2`; Lab observation cursor schema
+`axon-lab-execution-cursor-v2`. `/api/v1` and `axon-lab-api-v1` remain unchanged.
+The earlier Lab v1 schema is retained for historical observations; the E0 loop's
+internal v1 cursor block is a separate raw representation, not a Lab observation.
 Status: version 1 specification accepted for frontend/backend integration. The
 foundation implementation status is recorded in `../backend/README.md`; training
 and runtime families remain pending. Changes
@@ -45,6 +49,7 @@ to Axon exact content, not to arbitrary UI labels or metadata transport.
 | `GET /runs/{id}` | Run status, measurements and allowed commands |
 | `POST /runs/{id}/commands` | Request start, pause, resume, stop or checkpoint |
 | `GET /runs/{id}/events?after_sequence=N` | Replay ordered events; SSE transport |
+| `GET /runs/{id}/snapshot` | Coherent episode-boundary draft/Heart/state metadata; raw tensor arrays fetched separately |
 | `GET /runs/{id}/tensors` | List available observable tensors |
 | `GET /runs/{id}/tensors/{tensor_id}` | Inspect a bounded snapshot slice |
 | `GET /checkpoints`, `GET /checkpoints/{id}` | Checkpoint registry and completeness |
@@ -118,6 +123,13 @@ and readiness failures remain observable. Allowed transitions and safe pause/
 checkpoint boundaries must be finalized with runtime and measurement owners.
 Reject unavailable devices/providers; never silently fall back.
 
+First E0 implementation: `run_preparation` is a separate capability from
+training authorization. A blocked run can be prepared and inspected; Start
+still refuses uncleared server-owned acceptance gates. Allowed commands are
+supplied per run. Pause/Stop/Checkpoint currently finish after the current
+episode, and `mid_episode_resume` is false for the Lab adapter. Dedicated
+restore-into-a-new-run and inference remain pending.
+
 ## Events and observations
 
 Envelope: `sequence`, `timestamp`, `run_id` or `session_id`, `type`, `payload`.
@@ -162,6 +174,47 @@ commands, private draft and committed response references, available state
 snapshots and ordered events. Native-95 input errors identify the invalid input;
 conversion is a separate explicit workflow. Training and inference use the same
 agreed runtime path, not a UI-only output bypass.
+
+## E0 execution cursor and ordered-event amendment
+
+This additive contract is specified before the E0 execution adapter lands.
+Unavailable fields are null/status-labelled; this document does not claim live
+run endpoints or authorize execution. See `execution-cursor-v2.schema.json` and
+`e0-run-adapter-v1.md` for the schema and owner handoff.
+
+The adapter publishes the Lab v2 observation shape and keeps the loop's internal
+v1 cursor inside its checkpoint; it does not return that raw block as a Lab
+observation. Training result metrics carry `measurement_scope=teacher_forced_training`;
+forced answer text is not held-out recall evidence. Only independently executed
+validation/test results can establish recall accuracy.
+
+Run observations and checkpoint metadata may include `execution_cursor`, bound
+to one `snapshot_id`. The curriculum position means the **next unconsumed**
+episode/step/character/emission action at a declared consistent boundary. Fields:
+curriculum ID/version/hash, dataset ID/version/hash, split, epoch, episode ID and
+index, step index, character offset, emission offset, execution phase and actual
+optimizer-step count. The E0 adapter defines step/character/emission indexing
+against the frozen episode schema; do not guess a line offset as a full cursor.
+An ended episode and a stopped run are different lifecycle events.
+
+The RNG observation contains status plus references/checksums for checkpointed
+RNG state; it never exposes raw RNG arrays through ordinary run JSON. A seed or
+draw count is insufficient for resume. Composite checkpoints capture all RNGs
+actually used (generator, Python, Torch CPU and selected CUDA device as
+applicable), optimizer, Core weights/both recurrent states, Heart/field/draft/
+pending acknowledgments and curriculum cursor at the same boundary. Unavailable
+state is reported explicitly. Metadata references alone do not prove complete
+save/restore; checkpoint completeness requires artifact checks and recovery
+tests. Observational cursors cannot be used as arbitrary state-write commands.
+
+Each Lab event has a durable per-run `sequence`. HeartHost's per-type `seq` is
+diagnostic metadata and cannot be substituted for it. The host/organism handoff
+must preserve total source emission order through a shared ordinal plus epoch
+identity or an ordered observer feed. The backend stores observed events before
+publishing them. Reconnect uses stored API sequence; unavailable source/history
+is an explicit gap with snapshot recovery, never invented replay. Timestamp
+sorting cannot establish causal order. A snapshot declares the last observed
+API sequence to avoid mixing cursors and observations from different boundaries.
 
 ## Preflight, readiness and backup
 

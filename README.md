@@ -50,6 +50,7 @@ All three should finish without errors (pytest prints the number passed; the oth
 |---|---|
 | `substrate/` | The frozen 16D and 1024D substrates and their sealed reference files |
 | `core/` | Core-owned E0 component manifests and the two-state GRU adapter skeleton (unintegrated) |
+| `curriculum/` | Architecture-independent native-95 memory curriculum: schemas, deterministic generators, frozen splits, presets, metrics |
 | `runtime/` | `field/`, `heart/`, `soul/`, `dormant/` and the capacity policy loader |
 | `curator/` | Importer that loads recovered legacy memories into Dormant |
 | `tools/` | Small standalone tools (character audit) |

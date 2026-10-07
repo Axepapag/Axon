@@ -22,9 +22,9 @@ def test_default_catalog_and_real_core_evidence_leave_training_locked(tmp_path):
         graph["version"] = str(graph["version"])
         registered = client.post("/api/v1/architectures", json={**graph, "command_id": "e0"})
         assert registered.status_code == 201
-        # Graph availability does not claim an integrated HeartHost runtime.
-        assert registered.json()["execution_eligible"] is False
-        assert client.post("/api/v1/runs", json={}).status_code == 503
+        assert registered.json()["execution_eligible"] is True
+        # Adapter availability does not authorize execution.
+        assert client.post("/api/v1/runs", json={}).status_code == 422
 
 
 def test_surface_conversion_requires_explicit_versioned_adapter():

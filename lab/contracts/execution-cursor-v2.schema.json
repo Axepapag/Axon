@@ -1,0 +1,274 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:axon:lab:execution-cursor:v2",
+  "title": "Axon Lab execution cursor v2 (observation)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "snapshot_id",
+    "position",
+    "rng"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "axon-lab-execution-cursor-v2"
+    },
+    "status": {
+      "enum": [
+        "unavailable",
+        "captured",
+        "restored"
+      ]
+    },
+    "snapshot_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "position": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "curriculum_id",
+            "curriculum_version",
+            "curriculum_hash",
+            "dataset_id",
+            "dataset_version",
+            "dataset_hash",
+            "split",
+            "epoch",
+            "episode_id",
+            "episode_index",
+            "step_index",
+            "character_offset",
+            "emission_offset",
+            "phase",
+            "optimizer_step"
+          ],
+          "properties": {
+            "curriculum_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "curriculum_version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "curriculum_hash": {
+              "$ref": "#/$defs/hash"
+            },
+            "dataset_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "dataset_version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "dataset_hash": {
+              "$ref": "#/$defs/hash"
+            },
+            "split": {
+              "enum": [
+                "train",
+                "validation",
+                "test",
+                "challenge"
+              ]
+            },
+            "epoch": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "episode_id": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            },
+            "episode_index": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "step_index": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "character_offset": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "emission_offset": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "phase": {
+              "enum": [
+                "episode_boundary",
+                "input",
+                "wait",
+                "response",
+                "ended"
+              ]
+            },
+            "optimizer_step": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            }
+          }
+        }
+      ]
+    },
+    "rng": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "state_ref",
+        "sha256"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "unavailable",
+            "captured",
+            "restored"
+          ]
+        },
+        "state_ref": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "sha256": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/hash"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "unavailable"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "state_ref": {
+                "type": "null"
+              },
+              "sha256": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "captured",
+                  "restored"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "state_ref": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sha256": {
+                "$ref": "#/$defs/hash"
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "unavailable"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "snapshot_id": {
+            "type": "null"
+          },
+          "position": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "captured",
+              "restored"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "snapshot_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "position": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  }
+}

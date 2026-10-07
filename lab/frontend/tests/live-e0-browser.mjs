@@ -123,6 +123,7 @@ try {
   const substratePortText = await evaluate('[...document.querySelectorAll(".port-row")].map(x=>x.innerText).join("\\n")');
   assert.match(substratePortText, /char_ids_in/);
   assert.match(substratePortText, /cells_out/);
+  assert.match(substratePortText, /substrate-exact/);
 
   await evaluate(`document.querySelector('[data-action="select-node"][data-node-id="${response.id}"]').click()`);
   await sleep(75);
@@ -130,6 +131,20 @@ try {
   const responsePortText = await evaluate('[...document.querySelectorAll(".port-row")].map(x=>x.innerText).join("\\n")');
   assert.match(responsePortText, /char_ids_out/);
   assert.match(responsePortText, /control_out/);
+  assert.match(responsePortText, /substrate-exact/);
+  assert.match(responsePortText, /free/);
+
+  // Impossible exact-substrate -> free-hidden connection is filtered before POST validation.
+  await setSelect('[data-edge-field="sourceNode"]', substrate.id);
+  await sleep(50);
+  await setSelect('[data-edge-field="sourcePort"]', "cells_out");
+  await sleep(50);
+  await setSelect('[data-edge-field="destinationNode"]', response.id);
+  await sleep(50);
+  assert.equal(await evaluate('[...document.querySelectorAll(\'[data-edge-field="destinationPort"] option\')].some(o=>o.value==="reading")'), false);
+
+  await setSelect('[data-edge-field="destinationNode"]', "");
+  await sleep(50);
 
   await setSelect('[data-edge-field="sourceNode"]', substrate.id);
   await sleep(50);
@@ -170,6 +185,11 @@ try {
 } finally {
   try { ws.close(); } catch {}
   child.kill();
-  await sleep(150);
-  fs.rmSync(profile, {recursive: true, force: true});
+  await sleep(350);
+  try {
+    fs.rmSync(profile, {recursive: true, force: true, maxRetries: 5, retryDelay: 100});
+  } catch {
+    // Chrome Crashpad can briefly hold a profile file after browser exit.
+    // Cleanup failure must not turn successful browser assertions into a product failure.
+  }
 }

@@ -130,6 +130,16 @@ def test_graph_version_is_text_and_configs_match_fixed_port_shapes():
                 assert 1 <= value <= width // 16, (node["node_id"], key)
 
 
+def test_occupancy_bounds_match_lane_count():
+    # Codex coordination catch (2026-10-07): the schema maximum must equal the
+    # lane count at the pinned width, never an unrelated constant.
+    substrate_input = manifests_by_id()["axon.substrate_input"]
+    props = substrate_input["configuration_schema"]["properties"]
+    width = props["width"]["enum"]
+    for w in width:
+        assert props["occupancy"]["maximum"] == w // 16, (w, props["occupancy"]["maximum"])
+
+
 def test_reference_graph_is_not_shared_mutable_state():
     first = component_manifests()
     first[0]["ports"][0]["constraints"]["codebook"] = "tampered"

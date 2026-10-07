@@ -15,7 +15,7 @@ IDS = ("core_adapter_import", "core_graph_registration", "core_checkpoint_roundt
 def check_core() -> list[dict]:
     # Cache only while the exact inspected source version remains unchanged.
     paths = ("core/e0_two_state.py", "core/manifests.py", "lab/backend/core_checks.py",
-             "lab/backend/validation.py", "lab/backend/app.py", "lab/backend/store.py")
+             "lab/backend/validation.py", "lab/backend/app.py", "lab/backend/store.py", "lab/backend/runs.py")
     digest = hashlib.sha256(b"".join((ROOT / p).read_bytes() for p in paths)).hexdigest()
     return json.loads(_checked(digest))
 

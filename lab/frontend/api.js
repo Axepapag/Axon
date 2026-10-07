@@ -80,6 +80,13 @@ export class AxonApi {
   commandRun(id, command) {
     return this.request(`/runs/${encodeURIComponent(id)}/commands`, {method: "POST", body: command});
   }
+  runEvents(id, afterSequence = 0, signal) {
+    const query = new URLSearchParams({after_sequence: String(afterSequence)}).toString();
+    return this.request(`/runs/${encodeURIComponent(id)}/events?${query}`, {signal});
+  }
+  runSnapshot(id, signal) {
+    return this.request(`/runs/${encodeURIComponent(id)}/snapshot`, {signal});
+  }
   runTensors(id, signal) {
     return this.request(`/runs/${encodeURIComponent(id)}/tensors`, {signal});
   }
@@ -89,6 +96,7 @@ export class AxonApi {
     return this.request(`/runs/${encodeURIComponent(id)}/tensors/${encodeURIComponent(tensorId)}${suffix}`, {signal});
   }
   checkpoints(signal) { return this.request("/checkpoints", {signal}); }
+  checkpoint(id, signal) { return this.request(`/checkpoints/${encodeURIComponent(id)}`, {signal}); }
   restoreCheckpoint(id, command) {
     return this.request(`/checkpoints/${encodeURIComponent(id)}/restore`, {method: "POST", body: command});
   }

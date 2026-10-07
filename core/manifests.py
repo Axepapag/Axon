@@ -37,8 +37,8 @@ def _substrate_input():
             "properties": {
                 "width": {"type": "integer", "enum": [512], "default": 512,
                           "description": "D512 baseline only in 0.1.x; wider widths arrive as a later versioned manifest"},
-                "occupancy": {"type": "integer", "minimum": 1, "maximum": 128, "default": 1,
-                              "description": "occupied lane prefix count; must be <= width/16"},
+                "occupancy": {"type": "integer", "minimum": 1, "maximum": 32, "default": 1,
+                              "description": "occupied lane prefix count; must be <= width/16 (32 at D512)"},
             },
         },
         "ports": [
