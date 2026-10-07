@@ -52,3 +52,37 @@ def test_http_cannot_authorize_execution(tmp_path):
         assert client.post('/api/v1/acceptance',json={'passed':True,'authorized':True}).status_code==503
         assert client.get('/api/v1/readiness').json()['training_authorized'] is False
         assert client.get('/api/v1/capabilities').json()['feature_flags']['training'] is False
+
+
+def test_preserved_checkpoint_restores_canonical_heart_in_new_root(tmp_path):
+    from tools.restore_checkpoint import restore_complete_checkpoint
+    from runtime.heart.host import HeartHost
+    from runtime.heart.valve import ValveEnvelope
+    gate,value=fixture(tmp_path/'root',tmp_path/'state','accepted')
+    value['checkpoint_backup_root']=str(tmp_path/'private-backup')
+    gate.path.write_text(json.dumps(value))
+    organism=tmp_path/'original'
+    host=HeartHost(organism,consolidator_ids=('consolidator',));host.start()
+    try:
+        host.submit_ingress(ValveEnvelope(valve_id='user_ingress',source_id='external_user',payload='A',provenance='backup-test',envelope_type='text/plain'))
+        host.beat()
+        assert host.committed_text('user_input')=='A'
+        directory=organism/'e0/cp-test';directory.mkdir(parents=True)
+        host.save_checkpoint(directory/'host_checkpoint.json')
+        copy=Path(gate.preserve_checkpoint(directory,'run-test'))
+        manifest=json.loads((copy/'restore_manifest.json').read_text())
+        assert all(hashlib.sha256((copy/name).read_bytes()).hexdigest()==digest for name,digest in manifest['files'].items())
+        restored=tmp_path/'independent-restore'
+        restore=restore_complete_checkpoint(copy,restored)
+    finally:host.stop()
+    recovered=HeartHost(restored,consolidator_ids=('consolidator',));recovered.start()
+    try:
+        report=recovered.load_checkpoint(Path(restore['checkpoint'])/'host_checkpoint.json')
+        assert report['behind_head'] is False
+        assert recovered.committed_text('user_input')=='A'
+    finally:recovered.stop()
+    (copy/'host_checkpoint.json').write_text('{"tampered":true}')
+    import pytest
+    with pytest.raises(ValueError,match='checksum'):
+        restore_complete_checkpoint(copy,tmp_path/'rejected-restore')
+    assert not (tmp_path/'rejected-restore').exists()

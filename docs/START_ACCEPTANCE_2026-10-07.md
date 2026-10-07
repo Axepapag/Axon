@@ -9,7 +9,9 @@ one- or three-tick delays and two-character distractors. Train, validation and
 test distractor contexts are disjoint. The same last distractor/query occurs
 with each target, so a reader without the original fact has a 1/3 baseline.
 Validation selects a checkpoint at >=90%; test must reach >=80% and exceed
-zero/swapped/irrelevant memory conditions by >=30 percentage points. No expected
+zero-state and changed-observation conditions by >=30 percentage points. The
+report names `swapped` and `irrelevant` replace the originally observed fact;
+they do not transplant hidden states between exercises. No expected
 text/length reaches inference. This is a three-symbol memory-mechanism check,
 not full-curriculum mastery or a claim that the core is fluent. Broader curriculum
 scores remain learning outcomes to measure as Jeff trains.
@@ -30,11 +32,17 @@ Only a named one-epoch run may execute in the bounded-validation phase. Normal
 execution requires the recorded browser lifecycle proof and accepted phase.
 CPU/CUDA remain explicit selections, with no device fallback.
 
-Each real checkpoint is copied and hash-checked under the configured private
-Drive backup folder. Completed lifecycle operations also preserve SQLite through
+Each real checkpoint and its canonical Heart branch/journal dependencies are
+copied and hash-checked under the configured private Drive backup folder. OS
+writer leases are recreated on restore. Completed lifecycle operations also preserve SQLite through
 its backup API. These later copies are labelled `local_copy_verified_cloud_pending`
 until cloud upload is independently verified; Drive sync location alone does
 not establish an offsite copy. The initial verified restore remains explicit.
+`tools/restore_checkpoint.py` verifies the complete backup and creates a new
+restored directory. Heart checkpoint branch roots are explicitly relocated with
+new hashes and a provenance report; original backup bytes remain unchanged.
+Importing that restored organism into the Lab registry is separate from this
+offline recovery tool.
 
 UI loss is the measured mean training objective. Teacher-forced text/scores are
 labelled and cannot stand in for independent recall scores. Pause/Stop/Checkpoint

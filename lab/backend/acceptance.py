@@ -10,7 +10,7 @@ def source_hash(root: Path) -> str:
         for path in sorted((root/folder).rglob('*')):
             if path.suffix not in ('.py', '.js', '.css', '.html', '.npy') or '__pycache__' in path.parts or 'tests' in path.parts: continue
             entries[path.relative_to(root).as_posix()] = hashlib.sha256(path.read_bytes().replace(b'\r\n', b'\n')).hexdigest()
-    for name in ('tools/acceptance_memory.py', 'tools/acceptance_recovery.py'):
+    for name in ('tools/acceptance_memory.py', 'tools/acceptance_recovery.py', 'tools/preserve_state.py', 'tools/restore_checkpoint.py'):
         path = root/name
         if path.exists(): entries[name] = hashlib.sha256(path.read_bytes().replace(b'\r\n',b'\n')).hexdigest()
     return hashlib.sha256(json.dumps(entries,sort_keys=True).encode()).hexdigest()
@@ -85,6 +85,24 @@ class Acceptance:
         for path in directory.rglob('*'):
             if path.is_file() and hashlib.sha256(path.read_bytes()).digest()!=hashlib.sha256((target/path.relative_to(directory)).read_bytes()).digest():
                 raise ValueError('Checkpoint backup checksum mismatch.')
+        # A host checkpoint references canonical branch objects. Preserve those
+        # dependencies at this same episode boundary, before the next beat.
+        run_root=directory.parent.parent
+        context=target/'heart_state'
+        def ignore(path,names):
+            skipped={'heart.lock','lease.json'}
+            if Path(path)==run_root: skipped.add('e0')
+            return [name for name in names if name in skipped]
+        shutil.copytree(run_root,context,ignore=ignore)
+        for path in run_root.rglob('*'):
+            relative=path.relative_to(run_root)
+            if relative.parts[0]=='e0' or path.name in ('heart.lock','lease.json'): continue
+            if path.is_file() and hashlib.sha256(path.read_bytes()).digest()!=hashlib.sha256((context/relative).read_bytes()).digest():
+                raise ValueError('Canonical Heart backup checksum mismatch.')
+        files={p.relative_to(target).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in target.rglob('*') if p.is_file()}
+        (target/'restore_manifest.json').write_text(json.dumps({'schema':'axon-complete-checkpoint-backup-v1','files':files,
+            'original_run_root':str(run_root.resolve()),'checkpoint_tag':directory.name,
+            'layout':'Restore heart_state as the run root and checkpoint artifacts under e0/'+directory.name+'. Recreate OS lease on start.'},indent=2),encoding='utf-8')
         return str(target)
 
     def preserve_registry(self, source: Path):
