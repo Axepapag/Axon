@@ -2,10 +2,11 @@
 from __future__ import annotations
 import argparse, hashlib, json, shutil
 from pathlib import Path
+from tools.paths import filesystem_path, canonical_path
 
 
 def restore_complete_checkpoint(backup: Path, destination: Path):
-    backup=Path(backup).resolve(); destination=Path(destination).resolve()
+    backup=filesystem_path(backup).resolve(); destination=filesystem_path(destination).resolve()
     if destination.exists(): raise ValueError('Restore destination must be new; existing state is never overwritten.')
     manifest=json.loads((backup/'restore_manifest.json').read_text(encoding='utf-8'))
     if manifest['schema']!='axon-complete-checkpoint-backup-v1': raise ValueError('Unsupported backup schema.')
@@ -26,7 +27,7 @@ def restore_complete_checkpoint(backup: Path, destination: Path):
     # remain unchanged. A new checkpoint documents the new filesystem root.
     relative=Path(host['branch']['root']).relative_to(Path(manifest['original_run_root']))
     if relative.is_absolute() or '..' in relative.parts: raise ValueError('Unsafe branch relocation.')
-    new_root=str(destination/relative)
+    new_root=str(canonical_path(destination)/relative)
     old_root=host['branch']['root']; host['branch']['root']=new_root
     migrated=json.dumps(host,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()+b'\n'
     (checkpoint/'host_checkpoint.source.json').write_bytes(original)

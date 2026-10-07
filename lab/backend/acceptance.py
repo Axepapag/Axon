@@ -2,6 +2,7 @@
 from __future__ import annotations
 import hashlib, json
 from pathlib import Path
+from tools.paths import filesystem_path
 
 
 def source_hash(root: Path) -> str:
@@ -10,7 +11,7 @@ def source_hash(root: Path) -> str:
         for path in sorted((root/folder).rglob('*')):
             if path.suffix not in ('.py', '.js', '.css', '.html', '.npy') or '__pycache__' in path.parts or 'tests' in path.parts: continue
             entries[path.relative_to(root).as_posix()] = hashlib.sha256(path.read_bytes().replace(b'\r\n', b'\n')).hexdigest()
-    for name in ('tools/acceptance_memory.py', 'tools/acceptance_recovery.py', 'tools/preserve_state.py', 'tools/restore_checkpoint.py'):
+    for name in ('tools/acceptance_memory.py', 'tools/acceptance_recovery.py', 'tools/preserve_state.py', 'tools/restore_checkpoint.py', 'tools/paths.py'):
         path = root/name
         if path.exists(): entries[name] = hashlib.sha256(path.read_bytes().replace(b'\r\n',b'\n')).hexdigest()
     return hashlib.sha256(json.dumps(entries,sort_keys=True).encode()).hexdigest()
@@ -79,7 +80,7 @@ class Acceptance:
         import shutil
         value, error = self.evidence()
         if not value: raise ValueError('Checkpoint preservation unavailable: '+str(error))
-        target=Path(value['checkpoint_backup_root'])/run_id/directory.name
+        target=filesystem_path(Path(value['checkpoint_backup_root'])/run_id/directory.name)
         target.parent.mkdir(parents=True,exist_ok=True)
         shutil.copytree(directory,target)
         for path in directory.rglob('*'):

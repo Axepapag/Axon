@@ -59,7 +59,7 @@ def test_preserved_checkpoint_restores_canonical_heart_in_new_root(tmp_path):
     from runtime.heart.host import HeartHost
     from runtime.heart.valve import ValveEnvelope
     gate,value=fixture(tmp_path/'root',tmp_path/'state','accepted')
-    value['checkpoint_backup_root']=str(tmp_path/'private-backup')
+    value['checkpoint_backup_root']=str(tmp_path/('private-backup-'+('long-path-'*18)))
     gate.path.write_text(json.dumps(value))
     organism=tmp_path/'original'
     host=HeartHost(organism,consolidator_ids=('consolidator',));host.start()
