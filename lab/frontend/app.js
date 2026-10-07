@@ -1371,3 +1371,5 @@ window.addEventListener("beforeunload", () => {
 persistUiState();
 render();
 connect();
+
+// Visual Core Builder extension follows.
