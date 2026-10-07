@@ -7,6 +7,7 @@ wherever a core emits something, so no core can write the Shared Field directly.
 from __future__ import annotations
 
 COMPONENT_SCHEMA_VERSION = "axon-core-components-v1"
+RESPONSE_PROTOCOL = "axon-e0-private-draft-v3"
 
 _JSON_SCHEMA = "https://json-schema.org/draft/2020-12/schema"
 
@@ -90,7 +91,7 @@ def _response_state():
     return {
         "id": "axon.response_state",
         "name": "English Response State",
-        "version": "0.1.1",
+        "version": "0.1.2",
         "status": "experimental",
         "reason": "E0 dedicated English-facing response state; proposes exact characters with END/WAIT control",
         "execution_eligible": True,
@@ -113,8 +114,9 @@ def _response_state():
                   {"codebook": "native95+empty95", "pad": 95, "max_chunk": 64,
                    "note": "Heart validates every proposed id; core never writes the field"}),
             _port("control_out", "output", "emission-control", "int64", [1], None, False, "proposes-only", "free",
-                  {"values": "0=WAIT,1=COMMIT,2=END",
-                   "note": "WAIT/zero-commit is control state, never an all-EMPTY surface"}),
+                  {"values": "0=WAIT,1=STAGE,2=END",
+                   "note": "STAGE collects privately; END hands the full draft to Heart; WAIT writes nothing",
+                   "response_protocol": RESPONSE_PROTOCOL}),
         ],
         "constraints": {"cell": "GRUCell", "state_shape": [512]},
         "states": [
@@ -130,14 +132,14 @@ def component_manifests() -> list[dict]:
 
 
 E0_REFERENCE_GRAPH = {
-    "version": "0.1.1",
+    "version": "0.1.2",
     "name": "e0-two-state-d512",
     "nodes": [
         {"node_id": "substrate_in", "component_type": "axon.substrate_input", "component_version": "0.1.1",
          "config": {"width": 512, "occupancy": 1}},
         {"node_id": "reasoning", "component_type": "axon.core_reasoning_gru", "component_version": "0.1.1",
          "config": {"hidden_size": 512}},
-        {"node_id": "response", "component_type": "axon.response_state", "component_version": "0.1.1",
+        {"node_id": "response", "component_type": "axon.response_state", "component_version": "0.1.2",
          "config": {"hidden_size": 512, "max_chunk": 64}},
     ],
     "edges": [

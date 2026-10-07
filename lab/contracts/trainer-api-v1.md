@@ -233,3 +233,15 @@ acceptance contract; installing packages or passing codec tests is insufficient.
 Backup fields distinguish configured destination, attempted copy, verified
 artifact and restore drill. A Google Drive path is not proof of off-device
 survival or completed upload. Cloud launches require actual adapter support.
+
+## Private response staging amendment (Jeff, 2026-10-07)
+
+E0 graph v0.1.2 uses `axon-e0-private-draft-v3`: model STAGE collects exact
+characters privately; END hands the full draft to Heart for canonical commit.
+The numeric control 1 retains the legacy COMMIT alias for curriculum labels.
+Result rows add `response_publication` (private/published/unchanged/empty, actual
+commit flag, character count and commit identity). `prediction_text` may contain
+an unfinished private draft and must not imply publication. Runs record their
+response protocol; older prepared runs and checkpoints require explicit
+migration or a newly prepared graph. Empty END and generation-budget exhaustion
+do not publish filler or unfinished drafts. Existing saved artifacts remain.

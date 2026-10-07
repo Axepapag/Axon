@@ -9,7 +9,7 @@ from pathlib import Path
 import threading
 import uuid
 
-from core.manifests import E0_REFERENCE_GRAPH
+from core.manifests import E0_REFERENCE_GRAPH, RESPONSE_PROTOCOL
 from curriculum.schema import CURRICULUM_VERSION, validate_episode
 from curriculum.splits import check_manifest, curriculum_sha256
 from .store import canonical
@@ -97,6 +97,9 @@ class RunService:
         run = self.registry.get('run', identity)
         if not run: raise RunError(404, 'run_not_found', 'No such run.')
         run['readiness'] = self.gate.for_run(run) if hasattr(self.gate, 'for_run') else self.gate()
+        if run.get('response_protocol') != RESPONSE_PROTOCOL:
+            run['readiness'] = {**run['readiness'], 'authorized': False,
+                                'reasons': ['This run uses the older incremental response policy; prepare the current private-draft graph.']}
         actions = {'created': ['stop'], 'running': ['pause', 'stop', 'checkpoint'],
                    'paused': ['stop'], 'failed': ['stop']}.get(run['lifecycle_state'], [])
         if run['readiness']['authorized'] and run['lifecycle_state'] in ('created', 'paused'):
@@ -140,6 +143,7 @@ class RunService:
                 raise RunError(422, 'unsupported_execution', 'This adapter supports local CPU/CUDA0 training split only.')
             identity = str(uuid.uuid4())
             run = {'schema_version': 'axon-lab-api-v1', 'run_id': identity, 'lifecycle_state': 'created',
+                   'response_protocol': RESPONSE_PROTOCOL,
                    'architecture_id': architecture['architecture_id'], 'architecture_version': architecture['version'],
                    'architecture_hash': architecture['architecture_hash'], 'dataset_id': dataset['dataset_id'],
                    'dataset_hash': dataset['dataset_hash'], 'dataset_version': dataset['version'],
@@ -366,6 +370,8 @@ class RunService:
         manifest_bytes = (directory/'lab_manifest.json').read_bytes()
         if hashlib.sha256(manifest_bytes).hexdigest() != saved['manifest_sha256']: raise ValueError('Checkpoint manifest checksum mismatch.')
         metadata = json.loads(manifest_bytes)
+        if metadata['run'].get('response_protocol') != RESPONSE_PROTOCOL:
+            raise ValueError('Checkpoint response protocol requires explicit migration before resume.')
         for key in ('architecture_hash', 'dataset_hash', 'curriculum_hash', 'device', 'next_episode', 'step'):
             if metadata['run'][key] != run[key]: raise ValueError('Checkpoint run identity/cursor mismatch: ' + key)
         for name, digest in metadata['files'].items():

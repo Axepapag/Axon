@@ -44,7 +44,7 @@ from substrate.native import ALPHABET, encode_ids
 
 CORE_KWARGS = {"width": 256, "hidden_size": 16, "max_chunk": 8}
 
-ROW_EXTRAS = ("phases", "generation")
+ROW_EXTRAS = ("phases", "generation", "response_publication")
 
 
 def _episodes() -> list[dict]:
@@ -390,18 +390,15 @@ def test_committed_text_flows_only_through_the_consolidator(tmp_path: Path) -> N
     episodes = [_episodes()[1]]
     host, core, loop = _session(tmp_path, episodes)
     counter: dict = {}
-    loop.control_override = lambda phase, position, logits: CONTROL_COMMIT
+    loop.control_override = lambda phase, position, logits: CONTROL_END if phase==PHASE_RESPOND and position==3 else CONTROL_COMMIT
 
     row = loop.run_episode(episodes[0])
 
-    assert loop.last_control == CONTROL_COMMIT
-    assert row["phases"]["respond"] == 8
-    assert row["generation"]["termination"] == "budget_exhausted"
-    # one character per COMMIT tick is appended to the private draft and
-    # committed; an EMPTY (id 95) argmax proposes no character and is neither
-    # appended nor committed, so commits never exceed the ticks
-    assert 1 <= loop.commits <= row["phases"]["respond"]
-    assert len(row["prediction_text"]) == loop.commits
+    assert loop.last_control == CONTROL_END
+    assert row["phases"]["respond"] == 4
+    assert row["generation"]["termination"] == "end"
+    assert loop.commits == 1
+    assert len(row["prediction_text"]) >= 1
     assert row["metrics"]["invalid_content"] is False
     # the canonical text exists only because the consolidator committed it
     assert host.committed_text("response_draft") == row["prediction_text"]
@@ -413,6 +410,88 @@ def test_committed_text_flows_only_through_the_consolidator(tmp_path: Path) -> N
     assert loop.last_commit_id == commits[-1]["delta_id"]
     assert host.generation == loop.commits  # the loop is the only writer
     host.stop()
+
+
+def test_stage_stays_private_and_end_publishes_entire_response(tmp_path):
+    episode=_episodes()[1]
+    host,core,loop=_session(tmp_path,[episode])
+    with torch.no_grad():
+        core.char_head.weight.zero_();core.char_head.bias.fill_(-100)
+        core.char_head.bias[encode_ids('A')[0]]=100
+    real_finish=host.finish_response
+    def finish(core_id):
+        assert host.private_draft()['text']=='AA'
+        assert host.committed_text()==''
+        assert host.generation==0
+        return real_finish(core_id)
+    host.finish_response=finish
+    loop.control_override=lambda phase,pos,_: CONTROL_END if phase==PHASE_RESPOND and pos==2 else CONTROL_COMMIT
+    try:
+        row=loop.run_episode(episode)
+        assert host.committed_text()=='AA'
+        assert host.generation==loop.commits==1
+        assert row['response_publication']['status']=='published'
+        assert _journal_commits(host)[0]['metadata']['committer_id']=='consolidator'
+        host.finish_response=real_finish
+        again=host.finish_response('e0')
+        assert not again['committed'] and host.generation==1
+    finally:host.stop()
+
+
+def test_unfinished_text_stays_private_when_generation_budget_expires(tmp_path):
+    episode=_episodes()[1]
+    host,core,loop=_session(tmp_path,[episode])
+    with torch.no_grad():
+        core.char_head.weight.zero_();core.char_head.bias.fill_(-100)
+        core.char_head.bias[encode_ids('A')[0]]=100
+    loop.control_override=lambda *_: CONTROL_COMMIT
+    try:
+        row=loop.run_episode(episode)
+        assert row['prediction_text']=='A'*8
+        assert row['generation']['termination']=='budget_exhausted'
+        assert row['response_publication']['status']=='private'
+        assert host.committed_text()=='' and host.generation==loop.commits==0
+    finally:host.stop()
+
+
+def test_publication_crash_resume_does_not_duplicate_write_or_training(tmp_path):
+    episode=dict(_episodes()[1],expected={'text':'AB','control':CONTROL_COMMIT})
+    def build(path):
+        host,core,loop=_session(path,[episode])
+        opt=torch.optim.Adam(core.parameters(),lr=.001);loop.register_optimizer(opt)
+        return host,core,loop,opt
+    host,core,loop,opt=build(tmp_path/'reference')
+    try:
+        expected=loop.run_episode(episode,train=True,optimizer=opt)
+        weights={k:v.clone() for k,v in core.state_dict().items()}
+    finally:host.stop()
+    host,core,loop,opt=build(tmp_path/'interrupted')
+    real_step=core.step
+    def step(*args):
+        if loop._generation.get('response_ticks')==2:loop.save('before-end')
+        return real_step(*args)
+    core.step=step
+    real_commit=host.commit
+    def interrupted_commit(*args):
+        real_commit(*args)
+        raise RuntimeError('interrupted after response publication')
+    host.commit=interrupted_commit
+    try:
+        with pytest.raises(RuntimeError,match='after response publication'):
+            loop.run_episode(episode,train=True,optimizer=opt)
+        assert host.committed_text()=='AB' and host.generation==1
+    finally:host.stop()
+    host,core,loop,opt=build(tmp_path/'interrupted')
+    try:
+        loaded=loop.load('before-end')
+        assert loaded['host_restore']['behind_head']
+        actual=loop.run_episode(episode,train=True,optimizer=opt)
+        assert actual['training']==expected['training']
+        assert all(torch.equal(weights[k],v) for k,v in core.state_dict().items())
+        assert host.committed_text()=='AB' and host.generation==1
+        assert len(_journal_commits(host))==1
+        assert actual['response_publication']['status']=='unchanged'
+    finally:host.stop()
 
 
 # ---------------------------------------------------------------- restart paths
@@ -439,6 +518,7 @@ def test_save_and_load_restore_core_host_cursor_and_rng(tmp_path: Path) -> None:
         "tag",
         "cursor",  # additive structured axon-lab-execution-cursor-v1 block
         "execution",
+        "response_publication",
     }
     assert (directory / CORE_CHECKPOINT_FILENAME).exists()
     assert (directory / HOST_CHECKPOINT_FILENAME).exists()
@@ -510,7 +590,9 @@ def test_mid_episode_kill_resumes_bit_identically(tmp_path: Path) -> None:
     mid_step = saved_cursor["step_index"]
     walk_length = observe_ticks + 8
     assert 0 < mid_step < walk_length
-    assert loop_killed.commits > 0  # the killed run had already committed text
+    assert loop_killed.commits == 0
+    assert host_killed.private_draft()['text']
+    assert host_killed.committed_text()==''  # the prefix is still private
     host_killed.stop()
 
     # a brand-new session loads the mid-episode checkpoint and continues with
@@ -525,10 +607,8 @@ def test_mid_episode_kill_resumes_bit_identically(tmp_path: Path) -> None:
     assert row_resumed == row_plain
     # per-loop commit counters count one instance's own commits; the durable
     # draft text spans the killed and the resumed session
-    assert (
-        len(row_resumed["prediction_text"])
-        == loop_killed.commits + loop_resumed.commits
-    )
+    assert row_resumed['prediction_text']
+    assert loop_killed.commits + loop_resumed.commits == 0  # no END was chosen
 
 
 # ---------------------------------------------------------------------- train
@@ -587,7 +667,7 @@ def test_full_response_phase_supervises_every_expected_character(
     #the expected response, each character committed through the consolidator
     assert row["prediction_text"] == expected_text
     assert host.committed_text("response_draft") == expected_text
-    assert loop.commits == len(expected_text)
+    assert loop.commits == 1
     assert host.generation == loop.commits
     # the last control the core predicted is the argmax it produced, not the target
     assert row["prediction_control"] == loop.last_control

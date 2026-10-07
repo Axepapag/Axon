@@ -688,6 +688,8 @@ function renderLatestResult(result) {
       ${detail("Split", result.split)}
       ${detail("Exact", metrics.exact_match)}
       ${detail("Measurement", result.measurement_scope || result.generation?.mode)}
+      ${detail("Response status", result.response_publication?.status)}
+      ${detail("Ending", result.generation?.termination)}
       ${detail("Per-char accuracy", metrics.per_char_accuracy)}
       ${detail("Control correct", metrics.control_correct)}
       ${detail("Binding error", metrics.binding_error)}
@@ -755,7 +757,7 @@ function renderInspect() {
         <div class="panel-header"><div><h2>Observable tensors</h2><p>Tensor values are bounded to 256 per request and pinned to one snapshot ID.</p></div></div>
         ${state.selectedRun ? `<button class="button button-secondary" data-action="load-tensors">Load current episode-boundary snapshot</button>` : `<div class="notice">No run selected.</div>`}
         ${state.tensorError ? `<div class="validation-row bad">${esc(state.tensorError)}</div>` : ""}
-        ${snapshot ? `<dl class="mini-details">${detail("Snapshot", snapshot.snapshot_id)}${detail("Last event sequence", snapshot.last_observed_sequence)}${detail("Private draft", snapshot.draft)}${detail("Committed response", snapshot.committed_response)}</dl>` : ""}
+        ${snapshot ? `<dl class="mini-details">${detail("Snapshot", snapshot.snapshot_id)}${detail("Last event sequence", snapshot.last_observed_sequence)}${detail("Private draft", snapshot.draft?.text ?? snapshot.draft)}${detail("Published response", snapshot.committed_response)}</dl>` : ""}
         <div class="list compact">
           ${state.tensors.map(tensor => `<button class="list-item" data-action="select-tensor" data-tensor-id="${esc(tensor.tensor_id)}"><span><strong>${esc(tensor.name || tensor.tensor_id)}</strong><small>${esc(tensor.semantic_role || "")}</small></span><code>${esc((tensor.shape || []).join("×"))}</code></button>`).join("")}
         </div>

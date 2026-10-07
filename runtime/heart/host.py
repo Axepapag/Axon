@@ -818,6 +818,38 @@ class HeartHost:
 
         return None if self._draft is None else dict(self._draft)
 
+    def finish_response(self, core_id: str) -> dict[str, Any]:
+        """Publish the complete private response through Heart, then close it.
+
+        E0's learned END calls this operation. Per-character staging never
+        invokes canonical commit. Generic control/proposal APIs keep their
+        existing meanings. A restored END whose text is already durable does
+        not write another generation; an empty response writes no filler.
+        """
+        self._require_lease()
+        self._require_core(core_id)
+        draft = self.private_draft()
+        if draft is not None and draft['core_id'] != core_id:
+            raise AuthorityViolationError('a core may finish only its own private draft')
+        text = draft['text'] if draft is not None else ''
+        durable = bool(text) and self.committed_text() == text
+        if self._episode_ended:
+            if not text or durable:
+                return {'status': 'unchanged' if text else 'empty', 'committed': False,
+                        'character_count': len(text), 'commit_id': self._last_commit_id if text else None}
+            raise HostStateError('a closed episode cannot publish a different response')
+        result = {'status': 'empty', 'committed': False, 'character_count': len(text), 'commit_id': None}
+        if text:
+            if durable:
+                result.update(status='unchanged', commit_id=self._last_commit_id)
+            else:
+                proposal = self.submit_control(core_id, CONTROL_COMMIT)
+                ack = self.commit(self.current_consolidator(), proposal)
+                result.update(status='published', committed=True, commit_id=ack.commit_id)
+        self.submit_control(core_id, CONTROL_END)
+        self._episode_ended = True
+        return result
+
     def committed_text(self, region: LogicalRegion | str = LogicalRegion.RESPONSE_DRAFT) -> str:
         """The canonical surface: committed region text read from branch HEAD."""
 

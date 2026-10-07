@@ -33,7 +33,7 @@ def test_schema_version_and_manifest_shape():
                                             "axon.response_state"}
     for manifest in manifests:
         assert TOP_LEVEL_FIELDS <= set(manifest), manifest["id"]
-        assert manifest["version"] == "0.1.1"
+        assert manifest["version"] == ('0.1.2' if manifest['id']=='axon.response_state' else '0.1.1')
         assert manifest["status"] == "experimental"
         assert manifest["execution_eligible"] is True
         assert isinstance(manifest["ports"], list) and manifest["ports"]

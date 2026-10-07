@@ -2,7 +2,7 @@
 
 E0 is the smallest organism in the ladder: one character in, one character
 proposed out, with two pieces of recurrent state (a *reasoning* state and a
-*response* state) plus a three-way control decision (WAIT / COMMIT / END).
+*response* state) plus a three-way control decision (WAIT / STAGE / END).
 
 LAW NOTES (non-negotiable):
 
@@ -39,7 +39,9 @@ SURFACE_WIDTHS = (256, 512, 768, 1024, 2048)
 
 # Control decision triple produced by ``control_head``.
 CONTROL_WAIT = 0
-CONTROL_COMMIT = 1
+CONTROL_STAGE = 1
+# Numeric compatibility for curriculum content labels and older weight files.
+CONTROL_COMMIT = CONTROL_STAGE
 CONTROL_END = 2
 
 CHECKPOINT_FORMAT = "axon-e0-checkpoint-v1"

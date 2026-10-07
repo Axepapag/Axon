@@ -1,9 +1,9 @@
 """E0 two-state loop: the one Heart path used for training and inference.
 
-This module joins three already-tested pieces without editing any of them:
+This module joins the Core, curriculum and the Heart's private-response API:
 
 * ``core.e0_two_state`` supplies the E0 organism (a reasoning state, a response
-  state, a 96-way character head and a 3-way WAIT/COMMIT/END control head);
+  state, a 96-way character head and a 3-way WAIT/STAGE/END control head);
 * ``curriculum`` supplies the architecture-independent episode schema,
   validation, the version hash and the evaluation metrics/results row;
 * ``runtime.heart.host`` supplies the HeartHost coordinator, which is the only
@@ -16,22 +16,21 @@ LAW NOTES (non-negotiable):
   outside the native 95 fails closed: nothing is converted, escaped,
   normalized or clamped. The core's own emitted characters are native by
   construction (``native_char``); an EMPTY (id 95) proposal emits nothing.
-* The core only *proposes*. Character choices and the WAIT/COMMIT/END decision
+* The core only *proposes*. Character choices and the WAIT/STAGE/END decision
   come from the core's own heads, and the readable text lives in the host's
   **private draft**. Committed canonical text exists only when a heart
-  commit happens: the loop registers its core on the host and commits every
-  emitted draft through ``host.submit_control(core_id, "commit")`` followed by
-  ``host.commit(current_consolidator(), proposal_id)``. The core never touches
-  the branch.
+  commit happens. STAGE (numeric 1, legacy alias COMMIT) adds exact characters
+  privately. END calls ``host.finish_response`` to publish the complete draft
+  through the current consolidator. The core never touches the branch.
 * WAIT performs zero operations: no draft mutation, no control submission and
   no commit. WAIT is never spelled as an EMPTY or filler payload.
-* END finalizes the episode through ``host.submit_control(core_id, "end")``;
-  the episode's end-of-walk host beat consumes it.
+* END publishes the collected response and closes the episode. Empty END
+  closes without a canonical write; budget exhaustion leaves the draft private.
 * Training and inference call the exact same ``run_episode``; ``train=True``
   supervises the **full response** and calls the caller's ``optimizer.step()``;
   inference never touches weights.
 
-Phases (autoregressive protocol v2):
+Phases (private-draft autoregressive protocol v3):
 
 * **observe** - steps and query are context in BOTH modes. No draft mutations.
 * **respond** - the first input is the existing EMPTY cell (a generation cue,
@@ -39,8 +38,8 @@ Phases (autoregressive protocol v2):
   the current one as COMMIT, then learns END on a separate terminal tick.
   WAIT/END-only examples receive control loss too. Inference feeds its own
   previous emitted character, with no answer text or answer-length input.
-  Its control head drives WAIT (zero operations), COMMIT (a native character
-  through the Heart), or END. A fixed caller-owned tick budget bounds it;
+  Its control head drives WAIT (zero operations), STAGE (a private native
+  character), or END (complete publication). A fixed caller-owned tick budget bounds it;
   exhaustion is reported, never disguised as a completed answer.
 
 Training retains the observation/response autograd graph and applies ONE
@@ -93,6 +92,7 @@ from core.e0_two_state import (
     load_checkpoint as load_core_checkpoint,
     save_checkpoint as save_core_checkpoint,
 )
+from core.manifests import RESPONSE_PROTOCOL
 from curriculum.metrics import RESULTS_FIELDS, evaluate_episode
 from curriculum.schema import CURRICULUM_VERSION, validate_episode
 from curriculum.splits import curriculum_sha256
@@ -132,7 +132,7 @@ PHASE_RESPOND = "respond"
 
 #: ``loss_samples`` keeps only the most recent samples.
 LOSS_SAMPLE_CAP = 256
-EXECUTION_PROTOCOL = "axon-e0-autoregressive-v2"
+EXECUTION_PROTOCOL = RESPONSE_PROTOCOL
 DEFAULT_RESPONSE_TICK_BUDGET = 256
 
 
@@ -267,6 +267,7 @@ class E0Loop:
         self._execution: Optional[dict[str, Any]] = None
         self._losses: list[torch.Tensor] = []
         self._generation: dict[str, Any] = {}
+        self._publication: dict[str, Any] | None = None
         self._dataset: dict[str, Optional[str]] = {
             "preset": None,
             "curriculum_version": None,
@@ -393,6 +394,7 @@ class E0Loop:
             self.last_control = None
             self._episode_ended = False
             self.commits = 0
+            self._publication = None
         elif train:
             # Serialized state values cannot carry autograd history. Recreate
             # the deterministic prefix at the checkpoint's unchanged weights.
@@ -483,6 +485,7 @@ class E0Loop:
             "tag": tag,
             "cursor": self._cursor_block(),
             "execution": self._execution,
+            "response_publication": self._publication,
         }
         cursor_path = directory / CURSOR_FILENAME
         temporary = cursor_path.with_name(cursor_path.name + ".tmp")
@@ -549,6 +552,9 @@ class E0Loop:
             optimizer_restored = True
 
         self._restore_rng_artifacts(directory, cursor)
+        self._publication = cursor.get('response_publication')
+        if self._publication is not None and not isinstance(self._publication, dict):
+            raise ValueError('checkpoint response publication must be an object')
 
         char_position = 0
         if cursor_block is not None:
@@ -770,8 +776,7 @@ class E0Loop:
         else:
             self._generation["termination"] = "wait" if target_control == CONTROL_WAIT else "end"
             if target_control == CONTROL_END:
-                self.host.submit_control(self.core_id, "end")
-                self._episode_ended = True
+                self._finish_response()
 
     def _generate_tick(self, position: int) -> None:
         """An answer-independent tick, including feedback from the exact draft."""
@@ -785,8 +790,7 @@ class E0Loop:
         if self.last_control == CONTROL_COMMIT:
             self._emit_character(int(torch.argmax(chars, dim=-1).item()))
         elif self.last_control == CONTROL_END:
-            self.host.submit_control(self.core_id, "end")
-            self._episode_ended = True
+            self._finish_response()
             self._generation["termination"] = "end"
         # WAIT mutates recurrent state but produces zero draft/Heart operations.
 
@@ -813,7 +817,7 @@ class E0Loop:
                     self._generation["response_ticks"] += 1
 
     def _emit_character(self, char_id: int) -> None:
-        """Append one native character to the draft and commit it if it is new."""
+        """Stage one exact native character privately; Heart publication waits for END."""
 
         if not 0 <= char_id < ALPHABET_SIZE:
             return  # EMPTY proposes no character: nothing to append or commit
@@ -821,14 +825,12 @@ class E0Loop:
         current = self.host.private_draft()
         combined = (current["text"] if current is not None else "") + text
         self.host.set_draft(self.core_id, combined)
-        if combined == self.host.committed_text(LogicalRegion.RESPONSE_DRAFT):
-            # The canonical field already carries exactly this text: committing
-            # it again would be a no-op write.
-            return
-        proposal_id = self.host.submit_control(self.core_id, "commit")
-        ack = self.host.commit(self.host.current_consolidator(), proposal_id)
-        self.commits += 1
-        self.last_commit_id = ack.commit_id
+
+    def _finish_response(self) -> None:
+        self._publication = self.host.finish_response(self.core_id)
+        self.commits += int(self._publication['committed'])
+        self.last_commit_id = self._publication['commit_id']
+        self._episode_ended = True
 
     def _draft_text(self) -> str:
         draft = self.host.private_draft()
@@ -1004,6 +1006,8 @@ class E0Loop:
         row["phases"] = self._phase_counts(plan)
         row["phases"]["respond"] = self._generation["response_ticks"]
         row["generation"] = dict(self._generation)
+        row['response_publication'] = self._publication or {'status': 'private', 'committed': False,
+                                                           'character_count': len(prediction_text), 'commit_id': None}
         if train:
             training = self._training or {
                 "optimizer_steps": 0,
@@ -1023,7 +1027,7 @@ class E0Loop:
                 f"{tuple(row)[: len(RESULTS_FIELDS)]!r} != {RESULTS_FIELDS!r}"
             )
         extras = set(row) - set(RESULTS_FIELDS)
-        if extras not in ({"phases", "generation"}, {"phases", "generation", "training"}):
+        if extras not in ({"phases", "generation", "response_publication"}, {"phases", "generation", "response_publication", "training"}):
             raise RuntimeError(f"results row carries unexpected extra fields {extras!r}")
         self.last_training = row.get("training")
         return row
