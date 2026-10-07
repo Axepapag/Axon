@@ -10,7 +10,7 @@ import {
   stableFingerprint,
 } from "./ui-utils.js?v=20261006-s4";
 import {PreflightController, isPreflightBusy} from "./preflight-controller.js?v=20261006-s5";
-import {RunMutationController, defaultRunMutationState, isRunMutationBusy} from "./run-controller.js?v=20261006-s5";
+import {RunMutationController, defaultRunMutationState, isRunMutationBusy} from "./run-controller.js?v=20261006-s5";\nimport {architectureAnatomy, cloneValue, compareArchitectures, structuralFingerprint, validateCoreGraph} from "./core-builder.js?v=20261007-cb1";\nimport {COREBUILDING_CATALOG, COREBUILDING_TEMPLATES} from "./corebuilding-data.js?v=20261007-cb1";
 
 const api = new AxonApi();
 const STORAGE_KEY = "axon-lab-ui-v2";
