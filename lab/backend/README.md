@@ -5,7 +5,7 @@ the real frontend and same-origin `/api/v1` on loopback port 8080.
 
 Normal public operation uses the existing **Launch Cloudfare** launcher. Its
 managed 8080 child now hosts the Axon API and deployed frontend from
-`G:\My Drive\Cloudfare\Sites\axon\axon`. The existing tunnel still points to
+`G:\My Drive\Cloudfare\Sites\axon\`. The existing tunnel still points to
 8080. Other site hostnames keep their original handlers in the same managed
 process. Axon's API executes directly on 8080; it does not depend on port 8184.
 

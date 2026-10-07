@@ -1,8 +1,16 @@
-# Axon Engineer's Ledger - Rolling Summary
+﻿# Axon Engineer's Ledger - Rolling Summary
 
-Updated: 2026-10-07T02:50:00Z
+Updated: 2026-10-07T07:07:43.887Z
 
-current_through_event_id: `evt-20261007T041631131767Z-codex-start-acceptance`
+current_through_event_id: `evt-20261007T075000835183Z-codex-private-response-v3-delivery`
+
+## Acceptance audit: evidence genuine, four wording caveats - October 7, 2026
+
+Independent audit of Codex's acceptance stack completed. Nothing falsified: no hardcoded passes, no held-out leakage, preregistration hashes recompute and match, and the load-bearing claims were re-verified from stored artifacts (18/18 recall CPU+CUDA, swapped-observation control follows the observed symbol on all rows, 9 unique canonical commits in the browser run). Four caveats relayed to Codex: recovery optimizer-restored is asserted-not-demonstrated (empty Adam state at the interruption point); the zero/irrelevant 6/18 controls equal the 1/3 constant-output baseline by construction (swapped is the load-bearing control); the RNG acceptance check is degenerate for this workload; the live acceptance record is still phase=validation with the operator proof unreferenced. Recommendations: re-run recovery with one completed episode before the kill; restate counterfactual wording for Jeff.
+
+## Latest check: Codex increments verified, one intermittent test found - October 7, 2026
+
+KimiCode re-registered on the Iris bridge (REST token had rotated) and reviewed every Codex increment since the quiescent-window post: autoregressive response correction (axon-e0-autoregressive-v2), measured Start acceptance, GitHub preservation through 2033a2f, and the private staging landing (axon-e0-private-draft-v3, response component 0.1.2, STAGE control, Heart finish_response publishes the whole private response on END). Both design docs verified against the standing laws. Independent verification on HEAD 2033a2f: 501 tests pass, both substrate self-tests exit 0, across two consecutive full runs. One intermittent failure found: tests/test_lab_acceptance.py::test_preserved_checkpoint_restores_canonical_heart_in_new_root fails roughly 1 in 4 full-suite runs with CheckpointIntegrityError (different branch root) but passes in isolation - cross-test interference, reported to Codex, not fixed while its proof-window hold stands. Independent audit of tools/acceptance_memory evidence dispatched and in flight. KimiCode holds host_e0/core/curriculum edits per Codex request.
 
 ## E0 training fixes landed - October 7, 2026
 
@@ -168,7 +176,7 @@ Fresh verification this turn: full pytest exits 0, both substrate self-tests exi
 
 ## Axon Lab frontend slice 2 - October 6, 2026
 
-ChatGPT implemented and publicly deployed the second Axon Lab frontend slice without editing Codex-owned backend/contracts or owner-controlled Core/Heart/Data source. The System view now has explicit **Auto / CPU / CUDA 0** foundation preflight controls. A new check creates one stable command ID, retries preserve it, accepted operations are polled to a terminal status, and the UI visibly separates a **current operation** from **latest completed server evidence · historical**. The live public acceptance used the same command ID twice and both submissions resolved to operation `e6bf8b17-e6e3-4c97-9db1-56c6a59b07f8`; it completed successfully on the GTX 1650 with `foundation_passed=true` while correctly retaining `training_authorized=false`.
+ChatGPT implemented and publicly deployed the second Axon Lab frontend slice without editing Codex-owned backend/contracts or owner-controlled Core/Heart/Data source. The System view now has explicit **Auto / CPU / CUDA 0** foundation preflight controls. A new check creates one stable command ID, retries preserve it, accepted operations are polled to a terminal status, and the UI visibly separates a **current operation** from **latest completed server evidence Â· historical**. The live public acceptance used the same command ID twice and both submissions resolved to operation `e6bf8b17-e6e3-4c97-9db1-56c6a59b07f8`; it completed successfully on the GTX 1650 with `foundation_passed=true` while correctly retaining `training_authorized=false`.
 
 Architecture registration now similarly retains its command ID while the graph payload is unchanged and invalidates that retry identity on graph edits. Architecture draft, selected component, pending edge choices and preflight state persist in browser local storage across refresh/backend errors. The Architect code now supports backend-schema-driven primitive/nested configuration fields and explicit source-port -> destination-port edges, but the production palette remains intentionally disabled because the Core owner has not yet supplied real configuration schemas/ports/execution adapters. No component manifest is fabricated.
 
@@ -221,6 +229,22 @@ Durable event history loads through JSON first, follows SSE from the last sequen
 After Codex announced the managed backend live, a real Chrome session performed **preparation only** and created CPU run `b851aa23-5e67-411b-8681-0051ffaa94cc` (seed 4242, 1 epoch, learning rate 0.001). The run remains `created`, step 0, next_episode 0, no checkpoint, readiness unauthorized, allowed actions only `stop`; the browser confirms Start disabled. ChatGPT sent no public Start, Resume, training, checkpoint, or lifecycle execution command.
 
 Verification: 15/15 frontend unit tests pass; JS syntax and frontend diff checks pass; full Python pytest and both substrate self-tests exit 0; all eight published frontend files hash-match source.
+
+## Latest verified progress - October 7, 2026
+
+Public readiness now reports training_authorized=true for the scoped local E0 D512 two-state GRU starter on CPU/CUDA0. Core runtime, frozen data, checkpoint recovery, backup/restore and operator-control gates are reported passed. Git local and remote main are synchronized at 387c5fb. Broad curriculum mastery, fluency/general reasoning, generic checkpoint import/inference, and independent Tests-seat endorsement remain unproven or pending.
+
+## Current E0 core architecture inspection - October 7, 2026
+
+Current E0 is a D512 exact-substrate ingress feeding two serial 512D GRU states: reasoning/memory first, response-composition second. The response state feeds a 96-way character head and a 3-way WAIT/COMMIT/END control head. Exact trainable parameter count is 3,202,659. The frozen D16 codebook is a non-trainable buffer. Current code occupies only lane 0 of the 32-lane D512 surface and pads the remaining lanes with EMPTY; wider occupancy remains a future rung.
+
+Training observes context/query into the recurrent states, then uses shifted teacher forcing to supervise every response character plus a separate terminal END. Inference instead feeds back the previously emitted exact character and autonomously chooses character and control. COMMIT appends one character to the private draft and immediately routes it through Heart's consolidator into canonical RESPONSE_DRAFT; WAIT changes recurrent state without a canonical write; END closes the episode. Whole-message private revision/final publication is not yet implemented.
+
+## Codex status check - October 7, 2026
+
+Codex is still actively working, but the requested response architecture is already landed. Commit `2033a2f` implements private response staging: learned STAGE collects exact characters privately, WAIT changes recurrent state without publication, and learned END calls Heart `finish_response(core_id)` to publish the complete private draft once. Follow-up `b4abea3` hardens complete checkpoint preservation for deep Windows paths. The machine currently has several Codex processes and active computer-use, and `lab/backend/README.md` has a post-commit edit, indicating ongoing proof/cleanup work rather than inactivity.
+
+Kimi independently verified 501 tests plus both substrate self-tests and found no fabricated acceptance evidence or held-out leakage. The remaining proof work is real: one restore acceptance test is intermittently order-dependent; optimizer-restoration evidence should be rerun after at least one completed optimizer step; some chance-level controls are not informative; and the current live gate is `bounded_validation` with operator controls still in progress and a new checkpoint cloud-restore proof pending before normal execution.
 
 ## Mission and state (2026-10-05)
 
@@ -432,7 +456,7 @@ Legacy Android review: Axon Home has a real-server GET-only monitoring client an
 
 Frontend collaboration: ChatGPT accepted concrete preflight/polling, stable command retry IDs, native alphabet hints and schema-driven property/edge editing work through Kimi Browser Extension. It is actively editing and reports no backend API amendment needed for this slice. Real Core schemas/ports remain a dependency; completed source/deployment acceptance still pending.
 
-## E0 backend integration — 2026-10-06T22:13:55.493187+00:00
+## E0 backend integration â€” 2026-10-06T22:13:55.493187+00:00
 
 Connected E0 Core v0.1.0 manifests to the live 8080 backend; required surface compatibility enforced; isolated CPU D512 import, graph API registration and bit-identical Core checkpoint checks pass. 188 tests and both substrate self-tests passed. Training remains unauthorized pending HeartHost, curriculum, complete recovery, backup and operator acceptance. ChatGPT acknowledged frontend recovery work.
 
@@ -581,3 +605,52 @@ Latest status supersedes older dated blocked/backup flags for this verified sour
 - Measure autonomous held-out performance as full curriculum training proceeds; teacher-forced training scores stay labelled.
 - Independent Tests audit acceptance scripts/controls and broaden recall/reasoning acceptance; subsequent source changes require affected checks.
 - Integrate generic checkpoint import/inference and alternative architectures as separately validated slices; preserve private whole-body backups.
+
+
+## Test findings explanation 2026-10-07T04:53:59.246570+00:00
+
+Jeff asked what the test runs revealed. Explained measured results from the preceding completed turn: CPU/CUDA each learned balanced A/B/C delayed/distracted recall in72updates, improving from0/18 validation to18/18 autonomous unseen test cases. Zeroing both recurrent states reduced accuracy to6/18(chance); substituting the originally observed fact reduced original-target scores to0/18 or6/18. The latter controls change the observation, not transplant hidden states. Evidence supports a narrow memory mechanism; it does not identify which of the two states carries which role. Browser trial exercised six optimizer updates with durable Pause/restart/Resume/Stop; distinct CPU/CUDA interruption trials proved bit-identical weights/optimizer/loss/RNG/response and no duplicate canonical writes. Complete private cloud restore loaded the canonical body and continued real GPU training. No claim of full curriculum mastery, English fluency, general reasoning or long-duration retention; one seed per device and18held-outcases are a mechanism smoke. This turn explains prior evidence; no new training, test execution, deployment, gate change or external coordination.
+
+- Describe independent recall separately from teacher-forced training scores and browser lifecycle trials.
+- Zero-state intervention supports use of recurrent memory; observation replacement is not hidden-state transplantation.
+- Both states were zeroed together, so these tests do not establish their individual responsibilities.
+- Limit conclusions to short delays/two-character distractors/three symbols and the small held-out set; broader curriculum outcomes remain to measure.
+- No multi-sentence fluency, long-term retention, broad reasoning or multi-seed generalization established.
+- Jeff can train the E0 starter and measure autonomous held-out performance over larger alphabets, longer delays, stronger distractions and multiple-character answers.
+
+
+## Core weights and completion explanation 2026-10-07T05:00:45.642918+00:00
+
+Jeff asked how the two states emit a staged response, decide completion and compute without a separate FFN. Verified current core/e0_two_state.py, manifests and E0/Heart host source. Both states are512float latent vectors; reasoningGRU(surface,previous_reasoning) feeds responseGRU(new_reasoning,previous_response). Learned parameters reside in bothGRUs(1575936each), character Linear head49248 and control Linear head1539, total3202659. Exact native bank remains non-trainable. Character head selects a native character; learned control head argmax selects WAIT/COMMIT/END in autonomous generation. Teacher-forced training supervises each target character/COMMIT and a separate terminal END. Response state is numerical, not literal English; exact text accumulates in host private draft. Each COMMIT immediately passes current draft through Heart consolidator into canonical RESPONSE_DRAFT. END closes the episode through Heart, not a delayed whole-message publication. Entire-response private editing/user-facing final publication is not implemented. Previous emitted character feeds next generation tick; recurrent states also persist. No independent sentence-quality checker exists; generation budget exhaustion is separate from learned END. GRUs contain learned gate/candidate matrices and nonlinear computation; output heads are small feedforward readouts, with no separate deep FFN. Reasoning is a role name, not evidence of broad reasoning. Only read-only source inspection and parameter enumeration this turn; no build/training/deployment/gate change.
+
+- Separate trainable weights, changing numerical recurrent states, frozen substrate and exact external draft.
+- Explain current incremental Heart commit semantics explicitly; do not imply END publishes a previously private complete answer.
+- Character choice/state update/control selection are learned; action meanings and Heart authority are engineered.
+- No separate deep FFN is needed for learned computation: both GRU cells have substantial trainable matrices and biases.
+- Whole-response private revision/final publication and broad reasoning/English fluency remain unimplemented or unproven.
+- Discuss private whole-message assembly and a distinct final-publication action if Jeff requests that architecture change.
+
+
+
+## Current private response v3 delivery 2026-10-07T07:50:00.835183+00:00
+
+Jeff requested END hand the collected response to Heart for Shared Field publication, then clarified that he had moved website folders and fixed the hosting layout himself. Delivered private response v3: WAIT updates states only; STAGE (numeric1, legacyCOMMIT alias) collects exact native characters privately; END invokes Heart.finish_response, publishes the full draft through the current consolidator, then closes. Empty END writes no filler and budget exhaustion leaves unfinished text private. Generic Heart COMMIT retains canonical-write semantics. Response component/reference graph0.1.2, unchanged input/reasoning components0.1.1, execution axon-e0-private-draft-v3. Old incremental runs/checkpoints cannot silently resume under new policy; existing artifacts preserved. Added private-prefix, unfinished-budget and post-publication-crash regressions; crash recovery yields identical weights/losses without duplicate writes. Full501Python tests in89.28seconds plus both substrate self-tests and15frontend checks pass; independent clean clone40core/loop/run tests and5acceptance tests pass. Fresh CPU/CUDA three-symbol memory trials each reach18/18 unseen cases after72updates. Chance-level zero/irrelevant controls are coarse ablations; changed original-fact tracking is stronger binding evidence, not hidden-state transplantation or broad reasoning. First disposable browser validation68996f53 failed at61updates because111backup paths exceededWindows260chars (first263); localcp-16f0a4c3-30a4-4f66-ba27-b7a465c276b6 remains intact. Verified extended-path copy succeeds; committed filesystem namespace support with canonical identity labels and a deliberately deep-root restore regression (b4abea3). Successful browser validation4c2fe48c-394d-4c09-a96d-9a95d49ce57e Start/Checkpoint/Pause(step4)/restart28276->22340/Resume/Stop(step6),177ordered unique events; real two1x512states/private text/published response visible,390pxemulation no overflow. Complete private Drive archive1o6seFkq5vCFqSgkOlYt2aVvZysuCkfYB,48654291bytes,SHA256c4fbcf2286da46497956ee024b8255fc47bdb40203b6881ca65055fd74c542e3 downloaded independently,56file hashes/SQLite/curriculum/Heart/Core/states/optimizer restored in fresh root; recovered GPU organism trained another step, generation6->7. Kimi independently reviewed laws/tests and audited evidence: no fabrication/leakage, noted empty Adam in initial mid-response harness, structurally chance controls and degenerate RNG test. Strengthened recovery via preserved producer script: one completed warm-up populates Adam, RNG deliberately perturbed before load, CPU/CUDA exact weights/losses/optimizer tensor values restored; values compared after CPU normalization, scalar step placement not asserted. New required recovery proof hashed/referenced; initial empty-optimizer proof retained. Current trusted acceptance accepted/backupverified; new starter82888a2d-f719-4140-ab70-d04dfa2439ea remainscreated,step0,Startenabled, selected in browser. Jeff-fixed frontendG:/My Drive/Cloudfare/Sites/axon matches currentapp.js; launcher state C:/Users/axema/AppData/Local/Cloudfare, supervisor28572/main22340/tunnel15108. Other service PIDs unchanged by controlled restart. Root left folder repair to Jeff after his clarification. Source commits2033a2f andb4abea3 pushed; final ledgers/profile/registry updated and preservation push follows. Generic inference/import, draft editing, broad fluency/long-term reasoning and physical phone behavior remain unproven or separate work.
+
+This supersedes older incremental-emission/blocked-status descriptions for the verified current source.
+
+- Private collection and complete END publication replace incremental E0 writes at Jeff's explicit direction.
+- The neural choice remains learned; action meanings and Heart authority are engineered. No extra FFN or changed learned tensor shapes.
+- Versioned response policy blocks silent adoption by older prepared runs/active checkpoints; prepare new graph instead.
+- Preserve entire canonical Heart dependency closure along with checkpoint; Windows filesystem namespace prefixes must not alter branch identity labels.
+- Respect Jeff's repaired hosting layout; verify live process/config rather than using stale AppData/Axon/Cloudfare status.
+- Stateful optimizer evidence must use populated Adam state; RNG transfer is tested after deliberate perturbation, while this GRU is deterministic.
+- Chance-level ablations do not quantify memory depth; swapped original observation follows the new fact and supports binding.
+- Preserve failed diagnostic artifacts and immutable histories; normal user starter remains untrained.
+- Broad curriculum mastery/fluency/general reasoning, arbitrary private editing, generic Lab import/inference and physical phone operation remain outside verified scope.
+- Original standalone recovery script interrupts before first Adam step; stronger preserved producer/report now supplies the required recovery proof. CUDA scalar-step device placement is not asserted by that value-normalized comparison.
+- Kimi's branch-root failure happened during transitional shared-tree long-path edits; current normalized code passes stable full suite/deep-root/clean-clone checks. Independent stable-clone recheck invited.
+- Browser aggregate and strengthened recovery producers are preserved in personal artifacts, outside production source_hash; hashed proof files remain server-owned.
+- Later Drive checkpoint copies remain cloud_pending until independently downloaded; verified current archive is explicit.
+- Jeff can train the selected v3 starter; model STAGE/END behavior follows private collector/publication rules.
+- Measure autonomous broader curriculum performance; teacher-forced scores remain labelled.
+- Coordinate future source changes because fingerprint drift closes Start; independent audit follow-up and source-hosted proof producers are useful next increments.
