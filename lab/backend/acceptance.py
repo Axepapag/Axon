@@ -90,7 +90,9 @@ class Acceptance:
     def preserve_registry(self, source: Path):
         import datetime as dt, sqlite3
         value,error=self.evidence()
-        if not value: raise ValueError('Registry preservation unavailable: '+str(error))
+        # Preparation and stopping an unstarted run remain available while the
+        # execution gate is closed; no approved preservation target exists yet.
+        if not value: return None
         target=Path(value['checkpoint_backup_root'])/'registry'/('snapshot-'+dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')+'.sqlite3')
         target.parent.mkdir(parents=True,exist_ok=True)
         with sqlite3.connect(source) as src, sqlite3.connect(target) as dest:

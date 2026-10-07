@@ -125,7 +125,7 @@ def create_app(*, root: Path = ROOT, state_path: Path | None = None,
                         if device["id"] == info.get("selected_device"):
                             device.update(status="available", reason="A real tensor operation passed in the recorded preflight.", evidence=op["operation_id"])
         return {"schema_version": SCHEMA, "backend_version": "0.1.0", "components": catalog,
-                "devices": devices, "providers": [{"id": "local", "name": "Local execution", "status": "available", "reason": "Foundation service available; training adapter pending."},
+                "devices": devices, "providers": [{"id": "local", "name": "Local execution", "status": "available", "reason": "Local E0 training is available when its execution acceptance checks pass."},
                     {"id": "kaggle", "name": "Kaggle", "status": "not_integrated", "reason": "No launch adapter configured."},
                     {"id": "colab", "name": "Colab", "status": "not_integrated", "reason": "No launch adapter configured."}],
                 "native_alphabet": ALPHABET, "supported_actions": ["preflight", "validate_architecture", "register_architecture", "create_run"],
